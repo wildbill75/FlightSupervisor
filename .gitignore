@@ -1,0 +1,35 @@
+# .gitignore for .NET and web projects
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+[Bb]in/
+[Oo]bj/
+[Rr]elease/
+[Dd]ebug/
+
+# Dependencies
+node_modules/
+.npm/
+
+# Settings and configurations
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# System files
+[Tt]mp/
+[Ll]og/
+*.log
+
+# Git files
+.git/
+
+# MSFS specific (likely telemetry data or local cache)
+*.tmp
+*.bak
