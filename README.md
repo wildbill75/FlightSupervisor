@@ -1,38 +1,72 @@
-# FlightSupervisor
+# Flight Supervisor - Assistant de Vol Avancé pour MSFS
 
-**FlightSupervisor** est un assistant de vol avancé pour Microsoft Flight Simulator (MSFS). Il fournit une interface de suivi en temps réel via une application WPF dédiée et un panneau Bloom (Toolbar) intégré directement dans le simulateur.
+**Flight Supervisor** est un compagnon de vol intelligent pour Microsoft Flight Simulator, conçu pour évaluer la qualité du pilotage à travers une approche positive (le **SuperScore**) et assurer le confort des passagers en temps réel.
 
-## 🚀 Fonctionnalités Principales
+## 🌟 Vision du Projet
 
-- **Connexion SimConnect Native** : Récupération des données de télémétrie en temps réel directement depuis MSFS.
-- **Flight Phase Manager** : Détection automatique des phases de vol (Taxi, Takeoff, Climb, Cruise, Descent, Approach, Landing, Parked).
-- **Intégration SimBrief** : Importation de vos plans de vol SimBrief pour un suivi précis.
-- **Briefing Météo** : Analyse en temps réel des METAR et TAF pour vos aéroports de départ et d'arrivée.
-- **In-Game Toolbar Panel** : Un panneau HTML/JS léger accessible directement en vol (idéal pour la VR ou le 2D).
-- **Système de Scoring (SuperScore)** : (En développement) Évalue votre pilotage et le respect des procédures opérationnelles.
+Le projet repose sur trois piliers fondamentaux :
+1.  **Philosophie Positive (SuperScore)** : Récompenser les bonnes décisions (Kiss Landing, gestion des turbulences) plutôt que de simplement punir les erreurs.
+2.  **Immersion Totale** : Une interface intégrée (Toolbar Panel) compatible VR/2D et une "Boîte Noire" qui traque chaque paramètre critique.
+3.  **Intelligence Opérationnelle** : Analyse automatique des METAR/TAF, intégration SimBrief et gestion dynamique des phases de vol.
 
-## 🛠️ Architecture du Projet
+---
 
-Le projet est divisé en deux composants majeurs :
+## 🚀 Fonctionnalités Actuelles & Prévues
 
-### 1. `FlightSupervisor.UI` (WPF / C#)
-L'application principale qui gère la logique métier, la communication SimConnect et l'affichage des données détaillées.
-- **Services** : `SimConnectService`, `FlightPhaseManager`, `SimBriefService`, `WeatherBriefingService`.
-- **Serveur Panel** : Gère la synchronisation des données avec le panneau en jeu via `PanelServerService`.
+### ✈️ Gestion du Vol
+- **Flight Phase Manager** : Détection automatique des phases (Taxi, Take-off, Climb, Cruise, etc.).
+- **SimConnect Engine** : Monitoring haute fréquence (20Hz) de la télémétrie (G-Force, Vertical Speed, Pitch/Bank).
+- **Anti-Slew/Pause Protection** : Filtrage des données lors de l'utilisation du mode transposition ou de la pause.
 
-### 2. `FlightSupervisor.Panel` (HTML / CSS / JS)
-Le panneau "Toolbar" intégré à MSFS.
-- Interface moderne et réactive.
-- Communication bidirectionnelle avec l'application UI.
+### 📋 Préparation & Météo
+- **SimBrief API** : Importation directe des plans de vol opérationnels (OFP).
+- **Smart Weather Briefing** : Synthèse textuelle intelligente des conditions météo (METAR/TAF) sous forme de "Briefing Commandant".
+- **Calculateur de Limites** : (En cours) Base de données des limites "Go/No-Go" selon l'appareil.
 
-## 📥 Installation & Utilisation
+### 🎭 SuperScore & Passagers
+- **Pilier Pilotage** : Évaluation technique (respect des limites structurelles, handling).
+- **Pilier Commercial** : Gestion du confort passager (température cabine, signal Seatbelts en turbulence).
+- **Bonus Dynamiques** : Multiplicateurs de score basés sur la difficulté météo (Crosswind, visibilité).
 
-1. Lancez Microsoft Flight Simulator.
-2. Lancez `FlightSupervisor.UI`.
-3. Assurez-vous que la connexion SimConnect est établie (voyant vert).
-4. Importez votre vol SimBrief si nécessaire.
-5. Ouvrez le panneau Flight Supervisor depuis la barre d'outils de MSFS.
+### 🖥️ Interface Utilisateur
+- **WPF Preparation UI** : Application de bureau pour le paramétrage et le briefing pré-vol.
+- **In-Game Toolbar Panel** : Interface HTML/JS déportée affichant en direct :
+    - Phase de vol actuelle.
+    - Horaires ZULU et Timetable (Prévu vs Réel).
+    - Feedbacks dynamiques (Notifications de bonus/pénalités).
 
-## 📝 Licence
+---
 
-Copyright © 2026 - wildbill75
+## 🏗️ Architecture Technique
+
+- **Backend** : C# .NET 8.0 (WPF).
+- **Communication Sim** : SimConnect (DLL native).
+- **In-Game Overlay** : Bloom Toolbar HTML/JS/CSS.
+- **Bridge** : Serveur WebSocket/HTTP local pour la communication UI <-> Panel.
+- **Aircraft Compatibility Layer** : Providers spécifiques pour gérer les L-Vars (Fenix A320, PMDG, iniBuilds).
+
+---
+
+## 📍 Road Map
+
+- [x] Intégration API SimBrief.
+- [x] Moteur de Briefing Météo intelligent.
+- [x] Machine d'états des phases de vol.
+- [x] Architecture de base du Panel Toolbar.
+- [ ] Packaging Community Folder pour MSFS.
+- [ ] Moteur de Score final (SuperScore Interpretation).
+- [ ] Adaptateur spécifique Fenix A320 (Seatbelts/Engines L-Vars).
+- [ ] Enregistrement "Boîte Noire" (SQLite logging).
+
+---
+
+## 🛠️ Installation
+
+1. Clonez le dépôt dans votre dossier de développement.
+2. Compilez la solution `FlightSupervisor.slnx` via Visual Studio.
+3. (À venir) Copiez le dossier `flight-supervisor-panel` dans votre dossier `Community`.
+4. Lancez le simulateur, puis l'application UI.
+
+---
+
+**Développé par wildbill75 - 2026**
