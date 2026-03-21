@@ -1,0 +1,50 @@
+<Window x:Class="FlightSupervisor.UI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Flight Supervisor - Preparatory UI (v0.2.1)" Height="450" Width="800"
+        Background="#1E1E1E">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,20">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Flight Supervisor" FontSize="24" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text=" v0.2.1" FontSize="14" Foreground="#888888" VerticalAlignment="Bottom" Margin="5,0,0,3"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <Border Background="#444444" CornerRadius="3" Padding="10,5" Margin="0,0,20,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Sim Zulu: " Foreground="#DDDDDD" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="SimTimeText" Text="--:--z" Foreground="White" FontWeight="Bold"/>
+                    </StackPanel>
+                </Border>
+                <TextBlock x:Name="SimConnectStatusText" Text="MSFS: Disconnected" Foreground="#00FFCC" FontWeight="Bold" Margin="0,0,20,0" VerticalAlignment="Center"/>
+                <TextBlock x:Name="PhaseStatusText" Text="Phase: Off" Foreground="#FFA500" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="SimBrief Username:" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <TextBox x:Name="SimBriefUsernameInput" Width="150" Height="25" VerticalContentAlignment="Center" Padding="5,0"/>
+            <CheckBox x:Name="SaveUsernameCheckbox" Content="Remember Me" VerticalAlignment="Center" Foreground="White" Margin="10,0,0,0" IsChecked="True"/>
+            <Button x:Name="FetchPlanButton" Content="Fetch Latest Flight Plan" Width="150" Height="25" Margin="10,0,0,0" Click="FetchPlanButton_Click" Background="#007ACC" Foreground="White" BorderThickness="0"/>
+            <Button Content="Météo Sandbox" Width="110" Height="25" Margin="20,0,0,0" Click="OpenTester_Click" Background="#8B0000" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+        </StackPanel>
+
+        <TextBlock Grid.Row="2" x:Name="StatusText" Text="Ready" Foreground="#AAAAAA" Margin="0,0,0,10"/>
+
+        <Border Grid.Row="3" BorderBrush="#333333" BorderThickness="1" Background="#252526" Padding="10">
+            <ScrollViewer>
+                <TextBlock x:Name="FlightPlanResultText" Text="Flight plan data will appear here..." Foreground="#DDDDDD" TextWrapping="Wrap" FontFamily="Consolas"/>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</Window>

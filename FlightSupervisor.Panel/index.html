@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Flight Supervisor Panel</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div id="FlightSupervisor_Panel" class="panel-container">
+        <header>
+            <div class="logo-container">
+                <div class="logo">FS</div>
+                <h1>Flight Supervisor</h1>
+            </div>
+            <div id="status-indicator" class="status-offline">Offline</div>
+        </header>
+        
+        <main>
+            <!-- SimBrief Section -->
+            <section class="simbrief-section">
+                <div class="simbrief-controls">
+                    <input type="text" id="simbrief-username" placeholder="SimBrief Username" />
+                    <button id="btn-fetch-simbrief">FETCH PLAN</button>
+                </div>
+                <div id="simbrief-loading" class="hidden">Fetching from C# Engine...</div>
+                <div id="simbrief-data" class="hidden">
+                    <div class="flight-route"><span id="val-departure">----</span> ✈️ <span id="val-destination">----</span></div>
+                    <div class="flight-details">
+                        <div><strong>FL:</strong> <span id="val-level">---</span></div>
+                        <div class="route-string"><strong>RTE:</strong> <span id="val-route">...</span></div>
+                    </div>
+                    <h4 class="section-title" style="margin-top:10px;">COMMANDER BRIEFING</h4>
+                    <div class="briefing-text" id="val-briefing">...</div>
+                </div>
+            </section>
+
+            <section class="phase-display">
+                <span class="phase-label">CURRENT PHASE</span>
+                <h2 id="val-phase">AT GATE</h2>
+            </section>
+
+            <section class="timetable-display">
+                <h3 class="section-title">TIMETABLE (UTC)</h3>
+                <div class="timetable-grid">
+                    <div class="time-item">
+                        <span class="time-label">Sim ZULU</span>
+                        <span class="time-value" id="val-zulu">--:--z</span>
+                    </div>
+                    <div class="time-item">
+                        <span class="time-label">AOBT</span>
+                        <span class="time-value" id="val-aobt">--:--z</span>
+                    </div>
+                    <div class="time-item">
+                        <span class="time-label">AIBT</span>
+                        <span class="time-value" id="val-aibt">--:--z</span>
+                    </div>
+                </div>
+            </section>
+            
+            <section class="feedbacks" id="feedbacks-container">
+                <div class="feedback-item default-feedback">
+                    Awaiting telemetry link...
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
