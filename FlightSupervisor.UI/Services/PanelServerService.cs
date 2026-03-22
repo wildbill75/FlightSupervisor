@@ -89,10 +89,10 @@ namespace FlightSupervisor.UI.Services
 
                         var data = new
                         {
-                            departure = sbResponse.Origin?.Icao ?? "----",
-                            destination = sbResponse.Destination?.Icao ?? "----",
+                            departure = sbResponse.Origin?.IcaoCode ?? "----",
+                            destination = sbResponse.Destination?.IcaoCode ?? "----",
                             route = sbResponse.General?.Route ?? "...",
-                            level = sbResponse.General?.InitialAltitude ?? "---",
+                            level = sbResponse.General?.InitialAlt ?? "---",
                             briefing = briefingText
                         };
 

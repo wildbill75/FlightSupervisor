@@ -19,6 +19,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<double>? OnRadioHeightReceived;
         public event Action<DateTime>? OnSimTimeReceived;
         public event Action<bool>? OnParkingBrakeReceived;
+        public event Action<bool>? OnGearDownReceived;
 
         enum DEFINITIONS { PlaneData }
         enum REQUESTS { PlaneDataReq }
@@ -32,6 +33,7 @@ namespace FlightSupervisor.UI.Services
             public double ZuluTime;
             public double ParkingBrakeIndicator;
             public double RadioHeight;
+            public double GearHandle;
         }
 
         public SimConnectService() { }
@@ -56,6 +58,7 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "ZULU TIME", "Seconds", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "BRAKE PARKING INDICATOR", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "RADIO HEIGHT", "Feet", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GEAR HANDLE POSITION", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
 
                 _simconnect.RegisterDataDefineStruct<PlaneDataStruct>(DEFINITIONS.PlaneData);
                 
@@ -116,6 +119,7 @@ namespace FlightSupervisor.UI.Services
                 OnAirspeedReceived?.Invoke(planeData.IndicatedAirspeed);
                 OnRadioHeightReceived?.Invoke(planeData.RadioHeight);
                 OnParkingBrakeReceived?.Invoke(planeData.ParkingBrakeIndicator > 0.5);
+                OnGearDownReceived?.Invoke(planeData.GearHandle > 0.5);
 
                 // Build Sim Time
                 try

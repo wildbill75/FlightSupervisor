@@ -18,10 +18,14 @@ namespace FlightSupervisor.UI
         private double _lastKnownAltitude = 0;
         private double _lastKnownRadioHeight = 0;
         private bool _isParkingBrakeSet = false;
+        private bool _isGearDown = true;
         private DateTime _currentSimTime = DateTime.MinValue;
         private DateTime? _aobt = null; // Actual Off-Block Time
         private DateTime? _aibt = null; // Actual In-Block Time
         
+        private GroundOpsManager _groundOpsManager;
+        private System.Windows.Threading.DispatcherTimer _uiTimer;
+
         private PanelServerService? _panelServer;
 
         public MainWindow()
@@ -34,6 +38,17 @@ namespace FlightSupervisor.UI
                 SimBriefUsernameInput.Text = System.IO.File.ReadAllText(saveFilePath);
 
             SimBriefUsernameInput.Focus();
+
+            _groundOpsManager = new GroundOpsManager();
+            _groundOpsManager.OnOpsCompleted += () => Dispatcher.Invoke(() => MessageBox.Show("Ground operations completed! Aircraft is fully secured and ready for departure.", "Ground Ops"));
+
+            _uiTimer = new System.Windows.Threading.DispatcherTimer();
+            _uiTimer.Interval = TimeSpan.FromSeconds(1);
+            _uiTimer.Tick += (s, e) => { 
+                _groundOpsManager.Tick(); 
+                UpdateFlightPlanDisplay(); // Force refresh to show Ground Ops progress
+            };
+            _uiTimer.Start();
 
             _phaseManager = new FlightPhaseManager();
             _phaseManager.OnPhaseChanged += phase => {
@@ -73,7 +88,10 @@ namespace FlightSupervisor.UI
             _simConnectService.OnAltitudeReceived += alt => {
                 _lastKnownAltitude = alt;
                 Dispatcher.Invoke(() => SimConnectStatusText.Text = $"MSFS Connected | Alt: {alt:F0} ft | GS: {_lastKnownGroundSpeed:F0} kts | PKG BRK: {(_isParkingBrakeSet ? "ON" : "OFF")}");
-                _phaseManager.UpdateTelemetry(_lastKnownGroundSpeed, _lastKnownAirspeed, alt, _lastKnownRadioHeight, _isParkingBrakeSet);
+                _phaseManager.UpdateTelemetry(_lastKnownGroundSpeed, _lastKnownAirspeed, alt, _lastKnownRadioHeight, _isParkingBrakeSet, _isGearDown);
+            };
+            _simConnectService.OnGearDownReceived += gd => {
+                _isGearDown = gd;
             };
             _simConnectService.OnRadioHeightReceived += rh => {
                 _lastKnownRadioHeight = rh;
@@ -157,6 +175,8 @@ namespace FlightSupervisor.UI
                 if (response != null && response.Fetch?.Status == "Success")
                 {
                     _currentResponse = response;
+                    _groundOpsManager.InitializeFromSimBrief(response);
+                    _groundOpsManager.StartOps(); // Auto-start for simplicity in this MVP
                     StatusText.Text = "Flight plan loaded successfully!";
                     UpdateFlightPlanDisplay();
                 }
@@ -255,7 +275,10 @@ namespace FlightSupervisor.UI
                 ExtractJsonStrings(response.Weather?.AltnMetar) + "\n" +
                 ExtractJsonStrings(response.Weather?.EnrtMetar) + "\n" +
                 ExtractJsonStrings(response.Weather?.AltnTaf) + "\n" +
-                ExtractJsonStrings(response.Weather?.EnrtTaf);
+                ExtractJsonStrings(response.Weather?.EnrtTaf) + "\n" +
+                $"---------------------------\n" +
+                $"VIRTUAL GROUND OPS:\n" +
+                _groundOpsManager.GetStatusString() + "\n";
         }
 
         private string ExtractJsonStrings(System.Text.Json.JsonElement? element)

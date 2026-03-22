@@ -26,13 +26,15 @@ namespace FlightSupervisor.UI.Services
         
         private bool _hasTriggeredOverspeedPenalty = false;
         private bool _hasTriggeredTaxiPenalty = false;
+        private bool _hasTriggeredGearOverspeed = false;
+        private bool _hasTriggeredGearLate = false;
         private int _taxiOverspeedSeconds = 0;
         private int _overspeedSeconds = 0;
         private double _highestAltitudeReached = 0;
         public double TargetCruiseAltitude { get; set; } = 10000;
         public double AccelerationAltitudeAgl { get; set; } = 1500; // Default NADP2 standard
 
-        public void UpdateTelemetry(double groundSpeed, double indicatedAirspeed, double altitude, double radioHeight, bool isParkingBrakeSet)
+        public void UpdateTelemetry(double groundSpeed, double indicatedAirspeed, double altitude, double radioHeight, bool isParkingBrakeSet, bool isGearDown)
         {
             // Track highest cruise altitude to detect Descent accurately
             if (altitude > _highestAltitudeReached && 
@@ -45,7 +47,8 @@ namespace FlightSupervisor.UI.Services
             if (CurrentPhase == FlightPhase.InitialClimb || CurrentPhase == FlightPhase.Climb || CurrentPhase == FlightPhase.Cruise || 
                 CurrentPhase == FlightPhase.Descent || CurrentPhase == FlightPhase.Approach)
             {
-                if (altitude < 10000 && indicatedAirspeed > 255.0) 
+                // Global Airborne Speed Limit (250kts under 10,000ft) with 260kt tolerance
+                if (altitude < 10000 && indicatedAirspeed > 260.0) 
                 {
                     _overspeedSeconds++;
                     if (_overspeedSeconds >= 10 && !_hasTriggeredOverspeedPenalty)
@@ -57,6 +60,20 @@ namespace FlightSupervisor.UI.Services
                 else if (indicatedAirspeed <= 250.0)
                 {
                     _overspeedSeconds = 0;
+                }
+
+                // Gear deployed above 260 kts threshold
+                if (isGearDown && indicatedAirspeed > 260.0 && !_hasTriggeredGearOverspeed)
+                {
+                    _hasTriggeredGearOverspeed = true;
+                    OnPenaltyTriggered?.Invoke("Safety Violation: Landing Gear deployed above maximum extended speed (VLE > 260kts).");
+                }
+
+                // Gear forgotten on short final
+                if (CurrentPhase == FlightPhase.Approach && radioHeight < 1000 && radioHeight > 50 && !isGearDown && groundSpeed > 50 && !_hasTriggeredGearLate)
+                {
+                    _hasTriggeredGearLate = true;
+                    OnPenaltyTriggered?.Invoke("Safety: Unstable Approach (Gear Not Down below 1000ft AGL).");
                 }
             }
 
@@ -120,12 +137,12 @@ namespace FlightSupervisor.UI.Services
                     break;
                 
                 case FlightPhase.Descent:
-                    if (altitude < 4000) ChangePhase(FlightPhase.Approach);
+                    if (radioHeight > 0 && radioHeight < 4000) ChangePhase(FlightPhase.Approach);
                     break;
                 
                 case FlightPhase.Approach:
-                    // A typical airliner touches down between 120 and 160 knots
-                    if (altitude <= 600 && groundSpeed < 170) ChangePhase(FlightPhase.Landing);
+                    // Touchdown transition based on Radio Altimeter
+                    if (radioHeight > 0 && radioHeight <= 50 && groundSpeed < 170) ChangePhase(FlightPhase.Landing);
                     break;
                 
                 case FlightPhase.Landing:
