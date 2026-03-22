@@ -1,0 +1,236 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+    background-color: #0F111A;
+    color: #E2E8F0;
+}
+
+/* 
+   Drag region for the whole body doesn't work well if it blocks clicks.
+   We'll use a specific header for dragging.
+*/
+
+/* Left Sidebar */
+#sidebar {
+    width: 200px;
+    background-color: #161A25;
+    border-right: 1px solid #2B3347;
+    display: flex;
+    flex-direction: column;
+    padding-top: 20px;
+}
+
+.logo {
+    font-size: 24px;
+    font-weight: 800;
+    color: #4A90E2;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.menu {
+    list-style: none;
+    flex: 1;
+}
+
+.menu li {
+    padding: 12px 20px;
+    margin: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    font-weight: 500;
+    color: #94A3B8;
+}
+
+.menu li:hover {
+    background-color: #1E2433;
+    color: #F8FAFC;
+}
+
+.menu li.active {
+    background-color: #4A90E2;
+    color: white;
+}
+
+.status-pill {
+    margin: 20px;
+    padding: 8px;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: bold;
+    background-color: #1E2433;
+}
+.status-pill.error { color: #F87171; border: 1px solid #7F1D1D; }
+.status-pill.success { color: #34D399; border: 1px solid #064E3B; background-color: #064E3B; }
+
+/* Main Content */
+#main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Top Drag Bar */
+#top-bar {
+    height: 50px;
+    background-color: #1B1F2D;
+    border-bottom: 1px solid #2B3347;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    cursor: grab;
+    user-select: none;
+}
+
+#top-bar:active {
+    cursor: grabbing;
+}
+
+.title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #E2E8F0;
+    /* IMPORTANT: Prevent pointer-events on children so the drag works easily */
+    pointer-events: none;
+}
+
+.spacer {
+    flex: 1;
+    pointer-events: none;
+}
+
+.zulu-time {
+    font-family: monospace;
+    color: #94A3B8;
+    margin-right: 20px;
+}
+
+.phase-pill {
+    background: #334155;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #FACC15;
+}
+
+/* Content Sections */
+.content-container {
+    flex: 1;
+    padding: 30px;
+    overflow-y: auto;
+}
+
+section {
+    display: none;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+section.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+h2 {
+    font-size: 24px;
+    font-weight: 400;
+    margin-bottom: 20px;
+    color: #F8FAFC;
+    border-bottom: 1px solid #2B3347;
+    padding-bottom: 10px;
+}
+
+/* Options Form */
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    color: #cbd5e1;
+    font-size: 14px;
+}
+
+input[type="text"] {
+    background-color: #1E2433;
+    border: 1px solid #334155;
+    color: white;
+    padding: 10px;
+    border-radius: 4px;
+    width: 250px;
+}
+
+.checkbox {
+    display: flex;
+    align-items: center;
+}
+.checkbox input {
+    margin-right: 10px;
+}
+.checkbox label {
+    margin-bottom: 0;
+}
+
+button {
+    background-color: #4A90E2;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background-color: #357ABD;
+}
+
+#fetchStatus {
+    margin-top: 15px;
+    font-size: 14px;
+    color: #FACC15;
+}
+
+/* Briefing & Ground Ops formats */
+#briefingContent {
+    white-space: pre-wrap;
+    font-family: inherit;
+    line-height: 1.6;
+    color: #cbd5e1;
+    background: #161A25;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #2B3347;
+}
+
+.go-service {
+    display: flex;
+    align-items: center;
+    background: #161A25;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+    border: 1px solid #2B3347;
+}
+.go-name { width: 120px; font-weight: bold; }
+.go-bar-bg { flex: 1; height: 10px; background: #334155; border-radius: 5px; margin: 0 15px; overflow: hidden; }
+.go-bar-fill { height: 100%; background: #4A90E2; transition: width 1s linear; }
+.go-status { width: 150px; text-align: right; color: #94A3B8; font-size: 13px; }
+.go-btn { margin-left: 15px; background: #475569; padding: 5px 10px; font-size: 12px; }
+.go-btn:hover { background: #DC2626; }

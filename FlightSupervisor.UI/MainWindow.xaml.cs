@@ -1,6 +1,9 @@
 using System;
 using System.Windows;
 using System.Windows.Interop;
+using System.Text.Json;
+using System.Runtime.InteropServices;
+using Microsoft.Web.WebView2.Core;
 using FlightSupervisor.UI.Services;
 using FlightSupervisor.UI.Models.SimBrief;
 
@@ -20,104 +23,209 @@ namespace FlightSupervisor.UI
         private bool _isParkingBrakeSet = false;
         private bool _isGearDown = true;
         private DateTime _currentSimTime = DateTime.MinValue;
-        private DateTime? _aobt = null; // Actual Off-Block Time
-        private DateTime? _aibt = null; // Actual In-Block Time
+        private DateTime? _aobt = null;
+        private DateTime? _aibt = null;
         
         private GroundOpsManager _groundOpsManager;
         private System.Windows.Threading.DispatcherTimer _uiTimer;
-
         private PanelServerService? _panelServer;
 
         public MainWindow()
         {
             InitializeComponent();
             _simBriefService = new SimBriefService();
-            
-            var saveFilePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FlightSupervisor_User.txt");
-            if (System.IO.File.Exists(saveFilePath))
-                SimBriefUsernameInput.Text = System.IO.File.ReadAllText(saveFilePath);
-
-            SimBriefUsernameInput.Focus();
 
             _groundOpsManager = new GroundOpsManager();
-            _groundOpsManager.OnOpsCompleted += () => Dispatcher.Invoke(() => MessageBox.Show("Ground operations completed! Aircraft is fully secured and ready for departure.", "Ground Ops"));
+            _groundOpsManager.OnOpsCompleted += () => SendToWeb(new { type = "groundOpsComplete" });
 
             _uiTimer = new System.Windows.Threading.DispatcherTimer();
             _uiTimer.Interval = TimeSpan.FromSeconds(1);
             _uiTimer.Tick += (s, e) => { 
-                _groundOpsManager.Tick(); 
-                UpdateFlightPlanDisplay(); // Force refresh to show Ground Ops progress
+                _groundOpsManager.Tick();
+                SendTelemetryToWeb();
             };
             _uiTimer.Start();
 
             _phaseManager = new FlightPhaseManager();
             _phaseManager.OnPhaseChanged += phase => {
                 Dispatcher.Invoke(() => {
-                    PhaseStatusText.Text = $"Phase: {phase}";
-                    
                     if (phase == FlightPhase.Pushback || phase == FlightPhase.TaxiOut)
                     {
                         if (_aobt == null && _currentSimTime != DateTime.MinValue) 
-                        {
                             _aobt = _currentSimTime;
-                            UpdateFlightPlanDisplay();
-                        }
                     }
                     else if (phase == FlightPhase.Arrived)
                     {
                         if (_aibt == null && _currentSimTime != DateTime.MinValue) 
-                        {
                             _aibt = _currentSimTime;
-                            UpdateFlightPlanDisplay();
-                        }
                     }
+                    SendToWeb(new { type = "phaseUpdate", phase = phase.ToString() });
                 });
             };
             _phaseManager.OnPenaltyTriggered += msg => {
-                Dispatcher.Invoke(() => MessageBox.Show(msg, "SuperScore Penalty!", MessageBoxButton.OK, MessageBoxImage.Warning));
+                Dispatcher.Invoke(() => SendToWeb(new { type = "penalty", message = msg }));
             };
 
-            // Start Local Web Server for In-Game Panel Bridge
             _panelServer = new PanelServerService(new SimBriefService(), new WeatherBriefingService(), _phaseManager);
-            try { _panelServer.StartServer(); } catch { /* Ignore if port in use */ }
+            try { _panelServer.StartServer(); } catch { }
 
             _simConnectService = new SimConnectService();
             _simConnectService.OnConnectionStateChanged += state => {
-                Dispatcher.Invoke(() => SimConnectStatusText.Text = state);
+                Dispatcher.Invoke(() => SendToWeb(new { type = "simConnectStatus", status = state }));
             };
             _simConnectService.OnAltitudeReceived += alt => {
                 _lastKnownAltitude = alt;
-                Dispatcher.Invoke(() => SimConnectStatusText.Text = $"MSFS Connected | Alt: {alt:F0} ft | GS: {_lastKnownGroundSpeed:F0} kts | PKG BRK: {(_isParkingBrakeSet ? "ON" : "OFF")}");
                 _phaseManager.UpdateTelemetry(_lastKnownGroundSpeed, _lastKnownAirspeed, alt, _lastKnownRadioHeight, _isParkingBrakeSet, _isGearDown);
             };
-            _simConnectService.OnGearDownReceived += gd => {
-                _isGearDown = gd;
-            };
-            _simConnectService.OnRadioHeightReceived += rh => {
-                _lastKnownRadioHeight = rh;
-            };
-            _simConnectService.OnGroundSpeedReceived += gs => {
-                _lastKnownGroundSpeed = gs;
-            };
-            _simConnectService.OnAirspeedReceived += ias => {
-                _lastKnownAirspeed = ias;
-            };
-            _simConnectService.OnParkingBrakeReceived += pb => {
-                _isParkingBrakeSet = pb;
-            };
-            _simConnectService.OnSimTimeReceived += time => {
+            _simConnectService.OnGearDownReceived += gd => { _isGearDown = gd; };
+            _simConnectService.OnRadioHeightReceived += rh => { _lastKnownRadioHeight = rh; };
+            _simConnectService.OnGroundSpeedReceived += gs => { _lastKnownGroundSpeed = gs; };
+            _simConnectService.OnAirspeedReceived += ias => { _lastKnownAirspeed = ias; };
+            _simConnectService.OnParkingBrakeReceived += pb => { _isParkingBrakeSet = pb; };
+            _simConnectService.OnSimTimeReceived += time => { 
                 _currentSimTime = time;
-                Dispatcher.Invoke(() => SimTimeText.Text = time.ToString("HH:mm") + "z");
+                Dispatcher.Invoke(() => SendToWeb(new { type = "simTime", time = time.ToString("HH:mm") + "z" }));
             };
 
             Loaded += MainWindow_Loaded;
             Closed += MainWindow_Closed;
+            
+            InitializeWebViewAsync();
+        }
+
+        private async void InitializeWebViewAsync()
+        {
+            var env = await CoreWebView2Environment.CreateAsync(null, System.IO.Path.Combine(System.IO.Path.GetTempPath(), "FlightSupervisorWebView"));
+            await MainWebView.EnsureCoreWebView2Async(env);
+            
+            MainWebView.CoreWebView2.SetVirtualHostNameToFolderMapping("app.local", "wwwroot", CoreWebView2HostResourceAccessKind.Allow);
+            MainWebView.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
+            MainWebView.CoreWebView2.Navigate("http://app.local/index.html");
+
+            var saveFilePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FlightSupervisor_User.txt");
+            if (System.IO.File.Exists(saveFilePath))
+            {
+                var username = System.IO.File.ReadAllText(saveFilePath);
+                MainWebView.CoreWebView2.NavigationCompleted += (s, e) => 
+                {
+                     SendToWeb(new { type = "savedUsername", username = username });
+                };
+            }
+        }
+
+        [DllImport("user32.dll")]
+        public static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
+        [DllImport("user32.dll")]
+        public static extern bool ReleaseCapture();
+
+        private async void CoreWebView2_WebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
+        {
+            try 
+            {
+                var msg = e.WebMessageAsJson;
+                var doc = JsonDocument.Parse(msg);
+                var action = doc.RootElement.GetProperty("action").GetString();
+                
+                if (action == "drag") 
+                {
+                    Dispatcher.Invoke(() => {
+                        var helper = new WindowInteropHelper(this);
+                        ReleaseCapture();
+                        SendMessage(helper.Handle, 0xA1, 2, 0);
+                    });
+                }
+                else if (action == "fetch") 
+                {
+                    var username = doc.RootElement.GetProperty("username").GetString();
+                    var remember = doc.RootElement.GetProperty("remember").GetBoolean();
+                    await FetchFlightPlan(username, remember);
+                }
+                else if (action == "skipService")
+                {
+                    var srvName = doc.RootElement.GetProperty("service").GetString();
+                    _groundOpsManager.SkipService(srvName);
+                }
+            } catch { }
+        }
+
+        private void SendToWeb(object data)
+        {
+            if (MainWebView?.CoreWebView2 != null)
+            {
+                MainWebView.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(data));
+            }
+        }
+
+        private void SendTelemetryToWeb()
+        {
+            SendToWeb(new 
+            {
+                type = "telemetry",
+                phase = _phaseManager.CurrentPhase.ToString(),
+                altitude = _lastKnownAltitude,
+                groundSpeed = _lastKnownGroundSpeed,
+                radioHeight = _lastKnownRadioHeight,
+                isGearDown = _isGearDown
+            });
+            
+            if (_groundOpsManager.Services.Count > 0)
+            {
+                SendToWeb(new 
+                {
+                    type = "groundOps",
+                    services = _groundOpsManager.Services
+                });
+            }
+        }
+
+        private async System.Threading.Tasks.Task FetchFlightPlan(string username, bool remember)
+        {
+            if (string.IsNullOrEmpty(username)) return;
+
+            if (remember)
+            {
+                var saveFilePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FlightSupervisor_User.txt");
+                System.IO.File.WriteAllText(saveFilePath, username);
+            }
+
+            SendToWeb(new { type = "fetchStatus", status = "loading", message = "Fetching flight plan..." });
+
+            try
+            {
+                var response = await _simBriefService.FetchFlightPlanAsync(username);
+
+                if (response != null && response.Fetch?.Status == "Success")
+                {
+                    _currentResponse = response;
+                    _groundOpsManager.InitializeFromSimBrief(response);
+                    _groundOpsManager.StartOps();
+                    
+                    var weatherService = new WeatherBriefingService();
+                    var briefingText = weatherService.GenerateBriefing(response);
+
+                    // Convert complex response to a simpler format for JS to avoid serialization deep nesting loops if any
+                    SendToWeb(new { 
+                        type = "flightData", 
+                        data = response,
+                        briefing = briefingText
+                    });
+                    
+                    SendToWeb(new { type = "fetchStatus", status = "success", message = "Flight plan loaded !" });
+                }
+                else
+                {
+                    SendToWeb(new { type = "fetchStatus", status = "error", message = "Could not parse flight plan." });
+                }
+            }
+            catch (Exception ex)
+            {
+                SendToWeb(new { type = "fetchStatus", status = "error", message = ex.Message });
+            }
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             var helper = new WindowInteropHelper(this);
-            // In a real scenario, this hooks the window procedure to MSFS messages
             var hwndScreen = HwndSource.FromHwnd(helper.Handle);
             hwndScreen.AddHook(WndProc);
             
@@ -128,7 +236,7 @@ namespace FlightSupervisor.UI
         {
             const int WM_USER_SIMCONNECT = 0x0402;
             if (msg == WM_USER_SIMCONNECT)
-            {
+            {   
                 _simConnectService.ReceiveMessage();
                 handled = true;
             }
@@ -137,190 +245,8 @@ namespace FlightSupervisor.UI
 
         private void MainWindow_Closed(object sender, EventArgs e)
         {
-            if (_simConnectService != null)
-                _simConnectService.Disconnect();
-                
+            _simConnectService?.Disconnect();
             _panelServer?.StopServer();
         }
-
-        private void OpenTester_Click(object sender, RoutedEventArgs e)
-        {
-            var tester = new BriefingTesterWindow();
-            tester.Show();
-        }
-
-        private async void FetchPlanButton_Click(object sender, RoutedEventArgs e)
-        {
-            var username = SimBriefUsernameInput.Text.Trim();
-            if (string.IsNullOrEmpty(username))
-            {
-                MessageBox.Show("Please enter a SimBrief Username.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            if (SaveUsernameCheckbox.IsChecked == true)
-            {
-                var saveFilePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FlightSupervisor_User.txt");
-                System.IO.File.WriteAllText(saveFilePath, username);
-            }
-
-            FetchPlanButton.IsEnabled = false;
-            StatusText.Text = "Fetching flight plan...";
-            FlightPlanResultText.Text = "";
-
-            try
-            {
-                var response = await _simBriefService.FetchFlightPlanAsync(username);
-
-                if (response != null && response.Fetch?.Status == "Success")
-                {
-                    _currentResponse = response;
-                    _groundOpsManager.InitializeFromSimBrief(response);
-                    _groundOpsManager.StartOps(); // Auto-start for simplicity in this MVP
-                    StatusText.Text = "Flight plan loaded successfully!";
-                    UpdateFlightPlanDisplay();
-                }
-                else
-                {
-                    StatusText.Text = "Error fetching flight plan.";
-                    FlightPlanResultText.Text = "Could not parse or fetch flight plan. Please verify the Username and ensure 'Generate Flight' was clicked on SimBrief.";
-                }
-            }
-            catch (Exception ex)
-            {
-                StatusText.Text = "An error occurred.";
-                FlightPlanResultText.Text = ex.Message;
-            }
-            finally
-            {
-                FetchPlanButton.IsEnabled = true;
-            }
-        }
-
-        private void UpdateFlightPlanDisplay()
-        {
-            if (_currentResponse == null) return;
-            var response = _currentResponse;
-
-            var gen = response.General;
-            var orig = response.Origin;
-            var dest = response.Destination;
-            var wgt = response.Weights;
-            var acft = response.Aircraft;
-            var prm = response.Params;
-            
-            double.TryParse(response.Times?.EstTimeEnroute ?? "0", out double enrouteSecs);
-            var formattedTime = TimeSpan.FromSeconds(enrouteSecs).ToString("hh\\:mm");
-
-            long.TryParse(response.Times?.SchedOut ?? "0", out long schedOutUnix);
-            long.TryParse(response.Times?.SchedIn ?? "0", out long schedInUnix);
-            string sobtStr = schedOutUnix > 0 ? DateTimeOffset.FromUnixTimeSeconds(schedOutUnix).UtcDateTime.ToString("HH:mm") + "z" : "--:--z";
-            string sibtStr = schedInUnix > 0 ? DateTimeOffset.FromUnixTimeSeconds(schedInUnix).UtcDateTime.ToString("HH:mm") + "z" : "--:--z";
-            
-            string aobtStr = _aobt.HasValue ? _aobt.Value.ToString("HH:mm") + "z" : "--:--z";
-            string aibtStr = _aibt.HasValue ? _aibt.Value.ToString("HH:mm") + "z" : "--:--z";
-
-            string airlineName = GetAirlineName(gen?.Airline ?? "");
-            
-            var weatherService = new WeatherBriefingService();
-            var briefingText = weatherService.GenerateBriefing(response);
-            
-            string blockFuel = response.Fuel?.PlanRamp ?? wgt?.EstBlock ?? wgt?.BlockFuel ?? "N/A";
-
-            string flightLevel = gen?.InitialAlt;
-            if (string.IsNullOrWhiteSpace(flightLevel) && !string.IsNullOrWhiteSpace(gen?.StepClimbString))
-            {
-                var scParts = gen.StepClimbString.Split('/');
-                flightLevel = scParts.Length > 1 ? scParts[1] : scParts[0];
-            }
-            if (!string.IsNullOrWhiteSpace(flightLevel))
-            {
-                if (flightLevel.EndsWith("00") && flightLevel.Length >= 4)
-                    flightLevel = flightLevel.Substring(0, flightLevel.Length - 2);
-                flightLevel = flightLevel.TrimStart('0');
-                
-                if (double.TryParse(flightLevel, out double fl))
-                {
-                    _phaseManager.TargetCruiseAltitude = fl * 100;
-                }
-            }
-
-            FlightPlanResultText.Text = 
-                $"Airline: {airlineName} ({gen?.Airline})\n" +
-                $"Flight Number: {gen?.FlightNumber}\n" +
-                $"Aircraft: {acft?.Name} ({acft?.BaseType})\n" +
-                $"Cruise Altitude: FL {flightLevel}\n" +
-                $"Step Climbs: {gen?.StepClimbString}\n" +
-                $"---------------------------\n" +
-                $"Origin: {orig?.IcaoCode} ({orig?.Name})\n" +
-                $"Destination: {dest?.IcaoCode} ({dest?.Name})\n" +
-                $"Route: {gen?.Route}\n" +
-                $"---------------------------\n" +
-                $"TIMETABLE (UTC) :\n" +
-                $"Scheduled Off-Block (SOBT): {sobtStr}  |  Actual (AOBT): {aobtStr}\n" +
-                $"Scheduled In-Block  (SIBT): {sibtStr}  |  Actual (AIBT): {aibtStr}\n" +
-                $"Est. Time Enroute: {formattedTime}\n" +
-                $"---------------------------\n" +
-                $"Passengers: {wgt?.PaxCount}\n" +
-                $"ZFW: {wgt?.EstZfw} {prm?.Units}\n" +
-                $"Block Fuel: {blockFuel} {prm?.Units}\n" +
-                $"---------------------------\n" +
-                $"COMMANDER BRIEFING:\n{briefingText}\n" +
-                $"---------------------------\n" +
-                $"Origin METAR: {response.Weather?.OrigMetar}\n" +
-                $"Origin TAF: {response.Weather?.OrigTaf}\n\n" +
-                $"Destination METAR: {response.Weather?.DestMetar}\n" +
-                $"Destination TAF: {response.Weather?.DestTaf}\n\n" +
-                $"--- Alternates & Enroute Weather ---\n" +
-                ExtractJsonStrings(response.Weather?.AltnMetar) + "\n" +
-                ExtractJsonStrings(response.Weather?.EnrtMetar) + "\n" +
-                ExtractJsonStrings(response.Weather?.AltnTaf) + "\n" +
-                ExtractJsonStrings(response.Weather?.EnrtTaf) + "\n" +
-                $"---------------------------\n" +
-                $"VIRTUAL GROUND OPS:\n" +
-                _groundOpsManager.GetStatusString() + "\n";
-        }
-
-        private string ExtractJsonStrings(System.Text.Json.JsonElement? element)
-        {
-            if (!element.HasValue) return "";
-            var e = element.Value;
-            if (e.ValueKind == System.Text.Json.JsonValueKind.Array)
-            {
-                var sb = new System.Text.StringBuilder();
-                foreach (var item in e.EnumerateArray())
-                {
-                    if (item.ValueKind == System.Text.Json.JsonValueKind.String)
-                        sb.AppendLine(item.GetString());
-                }
-                return sb.ToString().TrimEnd();
-            }
-            if (e.ValueKind == System.Text.Json.JsonValueKind.String)
-                return e.GetString() ?? "";
-            return "";
-        }
-
-        private string GetAirlineName(string icao)
-        {
-            if (string.IsNullOrWhiteSpace(icao)) return "Unknown";
-            var upper = icao.ToUpperInvariant();
-            return upper switch
-            {
-                "FBU" => "French bee",
-                "AFR" => "Air France",
-                "RYR" => "Ryanair",
-                "EZY" => "easyJet",
-                "BAW" => "British Airways",
-                "DLH" => "Lufthansa",
-                "UAE" => "Emirates",
-                "QFA" => "Qantas",
-                "AAL" => "American Airlines",
-                "DAL" => "Delta Air Lines",
-                "UAL" => "United Airlines",
-                "SWA" => "Southwest Airlines",
-                _ => icao // Fallback to ICAO if unknown
-            };
-        }
-
     }
 }

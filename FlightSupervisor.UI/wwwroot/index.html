@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Flight Supervisor</title>
+    <link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+    <!-- Left Sidebar -->
+    <nav id="sidebar">
+        <div class="logo">FS</div>
+        <ul class="menu">
+            <li class="active" data-target="dashboard">Dashboard</li>
+            <li data-target="briefing">Briefing</li>
+            <li data-target="groundops">Ground Ops</li>
+            <li data-target="logs">Logs</li>
+            <li data-target="options">Options</li>
+        </ul>
+        <div id="simConnectStatus" class="status-pill error">Not Connected</div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main id="main-content">
+        <!-- Top Drag Bar -->
+        <header id="top-bar">
+            <div class="title">Flight Supervisor</div>
+            <div class="spacer"></div>
+            <div id="zuluTime" class="zulu-time">Sim Zulu: --:--z</div>
+            <div id="flightPhase" class="phase-pill">Phase: Off</div>
+        </header>
+
+        <!-- Content Sections -->
+        <div class="content-container">
+            <section id="dashboard" class="active">
+                <h2>Dashboard</h2>
+                <p>Welcome to Flight Supervisor. Navigate using the menu on the left.</p>
+            </section>
+
+            <section id="briefing">
+                <h2>Tactical Briefing</h2>
+                <div id="briefingContent">No flight plan loaded. Go to Options to fetch plan.</div>
+            </section>
+
+            <section id="groundops">
+                <h2>Virtual Ground Ops</h2>
+                <div id="groundOpsContainer">
+                    <p>Ground operations pending SimBrief initialization...</p>
+                </div>
+            </section>
+
+            <section id="logs">
+                <h2>Logs & Black Box</h2>
+                <ul id="penaltyLogs"></ul>
+            </section>
+
+            <section id="options">
+                <h2>SimBrief Connection</h2>
+                <div class="form-group">
+                    <label>Simbrief Username:</label>
+                    <input type="text" id="sbUsername" placeholder="username" />
+                </div>
+                <div class="form-group checkbox">
+                    <input type="checkbox" id="sbRemember" checked />
+                    <label for="sbRemember">Remember Me</label>
+                </div>
+                <button id="btnFetchPlan">Fetch Latest Flight Plan</button>
+                <div id="fetchStatus"></div>
+            </section>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
