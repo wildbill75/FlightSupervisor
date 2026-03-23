@@ -108,6 +108,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
 
         [JsonPropertyName("name")]
         public string? Name { get; set; }
+
+        [JsonPropertyName("city")]
+        public string? City { get; set; }
     }
 
     public class TimesInfo
@@ -132,6 +135,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
 
         [JsonPropertyName("est_zfw")]
         public string? EstZfw { get; set; }
+
+        [JsonPropertyName("est_ldw")]
+        public string? EstLdw { get; set; }
 
         [JsonPropertyName("est_cg")]
         public string? EstCg { get; set; }

@@ -61,17 +61,28 @@ body {
     color: white;
 }
 
-.status-pill {
+.smart-connect {
     margin: 20px;
-    padding: 8px;
+    padding: 10px;
     border-radius: 4px;
     text-align: center;
     font-size: 12px;
     font-weight: bold;
     background-color: #1E2433;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
 }
-.status-pill.error { color: #F87171; border: 1px solid #7F1D1D; }
-.status-pill.success { color: #34D399; border: 1px solid #064E3B; background-color: #064E3B; }
+.smart-connect span { pointer-events: none; }
+.smart-connect.error { color: #F87171; border: 1px solid #7F1D1D; }
+.smart-connect.error:hover { background-color: #7F1D1D; color: white; border-color: #7F1D1D; }
+.smart-connect.error:hover span { display: none; }
+.smart-connect.error:hover::after { content: "Connect to MSFS"; }
+
+.smart-connect.success { color: #34D399; border: 1px solid #064E3B; background-color: #064E3B; }
+.smart-connect.success:hover { background-color: #7F1D1D; border-color: #7F1D1D; color: white; }
+.smart-connect.success:hover span { display: none; }
+.smart-connect.success:hover::after { content: "Disconnect MSFS"; }
 
 /* Main Content */
 #main-content {
@@ -107,6 +118,33 @@ body {
 .spacer {
     flex: 1;
     pointer-events: none;
+}
+
+.window-controls {
+    display: flex;
+    height: 100%;
+    -webkit-app-region: no-drag;
+}
+.win-btn {
+    width: 40px;
+    height: 100%;
+    border: none;
+    background: transparent;
+    color: #94A3B8;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s, color 0.2s;
+}
+.win-btn:hover {
+    background-color: #334155;
+    color: white;
+}
+.win-btn.close:hover {
+    background-color: #DC2626;
+    color: white;
 }
 
 .zulu-time {
@@ -234,3 +272,52 @@ button:hover {
 .go-status { width: 150px; text-align: right; color: #94A3B8; font-size: 13px; }
 .go-btn { margin-left: 15px; background: #475569; padding: 5px 10px; font-size: 12px; }
 .go-btn:hover { background: #DC2626; }
+
+/* Breakdown Grid */
+.breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+.card {
+    background: #161A25;
+    border: 1px solid #2B3347;
+    border-radius: 8px;
+    padding: 15px;
+}
+.card h3 {
+    font-size: 14px;
+    color: #4A90E2;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #2B3347;
+    padding-bottom: 5px;
+    margin-top: 0;
+}
+.card p {
+    font-size: 12px;
+    color: #cbd5e1;
+    margin-bottom: 5px;
+}
+.card strong {
+    color: #94A3B8;
+}
+.truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+    display: inline-block;
+    vertical-align: bottom;
+}
+.weather-text {
+    font-family: Consolas, monospace;
+    font-size: 12px;
+    background: #111111;
+    padding: 15px;
+    border-radius: 6px;
+    color: #A3BE8C;
+    white-space: pre-wrap;
+    border: 1px solid #2B3347;
+}
+#weatherBreakdown h3 { font-size: 16px; margin-bottom: 10px; color: #F8FAFC; border: none; padding: 0; }

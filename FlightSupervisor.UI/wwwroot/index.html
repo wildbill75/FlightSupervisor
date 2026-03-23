@@ -17,7 +17,13 @@
             <li data-target="logs">Logs</li>
             <li data-target="options">Options</li>
         </ul>
-        <div id="simConnectStatus" class="status-pill error">Not Connected</div>
+        <div style="padding: 0 20px; display: flex; flex-direction: column; gap: 5px; margin-top: auto; margin-bottom: 20px;">
+            <button id="btnFetchPlan" style="font-size: 12px; padding: 10px; border-radius: 4px; border: none; background-color: #4A90E2; color: white; font-weight: bold; cursor: pointer;">Fetch Latest Plan</button>
+            <button id="btnStartGroundOps" style="font-size: 12px; padding: 10px; border-radius: 4px; background-color: #334155; color: #64748b; font-weight: bold; border: none; cursor: not-allowed; text-align: center;" disabled>Start Ground Ops</button>
+            <button id="btnSmartConnect" class="smart-connect error" style="margin: 0; padding: 10px; width: 100%; border-radius: 4px;"><span>Not Connected</span></button>
+        </div>
+        <div id="fetchStatus" style="display: none;"></div>
+        <div style="position: absolute; bottom: 15px; left: 0; width: 100%; text-align: center; color: #475569; font-size: 11px; font-family: monospace; pointer-events: none;">Build 1.4.8-beta</div>
     </nav>
 
     <!-- Main Content Area -->
@@ -26,24 +32,110 @@
         <header id="top-bar">
             <div class="title">Flight Supervisor</div>
             <div class="spacer"></div>
-            <div id="zuluTime" class="zulu-time">Sim Zulu: --:--z</div>
-            <div id="flightPhase" class="phase-pill">Phase: Off</div>
+            <div class="window-controls">
+                <button class="win-btn" id="btnMin" title="Minimize to Tray">_</button>
+                <button class="win-btn close" id="btnClose" title="Quit">&#10005;</button>
+            </div>
         </header>
 
         <!-- Content Sections -->
         <div class="content-container">
             <section id="dashboard" class="active">
-                <h2>Dashboard</h2>
-                <p>Welcome to Flight Supervisor. Navigate using the menu on the left.</p>
+                <h2 style="margin-bottom: 15px;">Dashboard</h2>
+                <div id="dashFlightHeader" style="display: none; background: #1E2433; padding: 15px 25px; border-radius: 8px; border: 1px solid #2B3347; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 25px; text-align: center; width: 100%;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 20px; font-size: 24px; font-weight: 800; color: #F8FAFC; letter-spacing: 1px;">
+                        <span id="dhOrigin">---- (----)</span>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="#0F172A" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(90deg); flex-shrink: 0;">
+                            <path d="M21 16V14L13 9V3.5C13 2.67 12.33 2 11.5 2C10.67 2 10 2.67 10 3.5V9L2 14V16L10 13.5V19L8 20.5V22L11.5 21L15 22V20.5L13 19V13.5L21 16Z" />
+                        </svg>
+                        <span id="dhDest">---- (----)</span>
+                    </div>
+                    <div style="margin-top: 12px; font-size: 15px; color: #94A3B8;">
+                        <span id="dhFlight" style="font-weight: 700; color: #4A90E2;">Flight ---</span>
+                        <span style="margin: 0 15px; color: #475569;">|</span>
+                        <span id="dhAirline" style="font-weight: 600;">Unknown Airline</span>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top:20px; margin-bottom:20px;">
+                    <div class="card" style="flex: 1; min-width: 200px; text-align:center; padding: 20px;">
+                        <h3 style="font-size:12px; font-weight:600; border:none; margin-bottom:5px; color:#94A3B8; text-transform:uppercase; letter-spacing:1px;">Current Phase</h3>
+                        <div id="flightPhase" style="font-size:32px; font-weight:800; color:#FACC15;">Off</div>
+                    </div>
+                    <div class="card" style="flex: 1; min-width: 200px; text-align:center; padding: 20px;">
+                        <h3 style="font-size:12px; font-weight:600; border:none; margin-bottom:5px; color:#94A3B8; text-transform:uppercase; letter-spacing:1px;">Zulu Time</h3>
+                        <div id="zuluTime" style="font-size:32px; font-family:monospace; font-weight:800; color:#4A90E2;">--:--z</div>
+                        <div id="flightCountdown" style="margin-top:5px; font-size:14px; color:#94A3B8; font-weight:bold;">No plan loaded</div>
+                    </div>
+                    <div class="card" style="flex: 1; min-width: 250px; padding: 20px;">
+                        <h3 style="font-size:12px; font-weight:600; border:none; margin-bottom:10px; color:#94A3B8; text-transform:uppercase; letter-spacing:1px; text-align:center;">Timetable (UTC)</h3>
+                        <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:8px;">
+                            <span><strong style="color:#94A3B8;">SOBT:</strong> <span id="bdSobt" style="color:#cbd5e1; font-family:monospace; font-weight:bold;">--:--z</span></span>
+                            <span><strong style="color:#94A3B8;">AOBT:</strong> <span id="bdAobt" style="color:#FACC15; font-family:monospace; font-weight:bold;">--:--z</span></span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:14px;">
+                            <span><strong style="color:#94A3B8;">SIBT:</strong> <span id="bdSibt" style="color:#cbd5e1; font-family:monospace; font-weight:bold;">--:--z</span></span>
+                            <span><strong style="color:#94A3B8;">AIBT:</strong> <span id="bdAibt" style="color:#FACC15; font-family:monospace; font-weight:bold;">--:--z</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top:20px; display: flex; flex-direction: column; align-items: center; border: 1px solid rgba(52,211,153,0.2);">
+                    <h3 style="font-size:14px; border:none; margin-bottom:5px; color:#94A3B8; text-transform:uppercase; letter-spacing:1px;">Flight Performance</h3>
+                    <div id="mainScoreValue" style="font-size:64px; font-weight:900; color:#34D399; text-shadow: 0 0 20px rgba(52,211,153,0.3);">1000</div>
+                    <div style="width: 100%; max-height: 120px; overflow-y: auto; background: #0F172A; border-radius: 8px; padding: 10px; margin-top: 10px;">
+                        <ul id="scoreFeed" style="list-style: none; margin: 0; padding: 0; font-family: monospace; font-size: 13px;">
+                            <li style="color:#64748b; text-align:center;">Tracking standing by...</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top:20px;">
+                    <!-- Action buttons relocated to sidebar -->
+                </div>
             </section>
 
             <section id="briefing">
                 <h2>Tactical Briefing</h2>
-                <div id="briefingContent">No flight plan loaded. Go to Options to fetch plan.</div>
+                
+                <div id="flightBreakdown" class="breakdown-grid" style="display:none;">
+                    <div class="card">
+                        <h3>Flight Details</h3>
+                        <p><strong>Airline:</strong> <span id="bdAirline"></span></p>
+                        <p><strong>Flight:</strong> <span id="bdFlightNum"></span></p>
+                        <p><strong>Aircraft:</strong> <span id="bdAircraft"></span></p>
+                        <p><strong>Cruise Alt:</strong> <span id="bdCruise"></span></p>
+                    </div>
+                    <div class="card">
+                        <h3>Routing</h3>
+                        <p><strong>Origin:</strong> <span id="bdOrigin"></span></p>
+                        <p><strong>Dest:</strong> <span id="bdDest"></span></p>
+                        <p><strong>Route:</strong> <span id="bdRoute" style="display:block; margin-top:5px; line-height:1.4;"></span></p>
+                    </div>
+                    <div class="card">
+                        <h3>Payload &amp; Fuel</h3>
+                        <p><strong>Pax:</strong> <span id="bdPax"></span></p>
+                        <p><strong>ZFW:</strong> <span id="bdZfw"></span></p>
+                        <p><strong>LDW:</strong> <span id="bdLdw"></span></p>
+                        <p><strong>Block Fuel:</strong> <span id="bdFuel"></span></p>
+                    </div>
+                    <div class="card">
+                        <h3>Flight Time</h3>
+                        <p><strong>ETE:</strong> <span id="bdEte"></span></p>
+                    </div>
+
+                </div>
+
+                <div id="briefingContent">No flight plan loaded. Go to Dashboard to fetch plan.</div>
+
+                <div id="weatherBreakdown" style="display:none; margin-top:20px;">
+                    <h3>Raw Weather Data</h3>
+                    <div id="weatherContent" class="weather-text"></div>
+                </div>
             </section>
 
             <section id="groundops">
-                <h2>Virtual Ground Ops</h2>
+                <h2>Ground Operations</h2>
                 <div id="groundOpsContainer">
                     <p>Ground operations pending SimBrief initialization...</p>
                 </div>
@@ -55,17 +147,19 @@
             </section>
 
             <section id="options">
-                <h2>SimBrief Connection</h2>
-                <div class="form-group">
-                    <label>Simbrief Username:</label>
-                    <input type="text" id="sbUsername" placeholder="username" />
+                <h2>Settings</h2>
+                <div class="card" style="max-width: 400px; margin-top:20px;">
+                    <h3>SimBrief Account</h3>
+                    <p style="margin-bottom: 15px; font-size:12px;">Set your SimBrief username below. Fetches are now performed from the Dashboard.</p>
+                    <div class="form-group">
+                        <label>Simbrief Username:</label>
+                        <input type="text" id="sbUsername" placeholder="username" />
+                    </div>
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="sbRemember" checked />
+                        <label for="sbRemember">Remember Me</label>
+                    </div>
                 </div>
-                <div class="form-group checkbox">
-                    <input type="checkbox" id="sbRemember" checked />
-                    <label for="sbRemember">Remember Me</label>
-                </div>
-                <button id="btnFetchPlan">Fetch Latest Flight Plan</button>
-                <div id="fetchStatus"></div>
             </section>
         </div>
     </main>

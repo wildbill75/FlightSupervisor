@@ -124,5 +124,26 @@ namespace FlightSupervisor.UI.Services
             var lines = Services.Select(s => $"{s.Name.PadRight(12)}: [{s.ProgressPercent,3}%] {s.StatusMessage.PadRight(20)} {- s.RemainingSec}s");
             return string.Join("\n", lines);
         }
+
+        public bool IsAnyOperationInProgress()
+        {
+            return _isStarted && Services.Any(s => s.State == GroundServiceState.InProgress || s.State == GroundServiceState.Delayed || s.State == GroundServiceState.NotStarted);
+        }
+
+        public void AbortAllOperations()
+        {
+            if (!_isStarted) return;
+            foreach (var s in Services)
+            {
+                if (s.State != GroundServiceState.Completed && s.State != GroundServiceState.Skipped)
+                {
+                    s.State = GroundServiceState.Skipped; // Reusing skipped logic internally, but modifying text
+                    s.StatusMessage = "ABORTED!";
+                    s.ElapsedSec = s.TotalDurationSec + s.DelayAddedSec;
+                }
+            }
+            _isStarted = false;
+            OnOpsUpdated?.Invoke();
+        }
     }
 }

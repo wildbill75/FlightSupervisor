@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Text.Json;
 using System.Runtime.InteropServices;
+using System.Linq;
 using Microsoft.Web.WebView2.Core;
 using FlightSupervisor.UI.Services;
 using FlightSupervisor.UI.Models.SimBrief;
@@ -21,14 +22,30 @@ namespace FlightSupervisor.UI
         private double _lastKnownAltitude = 0;
         private double _lastKnownRadioHeight = 0;
         private bool _isParkingBrakeSet = false;
+        private double _lastKnownThrottle = 0;
+        private double _lastKnownPitch = 0;
+        private double _lastKnownBank = 0;
         private bool _isGearDown = true;
         private DateTime _currentSimTime = DateTime.MinValue;
         private DateTime? _aobt = null;
         private DateTime? _aibt = null;
+        private bool? _lastLogGearDown = null;
+        private bool? _lastLogParkingBrake = null;
+        private double? _lastLogFlaps = null;
+        private bool? _lastLogAutopilot = null;
+        private double? _lastLogThrottle = null;
+        private double? _lastLogSpoilers = null;
+        private bool? _lastLogLightBeacon = null;
+        private bool? _lastLogLightStrobe = null;
+        private bool? _lastLogLightNav = null;
+        private bool? _lastLogLightLanding = null;
+        private bool? _lastLogLightTaxi = null;
         
         private GroundOpsManager _groundOpsManager;
         private System.Windows.Threading.DispatcherTimer _uiTimer;
+        private System.Windows.Forms.NotifyIcon _notifyIcon;
         private PanelServerService? _panelServer;
+        private SuperScoreManager _scoreManager;
 
         public MainWindow()
         {
@@ -38,10 +55,29 @@ namespace FlightSupervisor.UI
             _groundOpsManager = new GroundOpsManager();
             _groundOpsManager.OnOpsCompleted += () => SendToWeb(new { type = "groundOpsComplete" });
 
+            // Tray Icon Setup
+            _notifyIcon = new System.Windows.Forms.NotifyIcon();
+            _notifyIcon.Icon = System.Drawing.SystemIcons.Application;
+            _notifyIcon.Text = "Flight Supervisor";
+            _notifyIcon.Visible = false;
+            _notifyIcon.DoubleClick += (s, args) =>
+            {
+                this.Show();
+                this.WindowState = WindowState.Normal;
+                _notifyIcon.Visible = false;
+            };
+
+            // Start Dashboard update loop
             _uiTimer = new System.Windows.Threading.DispatcherTimer();
             _uiTimer.Interval = TimeSpan.FromSeconds(1);
             _uiTimer.Tick += (s, e) => { 
                 _groundOpsManager.Tick();
+                if (_groundOpsManager.IsAnyOperationInProgress() && (_phaseManager.GroundSpeed > 1.0 || !_phaseManager.IsOnGround))
+                {
+                    _groundOpsManager.AbortAllOperations();
+                    _scoreManager.CancelFlight("Flight Cancelled: Unauthorized movement during Ground Operations!");
+                    SendToWeb(new { type = "flightCancelled" });
+                }
                 SendTelemetryToWeb();
             };
             _uiTimer.Start();
@@ -59,7 +95,11 @@ namespace FlightSupervisor.UI
                         if (_aibt == null && _currentSimTime != DateTime.MinValue) 
                             _aibt = _currentSimTime;
                     }
-                    SendToWeb(new { type = "phaseUpdate", phase = phase.ToString() });
+                    SendToWeb(new { type = "phaseUpdate", phase = phase.ToString(), 
+                                    aobt = _aobt != null ? _aobt.Value.ToString("HH:mm") + "z" : null, 
+                                    aibt = _aibt != null ? _aibt.Value.ToString("HH:mm") + "z" : null,
+                                    aobtUnix = _aobt != null ? new DateTimeOffset(_aobt.Value).ToUnixTimeSeconds() : (long?)null,
+                                    aibtUnix = _aibt != null ? new DateTimeOffset(_aibt.Value).ToUnixTimeSeconds() : (long?)null });
                 });
             };
             _phaseManager.OnPenaltyTriggered += msg => {
@@ -67,24 +107,76 @@ namespace FlightSupervisor.UI
             };
 
             _panelServer = new PanelServerService(new SimBriefService(), new WeatherBriefingService(), _phaseManager);
+
             try { _panelServer.StartServer(); } catch { }
 
             _simConnectService = new SimConnectService();
+            _scoreManager = new SuperScoreManager(_phaseManager, _simConnectService);
+            _scoreManager.OnScoreChanged += (score, delta, reason) => {
+                Dispatcher.Invoke(() => SendToWeb(new { type = "scoreUpdate", score = score, delta = delta, msg = reason }));
+            };
+
             _simConnectService.OnConnectionStateChanged += state => {
                 Dispatcher.Invoke(() => SendToWeb(new { type = "simConnectStatus", status = state }));
             };
             _simConnectService.OnAltitudeReceived += alt => {
                 _lastKnownAltitude = alt;
-                _phaseManager.UpdateTelemetry(_lastKnownGroundSpeed, _lastKnownAirspeed, alt, _lastKnownRadioHeight, _isParkingBrakeSet, _isGearDown);
+                _phaseManager.UpdateTelemetry(_lastKnownGroundSpeed, _lastKnownAirspeed, alt, _lastKnownRadioHeight, _isParkingBrakeSet, _isGearDown, _lastKnownThrottle, _lastKnownPitch, _lastKnownBank);
             };
-            _simConnectService.OnGearDownReceived += gd => { _isGearDown = gd; };
+            _simConnectService.OnGearDownReceived += gd => { 
+                _isGearDown = gd; 
+                if (_lastLogGearDown != null && _lastLogGearDown != gd) SendToWeb(new { type = "log", message = gd ? "Landing Gear DOWN" : "Landing Gear UP" });
+                _lastLogGearDown = gd;
+            };
             _simConnectService.OnRadioHeightReceived += rh => { _lastKnownRadioHeight = rh; };
             _simConnectService.OnGroundSpeedReceived += gs => { _lastKnownGroundSpeed = gs; };
             _simConnectService.OnAirspeedReceived += ias => { _lastKnownAirspeed = ias; };
-            _simConnectService.OnParkingBrakeReceived += pb => { _isParkingBrakeSet = pb; };
+            _simConnectService.OnParkingBrakeReceived += pb => { 
+                _isParkingBrakeSet = pb; 
+                if (_lastLogParkingBrake != null && _lastLogParkingBrake != pb) SendToWeb(new { type = "log", message = pb ? "Parking Brake SET" : "Parking Brake RELEASED" });
+                _lastLogParkingBrake = pb;
+            };
+            _simConnectService.OnFlapsReceived += flaps => {
+                if (_lastLogFlaps != null && _lastLogFlaps != flaps) SendToWeb(new { type = "log", message = $"Flaps Position Changed -> {flaps}" });
+                _lastLogFlaps = flaps;
+            };
+            _simConnectService.OnAutopilotReceived += ap => {
+                if (_lastLogAutopilot != null && _lastLogAutopilot != ap) SendToWeb(new { type = "log", message = ap ? "Autopilot ENGAGED" : "Autopilot DISENGAGED" });
+                _lastLogAutopilot = ap;
+            };
+            _simConnectService.OnThrottleReceived += thr => {
+                _lastKnownThrottle = thr;
+                if (_lastLogThrottle != null && Math.Abs(_lastLogThrottle.Value - thr) > 5.0) 
+                    SendToWeb(new { type = "log", message = $"Throttle ENG 1: {thr:F0}%" });
+                _lastLogThrottle = thr;
+            };
+            _simConnectService.OnSpoilersReceived += spl => {
+                if (_lastLogSpoilers != null && Math.Abs(_lastLogSpoilers.Value - spl) > 5.0) 
+                    SendToWeb(new { type = "log", message = $"Spoilers Handle: {spl:F0}%" });
+                _lastLogSpoilers = spl;
+            };
+            _simConnectService.OnLightBeaconReceived += l => { if (_lastLogLightBeacon != null && _lastLogLightBeacon != l) SendToWeb(new { type = "log", message = l ? "Beacon Lights ON" : "Beacon Lights OFF" }); _lastLogLightBeacon = l; };
+            _simConnectService.OnLightStrobeReceived += l => { _phaseManager.IsStrobeLightOn = l; if (_lastLogLightStrobe != null && _lastLogLightStrobe != l) SendToWeb(new { type = "log", message = l ? "Strobe Lights ON" : "Strobe Lights OFF" }); _lastLogLightStrobe = l; };
+            _simConnectService.OnLightNavReceived += l => { if (_lastLogLightNav != null && _lastLogLightNav != l) SendToWeb(new { type = "log", message = l ? "Nav Lights ON" : "Nav Lights OFF" }); _lastLogLightNav = l; };
+            _simConnectService.OnLightTaxiReceived += l => { 
+                _phaseManager.IsTaxiLightOn = l;
+                if (_lastLogLightTaxi != null && _lastLogLightTaxi != l) SendToWeb(new { type = "log", message = l ? "Taxi Lights ON" : "Taxi Lights OFF" }); 
+                _lastLogLightTaxi = l; 
+            };
+            _simConnectService.OnSimOnGroundReceived += g => { _phaseManager.IsOnGround = g; };
+            _simConnectService.OnVerticalSpeedReceived += vs => { _phaseManager.VerticalSpeed = vs; };
+            _simConnectService.OnGForceReceived += gf => { _phaseManager.GForce = gf; };
+            _simConnectService.OnLightLandingReceived += l => { 
+                _phaseManager.IsLandingLightOn = l;
+                if (_lastLogLightLanding != null && _lastLogLightLanding != l) SendToWeb(new { type = "log", message = l ? "Landing Lights ON" : "Landing Lights OFF" }); 
+                _lastLogLightLanding = l; 
+            };
+            _simConnectService.OnPitchReceived += p => { _lastKnownPitch = p; };
+            _simConnectService.OnBankReceived += b => { _lastKnownBank = b; };
+
             _simConnectService.OnSimTimeReceived += time => { 
                 _currentSimTime = time;
-                Dispatcher.Invoke(() => SendToWeb(new { type = "simTime", time = time.ToString("HH:mm") + "z" }));
+                Dispatcher.Invoke(() => SendToWeb(new { type = "simTime", time = time.ToString("HH:mm") + "z", rawUnix = ((DateTimeOffset)time).ToUnixTimeSeconds() }));
             };
 
             Loaded += MainWindow_Loaded;
@@ -103,14 +195,17 @@ namespace FlightSupervisor.UI
             MainWebView.CoreWebView2.Navigate("http://app.local/index.html");
 
             var saveFilePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FlightSupervisor_User.txt");
-            if (System.IO.File.Exists(saveFilePath))
+            var username = System.IO.File.Exists(saveFilePath) ? System.IO.File.ReadAllText(saveFilePath) : "";
+            
+            MainWebView.CoreWebView2.NavigationCompleted += (s, e) => 
             {
-                var username = System.IO.File.ReadAllText(saveFilePath);
-                MainWebView.CoreWebView2.NavigationCompleted += (s, e) => 
-                {
-                     SendToWeb(new { type = "savedUsername", username = username });
-                };
-            }
+                if (!string.IsNullOrEmpty(username))
+                    SendToWeb(new { type = "savedUsername", username = username });
+                
+                // Lancer SimConnect SEULEMENT quand la page JS est prête à intercepter les messages !
+                var helper = new WindowInteropHelper(this);
+                _simConnectService.Connect(helper.Handle);
+            };
         }
 
         [DllImport("user32.dll")]
@@ -140,10 +235,43 @@ namespace FlightSupervisor.UI
                     var remember = doc.RootElement.GetProperty("remember").GetBoolean();
                     await FetchFlightPlan(username, remember);
                 }
+                else if (action == "connectSim")
+                {
+                    Dispatcher.Invoke(() => {
+                        var helper = new WindowInteropHelper(this);
+                        _simConnectService.Connect(helper.Handle);
+                    });
+                }
+                else if (action == "disconnectSim")
+                {
+                    Dispatcher.Invoke(() => {
+                        _simConnectService.Disconnect();
+                    });
+                }
+                else if (action == "minimizeApp")
+                {
+                    Dispatcher.Invoke(() => {
+                        this.Hide();
+                        _notifyIcon.Visible = true;
+                    });
+                }
+                else if (action == "closeApp")
+                {
+                    Dispatcher.Invoke(() => {
+                        if (_notifyIcon != null) _notifyIcon.Dispose();
+                        System.Windows.Application.Current.Shutdown();
+                    });
+                }
                 else if (action == "skipService")
                 {
                     var srvName = doc.RootElement.GetProperty("service").GetString();
                     _groundOpsManager.SkipService(srvName);
+                }
+                else if (action == "startGroundOps")
+                {
+                    Dispatcher.Invoke(() => {
+                        _groundOpsManager.StartOps();
+                    });
                 }
             } catch { }
         }
@@ -188,7 +316,7 @@ namespace FlightSupervisor.UI
                 System.IO.File.WriteAllText(saveFilePath, username);
             }
 
-            SendToWeb(new { type = "fetchStatus", status = "loading", message = "Fetching flight plan..." });
+            // Silent fetch
 
             try
             {
@@ -196,9 +324,20 @@ namespace FlightSupervisor.UI
 
                 if (response != null && response.Fetch?.Status == "Success")
                 {
+                    _phaseManager.Reset();
+                    _scoreManager.Reset();
                     _currentResponse = response;
                     _groundOpsManager.InitializeFromSimBrief(response);
-                    _groundOpsManager.StartOps();
+                    SendToWeb(new { type = "groundOpsReady" });
+
+                    if (!string.IsNullOrEmpty(response.General?.InitialAlt))
+                    {
+                        var digits = new string(response.General.InitialAlt.Where(char.IsDigit).ToArray());
+                        if (double.TryParse(digits, out double alt))
+                        {
+                            _phaseManager.TargetCruiseAltitude = alt < 1000 ? alt * 100 : alt;
+                        }
+                    }
                     
                     var weatherService = new WeatherBriefingService();
                     var briefingText = weatherService.GenerateBriefing(response);
@@ -228,8 +367,6 @@ namespace FlightSupervisor.UI
             var helper = new WindowInteropHelper(this);
             var hwndScreen = HwndSource.FromHwnd(helper.Handle);
             hwndScreen.AddHook(WndProc);
-            
-            _simConnectService.Connect(helper.Handle);
         }
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)

@@ -20,6 +20,20 @@ namespace FlightSupervisor.UI.Services
         public event Action<DateTime>? OnSimTimeReceived;
         public event Action<bool>? OnParkingBrakeReceived;
         public event Action<bool>? OnGearDownReceived;
+        public event Action<double>? OnFlapsReceived;
+        public event Action<bool>? OnAutopilotReceived;
+        public event Action<double>? OnThrottleReceived;
+        public event Action<double>? OnSpoilersReceived;
+        public event Action<bool>? OnLightBeaconReceived;
+        public event Action<bool>? OnLightStrobeReceived;
+        public event Action<bool>? OnLightNavReceived;
+        public event Action<bool>? OnLightTaxiReceived;
+        public event Action<bool>? OnLightLandingReceived;
+        public event Action<double>? OnPitchReceived;
+        public event Action<double>? OnBankReceived;
+        public event Action<bool>? OnSimOnGroundReceived;
+        public event Action<double>? OnVerticalSpeedReceived;
+        public event Action<double>? OnGForceReceived;
 
         enum DEFINITIONS { PlaneData }
         enum REQUESTS { PlaneDataReq }
@@ -34,12 +48,27 @@ namespace FlightSupervisor.UI.Services
             public double ParkingBrakeIndicator;
             public double RadioHeight;
             public double GearHandle;
+            public double FlapsHandleIndex;
+            public double AutopilotMaster;
+            public double ThrottleLever;
+            public double SpoilersHandle;
+            public double LightBeacon;
+            public double LightStrobe;
+            public double LightNav;
+            public double LightTaxi;
+            public double LightLanding;
+            public double Pitch;
+            public double Bank;
+            public double SimOnGround;
+            public double VerticalSpeed;
+            public double GForce;
         }
 
         public SimConnectService() { }
 
         public void Connect(IntPtr windowHandle)
         {
+            if (_simconnect != null) return;
             _windowHandle = windowHandle;
             try
             {
@@ -59,6 +88,20 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "BRAKE PARKING INDICATOR", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "RADIO HEIGHT", "Feet", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GEAR HANDLE POSITION", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "FLAPS HANDLE INDEX", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AUTOPILOT MASTER", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GENERAL ENG THROTTLE LEVER POSITION:1", "Percent", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "SPOILERS HANDLE POSITION", "Percent Over 100", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "LIGHT BEACON", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "LIGHT STROBE", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "LIGHT NAV", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "LIGHT TAXI", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "LIGHT LANDING", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "PLANE PITCH DEGREES", "Degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "PLANE BANK DEGREES", "Degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "SIM ON GROUND", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "VERTICAL SPEED", "Feet per minute", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "G FORCE", "GForce", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
 
                 _simconnect.RegisterDataDefineStruct<PlaneDataStruct>(DEFINITIONS.PlaneData);
                 
@@ -70,7 +113,7 @@ namespace FlightSupervisor.UI.Services
             }
             catch (Exception ex)
             {
-                OnConnectionStateChanged?.Invoke($"SimConnect Err: {ex.Message}");
+                OnConnectionStateChanged?.Invoke($"Connection error: {ex.Message}");
             }
         }
 
@@ -120,6 +163,21 @@ namespace FlightSupervisor.UI.Services
                 OnRadioHeightReceived?.Invoke(planeData.RadioHeight);
                 OnParkingBrakeReceived?.Invoke(planeData.ParkingBrakeIndicator > 0.5);
                 OnGearDownReceived?.Invoke(planeData.GearHandle > 0.5);
+                OnFlapsReceived?.Invoke(planeData.FlapsHandleIndex);
+                OnAutopilotReceived?.Invoke(planeData.AutopilotMaster > 0.5);
+                OnThrottleReceived?.Invoke(planeData.ThrottleLever);
+                OnSpoilersReceived?.Invoke(planeData.SpoilersHandle);
+                OnLightBeaconReceived?.Invoke(planeData.LightBeacon > 0.5);
+                OnLightStrobeReceived?.Invoke(planeData.LightStrobe > 0.5);
+                OnLightNavReceived?.Invoke(planeData.LightNav > 0.5);
+                OnLightTaxiReceived?.Invoke(planeData.LightTaxi > 0.5);
+                OnLightLandingReceived?.Invoke(planeData.LightLanding != 0);
+                // Note: values are in degrees, invert pitch because MSFS logic (nose up is negative)
+                OnPitchReceived?.Invoke(-planeData.Pitch);
+                OnBankReceived?.Invoke(-planeData.Bank);
+                OnSimOnGroundReceived?.Invoke(planeData.SimOnGround != 0);
+                OnVerticalSpeedReceived?.Invoke(planeData.VerticalSpeed);
+                OnGForceReceived?.Invoke(planeData.GForce);
 
                 // Build Sim Time
                 try
