@@ -26,7 +26,11 @@ namespace FlightSupervisor.UI.Services
                 else if (msg.Contains("Hard Landing")) penalty = -150;
                 else if (msg.Contains("Butter Landing")) penalty = 150;
                 else if (msg.Contains("Normal Landing")) penalty = 50;
+                else if (msg.Contains("Comfort Violation: Tight turn")) penalty = -5;
                 else if (msg.Contains("Line-up Configuration Bonus")) penalty = 50;
+                else if (msg.Contains("Gear Retraction Bonus")) penalty = 50;
+                else if (msg.Contains("Abnormal Gear Deployment")) penalty = -200;
+                else if (msg.Contains("In-Flight Engine Failure")) penalty = -500;
                 
                 AddScore(penalty, msg);
             };

@@ -54,6 +54,7 @@ namespace FlightSupervisor.UI
 
             _groundOpsManager = new GroundOpsManager();
             _groundOpsManager.OnOpsCompleted += () => SendToWeb(new { type = "groundOpsComplete" });
+            _groundOpsManager.OnOpsLog += msg => SendToWeb(new { type = "log", message = msg });
 
             // Tray Icon Setup
             _notifyIcon = new System.Windows.Forms.NotifyIcon();
@@ -94,6 +95,54 @@ namespace FlightSupervisor.UI
                     {
                         if (_aibt == null && _currentSimTime != DateTime.MinValue) 
                             _aibt = _currentSimTime;
+
+                        if (_currentResponse?.Times?.SchedIn != null && long.TryParse(_currentResponse.Times.SchedIn, out long sibtUnix))
+                        {
+                            long aibtUnix = ((DateTimeOffset)_currentSimTime).ToUnixTimeSeconds();
+                            long rawDelaySec = aibtUnix - sibtUnix;
+                            
+                            int groundOpsDelaySec = _groundOpsManager.Services.Sum(s => s.DelayAddedSec);
+                            long effectiveDelaySec = rawDelaySec - groundOpsDelaySec;
+
+                            if (effectiveDelaySec > 300) // 5 minutes late blaming the pilot
+                            {
+                                int penalty = effectiveDelaySec > 900 ? -100 : -50;
+                                string timeStr = $"{(rawDelaySec / 60)} min";
+                                string groundOpsPardon = groundOpsDelaySec > 0 ? $" (Amnistie Sol: -{groundOpsDelaySec / 60}m)" : "";
+                                _scoreManager.AddScore(penalty, $"Retard à l'arrivée: {timeStr}{groundOpsPardon}");
+                            }
+                            else if (effectiveDelaySec <= 300 && rawDelaySec > 300)
+                            {
+                                _scoreManager.AddScore(50, $"Amnistie Retard : {rawDelaySec / 60}m justifiés par les Ops Sol !");
+                            }
+                            else if (rawDelaySec <= 300)
+                            {
+                                _scoreManager.AddScore(100, $"Ponctualité : Arrivée à l'heure !");
+                            }
+
+                            // Generate Flight Report
+                            long schedOut = 0;
+                            if (_currentResponse?.Times?.SchedOut != null) long.TryParse(_currentResponse.Times.SchedOut, out schedOut);
+                            
+                            var report = new
+                            {
+                                Score = _scoreManager.CurrentScore,
+                                Dep = _currentResponse?.Origin?.IcaoCode ?? "",
+                                Arr = _currentResponse?.Destination?.IcaoCode ?? "",
+                                FlightNo = _currentResponse?.General?.FlightNumber ?? "",
+                                Airline = _currentResponse?.General?.Airline ?? "",
+                                BlockTime = _aobt.HasValue && _aibt.HasValue ? (int)(_aibt.Value - _aobt.Value).TotalMinutes : 0,
+                                SchedBlockTime = schedOut > 0 ? (sibtUnix - schedOut) / 60 : 0,
+                                TouchdownFpm = _phaseManager.TouchdownFpm,
+                                TouchdownGForce = _phaseManager.TouchdownGForce,
+                                Zfw = _currentResponse?.Weights?.EstZfw ?? "",
+                                Tow = _currentResponse?.Weights?.EstTow ?? "",
+                                BlockFuel = _currentResponse?.Fuel?.PlanRamp ?? "",
+                                DelaySec = effectiveDelaySec,
+                                RawDelaySec = rawDelaySec
+                            };
+                            SendToWeb(new { type = "flightReport", report });
+                        }
                     }
                     SendToWeb(new { type = "phaseUpdate", phase = phase.ToString(), 
                                     aobt = _aobt != null ? _aobt.Value.ToString("HH:mm") + "z" : null, 
@@ -166,6 +215,10 @@ namespace FlightSupervisor.UI
             _simConnectService.OnSimOnGroundReceived += g => { _phaseManager.IsOnGround = g; };
             _simConnectService.OnVerticalSpeedReceived += vs => { _phaseManager.VerticalSpeed = vs; };
             _simConnectService.OnGForceReceived += gf => { _phaseManager.GForce = gf; };
+            _simConnectService.OnHeadingReceived += h => { _phaseManager.UpdateHeading(h); };
+            _simConnectService.OnEngineCombustionReceived += (eng1, eng2) => {
+                _phaseManager.UpdateEngineCombustion(eng1, eng2);
+            };
             _simConnectService.OnLightLandingReceived += l => { 
                 _phaseManager.IsLandingLightOn = l;
                 if (_lastLogLightLanding != null && _lastLogLightLanding != l) SendToWeb(new { type = "log", message = l ? "Landing Lights ON" : "Landing Lights OFF" }); 
@@ -231,9 +284,32 @@ namespace FlightSupervisor.UI
                 }
                 else if (action == "fetch") 
                 {
-                    var username = doc.RootElement.GetProperty("username").GetString();
+                    var username = doc.RootElement.GetProperty("username").GetString() ?? "";
                     var remember = doc.RootElement.GetProperty("remember").GetBoolean();
-                    await FetchFlightPlan(username, remember);
+                    
+                    if (doc.RootElement.TryGetProperty("groundSpeed", out var gsProp))
+                    {
+                        if (Enum.TryParse<GroundOpsSpeed>(gsProp.GetString(), true, out var speed))
+                            _groundOpsManager.SpeedSetting = speed;
+                    }
+                    if (doc.RootElement.TryGetProperty("groundProb", out var gpProp))
+                    {
+                        if (int.TryParse(gpProp.GetString(), out var prob))
+                            _groundOpsManager.EventProbabilityPercent = prob;
+                    }
+                    
+                    var units = new FlightSupervisor.UI.Models.UnitPreferences();
+                    if (doc.RootElement.TryGetProperty("units", out var unitsProp))
+                    {
+                        units.Weight = unitsProp.GetProperty("weight").GetString() ?? "LBS";
+                        units.Temp = unitsProp.GetProperty("temp").GetString() ?? "C";
+                        units.Alt = unitsProp.GetProperty("alt").GetString() ?? "FT";
+                        units.Speed = unitsProp.GetProperty("speed").GetString() ?? "KTS";
+                        units.Press = unitsProp.GetProperty("press").GetString() ?? "HPA";
+                        units.Time = unitsProp.GetProperty("time").GetString() ?? "24H";
+                    }
+                    
+                    await FetchFlightPlan(username, remember, units);
                 }
                 else if (action == "connectSim")
                 {
@@ -273,6 +349,17 @@ namespace FlightSupervisor.UI
                         _groundOpsManager.StartOps();
                     });
                 }
+                else if (action == "cancelFlight")
+                {
+                    _phaseManager.Reset();
+                    _scoreManager.Reset();
+                    _currentResponse = null;
+                    _groundOpsManager.AbortAllOperations();
+                    _groundOpsManager.Services.Clear();
+                    _aobt = null;
+                    _aibt = null;
+                    SendToWeb(new { type = "flightReset" });
+                }
             } catch { }
         }
 
@@ -306,8 +393,9 @@ namespace FlightSupervisor.UI
             }
         }
 
-        private async System.Threading.Tasks.Task FetchFlightPlan(string username, bool remember)
+        private async System.Threading.Tasks.Task FetchFlightPlan(string username, bool remember, FlightSupervisor.UI.Models.UnitPreferences? units = null)
         {
+            if (units == null) units = new FlightSupervisor.UI.Models.UnitPreferences();
             if (string.IsNullOrEmpty(username)) return;
 
             if (remember)
@@ -339,7 +427,7 @@ namespace FlightSupervisor.UI
                         }
                     }
                     
-                    var weatherService = new WeatherBriefingService();
+                    var weatherService = new WeatherBriefingService(units);
                     var briefingText = weatherService.GenerateBriefing(response);
 
                     // Convert complex response to a simpler format for JS to avoid serialization deep nesting loops if any

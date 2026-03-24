@@ -34,6 +34,8 @@ namespace FlightSupervisor.UI.Services
         public event Action<bool>? OnSimOnGroundReceived;
         public event Action<double>? OnVerticalSpeedReceived;
         public event Action<double>? OnGForceReceived;
+        public event Action<bool, bool>? OnEngineCombustionReceived;
+        public event Action<double>? OnHeadingReceived;
 
         enum DEFINITIONS { PlaneData }
         enum REQUESTS { PlaneDataReq }
@@ -62,6 +64,9 @@ namespace FlightSupervisor.UI.Services
             public double SimOnGround;
             public double VerticalSpeed;
             public double GForce;
+            public double Eng1Combustion;
+            public double Eng2Combustion;
+            public double Heading;
         }
 
         public SimConnectService() { }
@@ -102,6 +107,9 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "SIM ON GROUND", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "VERTICAL SPEED", "Feet per minute", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "G FORCE", "GForce", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GENERAL ENG COMBUSTION:1", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GENERAL ENG COMBUSTION:2", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "PLANE HEADING DEGREES TRUE", "Degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
 
                 _simconnect.RegisterDataDefineStruct<PlaneDataStruct>(DEFINITIONS.PlaneData);
                 
@@ -178,6 +186,8 @@ namespace FlightSupervisor.UI.Services
                 OnSimOnGroundReceived?.Invoke(planeData.SimOnGround != 0);
                 OnVerticalSpeedReceived?.Invoke(planeData.VerticalSpeed);
                 OnGForceReceived?.Invoke(planeData.GForce);
+                OnEngineCombustionReceived?.Invoke(planeData.Eng1Combustion > 0.5, planeData.Eng2Combustion > 0.5);
+                OnHeadingReceived?.Invoke(planeData.Heading);
 
                 // Build Sim Time
                 try

@@ -1,12 +1,20 @@
 using System;
 using System.Text;
 using System.Text.RegularExpressions;
+using FlightSupervisor.UI.Models;
 using FlightSupervisor.UI.Models.SimBrief;
 
 namespace FlightSupervisor.UI.Services
 {
     public class WeatherBriefingService
     {
+        private readonly UnitPreferences _units;
+
+        public WeatherBriefingService(UnitPreferences units = null)
+        {
+            _units = units ?? new UnitPreferences();
+        }
+
         public string GenerateBriefing(SimBriefResponse? response)
         {
             if (response == null) return "No flight data available for briefing.";
@@ -38,9 +46,18 @@ namespace FlightSupervisor.UI.Services
             if (!string.IsNullOrWhiteSpace(gen?.AvgWindComp) && gen.AvgWindComp.Length >= 3)
             {
                 string compType = gen.AvgWindComp.StartsWith("HD") ? "headwind" : gen.AvgWindComp.StartsWith("TL") ? "tailwind" : "crosswind";
-                string compSpd = gen.AvgWindComp.Substring(2).TrimStart('0');
-                if (string.IsNullOrEmpty(compSpd)) compSpd = "0";
-                briefing.AppendLine($"We are expecting an average {compType} of {compSpd} knots during cruise.");
+                string compSpdStr = gen.AvgWindComp.Substring(2).TrimStart('0');
+                if (string.IsNullOrEmpty(compSpdStr)) compSpdStr = "0";
+
+                int compSpd = int.TryParse(compSpdStr, out int c) ? c : 0;
+                string spdUnit = "knots";
+                if (_units.Speed == "KMH")
+                {
+                    compSpd = (int)Math.Round(compSpd * 1.852);
+                    spdUnit = "km/h";
+                }
+
+                briefing.AppendLine($"We are expecting an average {compType} of {compSpd} {spdUnit} during cruise.");
             }
 
             // ETOPS / Oceanic
@@ -111,23 +128,83 @@ namespace FlightSupervisor.UI.Services
                 bool hasGusts = windMatch.Groups[3].Success;
                 
                 int speed = int.TryParse(spdStr, out int s) ? s : 0;
-                if (speed > 20 || hasGusts) hasBadWeather = true;
+                
+                string speedUnit = "knots";
+                int displaySpeed = speed;
+                int thresholdStrong = 20;
+                int thresholdMod = 10;
 
-                string intensity = speed > 20 ? "strong" : speed > 10 ? "moderate" : "light";
+                if (_units.Speed == "KMH")
+                {
+                    displaySpeed = (int)Math.Round(speed * 1.852);
+                    speedUnit = "km/h";
+                    thresholdStrong = 37;
+                    thresholdMod = 18;
+                }
+
+                if (displaySpeed > thresholdStrong || hasGusts) hasBadWeather = true;
+                string intensity = displaySpeed > thresholdStrong ? "strong" : displaySpeed > thresholdMod ? "moderate" : "light";
                 
                 if (dirStr == "VRB")
                 {
-                    conditions.Append($"We have variable {intensity} winds at {speed} knots. ");
+                    conditions.Append($"We have variable {intensity} winds at {displaySpeed} {speedUnit}. ");
                 }
                 else if (int.TryParse(dirStr, out int dir))
                 {
                     string cardinal = GetCardinalDirection(dir);
-                    conditions.Append($"Winds are {intensity}, coming from the {cardinal} at {speed} knots. ");
+                    conditions.Append($"Winds are {intensity}, coming from the {cardinal} at {displaySpeed} {speedUnit}. ");
                 }
             }
             else
             {
                 conditions.Append("Wind conditions are calm or unavailable. ");
+            }
+
+            // Parse Temp
+            var tempMatch = Regex.Match(upperMetar, @"\s(M?[0-9]{2})/(M?[0-9]{2})\s");
+            if (tempMatch.Success)
+            {
+                string tempStr = tempMatch.Groups[1].Value;
+                int tempC = int.Parse(tempStr.Replace("M", "-"));
+                
+                int displayTemp = tempC;
+                string tempUnit = "Celsius";
+                if (_units.Temp == "F")
+                {
+                    displayTemp = (int)Math.Round(tempC * 9.0 / 5.0 + 32);
+                    tempUnit = "Fahrenheit";
+                }
+                
+                conditions.Append($"The outside temperature is {displayTemp} degrees {tempUnit}. ");
+                if (tempC <= 3 && (upperMetar.Contains(" BR") || upperMetar.Contains(" FG") || upperMetar.Contains(" SN")))
+                {
+                    conditions.Append("Icing conditions are possible, anti-ice systems might be required. ");
+                    hasBadWeather = true;
+                }
+            }
+
+            // Parse QNH
+            var qnhMatch = Regex.Match(upperMetar, @"\s(Q|A)([0-9]{4})\s");
+            if (qnhMatch.Success)
+            {
+                string pType = qnhMatch.Groups[1].Value;
+                int pVal = int.Parse(qnhMatch.Groups[2].Value);
+                
+                if (pType == "Q") // METAR in hPa
+                {
+                    if (_units.Press == "INHG")
+                        conditions.Append($"Altimeter setting is {(pVal * 0.0295300):F2} inHg. ");
+                    else
+                        conditions.Append($"QNH is {pVal} hectopascals. ");
+                }
+                else // METAR in inHg (Altimeter A2992 = 29.92)
+                {
+                    double inHg = pVal / 100.0;
+                    if (_units.Press == "HPA")
+                        conditions.Append($"QNH is {(int)Math.Round(inHg * 33.8639)} hectopascals. ");
+                    else
+                        conditions.Append($"Altimeter setting is {inHg:F2} inHg. ");
+                }
             }
 
             // Visibility

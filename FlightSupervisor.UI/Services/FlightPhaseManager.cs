@@ -28,6 +28,14 @@ namespace FlightSupervisor.UI.Services
         private bool _hasTriggeredTaxiPenalty = false;
         private bool _hasTriggeredGearOverspeed = false;
         private bool _hasTriggeredGearLate = false;
+        private bool _hasTriggeredGearUpBonus = false;
+        private bool _hasTriggeredAbnormalGear = false;
+        private bool _hasTriggeredEngineFailure = false;
+        private DateTime _lastTightTurnPenalty = DateTime.MinValue;
+        private double? _lastHeading = null;
+        public double Heading { get; private set; }
+        public bool Eng1Combustion { get; private set; } = true;
+        public bool Eng2Combustion { get; private set; } = true;
         private int _taxiOverspeedSeconds = 0;
         private int _overspeedSeconds = 0;
         private double _highestAltitudeReached = 0;
@@ -39,16 +47,37 @@ namespace FlightSupervisor.UI.Services
         public double GForce { get; set; } = 1.0;
         public double GroundSpeed { get; private set; } = 0.0;
         private bool _hasLanded = false;
-        private double _trackedTouchdownFpm = 0.0;
+        public double TouchdownFpm { get; private set; } = 0.0;
+        public double TouchdownGForce { get; private set; } = 1.0;
         private DateTime _lastLightPenalty = DateTime.MinValue;
         private DateTime _lastBankPenalty = DateTime.MinValue;
         private DateTime _lastPitchPenalty = DateTime.MinValue;
         public double TargetCruiseAltitude { get; set; } = 10000;
         public double AccelerationAltitudeAgl { get; set; } = 1500; // Default NADP2 standard
 
+        public void UpdateHeading(double heading)
+        {
+            Heading = heading;
+        }
+
+        public void UpdateEngineCombustion(bool eng1, bool eng2)
+        {
+            Eng1Combustion = eng1;
+            Eng2Combustion = eng2;
+        }
+
         public void UpdateTelemetry(double groundSpeed, double indicatedAirspeed, double altitude, double radioHeight, bool isParkingBrakeSet, bool isGearDown, double throttle, double pitch, double bank)
         {
             GroundSpeed = groundSpeed;
+
+            // Calculate Turn Rate (degrees per second)
+            double turnRate = 0;
+            if (_lastHeading.HasValue)
+            {
+                double rawDiff = Math.Abs(Heading - _lastHeading.Value);
+                turnRate = rawDiff > 180 ? 360 - rawDiff : rawDiff;
+            }
+            _lastHeading = Heading;
             // Track highest cruise altitude to detect Descent accurately
             if (altitude > _highestAltitudeReached && 
                 (CurrentPhase == FlightPhase.Takeoff || CurrentPhase == FlightPhase.InitialClimb || CurrentPhase == FlightPhase.Climb || CurrentPhase == FlightPhase.Cruise))
@@ -75,11 +104,25 @@ namespace FlightSupervisor.UI.Services
                     _overspeedSeconds = 0;
                 }
 
+                // Gear Up Bonus
+                if ((CurrentPhase == FlightPhase.Takeoff || CurrentPhase == FlightPhase.InitialClimb) && !isGearDown && radioHeight > 100 && !_hasTriggeredGearUpBonus)
+                {
+                    _hasTriggeredGearUpBonus = true;
+                    OnPenaltyTriggered?.Invoke("Gear Retraction Bonus: Clean gear up after takeoff (+50)");
+                }
+
                 // Gear deployed above 260 kts threshold
                 if (isGearDown && indicatedAirspeed > 260.0 && !_hasTriggeredGearOverspeed)
                 {
                     _hasTriggeredGearOverspeed = true;
                     OnPenaltyTriggered?.Invoke("Safety Violation: Landing Gear deployed above maximum extended speed (VLE > 260kts).");
+                }
+
+                // Abnormal Gear Deployment
+                if (isGearDown && (CurrentPhase == FlightPhase.Climb || CurrentPhase == FlightPhase.Cruise || CurrentPhase == FlightPhase.Descent) && !_hasTriggeredAbnormalGear)
+                {
+                    _hasTriggeredAbnormalGear = true;
+                    OnPenaltyTriggered?.Invoke("Safety Violation: Abnormal Gear Deployment (Climb/Cruise/Descent)");
                 }
 
                 // Gear forgotten on short final
@@ -96,8 +139,8 @@ namespace FlightSupervisor.UI.Services
                     OnPenaltyTriggered?.Invoke($"Safety Violation: Excessive Bank Angle ({Math.Abs(bank):F0}°)");
                 }
                 
-                // Pitch Limits: > 15 up (except takeoff/initial climb where 18 is common) or < -10 down
-                double maxPitchUp = (CurrentPhase == FlightPhase.Takeoff || CurrentPhase == FlightPhase.InitialClimb) ? 20.0 : 15.0;
+                // Pitch Limits: > 15 up (except takeoff/climb where 20 is allowed for Airbus SRS) or < -10 down
+                double maxPitchUp = (CurrentPhase == FlightPhase.Takeoff || CurrentPhase == FlightPhase.InitialClimb || CurrentPhase == FlightPhase.Climb) ? 20.0 : 15.0;
                 // In MSFS, nose up pitch is often negative or positive depending on plane, checking standard representation
                 if ((pitch > maxPitchUp || pitch < -10.0) && (DateTime.Now - _lastPitchPenalty).TotalSeconds > 10)
                 {
@@ -114,6 +157,22 @@ namespace FlightSupervisor.UI.Services
                         _lastLightPenalty = DateTime.Now;
                         OnPenaltyTriggered?.Invoke("Safety Violation: Landing Lights OFF below 10,000ft");
                     }
+                }
+                else if (altitude >= 10500 && IsLandingLightOn && (DateTime.Now - _lastLightPenalty).TotalMinutes > 5)
+                {
+                    _lastLightPenalty = DateTime.Now;
+                    OnPenaltyTriggered?.Invoke("Safety Violation: Landing Lights ON above 10,000ft");
+                }
+            }
+
+            // Ground lighting rules (Strobe & Landing Lights OFF)
+            if (CurrentPhase == FlightPhase.AtGate || CurrentPhase == FlightPhase.Pushback || 
+                CurrentPhase == FlightPhase.TaxiOut || CurrentPhase == FlightPhase.TaxiIn || CurrentPhase == FlightPhase.Arrived)
+            {
+                if ((IsStrobeLightOn || IsLandingLightOn) && (DateTime.Now - _lastLightPenalty).TotalMinutes > 5)
+                {
+                    _lastLightPenalty = DateTime.Now;
+                    OnPenaltyTriggered?.Invoke("Safety Violation: Strobes or Landing Lights ON during ground ops");
                 }
             }
 
@@ -135,12 +194,29 @@ namespace FlightSupervisor.UI.Services
                     _taxiOverspeedSeconds = 0;
                 }
                 
+                // Tight Turn Penalty (Taxi)
+                if (groundSpeed > 15.0 && turnRate >= 8.0 && (DateTime.Now - _lastTightTurnPenalty).TotalMinutes > 1)
+                {
+                    _lastTightTurnPenalty = DateTime.Now;
+                    OnPenaltyTriggered?.Invoke("Comfort Violation: Tight turn at high speed (> 15kts)");
+                }
+
                 // Taxi Lights Rule
                 if (groundSpeed > 5.0 && !IsTaxiLightOn && (DateTime.Now - _lastLightPenalty).TotalMinutes > 5)
                 {
                     _lastLightPenalty = DateTime.Now;
                     OnPenaltyTriggered?.Invoke("Safety Violation: Taxiing without Taxi Lights ON");
                 }
+            }
+
+            // Engine Failure Detection (between Takeoff and Landing)
+            if ((CurrentPhase == FlightPhase.Takeoff || CurrentPhase == FlightPhase.InitialClimb || 
+                 CurrentPhase == FlightPhase.Climb || CurrentPhase == FlightPhase.Cruise || 
+                 CurrentPhase == FlightPhase.Descent || CurrentPhase == FlightPhase.Approach) && 
+                 (!Eng1Combustion || !Eng2Combustion) && !_hasTriggeredEngineFailure)
+            {
+                _hasTriggeredEngineFailure = true;
+                OnPenaltyTriggered?.Invoke("Critical Safety Violation: In-Flight Engine Failure");
             }
 
             // Intelligent Rule-Based State Machine
@@ -174,8 +250,12 @@ namespace FlightSupervisor.UI.Services
                     break;
 
                 case FlightPhase.Climb:
-                    // If within 500ft of target cruise altitude, we are cruising
-                    if (altitude >= TargetCruiseAltitude - 500) ChangePhase(FlightPhase.Cruise);
+                    // If within 500ft of target cruise altitude and leveling off (VS < 500 fpm)
+                    if (altitude >= TargetCruiseAltitude - 500 && Math.Abs(VerticalSpeed) < 500) 
+                    {
+                        ChangePhase(FlightPhase.Cruise);
+                        TargetCruiseAltitude = altitude; // Dynamically adjust if we leveled off higher/lower
+                    }
                     break;
 
                 case FlightPhase.Cruise:
@@ -185,9 +265,10 @@ namespace FlightSupervisor.UI.Services
                         ChangePhase(FlightPhase.Climb);
                         break;
                     }
-
-                    // Detect descent if we drop 1500ft below the stabilized cruise altitude
-                    if (_highestAltitudeReached > TargetCruiseAltitude - 2000 && altitude < (_highestAltitudeReached - 1500)) 
+                    // Secured Descent Trigger (Step Climbs & TCAS tolerance)
+                    // The aircraft must drop 3000ft below its highest cruise altitude to confirm a real descent.
+                    // This prevents TCAS RAs or minor step descents from triggering the approach flow.
+                    if (VerticalSpeed < -500 && altitude < _highestAltitudeReached - 3000)
                     {
                         ChangePhase(FlightPhase.Descent);
                     }
@@ -205,19 +286,20 @@ namespace FlightSupervisor.UI.Services
                 case FlightPhase.Landing:
                     if (radioHeight > 0 && radioHeight <= 50 && !IsOnGround)
                     {
-                        _trackedTouchdownFpm = VerticalSpeed; // Store last known VS before ground
+                        TouchdownFpm = VerticalSpeed; // Store last known VS before ground
                         if (CurrentPhase != FlightPhase.Landing && groundSpeed < 170) ChangePhase(FlightPhase.Landing);
                     }
                     
                     if (IsOnGround && !_hasLanded)
                     {
                         _hasLanded = true;
+                        TouchdownGForce = GForce;
                         string landingQuality = "Normal Landing";
-                        if (_trackedTouchdownFpm > -150) landingQuality = "Butter Landing";
-                        else if (_trackedTouchdownFpm < -600) landingQuality = "Severe Hard Landing";
-                        else if (_trackedTouchdownFpm < -450) landingQuality = "Hard Landing";
+                        if (TouchdownFpm > -150) landingQuality = "Butter Landing";
+                        else if (TouchdownFpm < -600) landingQuality = "Severe Hard Landing";
+                        else if (TouchdownFpm < -450) landingQuality = "Hard Landing";
                         
-                        OnPenaltyTriggered?.Invoke($"{landingQuality}: Touchdown at {_trackedTouchdownFpm:F0} fpm ({GForce:F2}G)");
+                        OnPenaltyTriggered?.Invoke($"{landingQuality}: Touchdown at {TouchdownFpm:F0} fpm ({TouchdownGForce:F2}G)");
                     }
                     
                     if (_hasLanded && groundSpeed < 35.0)
@@ -244,6 +326,9 @@ namespace FlightSupervisor.UI.Services
                     _hasTriggeredTaxiPenalty = false;
                     _hasTriggeredGearLate = false;
                     _hasTriggeredGearOverspeed = false;
+                    _hasTriggeredGearUpBonus = false;
+                    _hasTriggeredAbnormalGear = false;
+                    _hasTriggeredEngineFailure = false;
                 }
                 else if (CurrentPhase == FlightPhase.Descent || CurrentPhase == FlightPhase.Approach)
                 {
@@ -266,7 +351,8 @@ namespace FlightSupervisor.UI.Services
         {
             ChangePhase(FlightPhase.AtGate);
             _highestAltitudeReached = 0;
-            _trackedTouchdownFpm = 0.0;
+            TouchdownFpm = 0.0;
+            TouchdownGForce = 1.0;
             _hasLanded = false;
             IsOnGround = true;
         }

@@ -139,6 +139,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
         [JsonPropertyName("est_ldw")]
         public string? EstLdw { get; set; }
 
+        [JsonPropertyName("est_tow")]
+        public string? EstTow { get; set; }
+
         [JsonPropertyName("est_cg")]
         public string? EstCg { get; set; }
 
