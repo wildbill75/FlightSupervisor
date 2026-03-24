@@ -51,6 +51,8 @@ namespace FlightSupervisor.UI
         {
             InitializeComponent();
             _simBriefService = new SimBriefService();
+            _panelServer = new PanelServerService();
+            _panelServer.StartServer();
 
             _groundOpsManager = new GroundOpsManager();
             _groundOpsManager.OnOpsCompleted += () => SendToWeb(new { type = "groundOpsComplete" });
@@ -80,6 +82,15 @@ namespace FlightSupervisor.UI
                     SendToWeb(new { type = "flightCancelled" });
                 }
                 SendTelemetryToWeb();
+                
+                if (_panelServer != null)
+                {
+                    _panelServer.BroadcastData(new { 
+                        score = _scoreManager.CurrentScore.ToString(), 
+                        phase = _phaseManager.CurrentPhase.ToString(), 
+                        groundOps = _groundOpsManager.GetStatusString() 
+                    });
+                }
             };
             _uiTimer.Start();
 
@@ -109,24 +120,35 @@ namespace FlightSupervisor.UI
                                 int penalty = effectiveDelaySec > 900 ? -100 : -50;
                                 string timeStr = $"{(rawDelaySec / 60)} min";
                                 string groundOpsPardon = groundOpsDelaySec > 0 ? $" (Amnistie Sol: -{groundOpsDelaySec / 60}m)" : "";
-                                _scoreManager.AddScore(penalty, $"Retard à l'arrivée: {timeStr}{groundOpsPardon}");
+                                _scoreManager.AddScore(penalty, $"Retard à l'arrivée: {timeStr}{groundOpsPardon}", ScoreCategory.Operations);
                             }
                             else if (effectiveDelaySec <= 300 && rawDelaySec > 300)
                             {
-                                _scoreManager.AddScore(50, $"Amnistie Retard : {rawDelaySec / 60}m justifiés par les Ops Sol !");
+                                _scoreManager.AddScore(50, $"Amnistie Retard : {rawDelaySec / 60}m justifiés par les Ops Sol !", ScoreCategory.Operations);
                             }
                             else if (rawDelaySec <= 300)
                             {
-                                _scoreManager.AddScore(100, $"Ponctualité : Arrivée à l'heure !");
+                                _scoreManager.AddScore(100, $"Ponctualité : Arrivée à l'heure !", ScoreCategory.Operations);
                             }
 
                             // Generate Flight Report
                             long schedOut = 0;
                             if (_currentResponse?.Times?.SchedOut != null) long.TryParse(_currentResponse.Times.SchedOut, out schedOut);
                             
+                            // Apply final customer dissatisfaction penalty if Comfort is terrible
+                            if (_scoreManager.ComfortPoints < -200)
+                            {
+                                int dissatPenalty = _scoreManager.ComfortPoints / 2; // e.g., -300 comfort -> -150 Operations
+                                _scoreManager.AddScore(dissatPenalty, "Customer Dissatisfaction: Passenger complaints filed", ScoreCategory.Operations);
+                            }
+
                             var report = new
                             {
                                 Score = _scoreManager.CurrentScore,
+                                SafetyPoints = _scoreManager.SafetyPoints,
+                                ComfortPoints = _scoreManager.ComfortPoints,
+                                MaintenancePoints = _scoreManager.MaintenancePoints,
+                                OperationsPoints = _scoreManager.OperationsPoints,
                                 Dep = _currentResponse?.Origin?.IcaoCode ?? "",
                                 Arr = _currentResponse?.Destination?.IcaoCode ?? "",
                                 FlightNo = _currentResponse?.General?.FlightNumber ?? "",
@@ -155,9 +177,7 @@ namespace FlightSupervisor.UI
                 Dispatcher.Invoke(() => SendToWeb(new { type = "penalty", message = msg }));
             };
 
-            _panelServer = new PanelServerService(new SimBriefService(), new WeatherBriefingService(), _phaseManager);
 
-            try { _panelServer.StartServer(); } catch { }
 
             _simConnectService = new SimConnectService();
             _scoreManager = new SuperScoreManager(_phaseManager, _simConnectService);
@@ -216,6 +236,8 @@ namespace FlightSupervisor.UI
             _simConnectService.OnVerticalSpeedReceived += vs => { _phaseManager.VerticalSpeed = vs; };
             _simConnectService.OnGForceReceived += gf => { _phaseManager.GForce = gf; };
             _simConnectService.OnHeadingReceived += h => { _phaseManager.UpdateHeading(h); };
+            _simConnectService.OnWindReceived += (wd, wv) => { _phaseManager.UpdateWind(wd, wv); };
+            _simConnectService.OnNavigationReceived += (locErr, gpsErr, hasLoc) => { _phaseManager.UpdateNavigation(locErr, gpsErr, hasLoc); };
             _simConnectService.OnEngineCombustionReceived += (eng1, eng2) => {
                 _phaseManager.UpdateEngineCombustion(eng1, eng2);
             };
@@ -331,6 +353,15 @@ namespace FlightSupervisor.UI
                         _notifyIcon.Visible = true;
                     });
                 }
+                else if (action == "maximizeApp")
+                {
+                    Dispatcher.Invoke(() => {
+                        if (this.WindowState == WindowState.Maximized)
+                            this.WindowState = WindowState.Normal;
+                        else
+                            this.WindowState = WindowState.Maximized;
+                    });
+                }
                 else if (action == "closeApp")
                 {
                     Dispatcher.Invoke(() => {
@@ -347,6 +378,12 @@ namespace FlightSupervisor.UI
                 {
                     Dispatcher.Invoke(() => {
                         _groundOpsManager.StartOps();
+                    });
+                }
+                else if (action == "setAlwaysOnTop")
+                {
+                    Dispatcher.Invoke(() => {
+                        this.Topmost = doc.RootElement.GetProperty("value").GetBoolean();
                     });
                 }
                 else if (action == "cancelFlight")
@@ -426,15 +463,28 @@ namespace FlightSupervisor.UI
                             _phaseManager.TargetCruiseAltitude = alt < 1000 ? alt * 100 : alt;
                         }
                     }
+
+                    string acType = response.Aircraft?.BaseType ?? response.Aircraft?.IcaoCode ?? "";
+                    if (acType.StartsWith("A33") || acType.StartsWith("A34") || acType.StartsWith("A35") || acType.StartsWith("A38") || 
+                        acType.StartsWith("B74") || acType.StartsWith("B76") || acType.StartsWith("B77") || acType.StartsWith("B78") || acType.StartsWith("MD1"))
+                        _phaseManager.AircraftCategory = "Heavy";
+                    else if (acType.StartsWith("C1") || acType.StartsWith("SR") || acType.StartsWith("DA") || acType.StartsWith("PA") || acType.StartsWith("P28"))
+                        _phaseManager.AircraftCategory = "Light";
+                    else
+                        _phaseManager.AircraftCategory = "Medium";
                     
                     var weatherService = new WeatherBriefingService(units);
                     var briefingText = weatherService.GenerateBriefing(response);
+
+                    var passengerService = new FlightSupervisor.UI.Services.PassengerManifestService();
+                    var manifestData = passengerService.GenerateManifest(response);
 
                     // Convert complex response to a simpler format for JS to avoid serialization deep nesting loops if any
                     SendToWeb(new { 
                         type = "flightData", 
                         data = response,
-                        briefing = briefingText
+                        briefing = briefingText,
+                        manifest = manifestData
                     });
                     
                     SendToWeb(new { type = "fetchStatus", status = "success", message = "Flight plan loaded !" });
@@ -473,5 +523,63 @@ namespace FlightSupervisor.UI
             _simConnectService?.Disconnect();
             _panelServer?.StopServer();
         }
+
+        // --- WIN32 STUFF TO FIX TASKBAR OVERLAP WHEN MAXIMIZED ---
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            var handle = new WindowInteropHelper(this).Handle;
+            HwndSource.FromHwnd(handle).AddHook(WindowProc);
+        }
+
+        private IntPtr WindowProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (msg == 0x0024) // WM_GETMINMAXINFO
+            {
+                WmGetMinMaxInfo(hwnd, lParam);
+                handled = true;
+            }
+            return IntPtr.Zero;
+        }
+
+        private void WmGetMinMaxInfo(IntPtr hwnd, IntPtr lParam)
+        {
+            MINMAXINFO mmi = (MINMAXINFO)Marshal.PtrToStructure(lParam, typeof(MINMAXINFO))!;
+            IntPtr monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+            if (monitor != IntPtr.Zero)
+            {
+                MONITORINFO monitorInfo = new MONITORINFO();
+                monitorInfo.cbSize = Marshal.SizeOf(typeof(MONITORINFO));
+                GetMonitorInfo(monitor, ref monitorInfo);
+                
+                mmi.ptMaxPosition.x = Math.Abs(monitorInfo.rcWork.left - monitorInfo.rcMonitor.left);
+                mmi.ptMaxPosition.y = Math.Abs(monitorInfo.rcWork.top - monitorInfo.rcMonitor.top);
+                mmi.ptMaxSize.x = Math.Abs(monitorInfo.rcWork.right - monitorInfo.rcWork.left);
+                mmi.ptMaxSize.y = Math.Abs(monitorInfo.rcWork.bottom - monitorInfo.rcWork.top);
+                
+                Marshal.StructureToPtr(mmi, lParam, true);
+            }
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct POINT { public int x; public int y; }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct MINMAXINFO { public POINT ptReserved; public POINT ptMaxSize; public POINT ptMaxPosition; public POINT ptMinTrackSize; public POINT ptMaxTrackSize; }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct RECT { public int left; public int top; public int right; public int bottom; }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct MONITORINFO { public int cbSize; public RECT rcMonitor; public RECT rcWork; public uint dwFlags; }
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr MonitorFromWindow(IntPtr handle, uint flags);
+
+        private const uint MONITOR_DEFAULTTONEAREST = 0x00000002;
     }
 }

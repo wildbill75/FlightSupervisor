@@ -1,0 +1,26 @@
+# Flight Supervisor - AI Agent Rules
+
+## 1. Project Context & Architecture
+- **Tech Stack**: Backend is C# WPF (.NET 8). Frontend is HTML / CSS / Vanilla JS hosted locally via **WebView2** in `FlightSupervisor.UI\wwwroot`.
+- **Integration**: The backend uses the Microsoft Flight Simulator SDK (`SimConnect`) for real-time telemetry extraction (`SimConnectService.cs`).
+- **Communication Flow**: C# and JS communicate exclusively via `MainWebView.CoreWebView2.PostWebMessageAsJson` and `WebMessageReceived` bridging. Avoid creating classical APIs.
+
+## 2. Task Tracking (CRITICAL)
+- **DO NOT auto-generate a generic `task.md` file.**
+- The project's progress is EXCLUSIVELY tracked in the `Agile Story Task` document (`agile_story_task.md` created as an artifact).
+- Before starting new work, always review the stories to understand context.
+
+## 3. Coding Guidelines & Localization
+- **Localization (i18n)**: The project uses a explicit dual-translation architecture (FR / EN). Static UI elements are translated in Javascript (`locales.js`). Dynamic backend logs/events are translated in C# (`LocalizationService.cs`) before sending to the UI. Never mix hardcoded English and French.
+- **Backend Modifications**: Simulation state evaluation must be done inside `FlightPhaseManager.cs`. Ground operations logic goes to `GroundOpsManager.cs`. UI messaging goes to `MainWindow.xaml.cs`.
+- **Frontend Modifications**: Keep external UI dependencies to a minimum. The design follows a dashboard / MSFS in-game panel theme, prioritize CSS variables and clean `app.css` classes.
+
+## 4. Telemetry Rules
+- **Penalties & Safety Violations**: Managed by `FlightPhaseManager`. Always wait for the proper cooldown (`_lastLightPenalty`, `_lastBankPenalty`, etc.) before triggering repeating penalties to avoid UI spam.
+- **Time/Date**: Use Zulu Time (UTC) exclusively, obtained from MSFS `SimConnect`, never the local PC time unless strictly required for a local file timestamp.
+
+## 5. Build & Deployment Rules (CRITICAL)
+- **Executable Output**: Whenever generating or publishing the final executable (`.exe`), the output directory MUST always be strictly directed to `D:\FlightSupervisor\DASHBOARD_FINAL`. Do not leave the final build in the default `bin\Release` folder.
+
+## 6. Version Control (Git)
+- **Branch Management**: Always remain on the currently checked out Git branch (e.g., `feature/ui-dash-and-groundops`). DO NOT checkout other branches, reset to `main`, or create new branches unless EXPLICITLY requested by the user.

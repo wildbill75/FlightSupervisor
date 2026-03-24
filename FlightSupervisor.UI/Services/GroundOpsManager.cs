@@ -19,6 +19,7 @@ namespace FlightSupervisor.UI.Services
         public string StatusMessage { get; set; } = "En attente";
         public string ActiveDelayEvent { get; set; } = "";
         public bool IsOptional { get; set; }
+        public bool HasBeenDelayed { get; set; } = false;
 
         public int RemainingSec => Math.Max(0, (TotalDurationSec + DelayAddedSec) - ElapsedSec);
         public int ProgressPercent => (TotalDurationSec + DelayAddedSec) == 0 ? 100 : (int)Math.Min(100, Math.Max(0, ((double)ElapsedSec / (TotalDurationSec + DelayAddedSec)) * 100));
@@ -152,10 +153,11 @@ namespace FlightSupervisor.UI.Services
                 }
                 else
                 {
-                    double chance = EventProbabilityPercent * 0.00015;
-                    if (s.State != GroundServiceState.Delayed && chance > 0 && _rnd.NextDouble() < chance) 
+                    double chance = EventProbabilityPercent * 0.000015;
+                    if (!s.HasBeenDelayed && s.State != GroundServiceState.Delayed && chance > 0 && _rnd.NextDouble() < chance) 
                     {
                         s.State = GroundServiceState.Delayed;
+                        s.HasBeenDelayed = true;
                         
                         string eventDesc = "Perturbation inopinée";
                         int additionalDelay = _rnd.Next(60, 180);

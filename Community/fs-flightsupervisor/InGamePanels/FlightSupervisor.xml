@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<SimBase.Document Type="InGamePanel" version="1,0">
+    <Descr>Flight Supervisor VR Panel</Descr>
+    <InGamePanel.InGamePanel>
+        <Title>SuperScore</Title>
+        <Path>html_ui/InGamePanels/FlightSupervisor/FlightSupervisor.html</Path>
+        <Icon>html_ui/Textures/Menu/toolbar/ICON_TOOLBAR_FLIGHT_SUPERVISOR.svg</Icon>
+    </InGamePanel.InGamePanel>
+</SimBase.Document>

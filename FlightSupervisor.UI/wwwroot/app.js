@@ -61,6 +61,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedHardcore !== null && document.getElementById('chkHardcore')) {
         document.getElementById('chkHardcore').checked = (savedHardcore === 'true');
     }
+
+    const savedTop = localStorage.getItem('chkAlwaysOnTop');
+    if (savedTop !== null && document.getElementById('chkAlwaysOnTop')) {
+        const isTop = (savedTop === 'true');
+        document.getElementById('chkAlwaysOnTop').checked = isTop;
+        if (document.getElementById('btnPin')) {
+            document.getElementById('btnPin').style.opacity = isTop ? '1' : '0.4';
+        }
+        window.chrome.webview.postMessage({ action: 'setAlwaysOnTop', value: isTop });
+    }
     
     const rngProb = document.getElementById('rngProb');
     const lblProb = document.getElementById('lblProb');
@@ -108,6 +118,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const hardcore = document.getElementById('chkHardcore') ? document.getElementById('chkHardcore').checked : false;
             localStorage.setItem('chkHardcore', hardcore);
             
+            const isTop = document.getElementById('chkAlwaysOnTop') ? document.getElementById('chkAlwaysOnTop').checked : false;
+            localStorage.setItem('chkAlwaysOnTop', isTop);
+            if (document.getElementById('btnPin')) {
+                document.getElementById('btnPin').style.opacity = isTop ? '1' : '0.4';
+            }
+            window.chrome.webview.postMessage({ action: 'setAlwaysOnTop', value: isTop });
+            
             if (username) localStorage.setItem('sbUsername', username);
             localStorage.setItem('groundSpeed', groundSpeed);
             localStorage.setItem('groundProb', groundProb);
@@ -135,6 +152,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnCancelYes) btnCancelYes.addEventListener('click', () => {
         cancelModal.style.display = 'none';
         window.chrome.webview.postMessage({ action: 'cancelFlight' });
+    });
+
+    const btnDismissReport = document.getElementById('btnDismissReport');
+    if (btnDismissReport) btnDismissReport.addEventListener('click', () => {
+        document.getElementById('flightReportModal').style.display = 'none';
     });
 
     btnFetchPlan.addEventListener('click', () => {
@@ -200,9 +222,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const btnMin = document.getElementById('btnMin');
+    const btnMax = document.getElementById('btnMax');
     const btnClose = document.getElementById('btnClose');
+    const btnPin = document.getElementById('btnPin');
+    
     if (btnMin) btnMin.addEventListener('click', () => window.chrome.webview.postMessage({ action: 'minimizeApp' }));
+    if (btnMax) btnMax.addEventListener('click', () => {
+        window.chrome.webview.postMessage({ action: 'maximizeApp' });
+        btnMax.innerText = btnMax.innerText === '□' ? '❐' : '□';
+    });
     if (btnClose) btnClose.addEventListener('click', () => window.chrome.webview.postMessage({ action: 'closeApp' }));
+    if (btnPin) btnPin.addEventListener('click', () => {
+        let isTop = localStorage.getItem('chkAlwaysOnTop') === 'true';
+        isTop = !isTop;
+        localStorage.setItem('chkAlwaysOnTop', isTop);
+        if (document.getElementById('chkAlwaysOnTop')) document.getElementById('chkAlwaysOnTop').checked = isTop;
+        btnPin.style.opacity = isTop ? '1' : '0.4';
+        window.chrome.webview.postMessage({ action: 'setAlwaysOnTop', value: isTop });
+    });
 
     let currentSobtUnix = 0;
     let isFlightCancelled = false;
@@ -238,7 +275,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('flightPhase').innerText = `${payload.phase}`;
                 break;
             case 'simTime':
-                document.getElementById('zuluTime').innerText = `${payload.time}`;
+                if (payload.rawUnix) document.getElementById('zuluTime').innerText = getFormattedTime(payload.rawUnix);
+                else document.getElementById('zuluTime').innerText = payload.time;
                 const cd = document.getElementById('flightCountdown');
                 if (cd && payload.rawUnix && currentSobtUnix > 0) {
                     let d = 0; // Delay in seconds
@@ -310,49 +348,65 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'phaseUpdate':
                 document.getElementById('flightPhase').innerText = `${payload.phase}`;
-                if (payload.aobt) {
-                    document.getElementById('bdAobt').innerText = payload.aobt;
-                    if (payload.aobtUnix) window.finalAobtUnix = payload.aobtUnix;
-                }
-                if (payload.aibt) {
-                    document.getElementById('bdAibt').innerText = payload.aibt;
-                    if (payload.aibtUnix) window.finalAibtUnix = payload.aibtUnix;
-                }
+                if (payload.aobtUnix) {
+                    window.finalAobtUnix = payload.aobtUnix;
+                    document.getElementById('bdAobt').innerText = getFormattedTime(payload.aobtUnix);
+                } else if (payload.aobt) document.getElementById('bdAobt').innerText = payload.aobt;
+
+                if (payload.aibtUnix) {
+                    window.finalAibtUnix = payload.aibtUnix;
+                    document.getElementById('bdAibt').innerText = getFormattedTime(payload.aibtUnix);
+                } else if (payload.aibt) document.getElementById('bdAibt').innerText = payload.aibt;
                 break;
             case 'flightReport':
                 let rep = payload.report;
                 let isLate = rep.DelaySec > 300;
                 let isEarly = rep.RawDelaySec < -300;
                 let puncText = isLate ? `${Math.round(rep.DelaySec / 60)}m Late` : (isEarly ? `${Math.abs(Math.round(rep.RawDelaySec / 60))}m Early` : 'On Time');
-                let puncColor = isLate ? '#EF4444' : (isEarly ? '#60A5FA' : '#34D399');
+                let puncClass = isLate ? 'red' : (isEarly ? 'blue' : 'green');
+                if (rep.DelaySec <= 300 && rep.RawDelaySec > 300) puncClass = 'orange'; // Ops Delay Pardon
                 
-                let reportHtml = `
-                    <div style="background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 12px; margin-top: 15px; margin-bottom: 5px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);">
-                        <h3 style="color: #38BDF8; font-size: 14px; text-transform: uppercase; border-bottom: 1px solid #334155; padding-bottom: 6px; margin: 0 0 10px 0;">
-                            <span style="font-size:16px;">📋</span> FINAL FLIGHT REPORT : ${rep.Airline}${rep.FlightNo}
-                        </h3>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; color: #cbd5e1;">
-                            <div><strong style="color:#94a3b8;">Route:</strong> ${rep.Dep} ➔ ${rep.Arr}</div>
-                            <div><strong style="color:#94a3b8;">SuperScore:</strong> <span style="color:#FACC15; font-size:14px; font-weight:bold;">${rep.Score} pts</span></div>
-                            
-                            <div><strong style="color:#94a3b8;">Block Time:</strong> ${rep.BlockTime}m <em style="color:#64748b;">(Plan: ${rep.SchedBlockTime}m)</em></div>
-                            <div><strong style="color:#94a3b8;">Punctuality:</strong> <span style="color:${puncColor}; font-weight:bold;">${puncText}</span></div>
-                            
-                            <div><strong style="color:#94a3b8;">Touchdown:</strong> ${rep.TouchdownFpm.toFixed(0)} fpm</div>
-                            <div><strong style="color:#94a3b8;">Impact Force:</strong> ${rep.TouchdownGForce.toFixed(2)} G</div>
-                            
-                            <div><strong style="color:#94a3b8;">Block Fuel:</strong> ${rep.BlockFuel}</div>
-                            <div><strong style="color:#94a3b8;">TOW / ZFW:</strong> ${rep.Tow} / ${rep.Zfw}</div>
-                        </div>
-                    </div>
-                `;
-                let termRep = document.getElementById('logTerminal');
-                if (termRep) {
-                    let logDiv = document.createElement('div');
-                    logDiv.innerHTML = reportHtml;
-                    termRep.appendChild(logDiv);
-                    termRep.scrollTop = termRep.scrollHeight;
-                }
+                document.getElementById('frFlightNo').innerText = `${rep.Airline}${rep.FlightNo}`;
+                document.getElementById('frRoute').innerText = `${rep.Dep} ➔ ${rep.Arr}`;
+                
+                const scoreColor = rep.Score >= 1000 ? '#34D399' : (rep.Score > 500 ? '#FACC15' : '#F87171');
+                const mainScoreEl = document.getElementById('frScore');
+                mainScoreEl.innerText = rep.Score;
+                mainScoreEl.style.color = scoreColor;
+
+                const setSubScore = (id, pts) => {
+                    const el = document.getElementById(id);
+                    el.innerText = (pts > 0 ? '+' : '') + pts;
+                    el.className = 'rc-score ' + (pts > 0 ? 'positive' : (pts < 0 ? 'negative' : 'neutral'));
+                };
+                
+                setSubScore('frSafetyScore', rep.SafetyPoints || 0);
+                setSubScore('frComfortScore', rep.ComfortPoints || 0);
+                setSubScore('frMaintScore', rep.MaintenancePoints || 0);
+                setSubScore('frOpsScore', rep.OperationsPoints || 0);
+
+                let btHours = Math.floor(rep.BlockTime / 60);
+                let btMins = rep.BlockTime % 60;
+                document.getElementById('frBlock').innerText = `${btHours}h ${btMins}m`;
+
+                const puncBadge = document.getElementById('frPunc');
+                puncBadge.innerText = puncText;
+                puncBadge.className = `badge ${puncClass}`;
+
+                document.getElementById('frFuel').innerText = rep.BlockFuel;
+                document.getElementById('frWeights').innerText = `${rep.Zfw} / ${rep.Tow}`;
+                
+                let fpmColor = rep.TouchdownFpm < -400 ? '#F87171' : (rep.TouchdownFpm > -100 ? '#34D399' : 'white');
+                const fpmEl = document.getElementById('frFpm');
+                fpmEl.innerText = `${rep.TouchdownFpm.toFixed(0)} fpm`;
+                fpmEl.style.color = fpmColor;
+                
+                let gColor = rep.TouchdownGForce > 1.4 ? '#F87171' : 'white';
+                const gEl = document.getElementById('frGForce');
+                gEl.innerText = `${rep.TouchdownGForce.toFixed(2)} G`;
+                gEl.style.color = gColor;
+
+                document.getElementById('flightReportModal').style.display = 'flex';
                 break;
             case 'penalty':
             case 'log':
@@ -503,7 +557,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (document.getElementById('dashMetaBar')) document.getElementById('dashMetaBar').style.display = 'block';
                 document.getElementById('flightBreakdown').style.display = 'grid';
-                document.getElementById('weatherBreakdown').style.display = 'block';
 
                 const timeStr = (unix) => {
                     if (!unix || unix == "0") return "--:--z";
@@ -522,15 +575,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     let aname = AIRLINES[acode] ? ` (${AIRLINES[acode]})` : '';
                     document.getElementById('bdAirline').innerText = acode + aname;
                     document.getElementById('bdFlightNum').innerText = d.general.flight_number || '';
-                    let flightLevel = d.general.initial_alt || '';
-                    if (!flightLevel && d.general.stepclimb_string) {
-                        const parts = d.general.stepclimb_string.split('/');
+                    let flightLevel = d.general.initial_alt || d.general.initial_altitude || '';
+                    let stepclimb = d.general.stepclimb_string || '';
+                    
+                    if (!flightLevel && stepclimb) {
+                        const parts = stepclimb.split('/');
                         if (parts.length > 1) flightLevel = parts[parts.length - 1]; // e.g., "0360"
                     }
 
+                    if (flightLevel) {
+                        flightLevel = flightLevel.replace(/^0+/, ''); // "0360" -> "360"
+                        if (flightLevel.length === 5 && flightLevel.endsWith('00')) flightLevel = flightLevel.substring(0, 3); // "37000" -> "370"
+                    }
+
+                    if (stepclimb) {
+                        stepclimb = stepclimb.split('/').map(s => {
+                            if (s.length === 4 && s.startsWith('0') && !isNaN(s)) return s.substring(1);
+                            return s;
+                        }).join('/');
+                    }
+
                     let cruiseStr = flightLevel ? 'FL' + flightLevel : 'N/A';
-                    if (d.general.stepclimb_string && d.general.stepclimb_string !== `${d.origin?.icao_code || ''}/${flightLevel}`) {
-                        cruiseStr += ` (Steps: ${d.general.stepclimb_string})`;
+                    if (stepclimb && stepclimb !== `${d.origin?.icao_code || ''}/${flightLevel}`) {
+                        cruiseStr += ` (Steps: ${stepclimb})`;
                     }
                     document.getElementById('bdCruise').innerText = cruiseStr;
 
@@ -595,29 +662,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (d.destination) document.getElementById('bdDest').innerText = (d.destination.icao_code || '') + ' ' + (d.destination.name || '');
 
                 if (d.times) {
-                    const uiTimeFmt = document.getElementById('selTimeFormat') ? document.getElementById('selTimeFormat').value : '24H';
-                    const formatTime = (unix) => {
-                        const dt = new Date(unix * 1000);
-                        let h = dt.getUTCHours();
-                        let m = dt.getUTCMinutes().toString().padStart(2, '0');
-                        if (uiTimeFmt === '12H') {
-                            const ampm = h >= 12 ? 'pm' : 'am';
-                            h = h % 12;
-                            if (h === 0) h = 12;
-                            return `${h}:${m}${ampm}z`;
-                        } else {
-                            return `${h.toString().padStart(2, '0')}:${m}z`;
-                        }
-                    };
-
                     currentSobtUnix = parseInt(d.times.sched_out || '0');
-                    document.getElementById('bdSobt').innerText = formatTime(currentSobtUnix);
+                    if (document.getElementById('bdSobt')) document.getElementById('bdSobt').innerText = timeStr(currentSobtUnix);
                     window.currentSibtUnix = parseInt(d.times.sched_in || '0');
-                    document.getElementById('bdSibt').innerText = formatTime(window.currentSibtUnix);
+                    if (document.getElementById('bdSibt')) document.getElementById('bdSibt').innerText = timeStr(window.currentSibtUnix);
                     let eteSec = parseInt(d.times.est_time_enroute || '0');
                     let h = Math.floor(eteSec / 3600);
                     let m = Math.floor((eteSec % 3600) / 60);
-                    document.getElementById('bdEte').innerText = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+                    if (document.getElementById('bdEte')) document.getElementById('bdEte').innerText = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
                 }
 
                 if (d.weights && d.params) {
@@ -643,7 +695,64 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('bdFuel').innerText = convertWeight(fuel) + ' ' + uiWeightUnit;
                 }
 
-                document.getElementById('briefingContent').innerText = payload.briefing;
+                const parseBriefing = (text) => {
+                    if (!text) return '';
+                    let html = '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(400px, 1fr)); gap:20px; margin-top:15px;">';
+                    
+                    const sections = text.split(/(?:\r?\n)?(FLIGHT PLAN EXPECTATIONS:|DEPARTURE:|DESTINATION:|ALTERNATE PLAN:|ENROUTE & OPERATIONS:)\r?\n/);
+                    
+                    if (sections[0] && sections[0].trim().length > 0) {
+                        html += `<div style="grid-column: 1 / -1; font-style: italic; color: #94A3B8; margin-bottom: 5px; font-size: 15px;">${sections[0].trim()}</div>`;
+                    }
+                    
+                    for (let i = 1; i < sections.length; i+=2) {
+                        let title = sections[i].replace(':', '').trim();
+                        let content = sections[i+1].trim();
+                        
+                        // Syntax highlighting
+                        content = content.replace(/(?:\bRunway\s+|\brunway\s+)([0-9]{2}[A-Z]?)/gi, 'Runway <span style="color:#60A5FA; font-weight:bold; background:#1e3a8a; padding:2px 6px; border-radius:4px;">$1</span>');
+                        content = content.replace(/(FL[0-9]{3}|TL[0-9]{3}|HD[0-9]{3})/g, '<span style="color:#F472B6; font-weight:bold; font-family:monospace; background:#831843; padding:2px 6px; border-radius:4px;">$1</span>');
+                        content = content.replace(/([0-9]+\s*knots|winds.*?at\s+[0-9]+\s*knots)/gi, '<span style="color:#34D399; font-weight:bold;">$&</span>');
+                        content = content.replace(/(-?[0-9]+°[CF])/g, '<span style="color:#FCD34D; font-weight:bold;">$1</span>');
+                        content = content.replace(/(QNH\s+[0-9]{4})/gi, '<span style="color:#A78BFA; font-weight:bold; background:#4c1d95; padding:2px 6px; border-radius:4px;">$1</span>');
+                        
+                        // Alternate ICAO highlighting (e.g. CYQQ)
+                        // Be careful not to colorize every 4 uppercase letters, limit to ones after a comma or specific keywords
+                        content = content.replace(/(destination alternate,\s*)([A-Z]{4})/g, '$1<span style="color:#38bdf8; font-weight:bold; border-bottom:1px dashed #38bdf8;">$2</span>');
+
+                        // Alerts
+                        content = content.replace(/(closed|unserviceable|wind shear|severe turbulence|significant tailwind|out of service)/gi, '<span style="color:#EF4444; font-weight:bold; text-decoration:underline;">$&</span>');
+                        content = content.replace(/(no significant operational restrictions)/gi, '<span style="color:#10B981; font-weight:bold;">$&</span>');
+
+                        content = content.replace(/\r\n\r\n|\n\n/g, '<br/><br/>').replace(/\r\n|\n/g, '<br/>');
+
+                        let icon = "📋";
+                        if (title.includes("EXPECTATIONS")) icon = "📝";
+                        if (title.includes("DEPARTURE")) icon = "🛫";
+                        if (title.includes("DESTINATION")) icon = "🛬";
+                        if (title.includes("ALTERNATE")) icon = "🔄";
+                        if (title.includes("ENROUTE")) icon = "✈️";
+
+                        html += `
+                        <div class="card" style="display:flex; flex-direction:column; background:#1e293b; border:1px solid #334155; border-radius:8px; padding:15px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+                            <h3 style="color:#cbd5e1; font-size:15px; font-weight:700; margin-bottom:12px; border-bottom:1px solid #334155; padding-bottom:8px; display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:18px;">${icon}</span> ${title}
+                            </h3>
+                            <p style="color:#e2e8f0; font-size:14px; line-height:1.7;">${content}</p>
+                        </div>`;
+                    }
+                    
+                    html += '</div>';
+                    return html;
+                };
+
+                const briefingElem = document.getElementById('briefingContent');
+                if (briefingElem) {
+                    briefingElem.style.whiteSpace = 'normal'; // Reset from pre-wrap
+                    briefingElem.innerHTML = parseBriefing(payload.briefing);
+                }
+                
+                if (window.renderManifest && payload.manifest) window.renderManifest(payload.manifest);
 
                 if (d.weather) {
                     let wTxt = `Origin METAR: ${d.weather.orig_metar || ''}\nOrigin TAF: ${d.weather.orig_taf || ''}\n\n`;
@@ -653,7 +762,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (d.weather.altn_metar) wTxt += `Altn METAR(s):\n${formatArr(d.weather.altn_metar)}\n\n`;
                     if (d.weather.enrt_metar) wTxt += `Enroute METAR(s):\n${formatArr(d.weather.enrt_metar)}\n\n`;
                     
-                    document.getElementById('weatherContent').innerText = wTxt.trim();
+                    const weatherElem = document.getElementById('weatherContent');
+                    if (weatherElem) weatherElem.innerText = wTxt.trim();
                 }
                 break;
             case 'groundOps':
@@ -851,4 +961,242 @@ function renderGroundOps(services) {
 // Global skip function for inline onclick
 window.skipService = function(name) {
     window.chrome.webview.postMessage({ action: 'skipService', service: name });
+};
+
+window.renderManifest = function(manifest) {
+    const container = document.getElementById('manifestContainer');
+    if (!container) return;
+
+    if (!manifest || (!manifest.FlightCrew && !manifest.Passengers)) {
+        container.innerHTML = '<p style="color:#64748b;">Waiting for final manifest processing...</p>';
+        return;
+    }
+
+    if (manifest.Passengers.length === 0) {
+        container.innerHTML = '<p style="color:#64748b;">No passengers listed on this flight plan.</p>';
+        return;
+    }
+
+    let maxRow = 0;
+    let hasLettersGHK = false; // check if widebody
+    manifest.Passengers.forEach(p => {
+        let rowStr = p.Seat.replace(/[^0-9]/g, '');
+        let row = parseInt(rowStr);
+        if (row > maxRow) maxRow = row;
+        if (p.Seat.includes('G') || p.Seat.includes('H') || p.Seat.includes('K')) hasLettersGHK = true;
+    });
+
+    // Determine layout mapping
+    let lettersLeft = ['A', 'B', 'C'];
+    let lettersRight = ['D', 'E', 'F'];
+    let lettersCenter = [];
+
+    if (hasLettersGHK) {
+        lettersLeft = ['A', 'B', 'C'];
+        lettersCenter = ['D', 'E', 'F', 'G'];
+        lettersRight = ['H', 'J', 'K']; 
+    }
+
+    let seatMapHtml = `
+        <style>
+            .fuselage {
+                width: 100%;
+                max-width: 380px;
+                border: 4px solid #334155;
+                border-radius: 120px 120px 30px 30px;
+                padding: 120px 20px 40px 20px;
+                background: linear-gradient(to bottom, #0f172a, #1e293b);
+                position: relative;
+                margin: 0 auto;
+                box-shadow: inset 0 0 25px rgba(0,0,0,0.8);
+            }
+            .cockpit {
+                position: absolute;
+                top: 10px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 80px;
+                height: 40px;
+                background: linear-gradient(145deg, rgba(56, 189, 248, 0.3), rgba(12, 74, 110, 0.4));
+                border-radius: 60px 60px 15px 15px;
+                border: 2px solid #475569;
+            }
+            .seat-row {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 6px;
+                align-items: center;
+                position: relative;
+            }
+            .row-num {
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                color: #64748b;
+                font-size: 10px;
+                font-weight: bold;
+            }
+            .seat-block {
+                display: flex;
+                gap: 4px;
+            }
+            .seat {
+                width: 22px;
+                height: 26px;
+                border-radius: 4px 4px 2px 2px;
+                background: #334155;
+                border: 1px solid #475569;
+                position: relative;
+                cursor: default;
+                transition: all 0.2s;
+            }
+            .seat.occupied {
+                background: #059669;
+                border-color: #34d399;
+                box-shadow: inset 0 -4px 0 rgba(0,0,0,0.3);
+            }
+            .seat.occupied:hover {
+                background: #10b981;
+                transform: translateY(-2px);
+            }
+            .seat.occupied .tooltip {
+                visibility: hidden;
+                background-color: #f8fafc;
+                color: #0f172a;
+                text-align: center;
+                border-radius: 4px;
+                padding: 4px 6px;
+                position: absolute;
+                z-index: 10;
+                bottom: 130%;
+                left: 50%;
+                transform: translateX(-50%);
+                font-size: 10px;
+                white-space: nowrap;
+                opacity: 0;
+                transition: opacity 0.2s;
+                font-weight: bold;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            }
+            .seat.occupied:hover .tooltip {
+                visibility: visible;
+                opacity: 1;
+            }
+        </style>
+        <div class="fuselage">
+            <div class="cockpit"></div>
+    `;
+
+    for (let r = 1; r <= maxRow; r++) {
+        if (r === 13) continue;
+        
+        seatMapHtml += `<div class="seat-row">`;
+        seatMapHtml += `<div class="row-num">${r}</div>`;
+        
+        // Left block
+        seatMapHtml += `<div class="seat-block">`;
+        lettersLeft.forEach(l => {
+            let sId = r + l;
+            let p = manifest.Passengers.find(x => x.Seat === sId);
+            if (p) {
+                seatMapHtml += `<div class="seat occupied"><span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span></div>`;
+            } else {
+                seatMapHtml += `<div class="seat"></div>`;
+            }
+        });
+        seatMapHtml += `</div>`;
+        
+        // Center block (widebody only)
+        if (lettersCenter.length > 0) {
+            seatMapHtml += `<div class="seat-block" style="margin: 0 10px;">`;
+            lettersCenter.forEach(l => {
+                let sId = r + l;
+                let p = manifest.Passengers.find(x => x.Seat === sId);
+                if (p) {
+                    seatMapHtml += `<div class="seat occupied"><span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span></div>`;
+                } else {
+                    seatMapHtml += `<div class="seat"></div>`;
+                }
+            });
+            seatMapHtml += `</div>`;
+        }
+        
+        // Right block
+        seatMapHtml += `<div class="seat-block">`;
+        lettersRight.forEach(l => {
+            let sId = r + l;
+            let p = manifest.Passengers.find(x => x.Seat === sId);
+            if (p) {
+                seatMapHtml += `<div class="seat occupied"><span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span></div>`;
+            } else {
+                seatMapHtml += `<div class="seat"></div>`;
+            }
+        });
+        seatMapHtml += `</div>`;
+        
+        seatMapHtml += `</div>`; // end row
+    }
+    seatMapHtml += `</div>`; // end fuselage
+
+    let html = `
+        <div style="display:flex; gap: 40px; justify-content: space-between; height: 100%;">
+            <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column; height: 100%;">
+                <div style="flex-shrink: 0;">
+                    <h3 style="color:#FACC15; border-bottom:1px solid #334155; padding-bottom:5px; margin-bottom:15px;">Flight Crew (${manifest.FlightCrew.length})</h3>
+                    <ul style="list-style:none; padding:0; margin:0; line-height: 1.8; color:#cbd5e1; margin-bottom: 20px;">
+    `;
+
+    let cabCrewRendered = false;
+    manifest.FlightCrew.forEach(c => {
+        if (!cabCrewRendered && (c.Role === "Purser" || c.Role === "Flight Attendant")) {
+            html += `<li style="margin-top:10px; margin-bottom: 5px; color:#94A3B8; font-size:12px; text-transform:uppercase; border-bottom: 1px dotted #334155;">Cabin Crew</li>`;
+            cabCrewRendered = true;
+        }
+        html += `<li><strong style="color: #60A5FA;">${c.Role}:</strong> ${c.Name}</li>`;
+    });
+
+    html += `       </ul>
+                    <h3 style="color:#34D399; border-bottom:1px solid #334155; padding-bottom:5px; margin-bottom:15px;">List (${manifest.Passengers.length} PAX)</h3>
+                </div>
+                <div style="flex: 1; overflow-y: auto; padding-right: 15px; border-right: 1px solid #1e293b; color:#94A3B8; font-size:12px;">
+                    <table style="width:100%; text-align:left; border-collapse: collapse;">
+                        <thead style="position: sticky; top: 0; background: #0f172a; z-index: 5;">
+                            <tr style="border-bottom: 1px solid #334155; color: #cbd5e1;">
+                                <th style="padding: 4px;">Seat</th>
+                                <th style="padding: 4px;">Name</th>
+                                <th style="padding: 4px;">Nat.</th>
+                                <th style="padding: 4px; text-align: center;">Age</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    `;
+
+    manifest.Passengers.forEach(p => {
+        html += `
+            <tr style="border-bottom: 1px solid rgba(51, 65, 85, 0.4);">
+                <td style="padding: 3px 4px; color: #38BDF8; font-weight: bold;">${p.Seat}</td>
+                <td style="padding: 3px 4px;">${p.Name}</td>
+                <td style="padding: 3px 4px;">${p.Nationality}</td>
+                <td style="padding: 3px 4px; text-align: center;">${p.Age}</td>
+            </tr>
+        `;
+    });
+
+    html += `           </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div style="flex: 1.5; min-width: 380px; display: flex; flex-direction: column; text-align: center; height: 100%;">
+                <h3 style="color:#38BDF8; border-bottom:1px solid #334155; padding-bottom:5px; margin-bottom:15px; flex-shrink: 0;">Seat Map</h3>
+                <div style="flex: 1; overflow-y: auto; padding: 10px;">
+                    ${seatMapHtml}
+                </div>
+            </div>
+        </div>`;
+
+    container.style.height = 'calc(100vh - 120px)';
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.innerHTML = html;
 };

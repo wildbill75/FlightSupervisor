@@ -36,6 +36,8 @@ namespace FlightSupervisor.UI.Services
         public event Action<double>? OnGForceReceived;
         public event Action<bool, bool>? OnEngineCombustionReceived;
         public event Action<double>? OnHeadingReceived;
+        public event Action<double, double>? OnWindReceived;
+        public event Action<double, double, bool>? OnNavigationReceived;
 
         enum DEFINITIONS { PlaneData }
         enum REQUESTS { PlaneDataReq }
@@ -67,6 +69,11 @@ namespace FlightSupervisor.UI.Services
             public double Eng1Combustion;
             public double Eng2Combustion;
             public double Heading;
+            public double WindDirection;
+            public double WindVelocity;
+            public double NavLocalizerError;
+            public double GpsCrossTrackError;
+            public double HasLocalizer;
         }
 
         public SimConnectService() { }
@@ -110,6 +117,11 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GENERAL ENG COMBUSTION:1", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GENERAL ENG COMBUSTION:2", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "PLANE HEADING DEGREES TRUE", "Degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AMBIENT WIND DIRECTION", "Degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AMBIENT WIND VELOCITY", "Knots", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "NAV LOCALIZER ERROR:1", "Degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GPS WP CROSS TRK", "Meters", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "NAV HAS LOCALIZER:1", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
 
                 _simconnect.RegisterDataDefineStruct<PlaneDataStruct>(DEFINITIONS.PlaneData);
                 
@@ -188,6 +200,8 @@ namespace FlightSupervisor.UI.Services
                 OnGForceReceived?.Invoke(planeData.GForce);
                 OnEngineCombustionReceived?.Invoke(planeData.Eng1Combustion > 0.5, planeData.Eng2Combustion > 0.5);
                 OnHeadingReceived?.Invoke(planeData.Heading);
+                OnWindReceived?.Invoke(planeData.WindDirection, planeData.WindVelocity);
+                OnNavigationReceived?.Invoke(planeData.NavLocalizerError, planeData.GpsCrossTrackError, planeData.HasLocalizer > 0.5);
 
                 // Build Sim Time
                 try

@@ -13,6 +13,7 @@
         <ul class="menu">
             <li class="active" data-target="dashboard">Dashboard</li>
             <li data-target="briefing">Briefing</li>
+            <li data-target="cabin">Cabin / Manifest</li>
             <li data-target="groundops">Ground Ops</li>
             <li data-target="logs">Logs</li>
             <li data-target="options">Options</li>
@@ -33,7 +34,9 @@
             <div class="title">Flight Supervisor</div>
             <div class="spacer"></div>
             <div class="window-controls">
+                <button class="win-btn" id="btnPin" title="Toggle Always on Top" style="font-size: 14px; opacity: 0.4; transition: opacity 0.2s;">📌</button>
                 <button class="win-btn" id="btnMin" title="Minimize to Tray">_</button>
+                <button class="win-btn" id="btnMax" title="Maximize or Restore Window">□</button>
                 <button class="win-btn close" id="btnClose" title="Quit">&#10005;</button>
             </div>
         </header>
@@ -143,10 +146,14 @@
                 </div>
 
                 <div id="briefingContent">No flight plan loaded. Go to Dashboard to fetch plan.</div>
+            </section>
 
-                <div id="weatherBreakdown" style="display:none; margin-top:20px;">
-                    <h3>Raw Weather Data</h3>
-                    <div id="weatherContent" class="weather-text"></div>
+                <!-- Raw Weather Data block removed by user request -->
+
+            <section id="cabin">
+                <h2>Cabin & Manifest</h2>
+                <div id="manifestContainer" class="card" style="margin-top:20px; font-family: monospace;">
+                    <p style="color:#64748b;">Waiting for final manifest processing...</p>
                 </div>
             </section>
 
@@ -242,6 +249,10 @@
                         <input type="checkbox" id="chkHardcore" />
                         <label for="chkHardcore">Enable Hardcore Mode</label>
                     </div>
+                    <div class="form-group checkbox" style="margin-top: 10px;">
+                        <input type="checkbox" id="chkAlwaysOnTop" />
+                        <label for="chkAlwaysOnTop">Keep App Always on Top</label>
+                    </div>
                     <p style="margin-top: 5px; font-size:11px; color:#94A3B8; line-height:1.4;">
                         Strict adherence to procedures. Fines are doubled and safety violations will immediately cancel the flight.
                     </p>
@@ -308,6 +319,64 @@
             <div style="display: flex; gap: 15px; justify-content: center;">
                 <button id="btnCancelNo" class="modal-btn no">Keep Flight</button>
                 <button id="btnCancelYes" class="modal-btn yes">Yes, Cancel Flight</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flight Report Modal -->
+    <div id="flightReportModal" class="modal-overlay" style="display: none; z-index: 2000;">
+        <div class="report-modal">
+            <h2 class="report-title">FINAL FLIGHT REPORT</h2>
+            <div class="report-header">
+                <div>
+                    <span id="frFlightNo" style="font-size: 24px; font-weight: bold; color: white;">AFR123</span><br>
+                    <span id="frRoute" style="color: #94A3B8;">LFPG ➔ LFBO</span>
+                </div>
+                <div style="text-align: right;">
+                    <span style="color: #94A3B8; font-size: 12px; text-transform: uppercase;">Global SuperScore</span><br>
+                    <span id="frScore" style="font-size: 36px; font-weight: 900; color: #34D399;">1000</span>
+                </div>
+            </div>
+            
+            <div class="report-grid">
+                <!-- Safety -->
+                <div class="report-card">
+                    <div class="rc-title">Safety & Regulations</div>
+                    <div class="rc-score" id="frSafetyScore">0</div>
+                </div>
+                <!-- Comfort -->
+                <div class="report-card">
+                    <div class="rc-title">Passenger Comfort</div>
+                    <div class="rc-score" id="frComfortScore">0</div>
+                </div>
+                <!-- Maintenance -->
+                <div class="report-card">
+                    <div class="rc-title">Aircraft Maintenance</div>
+                    <div class="rc-score" id="frMaintScore">0</div>
+                </div>
+                <!-- Operations -->
+                <div class="report-card">
+                    <div class="rc-title">Company Operations</div>
+                    <div class="rc-score" id="frOpsScore">0</div>
+                </div>
+            </div>
+            
+            <div class="report-details">
+                <div class="rd-column">
+                    <h3>Timing & Fuel</h3>
+                    <p>Block Time: <strong id="frBlock">--</strong> <span id="frPunc" class="badge">--</span></p>
+                    <p>Block Fuel: <strong id="frFuel">--</strong></p>
+                    <p>ZFW / TOW: <strong id="frWeights">-- / --</strong></p>
+                </div>
+                <div class="rd-column">
+                    <h3>Landing Telemetry</h3>
+                    <p>Touchdown: <strong id="frFpm">-- fpm</strong></p>
+                    <p>G-Force: <strong id="frGForce">-- G</strong></p>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 25px;">
+                <button id="btnDismissReport" class="modal-btn yes" style="padding: 12px 30px; font-size: 15px; background: #334155; color: white; border: 1px solid #475569;">Acknowledge & Close</button>
             </div>
         </div>
     </div>

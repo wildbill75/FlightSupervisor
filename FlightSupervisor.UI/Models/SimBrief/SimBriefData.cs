@@ -25,6 +25,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
         [JsonPropertyName("destination")]
         public AirportInfo? Destination { get; set; }
 
+        [JsonPropertyName("alternate")]
+        public AirportInfo? Alternate { get; set; }
+
         [JsonPropertyName("times")]
         public TimesInfo? Times { get; set; }
 
@@ -34,8 +37,17 @@ namespace FlightSupervisor.UI.Models.SimBrief
         [JsonPropertyName("weather")]
         public WeatherInfo? Weather { get; set; }
 
+        [JsonPropertyName("text")]
+        public TextInfo? Text { get; set; }
+
         [JsonPropertyName("navlog")]
         public NavlogContainer? Navlog { get; set; }
+    }
+
+    public class TextInfo
+    {
+        [JsonPropertyName("plan_html")]
+        public string? PlanHtml { get; set; }
     }
 
     public class NavlogContainer
@@ -51,6 +63,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
 
         [JsonPropertyName("shear")]
         public string? Shear { get; set; }
+
+        [JsonPropertyName("tropopause_feet")]
+        public string? TropopauseFeet { get; set; }
     }
 
     public class FetchInfo
@@ -99,6 +114,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
 
         [JsonPropertyName("base_type")]
         public string? BaseType { get; set; }
+
+        [JsonPropertyName("max_passengers")]
+        public string? MaxPassengers { get; set; }
     }
 
     public class AirportInfo
@@ -111,6 +129,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
 
         [JsonPropertyName("city")]
         public string? City { get; set; }
+
+        [JsonPropertyName("plan_rwy")]
+        public string? PlanRwy { get; set; }
     }
 
     public class TimesInfo
@@ -132,6 +153,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
     {
         [JsonPropertyName("pax_count")]
         public string? PaxCount { get; set; }
+
+        [JsonPropertyName("max_pax")]
+        public string? MaxPax { get; set; }
 
         [JsonPropertyName("est_zfw")]
         public string? EstZfw { get; set; }
