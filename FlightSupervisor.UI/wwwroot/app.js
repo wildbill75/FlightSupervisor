@@ -154,6 +154,19 @@ document.addEventListener('DOMContentLoaded', () => {
         window.chrome.webview.postMessage({ action: 'cancelFlight' });
     });
 
+    const abortModal = document.getElementById('abortServiceModal');
+    const btnAbortYes = document.getElementById('btnAbortYes');
+    const btnAbortNo = document.getElementById('btnAbortNo');
+
+    if (btnAbortNo) btnAbortNo.addEventListener('click', () => { abortModal.style.display = 'none'; });
+    if (btnAbortYes) btnAbortYes.addEventListener('click', () => {
+        abortModal.style.display = 'none';
+        if (window.currentAbortService) {
+            window.chrome.webview.postMessage({ action: 'skipService', service: window.currentAbortService });
+            window.currentAbortService = null;
+        }
+    });
+
     const btnDismissReport = document.getElementById('btnDismissReport');
     if (btnDismissReport) btnDismissReport.addEventListener('click', () => {
         document.getElementById('flightReportModal').style.display = 'none';
@@ -357,6 +370,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.finalAibtUnix = payload.aibtUnix;
                     document.getElementById('bdAibt').innerText = getFormattedTime(payload.aibtUnix);
                 } else if (payload.aibt) document.getElementById('bdAibt').innerText = payload.aibt;
+                
+                if (payload.anxiety !== undefined) {
+                    const anxEl = document.getElementById('paxAnxietyValue');
+                    if (anxEl) {
+                        anxEl.innerHTML = `${Math.round(payload.anxiety)}<span style="font-size:32px;">%</span>`;
+                        let color = '#34D399';
+                        if (payload.anxiety >= 60) color = '#EF4444';
+                        else if (payload.anxiety >= 30) color = '#F59E0B';
+                        
+                        anxEl.style.color = color;
+                        anxEl.style.textShadow = `0 0 20px ${color}4A`;
+                        
+                        const btnBlock = document.getElementById('cabinActionButtons');
+                        if (btnBlock) {
+                            if (payload.anxiety >= 30) {
+                                btnBlock.style.opacity = '1';
+                                btnBlock.style.pointerEvents = 'auto';
+                            } else {
+                                btnBlock.style.opacity = '0';
+                                btnBlock.style.pointerEvents = 'none';
+                            }
+                        }
+                    }
+                }
                 break;
             case 'flightReport':
                 let rep = payload.report;
@@ -416,6 +453,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 li.style.color = payload.type === 'penalty' ? '#F87171' : '#cbd5e1';
                 li.style.marginBottom = '5px';
                 log.prepend(li);
+                break;
+            case 'cabinLog':
+                const clog = document.getElementById('cabinLogsList');
+                if (clog) {
+                    if (clog.children.length === 1 && clog.children[0].innerText.includes('Standing by')) clog.innerHTML = '';
+                    const cli = document.createElement('li');
+                    cli.innerText = `[${new Date().toLocaleTimeString()}] ${payload.message}`;
+                    if (payload.level === 'red') cli.style.color = '#EF4444';
+                    else if (payload.level === 'orange') cli.style.color = '#F59E0B';
+                    else cli.style.color = '#38BDF8';
+                    cli.style.marginBottom = '5px';
+                    cli.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                    cli.style.paddingBottom = '3px';
+                    clog.prepend(cli);
+                    if (clog.children.length > 8) clog.removeChild(clog.lastChild);
+                }
                 break;
             case 'scoreUpdate':
                 if (isFlightCancelled) return;
@@ -959,8 +1012,11 @@ function renderGroundOps(services) {
 }
 
 // Global skip function for inline onclick
+window.currentAbortService = null;
 window.skipService = function(name) {
-    window.chrome.webview.postMessage({ action: 'skipService', service: name });
+    window.currentAbortService = name;
+    document.getElementById('abortServiceName').innerText = name;
+    document.getElementById('abortServiceModal').style.display = 'flex';
 };
 
 window.renderManifest = function(manifest) {

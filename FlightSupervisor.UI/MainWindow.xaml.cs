@@ -46,6 +46,7 @@ namespace FlightSupervisor.UI
         private System.Windows.Forms.NotifyIcon _notifyIcon;
         private PanelServerService? _panelServer;
         private SuperScoreManager _scoreManager;
+        private CabinManager _cabinManager;
 
         public MainWindow()
         {
@@ -57,6 +58,12 @@ namespace FlightSupervisor.UI
             _groundOpsManager = new GroundOpsManager();
             _groundOpsManager.OnOpsCompleted += () => SendToWeb(new { type = "groundOpsComplete" });
             _groundOpsManager.OnOpsLog += msg => SendToWeb(new { type = "log", message = msg });
+
+            _cabinManager = new CabinManager();
+            _cabinManager.OnCrewMessage += (level, msg) => SendToWeb(new { type = "cabinLog", level = level, message = msg });
+            _cabinManager.OnPenaltyTriggered += (points, reason) => {
+                if (_scoreManager != null) _scoreManager.AddScore(points, reason, ScoreCategory.Comfort);
+            };
 
             // Tray Icon Setup
             _notifyIcon = new System.Windows.Forms.NotifyIcon();
@@ -81,6 +88,16 @@ namespace FlightSupervisor.UI
                     _scoreManager.CancelFlight("Flight Cancelled: Unauthorized movement during Ground Operations!");
                     SendToWeb(new { type = "flightCancelled" });
                 }
+                
+                // Track Cabin Anxiety
+                bool isBoardingComplete = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Boarding")?.State == GroundServiceState.Completed;
+                DateTime? sobtDate = null;
+                if (_currentResponse?.Times?.SchedOut != null && long.TryParse(_currentResponse.Times.SchedOut, out long sobtUnix))
+                {
+                    sobtDate = DateTimeOffset.FromUnixTimeSeconds(sobtUnix).DateTime;
+                }
+                _cabinManager.Tick(_phaseManager.GForce, _phaseManager.Heading, isBoardingComplete, _currentSimTime, sobtDate, _phaseManager.CurrentPhase);
+                
                 SendTelemetryToWeb();
                 
                 if (_panelServer != null)
@@ -141,6 +158,9 @@ namespace FlightSupervisor.UI
                                 int dissatPenalty = _scoreManager.ComfortPoints / 2; // e.g., -300 comfort -> -150 Operations
                                 _scoreManager.AddScore(dissatPenalty, "Customer Dissatisfaction: Passenger complaints filed", ScoreCategory.Operations);
                             }
+
+                            // Cabin Arrived Check
+                            _cabinManager.CheckLostBaggageOnArrival();
 
                             var report = new
                             {
@@ -373,6 +393,13 @@ namespace FlightSupervisor.UI
                 {
                     var srvName = doc.RootElement.GetProperty("service").GetString();
                     _groundOpsManager.SkipService(srvName);
+                    
+                    var srv = _groundOpsManager.Services.FirstOrDefault(s => s.Name == srvName);
+                    if (srv != null)
+                    {
+                        if (srvName == "Catering") _cabinManager.CateringCompletion = srv.ProgressPercent;
+                        if (srvName == "Cargo") _cabinManager.BaggageCompletion = srv.ProgressPercent;
+                    }
                 }
                 else if (action == "startGroundOps")
                 {
@@ -386,10 +413,16 @@ namespace FlightSupervisor.UI
                         this.Topmost = doc.RootElement.GetProperty("value").GetBoolean();
                     });
                 }
+                else if (action == "announceCabin")
+                {
+                    var annType = doc.RootElement.GetProperty("annType").GetString();
+                    if (annType != null) _cabinManager.AnnounceToCabin(annType);
+                }
                 else if (action == "cancelFlight")
                 {
                     _phaseManager.Reset();
                     _scoreManager.Reset();
+                    _cabinManager.Reset();
                     _currentResponse = null;
                     _groundOpsManager.AbortAllOperations();
                     _groundOpsManager.Services.Clear();
@@ -417,7 +450,8 @@ namespace FlightSupervisor.UI
                 altitude = _lastKnownAltitude,
                 groundSpeed = _lastKnownGroundSpeed,
                 radioHeight = _lastKnownRadioHeight,
-                isGearDown = _isGearDown
+                isGearDown = _isGearDown,
+                anxiety = Math.Round(_cabinManager.PassengerAnxiety, 1)
             });
             
             if (_groundOpsManager.Services.Count > 0)

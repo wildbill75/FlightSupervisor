@@ -88,7 +88,7 @@ namespace FlightSupervisor.UI.Models.SimBrief
         [JsonPropertyName("flight_number")]
         public string? FlightNumber { get; set; }
         
-        [JsonPropertyName("initial_alt")]
+        [JsonPropertyName("initial_altitude")]
         public string? InitialAlt { get; set; }
 
         [JsonPropertyName("stepclimb_string")]

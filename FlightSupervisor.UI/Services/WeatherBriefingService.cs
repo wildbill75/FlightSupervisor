@@ -56,55 +56,56 @@ namespace FlightSupervisor.UI.Services
                     briefing.AppendLine(", though this will be subject to local ATC and weather changes at the time of arrival.");
                 }
             }
+            
+            briefing.AppendLine();
 
             // Altitude & Tropopause
             if (!string.IsNullOrWhiteSpace(gen?.InitialAlt))
-            {
-                string initFl = gen.InitialAlt.PadLeft(3, '0');
-                if (!initFl.StartsWith("FL")) initFl = "FL" + initFl;
-                
-                string altText = $"Dispatch has filed us for an initial cruise altitude of {initFl}.";
 
-                int avgTropo = 0;
-                int tropoCount = 0;
-                if (response.Navlog?.Fixes != null)
+            {
+                if (int.TryParse(gen.InitialAlt, out int plannedFeet))
                 {
-                    foreach (var pt in response.Navlog.Fixes)
+                    int plannedFl = plannedFeet / 100;
+                    string altText = $"Dispatch has filed us for an initial cruise altitude of FL{plannedFl:D3}.";
+
+                    int avgTropo = 0;
+                    int tropoCount = 0;
+                    if (response.Navlog?.Fixes != null)
                     {
-                        if (int.TryParse(pt.TropopauseFeet, out int trop))
+                        foreach (var pt in response.Navlog.Fixes)
                         {
-                            avgTropo += trop;
-                            tropoCount++;
+                            if (int.TryParse(pt.TropopauseFeet, out int trop))
+                            {
+                                avgTropo += trop;
+                                tropoCount++;
+                            }
                         }
                     }
-                }
 
-                if (tropoCount > 0)
-                {
-                    avgTropo /= tropoCount;
-                    int tropoFl = (int)Math.Round((double)avgTropo / 100);
-                    
-                    altText += $" Our route profiling shows the average tropopause height is around FL{tropoFl}.";
-                    
-                    if (int.TryParse(gen.InitialAlt, out int plannedFl))
+                    if (tropoCount > 0)
                     {
+                        avgTropo /= tropoCount;
+                        int tropoFl = (int)Math.Round((double)avgTropo / 100);
+                        
+                        altText += $" Our route profiling shows the average tropopause height is around FL{tropoFl}.";
+                        
                         if (plannedFl >= tropoFl)
                             altText += " Be advised, we will be cruising near or above the tropopause, so monitor your performance margins closely.";
-                        else if (tropoFl - plannedFl > 60)
+                        else if (tropoFl - plannedFl >= 20)
                             altText += " We have excellent vertical performance margin available today if we need to climb to avoid weather.";
                     }
-                }
 
-                if (!string.IsNullOrWhiteSpace(gen?.StepClimbString))
-                {
-                    string stepStr = gen.StepClimbString.Trim();
-                    if (stepStr.Contains(',') || stepStr.Split('/').Length > 2)
+                    if (!string.IsNullOrWhiteSpace(gen?.StepClimbString))
                     {
-                        altText += $" Later in the flight, expect planned step climbs to optimise our fuel burn: {stepStr}.";
+                        string stepStr = gen.StepClimbString.Trim();
+                        if (stepStr.Contains(',') || stepStr.Split('/').Length > 2)
+                        {
+                            altText += $" Later in the flight, expect planned step climbs to optimise our fuel burn: {stepStr}.";
+                        }
                     }
-                }
 
-                briefing.AppendLine(altText);
+                    briefing.AppendLine(altText);
+                }
             }
             briefing.AppendLine();
 
