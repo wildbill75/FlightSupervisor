@@ -100,6 +100,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
         [JsonPropertyName("avg_wind_comp")]
         public string? AvgWindComp { get; set; }
 
+        [JsonPropertyName("route_distance")]
+        public string? RouteDistance { get; set; }
+
         [JsonPropertyName("etops")]
         public string? Etops { get; set; }
     }

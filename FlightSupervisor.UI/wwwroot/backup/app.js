@@ -2,14 +2,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Top Bar Dragging Interop
     const topBar = document.getElementById('top-bar');
-    if (topBar) {
-        topBar.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.window-controls') || e.target.closest('button')) return;
-            if (e.button === 0) {
-                window.chrome.webview.postMessage({ action: 'drag' });
-            }
-        });
-    }
+    topBar.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.window-controls')) return;
+        // Left click only
+        if (e.button === 0) {
+            window.chrome.webview.postMessage({ action: 'drag' });
+        }
+    });
 
     // Menu Tab Navigation
     const menuItems = document.querySelectorAll('.menu li');
@@ -214,7 +213,10 @@ document.addEventListener('DOMContentLoaded', () => {
         btnStartGroundOps.addEventListener('click', () => {
             window.chrome.webview.postMessage({ action: 'startGroundOps' });
             btnStartGroundOps.disabled = true;
-            btnStartGroundOps.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> In Progress';
+            btnStartGroundOps.style.backgroundColor = '#334155';
+            btnStartGroundOps.style.color = '#64748b';
+            btnStartGroundOps.style.cursor = 'not-allowed';
+            btnStartGroundOps.innerText = 'Ops in Progress';
             document.querySelector('.menu li[data-target="groundops"]').click();
         });
     }
@@ -226,9 +228,8 @@ document.addEventListener('DOMContentLoaded', () => {
         btnSmartConnect.addEventListener('click', () => {
             window.chrome.webview.postMessage({ action: isSimConnected ? 'disconnectSim' : 'connectSim' });
             if (!isSimConnected) {
-                btnSmartConnect.innerText = 'Connecting...';
-                btnSmartConnect.className = 'text-[10px] font-bold py-4 px-8 tracking-widest uppercase rounded-xl bg-orange-900/20 text-orange-400 border border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.1)] transition-colors w-full';
-                btnSmartConnect.style.color = '';
+                btnSmartConnect.querySelector('span').innerText = 'Connecting...';
+                btnSmartConnect.style.color = '#FACC15';
             }
         });
     }
@@ -241,8 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnMin) btnMin.addEventListener('click', () => window.chrome.webview.postMessage({ action: 'minimizeApp' }));
     if (btnMax) btnMax.addEventListener('click', () => {
         window.chrome.webview.postMessage({ action: 'maximizeApp' });
-        const icon = btnMax.querySelector('.material-symbols-outlined');
-        if (icon) icon.innerText = icon.innerText === 'crop_square' ? 'content_copy' : 'crop_square';
+        btnMax.innerText = btnMax.innerText === '□' ? '❐' : '□';
     });
     if (btnClose) btnClose.addEventListener('click', () => window.chrome.webview.postMessage({ action: 'closeApp' }));
     if (btnPin) btnPin.addEventListener('click', () => {
@@ -272,14 +272,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (isSimConnected) {
                     if (smartBtn) {
-                        smartBtn.innerText = payload.status.includes('Linked') ? 'Linked' : 'Connected';
-                        smartBtn.className = 'text-[10px] font-bold py-4 px-8 tracking-widest uppercase rounded-xl bg-emerald-900/20 text-emerald-400 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)] hover:bg-emerald-900/40 transition-colors w-full';
+                        smartBtn.querySelector('span').innerText = payload.status.includes('Linked') ? 'Linked to SunRise' : 'Connected';
+                        smartBtn.className = 'smart-connect success';
                         smartBtn.style.color = '';
                     }
                 } else {
                     if (smartBtn) {
-                        smartBtn.innerText = 'Not Connected';
-                        smartBtn.className = 'text-[10px] font-bold py-4 px-8 tracking-widest uppercase rounded-xl bg-red-900/20 text-red-500 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:bg-red-900/40 transition-colors w-full';
+                        smartBtn.querySelector('span').innerText = 'Not Connected';
+                        smartBtn.className = 'smart-connect error';
                         smartBtn.style.color = '';
                     }
                 }
@@ -478,12 +478,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (mainScore) mainScore.innerText = payload.score;
                 
                 if (payload.delta !== 0) {
-                    mainScore.classList.remove('text-emerald-400', 'text-red-400');
-                    mainScore.classList.add(payload.delta > 0 ? 'text-emerald-400' : 'text-red-400');
+                    mainScore.style.color = payload.delta > 0 ? '#34D399' : '#F87171';
+                    mainScore.style.textShadow = payload.delta > 0 ? '0 0 20px rgba(52,211,153,0.5)' : '0 0 20px rgba(248,113,113,0.5)';
                     setTimeout(() => {
                         if (isFlightCancelled) return;
-                        mainScore.classList.remove('text-red-400');
-                        mainScore.classList.add('text-emerald-400');
+                        mainScore.style.color = '#34D399';
+                        mainScore.style.textShadow = '0 0 20px rgba(52,211,153,0.3)';
                     }, 1000);
 
                     const feed = document.getElementById('scoreFeed');
@@ -518,16 +518,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (payload.status === 'success') {
                     isFlightCancelled = false;
                     isFlightActive = true;
-                    const btnFetchLabel = document.getElementById('btnFetchPlanLabel');
-                    if (btnFetchLabel) btnFetchLabel.innerText = 'CANCEL FLIGHT';
                     const btnFetch = document.getElementById('btnFetchPlan');
                     if (btnFetch) {
-                        btnFetch.querySelector('.material-symbols-outlined').innerText = 'cancel';
+                        btnFetch.innerText = 'Cancel Current Flight';
+                        btnFetch.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                        btnFetch.style.color = '#EF4444';
+                        btnFetch.style.border = '1px solid #EF4444';
                     }
                     const phaseEl = document.getElementById('flightPhase');
+                    if (phaseEl) {
+                        phaseEl.style.color = '#FACC15';
+                        phaseEl.style.textShadow = 'none';
+                    }
                     const mScore = document.getElementById('mainScoreValue');
                     if (mScore) {
                         mScore.innerText = "1000";
+                        mScore.style.fontSize = "64px";
+                        mScore.style.color = "#34D399";
+                        mScore.style.textShadow = "0 0 20px rgba(52,211,153,0.3)";
                     }
                     const tScore = document.getElementById('topScoreValue');
                     if (tScore) tScore.innerText = "1000";
@@ -542,8 +550,12 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'groundOpsReady':
                 const startBtn = document.getElementById('btnStartGroundOps');
                 if (startBtn) {
+                    startBtn.style.display = 'block';
                     startBtn.disabled = false;
-                    startBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> START OPS';
+                    startBtn.style.backgroundColor = '#10B981';
+                    startBtn.style.color = '#FFFFFF';
+                    startBtn.style.cursor = 'pointer';
+                    startBtn.innerText = 'Start Ground Ops';
                 }
                 // Reset Meta Bar display to default
                 const metaText = document.getElementById('dashMetaText');
@@ -559,11 +571,12 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'flightCancelled':
                 isFlightCancelled = true;
                 isFlightActive = false;
-                const btnFetchLabel = document.getElementById('btnFetchPlanLabel');
-                if (btnFetchLabel) btnFetchLabel.innerText = 'FETCH PLAN';
                 const btnFetch = document.getElementById('btnFetchPlan');
                 if (btnFetch) {
-                    btnFetch.querySelector('.material-symbols-outlined').innerText = 'cloud_download';
+                    btnFetch.innerText = 'Fetch Latest Plan';
+                    btnFetch.style.backgroundColor = '#4A90E2';
+                    btnFetch.style.color = 'white';
+                    btnFetch.style.border = 'none';
                 }
                 const phaseEl = document.getElementById('flightPhase');
                 if (phaseEl) {
@@ -573,8 +586,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 const mScore = document.getElementById('mainScoreValue');
                 if (mScore) {
-                    mScore.innerText = "CANCELED";
-                    mScore.classList.add('text-red-500');
+                    mScore.innerText = "FLIGHT CANCELLED";
+                    mScore.style.fontSize = "38px";
+                    mScore.style.color = "#DC2626";
+                    mScore.style.textShadow = "0 0 20px rgba(220, 38, 38, 0.8)";
                 } 
                 const mBar = document.getElementById('dashMetaBar');
                 if (mBar) {
@@ -585,14 +600,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (btnStartGroundOps) {
                     btnStartGroundOps.disabled = true;
-                    btnStartGroundOps.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> START OPS';
+                    btnStartGroundOps.style.backgroundColor = '#334155';
+                    btnStartGroundOps.style.color = '#64748b';
+                    btnStartGroundOps.style.cursor = 'not-allowed';
                 }
                 break;
             case 'flightData':
                 const d = payload.data;
                 
                 if (document.getElementById('dashMetaBar')) document.getElementById('dashMetaBar').style.display = 'block';
-                if (document.getElementById('flightBreakdown')) document.getElementById('flightBreakdown').style.display = 'grid';
+                document.getElementById('flightBreakdown').style.display = 'grid';
 
                 const timeStr = (unix) => {
                     if (!unix || unix == "0") return "--:--z";
@@ -609,10 +626,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (d.general) {
                     let acode = d.general.icao_airline || '';
                     let aname = AIRLINES[acode] ? ` (${AIRLINES[acode]})` : '';
-                    if (document.getElementById('bdAirline')) document.getElementById('bdAirline').innerText = acode + aname;
-                    if (document.getElementById('bdAirline2')) document.getElementById('bdAirline2').innerText = acode + aname;
-                    if (document.getElementById('bdFlightNum')) document.getElementById('bdFlightNum').innerText = d.general.flight_number || '';
-                    if (document.getElementById('bdFlightNum2')) document.getElementById('bdFlightNum2').innerText = d.general.flight_number || '';
+                    document.getElementById('bdAirline').innerText = acode + aname;
+                    document.getElementById('bdFlightNum').innerText = d.general.flight_number || '';
                     let flightLevel = d.general.initial_alt || d.general.initial_altitude || '';
                     let stepclimb = d.general.stepclimb_string || '';
                     
@@ -632,25 +647,17 @@ document.addEventListener('DOMContentLoaded', () => {
                             return s;
                         }).join('/');
                     }
-                    if (document.getElementById('bdCruise')) document.getElementById('bdCruise').innerText = `FL${flightLevel}`;
 
                     let cruiseStr = flightLevel ? 'FL' + flightLevel : 'N/A';
                     if (stepclimb && stepclimb !== `${d.origin?.icao_code || ''}/${flightLevel}`) {
                         cruiseStr += ` (Steps: ${stepclimb})`;
                     }
-                    if (document.getElementById('bdCruise')) document.getElementById('bdCruise').innerText = cruiseStr;
-                    if (document.getElementById('bdCruise2')) document.getElementById('bdCruise2').innerText = cruiseStr;
+                    document.getElementById('bdCruise').innerText = cruiseStr;
 
                     let routeStr = d.general.route || '';
                     if (flightLevel) routeStr += ` (FL${flightLevel})`;
-                    if (document.getElementById('bdRoute')) {
-                        document.getElementById('bdRoute').innerText = routeStr;
-                        document.getElementById('bdRoute').title = routeStr;
-                    }
-                    if (document.getElementById('bdRoute2')) {
-                        document.getElementById('bdRoute2').innerText = routeStr;
-                        document.getElementById('bdRoute2').title = routeStr;
-                    }
+                    document.getElementById('bdRoute').innerText = routeStr;
+                    document.getElementById('bdRoute').title = routeStr;
 
                     // Dashboard Header Update
                     const dashFlightHeader = document.getElementById('dashFlightHeader');
@@ -704,29 +711,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (d.aircraft) {
                     document.getElementById('bdAircraft').innerText = (d.aircraft.name || '') + ' (' + (d.aircraft.base_type || '') + ')';
                 }
-                if (d.general && document.getElementById('bdDistance')) {
-                    document.getElementById('bdDistance').innerText = d.general.route_distance || '---';
-                }
-                if (d.origin) document.getElementById('bdOrigin').innerText = d.origin.iata_code || d.origin.icao_code || '---';
-                if (d.destination) document.getElementById('bdDest').innerText = d.destination.iata_code || d.destination.icao_code || '---';
+                if (d.origin) document.getElementById('bdOrigin').innerText = (d.origin.icao_code || '') + ' ' + (d.origin.name || '');
+                if (d.destination) document.getElementById('bdDest').innerText = (d.destination.icao_code || '') + ' ' + (d.destination.name || '');
 
                 if (d.times) {
                     currentSobtUnix = parseInt(d.times.sched_out || '0');
                     if (document.getElementById('bdSobt')) document.getElementById('bdSobt').innerText = timeStr(currentSobtUnix);
-                    if (document.getElementById('bdSobt2')) document.getElementById('bdSobt2').innerText = timeStr(currentSobtUnix);
                     window.currentSibtUnix = parseInt(d.times.sched_in || '0');
                     if (document.getElementById('bdSibt')) document.getElementById('bdSibt').innerText = timeStr(window.currentSibtUnix);
-                    if (document.getElementById('bdSibt2')) document.getElementById('bdSibt2').innerText = timeStr(window.currentSibtUnix);
                     let eteSec = parseInt(d.times.est_time_enroute || '0');
                     let h = Math.floor(eteSec / 3600);
                     let m = Math.floor((eteSec % 3600) / 60);
                     if (document.getElementById('bdEte')) document.getElementById('bdEte').innerText = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-                    if (document.getElementById('bdEte2')) document.getElementById('bdEte2').innerText = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
                 }
 
                 if (d.weights && d.params) {
-                    if (document.getElementById('bdPax')) document.getElementById('bdPax').innerText = d.weights.pax_count || '';
-                    if (document.getElementById('bdPax2')) document.getElementById('bdPax2').innerText = d.weights.pax_count || '';
+                    document.getElementById('bdPax').innerText = d.weights.pax_count || '';
                     
                     const uiWeightUnit = document.getElementById('selUnitWeight') ? document.getElementById('selUnitWeight').value : 'LBS';
                     const sbUnits = d.params.units || 'LBS';
@@ -742,63 +742,60 @@ document.addEventListener('DOMContentLoaded', () => {
                         return Math.round(val);
                     };
 
-                    if (document.getElementById('bdZfw')) document.getElementById('bdZfw').innerText = convertWeight(d.weights.est_zfw) + ' ' + uiWeightUnit;
-                    if (document.getElementById('bdZfw2')) document.getElementById('bdZfw2').innerText = convertWeight(d.weights.est_zfw) + ' ' + uiWeightUnit;
-                    if (document.getElementById('bdTow')) document.getElementById('bdTow').innerText = convertWeight(d.weights.est_tow || d.weights.est_ldw) + ' ' + uiWeightUnit;
-                    if (document.getElementById('bdTow2')) document.getElementById('bdTow2').innerText = convertWeight(d.weights.est_tow || d.weights.est_ldw) + ' ' + uiWeightUnit;
+                    document.getElementById('bdZfw').innerText = convertWeight(d.weights.est_zfw) + ' ' + uiWeightUnit;
+                    document.getElementById('bdLdw').innerText = convertWeight(d.weights.est_ldw) + ' ' + uiWeightUnit;
                     let fuel = d.fuel?.plan_ramp || d.weights.est_block || d.weights.block_fuel || '';
-                    if (document.getElementById('bdFuel')) document.getElementById('bdFuel').innerText = convertWeight(fuel) + ' ' + uiWeightUnit;
+                    document.getElementById('bdFuel').innerText = convertWeight(fuel) + ' ' + uiWeightUnit;
                 }
 
                 const parseBriefing = (text) => {
                     if (!text) return '';
+                    let html = '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(400px, 1fr)); gap:20px; margin-top:15px;">';
                     
                     const sections = text.split(/(?:\r?\n)?(FLIGHT PLAN EXPECTATIONS:|DEPARTURE:|DESTINATION:|ALTERNATE PLAN:|ENROUTE & OPERATIONS:)\r?\n/);
                     
-                    let html = '';
-                    
                     if (sections[0] && sections[0].trim().length > 0) {
-                        html += `<div class="mb-6 italic text-slate-400 text-sm px-2">${sections[0].trim()}</div>`;
+                        html += `<div style="grid-column: 1 / -1; font-style: italic; color: #94A3B8; margin-bottom: 5px; font-size: 15px;">${sections[0].trim()}</div>`;
                     }
-
-                    html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
                     
                     for (let i = 1; i < sections.length; i+=2) {
                         let title = sections[i].replace(':', '').trim();
                         let content = sections[i+1].trim();
                         
                         // Syntax highlighting
-                        content = content.replace(/(?:\bRunway\s+|\brunway\s+)([0-9]{2}[A-Z]?)/gi, 'Runway <span class="text-sky-400 font-bold bg-sky-900/30 px-1.5 py-0.5 rounded">$1</span>');
-                        content = content.replace(/(FL[0-9]{3}|TL[0-9]{3}|HD[0-9]{3})/g, '<span class="text-pink-400 font-bold font-mono bg-pink-900/30 px-1.5 py-0.5 rounded">$1</span>');
-                        content = content.replace(/([0-9]+\s*knots|winds.*?at\s+[0-9]+\s*knots)/gi, '<span class="text-emerald-400 font-bold">$&</span>');
-                        content = content.replace(/(-?[0-9]+°[CF])/g, '<span class="text-amber-400 font-bold">$1</span>');
-                        content = content.replace(/(QNH\s+[0-9]{4})/gi, '<span class="text-purple-400 font-bold bg-purple-900/30 px-1.5 py-0.5 rounded">$1</span>');
+                        content = content.replace(/(?:\bRunway\s+|\brunway\s+)([0-9]{2}[A-Z]?)/gi, 'Runway <span style="color:#60A5FA; font-weight:bold; background:#1e3a8a; padding:2px 6px; border-radius:4px;">$1</span>');
+                        content = content.replace(/(FL[0-9]{3}|TL[0-9]{3}|HD[0-9]{3})/g, '<span style="color:#F472B6; font-weight:bold; font-family:monospace; background:#831843; padding:2px 6px; border-radius:4px;">$1</span>');
+                        content = content.replace(/([0-9]+\s*knots|winds.*?at\s+[0-9]+\s*knots)/gi, '<span style="color:#34D399; font-weight:bold;">$&</span>');
+                        content = content.replace(/(-?[0-9]+°[CF])/g, '<span style="color:#FCD34D; font-weight:bold;">$1</span>');
+                        content = content.replace(/(QNH\s+[0-9]{4})/gi, '<span style="color:#A78BFA; font-weight:bold; background:#4c1d95; padding:2px 6px; border-radius:4px;">$1</span>');
                         
-                        content = content.replace(/(closed|unserviceable|wind shear|severe turbulence|significant tailwind|out of service)/gi, '<span class="text-red-400 font-bold underline">$&</span>');
-                        content = content.replace(/(no significant operational restrictions)/gi, '<span class="text-emerald-400 font-bold">$&</span>');
+                        // Alternate ICAO highlighting (e.g. CYQQ)
+                        // Be careful not to colorize every 4 uppercase letters, limit to ones after a comma or specific keywords
+                        content = content.replace(/(destination alternate,\s*)([A-Z]{4})/g, '$1<span style="color:#38bdf8; font-weight:bold; border-bottom:1px dashed #38bdf8;">$2</span>');
+
+                        // Alerts
+                        content = content.replace(/(closed|unserviceable|wind shear|severe turbulence|significant tailwind|out of service)/gi, '<span style="color:#EF4444; font-weight:bold; text-decoration:underline;">$&</span>');
+                        content = content.replace(/(no significant operational restrictions)/gi, '<span style="color:#10B981; font-weight:bold;">$&</span>');
 
                         content = content.replace(/\r\n\r\n|\n\n/g, '<br/><br/>').replace(/\r\n|\n/g, '<br/>');
 
                         let icon = "📋";
-                        if (title.includes("EXPECTATIONS")) icon = "✨";
+                        if (title.includes("EXPECTATIONS")) icon = "📝";
                         if (title.includes("DEPARTURE")) icon = "🛫";
                         if (title.includes("DESTINATION")) icon = "🛬";
                         if (title.includes("ALTERNATE")) icon = "🔄";
                         if (title.includes("ENROUTE")) icon = "✈️";
 
                         html += `
-                        <div class="bg-[#12141A] p-5 rounded-xl border border-white/5">
-                            <div class="flex items-center gap-2 mb-3 border-b border-white/5 pb-2">
-                                <span class="text-slate-400 text-sm">${icon}</span>
-                                <h4 class="text-slate-400 font-bold uppercase tracking-widest text-[10px] m-0">${title}</h4>
-                            </div>
-                            <div class="text-slate-300 leading-relaxed font-body text-xs">
-                                ${content}
-                            </div>
+                        <div class="card" style="display:flex; flex-direction:column; background:#1e293b; border:1px solid #334155; border-radius:8px; padding:15px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+                            <h3 style="color:#cbd5e1; font-size:15px; font-weight:700; margin-bottom:12px; border-bottom:1px solid #334155; padding-bottom:8px; display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:18px;">${icon}</span> ${title}
+                            </h3>
+                            <p style="color:#e2e8f0; font-size:14px; line-height:1.7;">${content}</p>
                         </div>`;
                     }
+                    
                     html += '</div>';
-
                     return html;
                 };
 
@@ -834,15 +831,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 });
 
-window.closedAccordions = window.closedAccordions || new Set();
+window.openAccordions = window.openAccordions || new Set();
 
 const GO_ICONS = {
-    'Refuel': '<span class="material-symbols-outlined text-[18px] text-orange-500">local_gas_station</span>',
-    'Boarding': '<span class="material-symbols-outlined text-[18px] text-sky-400">group</span>',
-    'Cargo': '<span class="material-symbols-outlined text-[18px] text-amber-500">luggage</span>',
-    'Catering': '<span class="material-symbols-outlined text-[18px] text-pink-400">restaurant</span>',
-    'Cleaning': '<span class="material-symbols-outlined text-[18px] text-fuchsia-400">cleaning_services</span>',
-    'Water/Waste': '<span class="material-symbols-outlined text-[18px] text-emerald-400">water_drop</span>'
+    'Refuel': '⛽',
+    'Boarding': '🛂',
+    'Cargo': '🧳',
+    'Catering': '🍽️',
+    'Cleaning': '🧹',
+    'Water/Waste': '💧'
 };
 
 const GO_NARRATIVES = {
@@ -855,14 +852,14 @@ const GO_NARRATIVES = {
 };
 
 window.toggleAccordion = function(name) {
-    if (window.closedAccordions.has(name)) window.closedAccordions.delete(name);
-    else window.closedAccordions.add(name);
+    if (window.openAccordions.has(name)) window.openAccordions.delete(name);
+    else window.openAccordions.add(name);
     
     const safeName = name.replace(/\s|[^\w]/g, '');
     const content = document.getElementById('acc-content-' + safeName);
-    if (content) content.style.display = window.closedAccordions.has(name) ? 'none' : 'block';
+    if (content) content.style.display = window.openAccordions.has(name) ? 'block' : 'none';
     const chevron = document.getElementById('acc-icon-' + safeName);
-    if (chevron) chevron.style.transform = window.closedAccordions.has(name) ? 'rotate(0deg)' : 'rotate(180deg)';
+    if (chevron) chevron.style.transform = window.openAccordions.has(name) ? 'rotate(180deg)' : 'rotate(0deg)';
 };
 
 window.groundServiceStates = window.groundServiceStates || {};
@@ -945,12 +942,12 @@ function updateMetaBar(services) {
 
 function renderGroundOps(services) {
     const container = document.getElementById('groundOpsContainer');
-    let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+    let html = '';
     
     services.forEach(s => {
         let btnHtml = '';
         if (s.IsOptional && s.State !== 3 /* Completed */ && s.State !== 4 /* Skipped */) {
-            btnHtml = `<button class="go-btn px-4 py-2 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white rounded text-xs tracking-widest uppercase transition-colors" onclick="skipService('${s.Name}')">Skip / Abort</button>`;
+            btnHtml = `<button class="go-btn" onclick="skipService('${s.Name}')">Skip / Abort</button>`;
         }
         
         let getSeverityColor = (sec) => {
@@ -977,35 +974,33 @@ function renderGroundOps(services) {
         }
 
         const safeName = s.Name.replace(/\s|[^\w]/g, '');
-        const isOpen = !window.closedAccordions.has(s.Name);
+        const isOpen = window.openAccordions.has(s.Name);
         const displayStyle = isOpen ? 'block' : 'none';
         const chevronRot = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
         const icon = GO_ICONS[s.Name] || '🔹';
         const narrative = GO_NARRATIVES[s.Name] || 'Opération au sol en cours.';
 
         html += `
-            <div class="go-accordion bg-[#12141A] rounded-xl border border-white/5 overflow-hidden flex flex-col h-full">
-                <div class="go-acc-header p-4 cursor-pointer hover:bg-white/[0.02] flex justify-between items-center transition-colors border-b border-transparent" onclick="toggleAccordion('${s.Name}')">
-                    <div class="go-acc-title flex flex-col gap-1">
-                        <div class="flex items-center gap-2">
-                            <span class="go-icon text-lg flex items-center">${icon}</span>
-                            <strong style="color: ${s.State === 3 ? '#34D399' : '#F8FAFC'};" class="font-label tracking-[0.4em] uppercase text-xs">${s.Name}</strong>
-                        </div>
+            <div class="go-accordion">
+                <div class="go-acc-header" onclick="toggleAccordion('${s.Name}')">
+                    <div class="go-acc-title">
+                        <span class="go-icon">${icon}</span>
+                        <strong style="color: ${s.State === 3 ? '#34D399' : '#F8FAFC'};">${s.Name}</strong>
                     </div>
-                    <div class="go-acc-summary flex items-center gap-3">
-                        <span style="color: ${statusColor}; font-weight: 600;" class="text-[10px] uppercase tracking-widest">${s.StatusMessage} ${timeDisplay}</span>
+                    <div class="go-acc-summary">
+                        <span style="color: ${statusColor}; font-weight: 600;">${s.StatusMessage} ${timeDisplay}</span>
                         <svg id="acc-icon-${safeName}" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" style="transform: ${chevronRot}; transition: transform 0.2s;">
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                     </div>
                 </div>
-                <div class="go-acc-bar w-full h-1 bg-black/40">
-                    <div class="go-bar-fill h-full transition-all duration-1000 ease-out" style="width: ${s.ProgressPercent}%; background-color: ${barColor};"></div>
+                <div class="go-acc-bar">
+                    <div class="go-bar-fill" style="width: ${s.ProgressPercent}%; background-color: ${barColor};"></div>
                 </div>
-                <div id="acc-content-${safeName}" class="go-acc-content p-4 bg-[#0F1116]" style="display: ${displayStyle}; flex-grow: 1;">
+                <div id="acc-content-${safeName}" class="go-acc-content" style="display: ${displayStyle};">
                     <p style="color: #cbd5e1; font-size: 13px; margin: 0 0 15px 0; line-height: 1.5; font-style: italic;">"${narrative}"</p>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto;">
-                        <span style="font-size: 10px; color: #64748b; font-family: monospace;">STATUS: ${s.State === 3 ? 'FINISHED' : s.State === 4 ? 'ABORTED' : s.State === 2 ? 'DELAYED' : 'ACTIVE'}</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 12px; color: #64748b; font-family: monospace;">STATUS: ${s.State === 3 ? 'FINISHED' : s.State === 4 ? 'ABORTED' : s.State === 2 ? 'DELAYED' : 'ACTIVE'}</span>
                         ${btnHtml}
                     </div>
                 </div>
@@ -1013,7 +1008,6 @@ function renderGroundOps(services) {
         `;
     });
     
-    html += '</div>';
     container.innerHTML = html;
 }
 
@@ -1063,7 +1057,7 @@ window.renderManifest = function(manifest) {
         <style>
             .fuselage {
                 width: 100%;
-                width: 380px;
+                max-width: 380px;
                 border: 4px solid #334155;
                 border-radius: 120px 120px 30px 30px;
                 padding: 120px 20px 40px 20px;
@@ -1095,7 +1089,7 @@ window.renderManifest = function(manifest) {
                 left: 50%;
                 transform: translateX(-50%);
                 color: #64748b;
-                font-size: 15px;
+                font-size: 10px;
                 font-weight: bold;
             }
             .seat-block {
@@ -1133,8 +1127,7 @@ window.renderManifest = function(manifest) {
                 bottom: 130%;
                 left: 50%;
                 transform: translateX(-50%);
-                font-size: 14px;
-                padding: 6px 10px;
+                font-size: 10px;
                 white-space: nowrap;
                 opacity: 0;
                 transition: opacity 0.2s;
@@ -1205,23 +1198,23 @@ window.renderManifest = function(manifest) {
         <div style="display:flex; gap: 40px; justify-content: space-between; height: 100%;">
             <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column; height: 100%;">
                 <div style="flex-shrink: 0;">
-                    <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 border-b border-white/5 pb-3 mb-4">FLIGHT CREW (${manifest.FlightCrew.length})</h3>
+                    <h3 style="color:#FACC15; border-bottom:1px solid #334155; padding-bottom:5px; margin-bottom:15px;">Flight Crew (${manifest.FlightCrew.length})</h3>
                     <ul style="list-style:none; padding:0; margin:0; line-height: 1.8; color:#cbd5e1; margin-bottom: 20px;">
     `;
 
     let cabCrewRendered = false;
     manifest.FlightCrew.forEach(c => {
         if (!cabCrewRendered && (c.Role === "Purser" || c.Role === "Flight Attendant")) {
-            html += `<li class="text-[10px] font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 border-b border-white/5 pb-2 mb-2 mt-4 border-dotted mt-4">CABIN CREW</li>`;
+            html += `<li style="margin-top:10px; margin-bottom: 5px; color:#94A3B8; font-size:12px; text-transform:uppercase; border-bottom: 1px dotted #334155;">Cabin Crew</li>`;
             cabCrewRendered = true;
         }
         html += `<li><strong style="color: #60A5FA;">${c.Role}:</strong> ${c.Name}</li>`;
     });
 
     html += `       </ul>
-                    <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 border-b border-white/5 pb-3 mb-4">LIST (${manifest.Passengers.length} PAX)</h3>
+                    <h3 style="color:#34D399; border-bottom:1px solid #334155; padding-bottom:5px; margin-bottom:15px;">List (${manifest.Passengers.length} PAX)</h3>
                 </div>
-                <div style="flex: 1; overflow-y: auto; padding-right: 15px; border-right: 1px solid #1e293b; color:#94A3B8; font-size:13px;">
+                <div style="flex: 1; overflow-y: auto; padding-right: 15px; border-right: 1px solid #1e293b; color:#94A3B8; font-size:12px;">
                     <table style="width:100%; text-align:left; border-collapse: collapse;">
                         <thead style="position: sticky; top: 0; background: #0f172a; z-index: 5;">
                             <tr style="border-bottom: 1px solid #334155; color: #cbd5e1;">
@@ -1251,11 +1244,9 @@ window.renderManifest = function(manifest) {
             </div>
             
             <div style="flex: 1.5; min-width: 380px; display: flex; flex-direction: column; text-align: center; height: 100%;">
-                <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 border-b border-white/5 pb-3 mb-4 flex-shrink-0">SEAT MAP</h3>
-                <div id="seatMapViewport" style="flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; padding-top: 10px; cursor: grab; position: relative;">
-                    <div id="seatMapContent" style="transform: scale(0.98); transform-origin: center; transition: transform 0.1s ease-out;">
-                        ${seatMapHtml}
-                    </div>
+                <h3 style="color:#38BDF8; border-bottom:1px solid #334155; padding-bottom:5px; margin-bottom:15px; flex-shrink: 0;">Seat Map</h3>
+                <div style="flex: 1; overflow-y: auto; padding: 10px;">
+                    ${seatMapHtml}
                 </div>
             </div>
         </div>`;
@@ -1264,49 +1255,4 @@ window.renderManifest = function(manifest) {
     container.style.display = 'flex';
     container.style.flexDirection = 'column';
     container.innerHTML = html;
-
-    // Pan and Zoom logic
-    const viewport = document.getElementById('seatMapViewport');
-    const content = document.getElementById('seatMapContent');
-    if (viewport && content) {
-        let scale = 0.98;
-        let isDown = false;
-        let startX, startY;
-        let currentX = 0, currentY = 0;
-
-        viewport.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            content.style.transition = 'transform 0.1s ease-out';
-            const zoomSensitivity = 0.001;
-            scale -= e.deltaY * zoomSensitivity;
-            scale = Math.max(0.3, Math.min(3, scale)); // Limits zoom
-            content.style.transform = `translate(${currentX}px, ${currentY}px) scale(${scale})`;
-        });
-
-        viewport.addEventListener('mousedown', (e) => {
-            if (e.button === 1 || e.button === 2 || e.button === 0) { // Middle or Right or Left
-                isDown = true;
-                viewport.style.cursor = 'grabbing';
-                startX = e.clientX - currentX;
-                startY = e.clientY - currentY;
-            }
-        });
-
-        window.addEventListener('mouseup', () => {
-            isDown = false;
-            if(viewport) viewport.style.cursor = 'grab';
-        });
-
-        window.addEventListener('mousemove', (e) => {
-            if (!isDown) return;
-            e.preventDefault();
-            content.style.transition = 'none'; // remove transition for smooth drag
-            currentX = e.clientX - startX;
-            currentY = e.clientY - startY;
-            content.style.transform = `translate(${currentX}px, ${currentY}px) scale(${scale})`;
-        });
-        
-        // Prevent context menu on right click inside viewport
-        viewport.addEventListener('contextmenu', e => e.preventDefault());
-    }
 };

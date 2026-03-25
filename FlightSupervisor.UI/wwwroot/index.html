@@ -1,419 +1,683 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <title>Flight Supervisor</title>
-    <link rel="stylesheet" href="app.css?v=2">
+    <title>Flight Supervisor | Command Center</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="app.css?v=6">
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        background: "#111318",
+                        primary: "#95ccff",
+                        "primary-container": "#00a8ff",
+                        "surface-container-highest": "#33353a",
+                        "surface-container-low": "#1a1b21",
+                        "surface-variant": "#33353a",
+                    },
+                    fontFamily: {
+                        headline: ["Manrope", "sans-serif"],
+                        body: ["Inter", "sans-serif"],
+                        label: ["Inter", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #111318;
+            color: #e2e2e9;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+        }
+        .window-drag-area {
+            -webkit-app-region: drag;
+            position: fixed; top: 0; left: 0; right: 0; height: 30px; z-index: 9999;
+        }
+        .no-drag { -webkit-app-region: no-drag; }
+        .glass-panel {
+            background: rgba(51, 53, 58, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(136, 146, 157, 0.1);
+        }
+        .neon-glow {
+            text-shadow: 0 0 10px rgba(149, 204, 255, 0.5), 0 0 20px rgba(149, 204, 255, 0.3);
+        }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+        
+        /* Tab system support */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(62, 72, 82, 0.3); border-radius: 999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(62, 72, 82, 0.6); }
+
+        /* active tab styles */
+        .menu li {
+            color: #94a3b8;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            padding: 0.75rem 1.2rem;
+            display: flex; align-items: center; gap: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        .menu li:hover {
+            color: #e2e8f0;
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+        .menu li.active {
+            color: #38bdf8;
+            background-color: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            font-weight: 600;
+        }
+    </style>
 </head>
-<body>
-
-    <!-- Left Sidebar -->
-    <nav id="sidebar">
-        <div class="logo">FS</div>
-        <ul class="menu">
-            <li class="active" data-target="dashboard">Dashboard</li>
-            <li data-target="briefing">Briefing</li>
-            <li data-target="cabin">Cabin / Manifest</li>
-            <li data-target="groundops">Ground Ops</li>
-            <li data-target="logs">Logs</li>
-            <li data-target="options">Options</li>
-        </ul>
-        <div style="padding: 0 20px; display: flex; flex-direction: column; gap: 5px; margin-top: auto; margin-bottom: 20px;">
-            <button id="btnFetchPlan" style="font-size: 12px; padding: 10px; border-radius: 4px; border: none; background-color: #4A90E2; color: white; font-weight: bold; cursor: pointer;">Fetch Latest Plan</button>
-            <button id="btnStartGroundOps" style="font-size: 12px; padding: 10px; border-radius: 4px; background-color: #334155; color: #64748b; font-weight: bold; border: none; cursor: not-allowed; text-align: center;" disabled>Start Ground Ops</button>
-            <button id="btnSmartConnect" class="smart-connect error" style="margin: 0; padding: 10px; width: 100%; border-radius: 4px;"><span>Not Connected</span></button>
+<body class="bg-background">
+    <!-- DRAG REGION & WINDOW CONTROLS -->
+    <div id="top-bar" class="window-drag-area flex justify-between items-center pl-4 pr-2 py-1">
+        <div class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase pointer-events-none select-none mt-1">Flight Supervisor</div>
+        <div class="flex items-center gap-1">
+            <button class="no-drag w-10 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded transition-colors" id="btnPin" title="Toggle Always on Top" style="opacity: 0.4;">
+                <span class="material-symbols-outlined text-[16px]">push_pin</span>
+            </button>
+            <button class="no-drag w-10 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded transition-colors" id="btnMin" title="Minimize to Tray">
+                <span class="material-symbols-outlined text-[16px]">remove</span>
+            </button>
+            <button class="no-drag w-10 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded transition-colors" id="btnMax" title="Maximize or Restore Window">
+                <span class="material-symbols-outlined text-[16px]">crop_square</span>
+            </button>
+            <button class="no-drag w-10 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded transition-colors" id="btnClose" title="Quit">
+                <span class="material-symbols-outlined text-[16px]">close</span>
+            </button>
         </div>
-        <div id="fetchStatus" style="display: none;"></div>
-        <div style="position: absolute; bottom: 15px; left: 0; width: 100%; text-align: center; color: #475569; font-size: 11px; font-family: monospace; pointer-events: none;">Build 1.4.9-beta</div>
-    </nav>
+    </div>
 
-    <!-- Main Content Area -->
-    <main id="main-content">
-        <!-- Top Drag Bar -->
-        <header id="top-bar">
-            <div class="title">Flight Supervisor</div>
-            <div class="spacer"></div>
-            <div class="window-controls">
-                <button class="win-btn" id="btnPin" title="Toggle Always on Top" style="font-size: 14px; opacity: 0.4; transition: opacity 0.2s;">📌</button>
-                <button class="win-btn" id="btnMin" title="Minimize to Tray">_</button>
-                <button class="win-btn" id="btnMax" title="Maximize or Restore Window">□</button>
-                <button class="win-btn close" id="btnClose" title="Quit">&#10005;</button>
+    <!-- SIDE NAV BAR (Aviation Logistics Layout) -->
+    <aside id="sidebar" class="fixed left-0 top-0 h-full z-40 bg-[#161A21] w-64 border-r border-[#242A35] shadow-[32px_0_32px_-16px_rgba(0,0,0,0.4)] flex flex-col pt-8">
+        <!-- Logo Container (More obvious, centered perfectly) -->
+        <div class="flex items-center justify-center pt-16 pb-12 border-b border-transparent">
+            <!-- Sleek, simple Flight emblem -->
+            <div class="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-slate-800/80 to-[#12141A] border-t border-l border-white/10 flex items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.5),inset_0_2px_10px_rgba(255,255,255,0.05)] transition-transform duration-500 hover:scale-105 cursor-pointer">
+                <span class="material-symbols-outlined text-[52px] text-sky-400 drop-shadow-[0_0_15px_rgba(56,189,248,0.6)]" style="font-variation-settings: 'FILL' 1, 'wght' 300;">flight_takeoff</span>
             </div>
-        </header>
+        </div>
+        <ul class="menu flex-1 px-4 mt-2 font-manrope text-sm tracking-wide">
+            <li class="active no-drag" data-target="dashboard">
+                <span class="material-symbols-outlined shrink-0">dashboard</span>
+                <span>Dashboard</span>
+            </li>
+            <li class="no-drag" data-target="briefing">
+                <span class="material-symbols-outlined shrink-0">assignment</span>
+                <span>Briefing</span>
+            </li>
+            <li class="no-drag" data-target="groundops">
+                <span class="material-symbols-outlined shrink-0">flight_takeoff</span>
+                <span>Ground Ops</span>
+            </li>
+            <li class="no-drag" data-target="cabin">
+                <span class="material-symbols-outlined shrink-0">groups</span>
+                <span>Manifest</span>
+            </li>
+            <li class="no-drag" data-target="logs">
+                <span class="material-symbols-outlined shrink-0">history</span>
+                <span>Logs</span>
+            </li>
+            <li class="no-drag mt-auto" data-target="options">
+                <span class="material-symbols-outlined shrink-0">settings</span>
+                <span>Settings</span>
+            </li>
+        </ul>
+        
+        <!-- SIDEBAR FOOTER (Aligned with main footer) -->
+        <div class="h-[90px] border-t border-white/5 flex items-center justify-center px-[10px]">
+            <button id="btnSmartConnect" class="text-[10px] font-bold py-4 tracking-widest uppercase rounded-xl bg-red-900/20 text-red-500 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:bg-red-900/40 transition-colors w-full">Not Connected</button>
+        </div>
+    </aside>
 
-        <!-- Content Sections -->
-        <div class="content-container">
-            <section id="dashboard" class="active">
-                <h2 style="margin-bottom: 15px;">Dashboard</h2>
-                <div id="dashFlightHeader" style="display: none; background: #1E2433; padding: 15px 25px; border-radius: 8px; border: 1px solid #2B3347; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 25px; text-align: center; width: 100%;">
-                    <div style="display: flex; align-items: center; justify-content: center; gap: 20px; font-size: 24px; font-weight: 800; color: #F8FAFC; letter-spacing: 1px;">
-                        <span id="dhOrigin">---- (----)</span>
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="#0F172A" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(90deg); flex-shrink: 0;">
-                            <path d="M21 16V14L13 9V3.5C13 2.67 12.33 2 11.5 2C10.67 2 10 2.67 10 3.5V9L2 14V16L10 13.5V19L8 20.5V22L11.5 21L15 22V20.5L13 19V13.5L21 16Z" />
-                        </svg>
-                        <span id="dhDest">---- (----)</span>
-                    </div>
-                    <div style="margin-top: 12px; font-size: 15px; color: #94A3B8;">
-                        <span id="dhFlight" style="font-weight: 700; color: #4A90E2;">Flight ---</span>
-                        <span style="margin: 0 15px; color: #475569;">|</span>
-                        <span id="dhAirline" style="font-weight: 600;">Unknown Airline</span>
-                    </div>
-                </div>
-                
-                <!-- NEW META BAR -->
-                <div id="dashMetaBar" class="card" style="display: none; margin-bottom: 20px; padding: 15px; border: 1px solid #2B3347; background: #161A25;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="font-size: 13px; font-weight: 600; color: #cbd5e1; text-transform: uppercase;">Turnaround Progress</span>
-                        <span id="dashMetaText" style="font-size: 13px; font-weight: bold; color: #94A3B8;">Ground Operations Standing By</span>
-                    </div>
-                    <div style="height: 6px; background: #0F172A; border-radius: 3px; overflow: hidden; width: 100%;">
-                        <div id="dashMetaFill" style="height: 100%; width: 0%; background: #334155; transition: width 1s linear, background-color 0.5s;"></div>
-                    </div>
-                </div>
-                
-                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom:20px;">
-                    <div class="card" style="flex: 1; min-width: 200px; text-align:center; padding: 20px;">
-                        <h3 style="font-size:12px; font-weight:600; border:none; margin-bottom:5px; color:#94A3B8; text-transform:uppercase; letter-spacing:1px;">Current Phase</h3>
-                        <div id="flightPhase" style="font-size:32px; font-weight:800; color:#FACC15;">Off</div>
-                    </div>
-                    <div class="card" style="flex: 1; min-width: 200px; text-align:center; padding: 20px;">
-                        <h3 style="font-size:12px; font-weight:600; border:none; margin-bottom:5px; color:#94A3B8; text-transform:uppercase; letter-spacing:1px;">Zulu Time</h3>
-                        <div id="zuluTime" style="font-size:32px; font-family:monospace; font-weight:800; color:#4A90E2;">--:--z</div>
-                        <div id="flightCountdown" style="margin-top:5px; font-size:14px; color:#94A3B8; font-weight:bold;">No plan loaded</div>
-                    </div>
-                    <div class="card" style="flex: 1; min-width: 250px; padding: 20px;">
-                        <h3 style="font-size:12px; font-weight:600; border:none; margin-bottom:10px; color:#94A3B8; text-transform:uppercase; letter-spacing:1px; text-align:center;">Timetable (UTC)</h3>
-                        <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:8px;">
-                            <span><strong style="color:#94A3B8;">SOBT:</strong> <span id="bdSobt" style="color:#cbd5e1; font-family:monospace; font-weight:bold;">--:--z</span></span>
-                            <span><strong style="color:#94A3B8;">AOBT:</strong> <span id="bdAobt" style="color:#FACC15; font-family:monospace; font-weight:bold;">--:--z</span></span>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; font-size:14px;">
-                            <span><strong style="color:#94A3B8;">SIBT:</strong> <span id="bdSibt" style="color:#cbd5e1; font-family:monospace; font-weight:bold;">--:--z</span></span>
-                            <span><strong style="color:#94A3B8;">AIBT:</strong> <span id="bdAibt" style="color:#FACC15; font-family:monospace; font-weight:bold;">--:--z</span></span>
-                        </div>
-                        <div id="puncBarContainer" style="margin-top: 15px; position: relative; height: 20px; display: none;">
-                            <div style="width: 100%; height: 6px; background: linear-gradient(to right, #60A5FA 0%, #34D399 20%, #34D399 50%, #F59E0B 80%, #EF4444 100%); border-radius: 3px; position: absolute; top: 8px;"></div>
-                            <div id="puncPointer" style="position: absolute; top: 2px; left: 35%; transform: translateX(-50%); width: 3px; height: 18px; background: white; border-radius:1px; box-shadow: 0 0 4px rgba(0,0,0,0.8); transition: left 0.5s ease-out;"></div>
-                            <div id="puncLabel" style="position: absolute; top: -12px; left: 35%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: white; transition: left 0.5s ease-out;">0m</div>
-                        </div>
-                    </div>
-                </div>
+    <!-- TOP NAV BAR -->
+    <header class="fixed top-0 right-0 left-64 z-30 flex items-center justify-between px-8 bg-background/50 backdrop-blur-lg w-full h-16 border-b border-white/5 font-manrope font-semibold uppercase tracking-widest text-[10px] pt-4 pointer-events-none">
+        <div class="flex items-center gap-8">
+            <span id="topPhase" class="text-sky-400">Off</span>
+            <span class="text-slate-500">Zulu: <span id="topZulu" class="text-slate-300">--:--Z</span></span>
+            <span class="text-slate-500 font-bold flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span> <span id="topFlight" class="text-sky-400 font-black">CONNECTED</span></span>
+        </div>
+        <div class="flex items-center gap-6">
+            <span class="material-symbols-outlined text-slate-400">notifications</span>
+            <span class="material-symbols-outlined text-slate-400">account_circle</span>
+        </div>
+    </header>
 
-                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top:20px;">
-                    <div class="card" style="flex: 1; display: flex; flex-direction: column; align-items: center; border: 1px solid rgba(52,211,153,0.2);">
-                        <h3 style="font-size:14px; border:none; margin-bottom:5px; color:#94A3B8; text-transform:uppercase; letter-spacing:1px;">Flight Performance</h3>
-                        <div id="mainScoreValue" style="font-size:64px; font-weight:900; color:#34D399; text-shadow: 0 0 20px rgba(52,211,153,0.3);">1000</div>
-                        <div style="width: 100%; max-height: 120px; overflow-y: auto; background: #0F172A; border-radius: 8px; padding: 10px; margin-top: 10px;">
-                            <ul id="scoreFeed" style="list-style: none; margin: 0; padding: 0; font-family: monospace; font-size: 13px;">
-                                <li style="color:#64748b; text-align:center;">Tracking standing by...</li>
+    <!-- MAIN CONTENT CANVAS -->
+    <main id="main-content" class="ml-64 pt-20 h-screen overflow-y-auto p-12 bg-[#12141A] relative">
+        <div class="w-full pb-36">
+            
+            <!-- DASHBOARD TAB -->
+            <section id="dashboard" class="tab-content active space-y-6">
+                <!-- HERO BENTO SECTION -->
+                <div class="grid grid-cols-12 gap-6">
+                    <div class="col-span-12 lg:col-span-8 glass-panel rounded-xl p-8 flex flex-col justify-center min-h-[300px] relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+                            <span class="material-symbols-outlined text-[140px] leading-none">flight_takeoff</span>
+                        </div>
+                        <div class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase mb-4">Current Flight Phase</div>
+                        <div style="display: flex; align-items: baseline; gap: 20px;">
+                            <h1 id="flightPhase" class="text-7xl font-black font-headline text-sky-400 tracking-tighter neon-glow" style="text-transform: capitalize;">Off</h1>
+                            <div id="flightCountdown" class="text-lg text-slate-400 font-bold" style="font-family: monospace;"></div>
+                        </div>
+                        <div id="dashMetaBar" class="mt-8 pt-6 border-t border-white/5" style="display: none;">
+                            <p id="dashMetaText" class="text-slate-400 font-body leading-relaxed text-sm mb-3">Ground Operations Standing By.</p>
+                            <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden max-w-md ring-1 ring-white/5">
+                                <div id="dashMetaFill" class="h-full bg-sky-500 w-0 transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(14,165,233,0.5)]"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-span-12 lg:col-span-4 glass-panel rounded-xl p-8 flex flex-col items-center justify-center text-center">
+                        <div class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase mb-6">Efficiency Score</div>
+                        <div class="relative flex items-center justify-center">
+                            <svg class="w-48 h-48 -rotate-90">
+                                <circle class="text-white/5" cx="96" cy="96" fill="transparent" r="80" stroke="currentColor" stroke-width="4"></circle>
+                                <circle id="topScoreRing" class="text-sky-400 transition-all duration-1000 ease-out drop-shadow-[0_0_8px_rgba(56,189,248,0.6)]" cx="96" cy="96" fill="transparent" r="80" stroke="currentColor" stroke-dasharray="502" stroke-dashoffset="0" stroke-width="6" stroke-linecap="round"></circle>
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span id="mainScoreValue" class="text-5xl font-black font-headline text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)]">1000</span>
+                                <span class="text-[10px] text-slate-500 font-bold tracking-[0.2em] uppercase mt-2">PTS</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-span-12 lg:col-span-6 glass-panel rounded-xl overflow-hidden flex flex-col">
+                        <div class="px-8 py-5 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+                            <h2 class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase">Flight Timetable (UTC)</h2>
+                            <span class="text-xs font-bold text-sky-400 font-mono tracking-widest" id="zuluTime">--:--Z</span>
+                        </div>
+                        <div class="p-8 flex-1">
+                            <table class="w-full text-left">
+                                <thead>
+                                    <tr class="text-[9px] uppercase tracking-[0.2em] text-slate-500 font-bold">
+                                        <th class="pb-5">Milestone</th>
+                                        <th class="pb-5">Scheduled</th>
+                                        <th class="pb-5">Actual</th>
+                                        <th class="pb-5 text-right">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-sm font-medium">
+                                    <tr class="border-t border-white/5">
+                                        <td class="py-4 text-slate-300">SOBT (Off-Block)</td>
+                                        <td class="py-4 font-mono text-slate-400" id="bdSobt">--:--Z</td>
+                                        <td class="py-4 font-mono text-slate-300" id="actualOff">--:--</td>
+                                        <td class="py-4 text-right" id="sobtStatus"><span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider">Standby</span></td>
+                                    </tr>
+                                    <tr class="border-t border-white/5">
+                                        <td class="py-4 text-slate-300">AOBT (Actual Off)</td>
+                                        <td class="py-4 font-mono text-slate-500" id="bdAobt">--:--</td>
+                                        <td class="py-4 font-mono text-sky-400" id="actualOff2">PENDING</td>
+                                        <td class="py-4 text-right" id="actualOffStatus"><span class="px-2 py-0.5 rounded bg-sky-500/10 text-[10px] text-sky-400 uppercase font-bold tracking-wider">Active</span></td>
+                                    </tr>
+                                    <tr class="border-t border-white/5">
+                                        <td class="py-4 text-slate-300">SIBT (In-Block)</td>
+                                        <td class="py-4 font-mono text-slate-400" id="bdSibt">--:--Z</td>
+                                        <td class="py-4 font-mono text-slate-300" id="actualIn">--:--</td>
+                                        <td class="py-4 text-right" id="sibtStatus"><span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider">Standby</span></td>
+                                    </tr>
+                                    <tr class="border-t border-white/5">
+                                        <td class="py-4 text-slate-300">AIBT (Actual In)</td>
+                                        <td class="py-4 font-mono text-slate-500" id="bdAibt">--:--</td>
+                                        <td class="py-4 font-mono text-slate-500" id="actualIn2">--:--</td>
+                                        <td class="py-4 text-right" id="actualInStatus"><span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider">Standby</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div id="puncBarContainer" style="margin-top: 25px; position: relative; height: 30px; display: none;">
+                                <div style="width: 100%; height: 4px; background: linear-gradient(to right, #0ea5e9 0%, #10b981 20%, #10b981 50%, #f59e0b 80%, #ef4444 100%); border-radius: 2px; position: absolute; top: 13px;"></div>
+                                <div id="puncPointer" style="position: absolute; top: 5px; left: 35%; transform: translateX(-50%); width: 4px; height: 20px; background: white; border-radius:2px; box-shadow: 0 0 10px rgba(0,0,0,0.8); transition: left 0.5s ease-out;"></div>
+                                <div id="puncLabel" style="position: absolute; top: -14px; left: 35%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: white; transition: left 0.5s ease-out; background: #1e293b; padding: 2px 6px; border-radius: 4px; border: 1px solid #334155;">0m</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-span-12 lg:col-span-3 glass-panel rounded-xl p-8 flex flex-col">
+                        <div class="flex items-center justify-between mb-8">
+                            <span class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase">Cabin Anxiety</span>
+                            <span class="material-symbols-outlined text-emerald-400">mood</span>
+                        </div>
+                        <div class="mt-auto">
+                            <div class="flex items-end justify-between mb-4">
+                                <span class="text-6xl font-black font-headline text-white leading-none" id="paxAnxietyValue">0<span class="text-xl text-slate-500 font-light ml-1">%</span></span>
+                            </div>
+                            <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5">
+                                <div id="paxAnxietyBar" class="h-full bg-emerald-400 w-0 transition-all duration-700 shadow-[0_0_8px_rgba(52,211,153,0.5)]"></div>
+                            </div>
+                            <div id="paxAnxietyDesc" class="text-[11px] text-emerald-400/80 mt-4 leading-relaxed font-body uppercase tracking-wider font-bold">Optimal Calm</div>
+
+                            <div id="cabinActionButtons" style="display:flex; flex-direction:column; gap:8px; margin-top:20px; width:100%; opacity:0; pointer-events:none; transition:opacity 0.3s ease;">
+                                <button onclick="window.chrome.webview.postMessage({action:'announceCabin', annType:'Delay'})" class="bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 px-3 py-2 rounded text-[10px] font-bold tracking-widest uppercase transition-colors">Announce: Delay Apology</button>
+                                <button onclick="window.chrome.webview.postMessage({action:'announceCabin', annType:'Turbulence'})" class="bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20 px-3 py-2 rounded text-[10px] font-bold tracking-widest uppercase transition-colors">Announce: Turbulence</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-span-12 lg:col-span-3 glass-panel rounded-xl p-6 flex flex-col h-full overflow-hidden">
+                        <h3 class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase mb-5 flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse drop-shadow-[0_0_4px_rgba(56,189,248,0.8)]"></span>
+                            PNC Comms
+                        </h3>
+                        <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                            <ul id="cabinLogsList" class="space-y-3 font-body text-xs">
+                                <li class="text-slate-500 text-center text-[10px] uppercase tracking-widest mt-4">Standing by...</li>
                             </ul>
                         </div>
                     </div>
-
-                    <div class="card" style="flex: 1; display: flex; flex-direction: column; align-items: center; border: 1px solid rgba(56,189,248,0.2);">
-                        <h3 style="font-size:14px; border:none; margin-bottom:5px; color:#94A3B8; text-transform:uppercase; letter-spacing:1px;">Cabin Anxiety</h3>
-                        <div id="paxAnxietyValue" style="font-size:64px; font-weight:900; color:#34D399; text-shadow: 0 0 20px rgba(52,211,153,0.3);">0<span style="font-size:32px;">%</span></div>
-                        <div id="cabinActionButtons" style="display:flex; flex-direction:column; gap:8px; margin-top:10px; width:100%; opacity:0; pointer-events:none; transition:opacity 0.3s ease;">
-                            <button onclick="window.chrome.webview.postMessage({action:'announceCabin', annType:'Delay'})" style="background:rgba(239, 68, 68, 0.1); border:1px solid #EF4444; color:#EF4444; padding:8px; border-radius:4px; cursor:pointer;">Announce: Delay Apology</button>
-                            <button onclick="window.chrome.webview.postMessage({action:'announceCabin', annType:'Turbulence'})" style="background:rgba(245, 158, 11, 0.1); border:1px solid #F59E0B; color:#F59E0B; padding:8px; border-radius:4px; cursor:pointer;">Announce: Turbulence Warning</button>
-                        </div>
-                    </div>
                 </div>
-
-                <!-- PNC Communications Widget -->
-                <div class="card" style="margin-top:20px; border: 1px solid rgba(56,189,248,0.2);">
-                    <h3 style="font-size:14px; border:none; margin-bottom:10px; color:#94A3B8; text-transform:uppercase; letter-spacing:1px;">PNC Communications</h3>
-                    <div style="width: 100%; height: 120px; overflow-y: auto; background: #0F172A; border-radius: 8px; padding: 10px;">
-                        <ul id="cabinLogsList" style="list-style: none; margin: 0; padding: 0; font-family: monospace; font-size: 13px;">
-                            <li style="color:#64748b; text-align:center;">Standing by for cabin reports...</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top:20px;">
-                    <!-- Action buttons relocated to sidebar -->
-                </div>
-            </section>
-
-            <section id="briefing">
-                <h2>Briefing</h2>
                 
-                <div id="flightBreakdown" class="breakdown-grid" style="display:none;">
-                    <div class="card">
-                        <h3>Flight Details</h3>
-                        <p><strong>Airline:</strong> <span id="bdAirline"></span></p>
-                        <p><strong>Flight:</strong> <span id="bdFlightNum"></span></p>
-                        <p><strong>Aircraft:</strong> <span id="bdAircraft"></span></p>
-                        <p><strong>Cruise Alt:</strong> <span id="bdCruise"></span></p>
-                    </div>
-                    <div class="card">
-                        <h3>Routing</h3>
-                        <p><strong>Origin:</strong> <span id="bdOrigin"></span></p>
-                        <p><strong>Dest:</strong> <span id="bdDest"></span></p>
-                        <p><strong>Route:</strong> <span id="bdRoute" style="display:block; margin-top:5px; line-height:1.4;"></span></p>
-                    </div>
-                    <div class="card">
-                        <h3>Payload &amp; Fuel</h3>
-                        <p><strong>Pax:</strong> <span id="bdPax"></span></p>
-                        <p><strong>ZFW:</strong> <span id="bdZfw"></span></p>
-                        <p><strong>LDW:</strong> <span id="bdLdw"></span></p>
-                        <p><strong>Block Fuel:</strong> <span id="bdFuel"></span></p>
-                    </div>
-                    <div class="card">
-                        <h3>Flight Time</h3>
-                        <p><strong>ETE:</strong> <span id="bdEte"></span></p>
-                    </div>
-
-                </div>
-
-                <div id="briefingContent">No flight plan loaded. Go to Dashboard to fetch plan.</div>
-            </section>
-
-                <!-- Raw Weather Data block removed by user request -->
-
-            <section id="cabin">
-                <h2>Cabin & Manifest</h2>
-                <div id="manifestContainer" class="card" style="margin-top:20px; font-family: monospace;">
-                    <p style="color:#64748b;">Waiting for final manifest processing...</p>
+                <div class="flex gap-4 mb-4 mt-6">
+                    <div id="fetchStatus" class="flex-1 text-xs bg-sky-900/20 text-sky-400 p-4 rounded-lg border border-sky-500/20 font-mono tracking-wide" style="display:none;"></div>
                 </div>
             </section>
 
-            <section id="groundops">
-                <h2>Ground Operations</h2>
-                <div id="groundOpsContainer">
-                    <p>Ground operations pending SimBrief initialization...</p>
-                </div>
-            </section>
-
-            <section id="logs">
-                <h2>Logs & Black Box</h2>
-                <ul id="penaltyLogs"></ul>
-            </section>
-
-            <section id="options">
-                <h2>Settings</h2>
-                <div class="card" style="max-width: 400px; margin-top:20px;">
-                    <h3>SimBrief Account</h3>
-                    <p style="margin-bottom: 15px; font-size:12px;">Set your SimBrief username below. Fetches are now performed from the Dashboard.</p>
-                    <div class="form-group">
-                        <label>Simbrief Username:</label>
-                        <input type="text" id="sbUsername" placeholder="username" />
-                    </div>
-                    <div class="form-group checkbox">
-                        <input type="checkbox" id="sbRemember" checked />
-                        <label for="sbRemember">Remember Me</label>
-                    </div>
-                </div>
-
-                <div class="card" style="max-width: 400px; margin-top:20px;">
-                    <h3>Regional & Locale</h3>
-                    <div class="form-group" style="margin-top: 10px;">
-                        <label>Language:</label>
-                        <select id="selLanguage" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                            <option value="EN">English (EN)</option>
-                            <option value="FR">Français (FR)</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="margin-top: 15px;">
-                        <label>Time Format:</label>
-                        <select id="selTimeFormat" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                            <option value="24H">24-Hour (14:30Z)</option>
-                            <option value="12H">12-Hour (02:30 PM Z)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="card" style="max-width: 400px; margin-top:20px;">
-                    <h3>Aviation Units</h3>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
-                        <div class="form-group">
-                            <label>Speed:</label>
-                            <select id="selUnitSpeed" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                                <option value="KTS">Knots (KTS)</option>
-                                <option value="KMH">km/h</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Altitude:</label>
-                            <select id="selUnitAlt" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                                <option value="FT">Feet (FT)</option>
-                                <option value="M">Meters (M)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Weight:</label>
-                            <select id="selUnitWeight" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                                <option value="KG">Kilograms (KG)</option>
-                                <option value="LBS">Pounds (LBS)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Temperature:</label>
-                            <select id="selUnitTemp" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                                <option value="C">Celsius (°C)</option>
-                                <option value="F">Fahrenheit (°F)</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="grid-column: span 2;">
-                            <label>Pressure:</label>
-                            <select id="selUnitPress" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                                <option value="HPA">Hectopascals / Millibars (hPa / mb)</option>
-                                <option value="INHG">Inches of Mercury (inHg)</option>
-                            </select>
+            <!-- BRIEFING TAB -->
+            <section id="briefing" class="tab-content" style="padding-bottom: 50px;">
+                <div class="mb-4">
+                    <div class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2">Flight Briefing</div>
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-5xl font-black font-headline text-white tracking-tighter flex items-center gap-4">
+                            <span id="bdOrigin" class="drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">---</span> 
+                            <span class="material-symbols-outlined text-slate-600 text-[32px]">arrow_right_alt</span> 
+                            <span id="bdDest" class="drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">---</span>
+                        </h2>
+                        <div class="text-right">
+                            <div class="inline-flex items-center gap-2 px-4 py-2 bg-[#2D313A] rounded-lg border border-white/5 mb-3">
+                                <span class="material-symbols-outlined text-sky-400">flight</span>
+                                <span id="bdAirline" class="text-white font-bold tracking-widest uppercase">---</span>
+                                <span id="bdFlightNum" class="text-white font-bold tracking-widest uppercase">---</span>
+                            </div>
+                            <div class="text-xs text-slate-500 font-body">
+                                <span id="bdAircraft">Boeing 787-10 Dreamliner</span> &bull; 
+                                <span id="bdDistance">---</span> nm
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="card" style="max-width: 400px; margin-top:20px;">
-                    <h3>Realism & Rules</h3>
-                    <div class="form-group checkbox" style="margin-top: 10px;">
-                        <input type="checkbox" id="chkHardcore" />
-                        <label for="chkHardcore">Enable Hardcore Mode</label>
+                <div id="flightBreakdown" class="grid grid-cols-2 lg:grid-cols-4 gap-6 mt-10" style="display: none;">
+                    <div class="bg-[#1C1F26] p-6 rounded-xl border border-white/5">
+                        <h4 class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-4">Flight Details</h4>
+                        <div class="space-y-3 font-mono text-xs">
+                            <div class="flex justify-between"><span class="text-slate-400">Airline</span><strong class="text-white" id="bdAirline2">---</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Flight Num</span><strong class="text-white" id="bdFlightNum2">---</strong></div>
+                        </div>
                     </div>
-                    <div class="form-group checkbox" style="margin-top: 10px;">
-                        <input type="checkbox" id="chkAlwaysOnTop" />
-                        <label for="chkAlwaysOnTop">Keep App Always on Top</label>
+                    <div class="bg-[#1C1F26] p-6 rounded-xl border border-white/5">
+                        <h4 class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-4">Routing</h4>
+                        <div class="space-y-3 font-mono text-xs">
+                            <div class="flex justify-between"><span class="text-slate-400">Cruise</span><strong class="text-white" id="bdCruise2">---</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Route</span><strong class="text-white truncate max-w-[120px]" id="bdRoute2">---</strong></div>
+                        </div>
                     </div>
-                    <p style="margin-top: 5px; font-size:11px; color:#94A3B8; line-height:1.4;">
-                        Strict adherence to procedures. Fines are doubled and safety violations will immediately cancel the flight.
-                    </p>
-                </div>
-
-                <div class="card" style="max-width: 400px; margin-top:20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px;">
-                        <h3 style="margin: 0;">Ground Operations</h3>
-                        <button id="btnResetGroundOps" title="Reset to Defaults" style="background:none; border:none; color:#94A3B8; cursor:pointer; padding: 2px; transition: color 0.2s;" onmouseover="this.style.color='#F8FAFC'" onmouseout="this.style.color='#94A3B8'">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                        </button>
+                    <div class="bg-[#1C1F26] p-6 rounded-xl border border-white/5">
+                        <h4 class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-4">Timetable</h4>
+                        <div class="space-y-3 font-mono text-xs">
+                            <div class="flex justify-between"><span class="text-slate-400">SOBT</span><strong class="text-white" id="bdSobt2">---</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">SIBT</span><strong class="text-white" id="bdSibt2">---</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">ETE</span><strong class="text-white" id="bdEte2">--:--</strong></div>
+                        </div>
                     </div>
-                    <p style="margin-bottom: 15px; font-size:12px; margin-top: 0;">Configure how long ground services take. Changes apply to the next flight plan fetched.</p>
-                    <div class="form-group">
-                        <label>Duration Speed:</label>
-                        <select id="selGroundOpsSpeed" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                            <option value="Realistic">Realistic (1x)</option>
-                            <option value="Short">Short (~0.4x)</option>
-                            <option value="Instant">Instant (Flash)</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="margin-top: 15px;">
-                        <label>Random Events Probability: <span id="lblProb">20%</span></label>
-                        <input type="range" id="rngProb" min="0" max="100" value="20" style="width: 100%; margin-top: 5px; accent-color: #38BDF8;">
+                    <div class="bg-[#1C1F26] p-6 rounded-xl border border-white/5">
+                        <h4 class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-4">Payload</h4>
+                        <div class="space-y-3 font-mono text-xs">
+                            <div class="flex justify-between"><span class="text-slate-400">Passengers</span><strong class="text-white" id="bdPax2">---</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Zero Fuel</span><strong class="text-white" id="bdZfw2">---</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Take-Off</span><strong class="text-white" id="bdTow2">---</strong></div>
+                        </div>
                     </div>
                 </div>
-
-                <div class="card" style="max-width: 400px; margin-top:20px;">
-                    <h3>Weather Source</h3>
-                    <p style="margin-bottom: 15px; font-size:12px;">Choose the source for weather briefings. Active Sky requires the app to be running.</p>
-                    <div class="form-group">
-                        <label>Briefing METAR/TAF Provider:</label>
-                        <select id="selWeatherSource" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                            <option value="SimBrief">SimBrief (Real-World NOAA)</option>
-                            <option value="ActiveSky">Active Sky</option>
-                            <option value="MSFS" disabled>MSFS Live Weather (Coming Soon)</option>
-                        </select>
+                
+                <div class="grid grid-cols-12 gap-6 mt-10">
+                    <!-- Left AI Intelligence Summary -->
+                    <div class="col-span-12 lg:col-span-8 space-y-6">
+                        <div class="bg-[#1C1F26] p-8 rounded-xl border border-white/5 relative">
+                            <h3 class="text-sm font-label tracking-[0.4em] text-white uppercase mb-6">Flight Briefing</h3>
+                            <div id="briefingContent" class="text-[13px] leading-relaxed text-slate-300 font-body space-y-4">
+                                <p>Departure conditions at <strong id="dhOrigin2" class="text-white">---</strong> are standing by...</p>
+                            </div>
+                            <div class="mt-10 border-t border-white/5 pt-6">
+                                <div class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-3">Calculated Route</div>
+                                <div id="bdRoute" class="bg-[#12141A] p-4 rounded-lg font-mono text-[11px] text-slate-400 leading-relaxed break-words border border-black/50">
+                                    PENDING ROUTE CREATION
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-
-                <div class="card" style="max-width: 400px; margin-top:20px;">
-                    <h3>GSX Pro Integration</h3>
-                    <p style="margin-bottom: 15px; font-size:12px;">Synchronize Ground Operations with FSDT GSX. <span style="color:#FACC15;">Experimental.</span></p>
-                    <div class="form-group checkbox">
-                        <input type="checkbox" id="chkGsxSync" />
-                        <label for="chkGsxSync">Auto-Sync Ground Ops with GSX</label>
+                    
+                    <!-- Right Operational Limits / Maintenance -->
+                    <div class="col-span-12 lg:col-span-4 space-y-6">
+                        <div class="bg-[#1C1F26] p-8 rounded-xl border border-white/5">
+                            <h3 class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-6 border-b border-white/5 pb-4">Operational Limits</h3>
+                            <div class="space-y-6">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-4">
+                                        <span class="material-symbols-outlined text-emerald-400 text-lg">air</span>
+                                        <span class="text-sm font-medium text-slate-300">Weather</span>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <div class="text-xs font-bold text-white text-right"><span id="briefWx">VMC</span></div>
+                                        <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-4">
+                                        <span class="material-symbols-outlined text-emerald-400 text-lg">visibility</span>
+                                        <span class="text-sm font-medium text-slate-300">Visibility</span>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <div class="text-xs font-bold text-white text-right">10+ KM</div>
+                                        <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-4">
+                                        <span class="material-symbols-outlined text-orange-400 text-lg">thermostat</span>
+                                        <span class="text-sm font-medium text-slate-300">Cruise Alt</span>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <div class="text-xs font-bold text-white text-right" id="bdCruise">FL---</div>
+                                        <div class="w-2 h-2 rounded-full bg-orange-500"></div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-4">
+                                        <span class="material-symbols-outlined text-slate-500 text-lg">luggage</span>
+                                        <span class="text-sm font-medium text-slate-300">ZFW / TOW</span>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <div class="text-xs font-bold text-white text-right"><span id="bdZfw">---</span> / <span id="bdTow">---</span></div>
+                                        <div class="w-2 h-2 rounded-full bg-slate-500"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <p style="margin-top: 10px; font-size:11px; color:#EF4444; line-height:1.4;">
-                        ⚠️ <b>Important:</b> If enabled, you MUST disable any aircraft-specific GSX integrations (e.g., Fenix EFB GSX Sync, PMDG Auto-Doors) to prevent conflicts.
-                    </p>
-                </div>
-
-                <div style="max-width: 400px; margin-top: 25px; display: flex; align-items: center; justify-content: center; position: relative;">
-                    <button id="btnSaveSettings" class="btn-primary" style="background:#4A90E2; color:white; border:none; padding:12px 30px; border-radius:6px; font-weight:bold; cursor:pointer; width: 100%; font-size: 14px; transition: all 0.2s;">Save Settings</button>
                 </div>
             </section>
+
+            <!-- CABIN & MANIFEST TAB -->
+            <section id="cabin" class="tab-content">
+                <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-8">Cabin & Manifest</h2>
+                <div id="manifestContainer" class="bg-[#1C1F26] p-8 rounded-xl mt-4 text-slate-300 font-mono text-sm border border-white/5">
+                    <p class="text-slate-500 text-center">Waiting for final manifest processing...</p>
+                </div>
+            </section>
+
+            <!-- GROUND OPERATIONS TAB -->
+            <section id="groundops" class="tab-content">
+                <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-8">Ground Operations</h2>
+                <div id="groundOpsContainer" class="bg-[#1C1F26] p-8 rounded-xl border border-white/5">
+                    <p class="text-slate-500 font-mono text-center">Ground operations pending SimBrief initialization...</p>
+                </div>
+            </section>
+
+            <!-- LOGS TAB -->
+            <section id="logs" class="tab-content">
+                <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-8">Flight Logs</h2>
+                <div style="width: 100%; height: calc(100vh - 200px); overflow-y: auto;" class="bg-[#1C1F26] p-6 rounded-xl border border-white/5">
+                    <ul id="penaltyLogs" style="list-style: none; margin: 0; padding: 0; font-family: monospace; font-size: 13px;"></ul>
+                </div>
+            </section>
+
+            <!-- SETTINGS TAB -->
+            <section id="options" class="tab-content">
+                <div class="flex items-center justify-between mb-8">
+                    <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80">Settings</h2>
+                    <button id="btnSaveSettings" class="py-3 px-8 bg-sky-600 hover:bg-sky-500 rounded-full text-white font-bold text-xs uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] hover:brightness-110">Save All Settings</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                    
+                    <!-- LEFT COLUMN -->
+                    <div class="flex flex-col gap-6">
+                        
+                        <!-- SimBrief Integration -->
+                        <div class="bg-[#1C1F26] p-8 rounded-xl border border-white/5">
+                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2">SimBrief Integration</h3>
+                            <p class="text-xs text-slate-400 mb-6">Link your account to fetch flight plans block.</p>
+                            <div class="mb-4">
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Username</label>
+                                <input type="text" id="sbUsername" placeholder="Enter Username" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-shadow text-xs" />
+                            </div>
+                            <div class="mb-2 text-sm flex items-center gap-3">
+                                <input type="checkbox" id="sbRemember" checked class="rounded border-white/20 bg-black/40 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 cursor-pointer w-4 h-4"/>
+                                <label class="text-slate-300 text-xs font-medium">Remember Username</label>
+                            </div>
+                        </div>
+
+                        <!-- Aviation Units -->
+                        <div class="bg-[#1C1F26] p-8 rounded-xl border border-white/5">
+                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2">Aviation Units</h3>
+                            <p class="text-xs text-slate-400 mb-6">Preferred metrics for briefing and logs.</p>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Speed</label>
+                                    <select id="selUnitSpeed" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                        <option value="KTS">Knots (KTS)</option>
+                                        <option value="KMH">km/h</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Altitude</label>
+                                    <select id="selUnitAlt" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                        <option value="FT">Feet (FT)</option>
+                                        <option value="M">Meters (M)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Weight</label>
+                                    <select id="selUnitWeight" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                        <option value="KG">Kilograms (KG)</option>
+                                        <option value="LBS">Pounds (LBS)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Temperature</label>
+                                    <select id="selUnitTemp" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                        <option value="C">Celsius (°C)</option>
+                                        <option value="F">Fahrenheit (°F)</option>
+                                    </select>
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Pressure</label>
+                                    <select id="selUnitPress" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                        <option value="HPA">Hectopascals / Millibars (hPa)</option>
+                                        <option value="INHG">Inches of Mercury (inHg)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- External Integrations -->
+                        <div class="bg-[#1C1F26] p-8 rounded-xl border border-white/5">
+                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2">Integrations & Wx</h3>
+                            <p class="text-xs text-slate-400 mb-6">Connections to external engines.</p>
+                            
+                            <div class="mb-6">
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Weather Source</label>
+                                <select id="selWeatherSource" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                    <option value="SimBrief">SimBrief (NOAA Data)</option>
+                                    <option value="ActiveSky">Active Sky</option>
+                                    <option value="MSFS" disabled>MSFS Live Weather (Coming Soon)</option>
+                                </select>
+                            </div>
+
+                            <div class="flex items-start gap-3">
+                                <input type="checkbox" id="chkGsxSync" class="mt-1 rounded border-white/20 bg-black/40 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 cursor-pointer w-4 h-4"/>
+                                <div>
+                                    <label class="text-slate-200 text-xs font-bold mb-1 block">GSX Pro Auto-Sync</label>
+                                    <p class="text-[10px] text-red-400 leading-relaxed font-bold">⚠️ Disable aircraft-specific GSX automations (e.g Fenix EFB Sync).</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                    </div>
+
+                    <!-- RIGHT COLUMN -->
+                    <div class="flex flex-col gap-6">
+
+                        <!-- Regional & Locale -->
+                        <div class="bg-[#1C1F26] p-8 rounded-xl border border-white/5">
+                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2">Regional & Locale</h3>
+                            <p class="text-xs text-slate-400 mb-6">Configure application language and time formats.</p>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Language</label>
+                                    <select id="selLanguage" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                        <option value="EN">English (EN)</option>
+                                        <option value="FR">Français (FR)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Time Format</label>
+                                    <select id="selTimeFormat" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                        <option value="24H">24-Hour (14:30Z)</option>
+                                        <option value="12H">12-Hour (02:30 PM Z)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ground Operations -->
+                        <div class="bg-[#1C1F26] p-8 rounded-xl border border-white/5">
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 m-0">Ground Operations</h3>
+                                <button id="btnResetGroundOps" title="Reset to Defaults" class="text-slate-500 hover:text-white transition-colors">
+                                    <span class="material-symbols-outlined text-[16px]">refresh</span>
+                                </button>
+                            </div>
+                            <p class="text-xs text-slate-400 mb-6">Behavior of the turnaround simulation.</p>
+                            <div class="mb-4">
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Duration Speed</label>
+                                <select id="selGroundOpsSpeed" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                    <option value="Realistic">Realistic (1x)</option>
+                                    <option value="Short">Short (~0.4x)</option>
+                                    <option value="Instant">Instant (Flash)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">
+                                    <span>Random Events Prob.</span>
+                                    <span id="lblProb" class="text-sky-400">20%</span>
+                                </label>
+                                <input type="range" id="rngProb" min="0" max="100" value="20" class="w-full accent-sky-500">
+                            </div>
+                        </div>
+
+                        <!-- Realism & Rules -->
+                        <div class="bg-[#1C1F26] p-8 rounded-xl border border-white/5">
+                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2">Realism & App</h3>
+                            <p class="text-xs text-slate-400 mb-6">Scoring rules and window behavior.</p>
+
+                            <div class="flex items-start gap-3 mb-5">
+                                <input type="checkbox" id="chkHardcore" class="mt-1 rounded border-white/20 bg-black/40 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 cursor-pointer w-4 h-4"/>
+                                <div>
+                                    <label class="text-slate-200 text-xs font-bold mb-1 block">Hardcore Mode</label>
+                                    <p class="text-[10px] text-slate-500 leading-relaxed">Fines are doubled. Safety violations immediately cancel the flight.</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-3">
+                                <input type="checkbox" id="chkAlwaysOnTop" class="mt-1 rounded border-white/20 bg-black/40 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 cursor-pointer w-4 h-4"/>
+                                <div>
+                                    <label class="text-slate-200 text-xs font-bold mb-1 block">Always on Top</label>
+                                    <p class="text-[10px] text-slate-500 leading-relaxed">Flight Supervisor stays visible above MSFS.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                    </div>
+
+                </div>
+            </section>
+
         </div>
     </main>
-    <!-- Cancel Confirmation Modal -->
-    <div id="cancelModal" class="modal-overlay" style="display: none;">
-        <div class="modal-box chic-modal">
-            <h3 style="color: #EF4444; margin-bottom: 10px; font-size: 18px; border: none; padding: 0;">⚠️ Cancel Current Flight?</h3>
-            <p style="color: #94A3B8; margin-bottom: 25px; line-height: 1.5; font-size: 14px;">Are you sure you want to cancel the current flight plan?<br>All ground operations and telemetry progress will be reset.</p>
-            <div style="display: flex; gap: 15px; justify-content: center;">
-                <button id="btnCancelNo" class="modal-btn no">Keep Flight</button>
-                <button id="btnCancelYes" class="modal-btn yes">Yes, Cancel Flight</button>
+
+    <!-- BOTTOM ACTION BAR -->
+    <footer class="fixed bottom-0 right-0 left-64 z-50 bg-[#0F111A] border-t border-white/5 px-12 py-5 flex justify-end gap-4 font-manrope font-bold text-[11px] uppercase tracking-widest shadow-[0_-15px_30px_rgba(0,0,0,0.5)]">
+        <!-- Re-labeled and redesigned Start Ops to be the secondary "Connect Sim" looking button -->
+        <button id="btnStartGroundOps" class="bg-[#1C1F26] border border-white/5 text-slate-300 hover:text-white px-6 py-4 rounded-xl hover:bg-white/5 transition-all flex items-center gap-2 shadow-xl shrink-0 disabled:opacity-30 disabled:cursor-not-allowed uppercase font-bold text-[11px] tracking-widest">
+            <span class="material-symbols-outlined text-[18px]">flight_takeoff</span>
+            START OPS
+        </button>
+        <!-- Re-designed Fetch Plan / Cancel -->
+        <button id="btnFetchPlan" class="bg-gradient-to-r from-sky-500 to-sky-400 text-slate-900 px-6 py-4 rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(14,165,233,0.3)] shrink-0 disabled:opacity-50 uppercase font-bold text-[11px] tracking-widest">
+            <span class="material-symbols-outlined text-[18px]">cloud_download</span>
+            <span id="btnFetchPlanLabel">FETCH PLAN</span>
+        </button>
+    </footer>
+
+    <!-- MODALS -->
+    <div id="cancelModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm" style="display: none;">
+        <div class="bg-[#1C1F26] p-8 rounded-xl max-w-sm text-center border border-white/5 shadow-2xl">
+            <h3 class="text-sky-400 font-bold mb-3 font-headline text-lg uppercase tracking-widest">Cancel Flight?</h3>
+            <p class="text-slate-400 text-xs mb-8 leading-relaxed">Are you sure you want to cancel the current flight plan?<br>All ground operations and telemetry progress will be reset.</p>
+            <div class="flex gap-4 justify-center font-manrope">
+                <button id="btnCancelNo" class="bg-[#12141A] border border-white/5 text-slate-300 hover:text-white px-6 py-3 rounded-xl hover:bg-white/5 transition-all shadow-xl uppercase font-bold text-[10px] tracking-widest">KEEP FLIGHT</button>
+                <button id="btnCancelYes" class="bg-gradient-to-r from-sky-500 to-sky-400 text-slate-900 px-6 py-3 rounded-xl hover:brightness-110 transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] uppercase font-bold text-[10px] tracking-widest">CANCEL FLIGHT</button>
             </div>
         </div>
     </div>
 
-    <!-- Abort Service Confirmation Modal -->
-    <div id="abortServiceModal" class="modal-overlay" style="display: none; z-index: 2500;">
-        <div class="modal-box chic-modal">
-            <h3 style="color: #F87171; margin-bottom: 10px; font-size: 18px; border: none; padding: 0;">⚠️ Abort Service?</h3>
-            <p style="color: #94A3B8; margin-bottom: 25px; line-height: 1.5; font-size: 14px;">Are you sure you want to Abort/Skip <strong id="abortServiceName" style="color:white;"></strong>?<br><br>WARNING: Aborting ground operations before completion can trigger negative consequences during the flight (passenger complaints, lost luggage, etc.) and impact your final score.</p>
-            <div style="display: flex; gap: 15px; justify-content: center;">
-                <button id="btnAbortNo" class="modal-btn no">Continue Service</button>
-                <button id="btnAbortYes" class="modal-btn yes">Yes, Abort</button>
+    <div id="abortServiceModal" class="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-sm" style="display: none;">
+        <div class="bg-[#1C1F26] p-8 rounded-xl max-w-sm text-center border border-white/5 shadow-2xl">
+            <h3 class="text-sky-400 font-bold mb-3 font-headline text-lg uppercase tracking-widest">Abort Service?</h3>
+            <p class="text-slate-400 text-xs mb-8 leading-relaxed font-body">Are you sure you want to skip <strong id="abortServiceName" class="text-white"></strong>?<br><br><span class="opacity-70">Aborting ground operations early can trigger negative consequences.</span></p>
+            <div class="flex gap-4 justify-center font-manrope">
+                <button id="btnAbortNo" class="bg-[#12141A] border border-white/5 text-slate-300 hover:text-white px-6 py-3 rounded-xl hover:bg-white/5 transition-all shadow-xl uppercase font-bold text-[10px] tracking-widest">CONTINUE</button>
+                <button id="btnAbortYes" class="bg-gradient-to-r from-sky-500 to-sky-400 text-slate-900 px-6 py-3 rounded-xl hover:brightness-110 transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] uppercase font-bold text-[10px] tracking-widest">ABORT</button>
             </div>
         </div>
     </div>
 
-    <!-- Flight Report Modal -->
-    <div id="flightReportModal" class="modal-overlay" style="display: none; z-index: 2000;">
-        <div class="report-modal">
-            <h2 class="report-title">FINAL FLIGHT REPORT</h2>
-            <div class="report-header">
-                <div>
-                    <span id="frFlightNo" style="font-size: 24px; font-weight: bold; color: white;">AFR123</span><br>
-                    <span id="frRoute" style="color: #94A3B8;">LFPG ➔ LFBO</span>
-                </div>
-                <div style="text-align: right;">
-                    <span style="color: #94A3B8; font-size: 12px; text-transform: uppercase;">Global SuperScore</span><br>
-                    <span id="frScore" style="font-size: 36px; font-weight: 900; color: #34D399;">1000</span>
-                </div>
-            </div>
-            
-            <div class="report-grid">
-                <!-- Safety -->
-                <div class="report-card">
-                    <div class="rc-title">Safety & Regulations</div>
-                    <div class="rc-score" id="frSafetyScore">0</div>
-                </div>
-                <!-- Comfort -->
-                <div class="report-card">
-                    <div class="rc-title">Passenger Comfort</div>
-                    <div class="rc-score" id="frComfortScore">0</div>
-                </div>
-                <!-- Maintenance -->
-                <div class="report-card">
-                    <div class="rc-title">Aircraft Maintenance</div>
-                    <div class="rc-score" id="frMaintScore">0</div>
-                </div>
-                <!-- Operations -->
-                <div class="report-card">
-                    <div class="rc-title">Company Operations</div>
-                    <div class="rc-score" id="frOpsScore">0</div>
-                </div>
-            </div>
-            
-            <div class="report-details">
-                <div class="rd-column">
-                    <h3>Timing & Fuel</h3>
-                    <p>Block Time: <strong id="frBlock">--</strong> <span id="frPunc" class="badge">--</span></p>
-                    <p>Block Fuel: <strong id="frFuel">--</strong></p>
-                    <p>ZFW / TOW: <strong id="frWeights">-- / --</strong></p>
-                </div>
-                <div class="rd-column">
-                    <h3>Landing Telemetry</h3>
-                    <p>Touchdown: <strong id="frFpm">-- fpm</strong></p>
-                    <p>G-Force: <strong id="frGForce">-- G</strong></p>
-                </div>
-            </div>
-            
-            <div style="text-align: center; margin-top: 25px;">
-                <button id="btnDismissReport" class="modal-btn yes" style="padding: 12px 30px; font-size: 15px; background: #334155; color: white; border: 1px solid #475569;">Acknowledge & Close</button>
-            </div>
-        </div>
-    </div>
+    <!-- Hidden audio element -->
+    <audio id="notifSound" src="notification.mp3" preload="auto"></audio>
 
-    <script src="app.js?v=2"></script>
+    <script src="app.js?v=15"></script>
+    <script>
+        // Update top bar dynamically using the flight status
+        setInterval(() => {
+            const p = document.getElementById('flightPhase');
+            const z = document.getElementById('zuluTime');
+            
+            if(document.getElementById('topPhase') && p) document.getElementById('topPhase').innerText = p.innerText;
+            if(document.getElementById('topZulu') && z) document.getElementById('topZulu').innerText = z.innerText;
+            
+            const origin = document.getElementById('dhOrigin')?.innerText || '---';
+            const dest = document.getElementById('dhDest')?.innerText || '---';
+            const origin2 = document.getElementById('bdOrigin')?.innerText || '---';
+            const dest2 = document.getElementById('bdDest')?.innerText;
+            
+            if (origin !== '---' && document.getElementById('bdOrigin')) {
+                document.getElementById('bdOrigin').innerText = origin;
+                document.getElementById('dhOrigin2').innerText = origin;
+            }
+            if (dest !== '---' && document.getElementById('bdDest')) {
+                document.getElementById('bdDest').innerText = dest;
+                document.getElementById('dhDest2').innerText = dest;
+            }
+        }, 1000);
+    </script>
 </body>
 </html>
