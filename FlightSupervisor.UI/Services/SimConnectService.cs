@@ -22,6 +22,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<bool>? OnGearDownReceived;
         public event Action<double>? OnFlapsReceived;
         public event Action<bool>? OnAutopilotReceived;
+        public event Action<bool>? OnAutothrustReceived;
         public event Action<double>? OnThrottleReceived;
         public event Action<double>? OnSpoilersReceived;
         public event Action<bool>? OnLightBeaconReceived;
@@ -39,8 +40,16 @@ namespace FlightSupervisor.UI.Services
         public event Action<double, double>? OnWindReceived;
         public event Action<double, double, bool>? OnNavigationReceived;
 
+        // Fenix Custom LVAR Events
+        public event Action<bool>? OnFenixSeatbeltsReceived;
+        public event Action<bool, bool, bool>? OnFenixApuReceived; // Master, Start, Bleed
+        public event Action<int>? OnFenixNoseLightReceived; // 0=Off, 1=Taxi, 2=Takeoff
+        public event Action<bool>? OnFenixRunwayTurnoffReceived;
+
         enum DEFINITIONS { PlaneData }
         enum REQUESTS { PlaneDataReq }
+        enum EVENTS { SetZuluHours, SetZuluMinutes }
+        enum GROUP { Group0 }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
         struct PlaneDataStruct
@@ -54,6 +63,7 @@ namespace FlightSupervisor.UI.Services
             public double GearHandle;
             public double FlapsHandleIndex;
             public double AutopilotMaster;
+            public double AutothrustMaster;
             public double ThrottleLever;
             public double SpoilersHandle;
             public double LightBeacon;
@@ -74,6 +84,15 @@ namespace FlightSupervisor.UI.Services
             public double NavLocalizerError;
             public double GpsCrossTrackError;
             public double HasLocalizer;
+
+            public double CabinSeatbelts;
+            // -- Fenix specific Custom LVARs --
+            public double FenixSeatbelts;           // L:S_OH_SIGNS_SEATBELT
+            public double FenixApuMaster;           // L:S_OH_ELEC_APU_MASTER
+            public double FenixApuStart;            // L:S_OH_ELEC_APU_START
+            public double FenixApuBleed;            // L:S_OH_PNEUMATIC_APU_BLEED
+            public double FenixNoseLight;           // L:S_OH_EXT_LT_NOSE
+            public double FenixRwyTurnoffLight;     // L:S_OH_EXT_LT_RWY_TURNOFF
         }
 
         public SimConnectService() { }
@@ -102,6 +121,7 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GEAR HANDLE POSITION", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "FLAPS HANDLE INDEX", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AUTOPILOT MASTER", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AUTOPILOT THROTTLE ARM", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GENERAL ENG THROTTLE LEVER POSITION:1", "Percent", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "SPOILERS HANDLE POSITION", "Percent Over 100", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "LIGHT BEACON", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
@@ -122,6 +142,18 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "NAV LOCALIZER ERROR:1", "Degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GPS WP CROSS TRK", "Meters", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "NAV HAS LOCALIZER:1", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "CABIN SEATBELTS ALERT SWITCH", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+
+                // Fenix Specific Native LVARs
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "L:S_OH_SIGNS_SEATBELT", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "L:S_OH_ELEC_APU_MASTER", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "L:S_OH_ELEC_APU_START", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "L:S_OH_PNEUMATIC_APU_BLEED", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "L:S_OH_EXT_LT_NOSE", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "L:S_OH_EXT_LT_RWY_TURNOFF", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+
+                _simconnect.MapClientEventToSimEvent(EVENTS.SetZuluHours, "ZULU_HOURS_SET");
+                _simconnect.MapClientEventToSimEvent(EVENTS.SetZuluMinutes, "ZULU_MINUTES_SET");
 
                 _simconnect.RegisterDataDefineStruct<PlaneDataStruct>(DEFINITIONS.PlaneData);
                 
@@ -144,6 +176,15 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.Dispose();
                 _simconnect = null;
                 OnConnectionStateChanged?.Invoke("Disconnected.");
+            }
+        }
+
+        public void SendTimeWarpCommand(DateTime targetZulu)
+        {
+            if (_simconnect != null)
+            {
+                _simconnect.TransmitClientEvent(SimConnect.SIMCONNECT_OBJECT_ID_USER, EVENTS.SetZuluHours, (uint)targetZulu.Hour, GROUP.Group0, SIMCONNECT_EVENT_FLAG.GROUPID_IS_PRIORITY);
+                _simconnect.TransmitClientEvent(SimConnect.SIMCONNECT_OBJECT_ID_USER, EVENTS.SetZuluMinutes, (uint)targetZulu.Minute, GROUP.Group0, SIMCONNECT_EVENT_FLAG.GROUPID_IS_PRIORITY);
             }
         }
 
@@ -185,6 +226,7 @@ namespace FlightSupervisor.UI.Services
                 OnGearDownReceived?.Invoke(planeData.GearHandle > 0.5);
                 OnFlapsReceived?.Invoke(planeData.FlapsHandleIndex);
                 OnAutopilotReceived?.Invoke(planeData.AutopilotMaster > 0.5);
+                OnAutothrustReceived?.Invoke(planeData.AutothrustMaster > 0.5);
                 OnThrottleReceived?.Invoke(planeData.ThrottleLever);
                 OnSpoilersReceived?.Invoke(planeData.SpoilersHandle);
                 OnLightBeaconReceived?.Invoke(planeData.LightBeacon > 0.5);
@@ -202,6 +244,11 @@ namespace FlightSupervisor.UI.Services
                 OnHeadingReceived?.Invoke(planeData.Heading);
                 OnWindReceived?.Invoke(planeData.WindDirection, planeData.WindVelocity);
                 OnNavigationReceived?.Invoke(planeData.NavLocalizerError, planeData.GpsCrossTrackError, planeData.HasLocalizer > 0.5);
+                // Fenix LVAR Triggers
+                OnFenixSeatbeltsReceived?.Invoke(planeData.FenixSeatbelts > 0.5);
+                OnFenixApuReceived?.Invoke(planeData.FenixApuMaster > 0.5, planeData.FenixApuStart > 0.5, planeData.FenixApuBleed > 0.5);
+                OnFenixNoseLightReceived?.Invoke((int)Math.Round(planeData.FenixNoseLight));
+                OnFenixRunwayTurnoffReceived?.Invoke(planeData.FenixRwyTurnoffLight > 0.5);
 
                 // Build Sim Time
                 try

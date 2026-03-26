@@ -86,6 +86,12 @@
             font-weight: 600;
         }
     </style>
+    <script>
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            document.body.innerHTML += '<div style="position:fixed;top:0;left:0;z-index:9999;background:red;color:white;padding:20px;font-size:16px;">CRITICAL JS ERROR: ' + msg + '<br/>At ' + url + ':' + lineNo + ':' + columnNo + '<br/><pre>' + (error ? error.stack : '') + '</pre></div>';
+            return false;
+        };
+    </script>
 </head>
 <body class="bg-background">
     <!-- DRAG REGION & WINDOW CONTROLS -->
@@ -119,33 +125,49 @@
         <ul class="menu flex-1 px-4 mt-2 font-manrope text-sm tracking-wide">
             <li class="active no-drag" data-target="dashboard">
                 <span class="material-symbols-outlined shrink-0">dashboard</span>
-                <span>Dashboard</span>
+                <span data-i18n="nav_dashboard">Dashboard</span>
             </li>
             <li class="no-drag" data-target="briefing">
                 <span class="material-symbols-outlined shrink-0">assignment</span>
-                <span>Briefing</span>
+                <span data-i18n="nav_briefing">Briefing</span>
             </li>
             <li class="no-drag" data-target="groundops">
                 <span class="material-symbols-outlined shrink-0">flight_takeoff</span>
-                <span>Ground Ops</span>
+                <span data-i18n="nav_groundops">Ground Ops</span>
             </li>
             <li class="no-drag" data-target="cabin">
                 <span class="material-symbols-outlined shrink-0">groups</span>
-                <span>Manifest</span>
+                <span data-i18n="nav_manifest">Manifest</span>
             </li>
             <li class="no-drag" data-target="logs">
                 <span class="material-symbols-outlined shrink-0">history</span>
-                <span>Logs</span>
+                <span data-i18n="nav_logs">Logs</span>
             </li>
             <li class="no-drag mt-auto" data-target="options">
                 <span class="material-symbols-outlined shrink-0">settings</span>
-                <span>Settings</span>
+                <span data-i18n="nav_settings">Settings</span>
             </li>
         </ul>
         
+        <!-- USER PROFILE MINI -->
+        <div class="px-4 pb-4 shrink-0 border-b border-transparent">
+            <div class="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors border border-transparent hover:border-white/10 no-drag menu-profile-btn" onclick="document.querySelector('[data-target=\'profile\']').click()">
+                <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-600 shadow-inner overflow-hidden flex items-center justify-center shrink-0">
+                    <img id="sbProfileImg" src="" alt="Pilot" class="w-full h-full object-cover hidden" />
+                    <span id="sbProfileIcon" class="material-symbols-outlined text-slate-400 text-xl">person</span>
+                </div>
+                <div class="flex flex-col overflow-hidden">
+                    <span id="sbProfileCallsign" class="text-xs font-bold text-slate-200 truncate font-headline tracking-wide">MAVERICK</span>
+                    <span id="sbProfileRank" class="text-[9px] text-sky-400 font-label tracking-widest uppercase truncate">Trainee</span>
+                </div>
+            </div>
+            <!-- Invisible trigger for the actual tab system -->
+            <li class="no-drag hidden" data-target="profile"></li>
+        </div>
+
         <!-- SIDEBAR FOOTER (Aligned with main footer) -->
         <div class="h-[90px] border-t border-white/5 flex items-center justify-center px-[10px]">
-            <button id="btnSmartConnect" class="text-[10px] font-bold py-4 tracking-widest uppercase rounded-xl bg-red-900/20 text-red-500 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:bg-red-900/40 transition-colors w-full">Not Connected</button>
+            <button id="btnSmartConnect" data-i18n="btn_not_connected" class="text-[10px] font-bold py-4 tracking-widest uppercase rounded-xl bg-red-900/20 text-red-500 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:bg-red-900/40 transition-colors w-full">Not Connected</button>
         </div>
     </aside>
 
@@ -174,13 +196,13 @@
                         <div class="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
                             <span class="material-symbols-outlined text-[140px] leading-none">flight_takeoff</span>
                         </div>
-                        <div class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase mb-4">Current Flight Phase</div>
+                        <div class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase mb-4" data-i18n="dash_current_phase">Current Flight Phase</div>
                         <div style="display: flex; align-items: baseline; gap: 20px;">
                             <h1 id="flightPhase" class="text-7xl font-black font-headline text-sky-400 tracking-tighter neon-glow" style="text-transform: capitalize;">Off</h1>
                             <div id="flightCountdown" class="text-lg text-slate-400 font-bold" style="font-family: monospace;"></div>
                         </div>
                         <div id="dashMetaBar" class="mt-8 pt-6 border-t border-white/5" style="display: none;">
-                            <p id="dashMetaText" class="text-slate-400 font-body leading-relaxed text-sm mb-3">Ground Operations Standing By.</p>
+                            <p id="dashMetaText" class="text-slate-400 font-body leading-relaxed text-sm mb-3" data-i18n="dash_meta_standby">Ground Operations Standing By.</p>
                             <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden max-w-md ring-1 ring-white/5">
                                 <div id="dashMetaFill" class="h-full bg-sky-500 w-0 transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(14,165,233,0.5)]"></div>
                             </div>
@@ -188,7 +210,7 @@
                     </div>
 
                     <div class="col-span-12 lg:col-span-4 glass-panel rounded-xl p-8 flex flex-col items-center justify-center text-center">
-                        <div class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase mb-6">Efficiency Score</div>
+                        <div class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase mb-6" data-i18n="dash_eff_score">Efficiency Score</div>
                         <div class="relative flex items-center justify-center">
                             <svg class="w-48 h-48 -rotate-90">
                                 <circle class="text-white/5" cx="96" cy="96" fill="transparent" r="80" stroke="currentColor" stroke-width="4"></circle>
@@ -196,78 +218,156 @@
                             </svg>
                             <div class="absolute inset-0 flex flex-col items-center justify-center">
                                 <span id="mainScoreValue" class="text-5xl font-black font-headline text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)]">1000</span>
-                                <span class="text-[10px] text-slate-500 font-bold tracking-[0.2em] uppercase mt-2">PTS</span>
+                                <span class="text-[10px] text-slate-500 font-bold tracking-[0.2em] uppercase mt-2" data-i18n="dash_pts">PTS</span>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- AIRLINE IDENTITY CARD (Story 32) -->
+                    <div class="col-span-12 lg:col-span-12 glass-panel rounded-xl p-0 flex flex-col overflow-hidden relative" id="airlineIdentityCard" style="display: none;">
+                        <div class="absolute inset-0 opacity-5 pointer-events-none z-0" style="background: linear-gradient(135deg, rgba(56,189,248,0.2) 0%, transparent 100%);"></div>
+                        
+                        <!-- Top Row: Identity -->
+                        <div class="flex flex-row items-center justify-between p-6 z-10 w-full relative group">
+                            <div class="flex items-center gap-6 w-1/3">
+                                <div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                                    <span class="material-symbols-outlined text-3xl text-sky-400">airlines</span>
+                                </div>
+                                <div>
+                                    <h3 class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase mb-1" data-i18n="dash_airline_profile">Airline Profile</h3>
+                                    <div id="aiAirlinename" class="text-2xl font-black font-headline text-white tracking-widest uppercase truncate max-w-[200px]" title="Unknown">UNKNOWN</div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex flex-col items-center justify-center w-1/3 border-l border-r border-white/5 px-4 h-16">
+                                <div class="text-[9px] font-bold tracking-[0.2em] text-slate-500 uppercase mb-2">Company Directives</div>
+                                <ul id="aiDirectives" class="text-[11px] text-slate-300 space-y-1 font-mono text-center overflow-hidden">
+                                    <li class="text-sky-400/80">Standing by...</li>
+                                </ul>
+                            </div>
+
+                            <div class="flex items-center justify-end w-1/3 gap-8">
+                                <div class="flex flex-col gap-1 text-[9px] font-mono text-slate-400 text-left">
+                                    <div class="flex justify-between w-[120px]"><span class="uppercase">Hard Product</span><span id="aiHard" class="text-white font-bold ml-2">-</span></div>
+                                    <div class="flex justify-between w-[120px]"><span class="uppercase">Soft Product</span><span id="aiSoft" class="text-white font-bold ml-2">-</span></div>
+                                    <div class="flex justify-between w-[120px]"><span class="uppercase">Safety Rec</span><span id="aiSafety" class="text-white font-bold ml-2">-</span></div>
+                                </div>
+
+                                <div class="text-right">
+                                    <div class="text-[9px] font-bold tracking-[0.2em] text-slate-500 uppercase">Global Rating</div>
+                                    <div class="flex items-baseline justify-end gap-1 mt-1">
+                                        <span id="aiGlobalScore" class="text-4xl font-black font-headline text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)] leading-none">--</span>
+                                        <span class="text-xs font-bold text-slate-500 mb-1">/100</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Row: Tycoon Contract -->
+                        <div class="border-t border-white/5 bg-black/40 p-5 z-10 w-full flex items-center justify-between" id="aiContractSection">
+                            <div class="flex items-center gap-4">
+                                <span class="material-symbols-outlined text-emerald-400 text-3xl">task_alt</span>
+                                <div class="text-left">
+                                    <div class="text-[10px] font-bold tracking-[0.2em] text-emerald-400 uppercase mb-1">Optional Tycoon Contract</div>
+                                    <div class="text-xs text-slate-300 font-mono flex items-center gap-4" id="aiObjectivesList">
+                                        <span>⏳ Max Delay: <b class="text-white">--m</b></span>
+                                        <span class="text-white/20">|</span>
+                                        <span>💺 Min Comfort: <b class="text-white">--%</b></span>
+                                        <span class="text-white/20">|</span>
+                                        <span>🛬 Max FPM: <b class="text-white">---</b></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button id="btnAcceptContract" class="bg-gradient-to-r from-emerald-500 to-emerald-400 text-[#0B0C10] px-8 py-3 rounded-lg hover:brightness-110 transition-all shadow-[0_0_20px_rgba(52,211,153,0.3)] uppercase font-bold text-xs tracking-[0.2em] whitespace-nowrap group">
+                                <div class="flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-[16px]">edit_document</span>
+                                    <span>ACCEPT CONTRACT</span>
+                                </div>
+                            </button>
                         </div>
                     </div>
 
                     <div class="col-span-12 lg:col-span-6 glass-panel rounded-xl overflow-hidden flex flex-col">
                         <div class="px-8 py-5 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
-                            <h2 class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase">Flight Timetable (UTC)</h2>
+                            <h2 class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase" data-i18n="dash_timetable_utc">Flight Timetable (UTC)</h2>
                             <span class="text-xs font-bold text-sky-400 font-mono tracking-widest" id="zuluTime">--:--Z</span>
                         </div>
                         <div class="p-8 flex-1">
                             <table class="w-full text-left">
                                 <thead>
                                     <tr class="text-[9px] uppercase tracking-[0.2em] text-slate-500 font-bold">
-                                        <th class="pb-5">Milestone</th>
-                                        <th class="pb-5">Scheduled</th>
-                                        <th class="pb-5">Actual</th>
-                                        <th class="pb-5 text-right">Status</th>
+                                        <th class="pb-5" data-i18n="dash_th_milestone">Milestone</th>
+                                        <th class="pb-5" data-i18n="dash_th_sched">Scheduled</th>
+                                        <th class="pb-5" data-i18n="dash_th_actual">Actual</th>
+                                        <th class="pb-5 text-right" data-i18n="dash_th_status">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody class="text-sm font-medium">
                                     <tr class="border-t border-white/5">
-                                        <td class="py-4 text-slate-300">SOBT (Off-Block)</td>
+                                        <td class="py-4 text-slate-300"><span data-i18n="dash_td_sobt">SOBT (Off-Block)</span></td>
                                         <td class="py-4 font-mono text-slate-400" id="bdSobt">--:--Z</td>
                                         <td class="py-4 font-mono text-slate-300" id="actualOff">--:--</td>
-                                        <td class="py-4 text-right" id="sobtStatus"><span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider">Standby</span></td>
+                                        <td class="py-4 text-right" id="sobtStatus"><span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider" data-i18n="dash_status_standby">Standby</span></td>
                                     </tr>
                                     <tr class="border-t border-white/5">
-                                        <td class="py-4 text-slate-300">AOBT (Actual Off)</td>
+                                        <td class="py-4 text-slate-300"><span data-i18n="dash_td_aobt">AOBT (Actual Off)</span></td>
                                         <td class="py-4 font-mono text-slate-500" id="bdAobt">--:--</td>
                                         <td class="py-4 font-mono text-sky-400" id="actualOff2">PENDING</td>
-                                        <td class="py-4 text-right" id="actualOffStatus"><span class="px-2 py-0.5 rounded bg-sky-500/10 text-[10px] text-sky-400 uppercase font-bold tracking-wider">Active</span></td>
+                                        <td class="py-4 text-right" id="actualOffStatus"><span class="px-2 py-0.5 rounded bg-sky-500/10 text-[10px] text-sky-400 uppercase font-bold tracking-wider" data-i18n="dash_status_active">Active</span></td>
                                     </tr>
                                     <tr class="border-t border-white/5">
-                                        <td class="py-4 text-slate-300">SIBT (In-Block)</td>
+                                        <td class="py-4 text-slate-300"><span data-i18n="dash_td_sibt">SIBT (In-Block)</span></td>
                                         <td class="py-4 font-mono text-slate-400" id="bdSibt">--:--Z</td>
                                         <td class="py-4 font-mono text-slate-300" id="actualIn">--:--</td>
-                                        <td class="py-4 text-right" id="sibtStatus"><span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider">Standby</span></td>
+                                        <td class="py-4 text-right" id="sibtStatus"><span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider" data-i18n="dash_status_standby">Standby</span></td>
                                     </tr>
                                     <tr class="border-t border-white/5">
-                                        <td class="py-4 text-slate-300">AIBT (Actual In)</td>
+                                        <td class="py-4 text-slate-300"><span data-i18n="dash_td_aibt">AIBT (Actual In)</span></td>
                                         <td class="py-4 font-mono text-slate-500" id="bdAibt">--:--</td>
                                         <td class="py-4 font-mono text-slate-500" id="actualIn2">--:--</td>
-                                        <td class="py-4 text-right" id="actualInStatus"><span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider">Standby</span></td>
+                                        <td class="py-4 text-right" id="actualInStatus"><span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider" data-i18n="dash_status_standby">Standby</span></td>
                                     </tr>
                                 </tbody>
                             </table>
                             <div id="puncBarContainer" style="margin-top: 25px; position: relative; height: 30px; display: none;">
-                                <div style="width: 100%; height: 4px; background: linear-gradient(to right, #0ea5e9 0%, #10b981 20%, #10b981 50%, #f59e0b 80%, #ef4444 100%); border-radius: 2px; position: absolute; top: 13px;"></div>
+                                <div style="width: 100%; height: 4px; background: linear-gradient(to right, #3b82f6 0%, #10b981 30%, #10b981 50%, #eab308 65%, #f97316 80%, #ef4444 100%); border-radius: 2px; position: absolute; top: 13px;"></div>
                                 <div id="puncPointer" style="position: absolute; top: 5px; left: 35%; transform: translateX(-50%); width: 4px; height: 20px; background: white; border-radius:2px; box-shadow: 0 0 10px rgba(0,0,0,0.8); transition: left 0.5s ease-out;"></div>
                                 <div id="puncLabel" style="position: absolute; top: -14px; left: 35%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: white; transition: left 0.5s ease-out; background: #1e293b; padding: 2px 6px; border-radius: 4px; border: 1px solid #334155;">0m</div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="col-span-12 lg:col-span-3 glass-panel rounded-xl p-8 flex flex-col">
-                        <div class="flex items-center justify-between mb-8">
-                            <span class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase">Cabin Anxiety</span>
-                            <span class="material-symbols-outlined text-emerald-400">mood</span>
+                    <div class="col-span-12 lg:col-span-3 glass-panel rounded-xl p-6 flex flex-col">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase" data-i18n="dash_cabin_exp">Cabin Experience</span>
+                            <span class="material-symbols-outlined text-sky-400">airline_seat_recline_extra</span>
                         </div>
-                        <div class="mt-auto">
-                            <div class="flex items-end justify-between mb-4">
-                                <span class="text-6xl font-black font-headline text-white leading-none" id="paxAnxietyValue">0<span class="text-xl text-slate-500 font-light ml-1">%</span></span>
+                        <div class="mt-auto flex flex-col gap-5">
+                            <!-- Comfort Gauge -->
+                            <div>
+                                <div class="flex items-end justify-between mb-2">
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Comfort</span>
+                                    <span class="text-2xl font-black font-headline text-sky-400 leading-none" id="paxComfortValue">100<span class="text-sm text-slate-500 font-light ml-1">%</span></span>
+                                </div>
+                                <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5">
+                                    <div id="paxComfortBar" class="h-full bg-sky-400 w-full transition-all duration-700 shadow-[0_0_8px_rgba(56,189,248,0.5)]"></div>
+                                </div>
                             </div>
-                            <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5">
-                                <div id="paxAnxietyBar" class="h-full bg-emerald-400 w-0 transition-all duration-700 shadow-[0_0_8px_rgba(52,211,153,0.5)]"></div>
+                            
+                            <!-- Anxiety Gauge -->
+                            <div>
+                                <div class="flex items-end justify-between mb-2">
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Anxiety</span>
+                                    <span class="text-2xl font-black font-headline text-emerald-400 leading-none" id="paxAnxietyValue">0<span class="text-sm text-slate-500 font-light ml-1">%</span></span>
+                                </div>
+                                <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5">
+                                    <div id="paxAnxietyBar" class="h-full bg-emerald-400 w-0 transition-all duration-700 shadow-[0_0_8px_rgba(52,211,153,0.5)]"></div>
+                                </div>
                             </div>
-                            <div id="paxAnxietyDesc" class="text-[11px] text-emerald-400/80 mt-4 leading-relaxed font-body uppercase tracking-wider font-bold">Optimal Calm</div>
 
                             <div id="cabinActionButtons" style="display:flex; flex-direction:column; gap:8px; margin-top:20px; width:100%; opacity:0; pointer-events:none; transition:opacity 0.3s ease;">
-                                <button onclick="window.chrome.webview.postMessage({action:'announceCabin', annType:'Delay'})" class="bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 px-3 py-2 rounded text-[10px] font-bold tracking-widest uppercase transition-colors">Announce: Delay Apology</button>
-                                <button onclick="window.chrome.webview.postMessage({action:'announceCabin', annType:'Turbulence'})" class="bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20 px-3 py-2 rounded text-[10px] font-bold tracking-widest uppercase transition-colors">Announce: Turbulence</button>
+                                <button onclick="window.chrome.webview.postMessage({action:'announceCabin', annType:'Delay'})" class="bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 px-3 py-2 rounded text-[10px] font-bold tracking-widest uppercase transition-colors" data-i18n="dash_btn_ann_delay">Announce: Delay Apology</button>
+                                <button onclick="window.chrome.webview.postMessage({action:'announceCabin', annType:'Turbulence'})" class="bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20 px-3 py-2 rounded text-[10px] font-bold tracking-widest uppercase transition-colors" data-i18n="dash_btn_ann_turb">Announce: Turbulence</button>
                             </div>
                         </div>
                     </div>
@@ -275,11 +375,11 @@
                     <div class="col-span-12 lg:col-span-3 glass-panel rounded-xl p-6 flex flex-col h-full overflow-hidden">
                         <h3 class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase mb-5 flex items-center gap-2">
                             <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse drop-shadow-[0_0_4px_rgba(56,189,248,0.8)]"></span>
-                            PNC Comms
+                            <span data-i18n="dash_pnc_comms">PNC Comms</span>
                         </h3>
                         <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                             <ul id="cabinLogsList" class="space-y-3 font-body text-xs">
-                                <li class="text-slate-500 text-center text-[10px] uppercase tracking-widest mt-4">Standing by...</li>
+                                <li class="text-slate-500 text-center text-[10px] uppercase tracking-widest mt-4" data-i18n="dash_pnc_standby">Standing by...</li>
                             </ul>
                         </div>
                     </div>
@@ -293,7 +393,7 @@
             <!-- BRIEFING TAB -->
             <section id="briefing" class="tab-content" style="padding-bottom: 50px;">
                 <div class="mb-4">
-                    <div class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2">Flight Briefing</div>
+                    <div class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2" data-i18n="brief_title">Flight Briefing</div>
                     <div class="flex items-center justify-between">
                         <h2 class="text-5xl font-black font-headline text-white tracking-tighter flex items-center gap-4">
                             <span id="bdOrigin" class="drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">---</span> 
@@ -316,33 +416,33 @@
 
                 <div id="flightBreakdown" class="grid grid-cols-2 lg:grid-cols-4 gap-6 mt-10" style="display: none;">
                     <div class="bg-[#1C1F26] p-6 rounded-xl border border-white/5">
-                        <h4 class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-4">Flight Details</h4>
+                        <h4 class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-4" data-i18n="brief_flight_details">Flight Details</h4>
                         <div class="space-y-3 font-mono text-xs">
-                            <div class="flex justify-between"><span class="text-slate-400">Airline</span><strong class="text-white" id="bdAirline2">---</strong></div>
-                            <div class="flex justify-between"><span class="text-slate-400">Flight Num</span><strong class="text-white" id="bdFlightNum2">---</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400" data-i18n="brief_airline">Airline</span><strong class="text-white" id="bdAirline2">---</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400" data-i18n="brief_fn">Flight Num</span><strong class="text-white" id="bdFlightNum2">---</strong></div>
                         </div>
                     </div>
                     <div class="bg-[#1C1F26] p-6 rounded-xl border border-white/5">
-                        <h4 class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-4">Routing</h4>
+                        <h4 class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-4" data-i18n="brief_routing">Routing</h4>
                         <div class="space-y-3 font-mono text-xs">
-                            <div class="flex justify-between"><span class="text-slate-400">Cruise</span><strong class="text-white" id="bdCruise2">---</strong></div>
-                            <div class="flex justify-between"><span class="text-slate-400">Route</span><strong class="text-white truncate max-w-[120px]" id="bdRoute2">---</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400" data-i18n="brief_cruise">Cruise</span><strong class="text-white" id="bdCruise2">---</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400" data-i18n="brief_route">Route</span><strong class="text-white truncate max-w-[120px]" id="bdRoute2">---</strong></div>
                         </div>
                     </div>
                     <div class="bg-[#1C1F26] p-6 rounded-xl border border-white/5">
-                        <h4 class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-4">Timetable</h4>
+                        <h4 class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-4" data-i18n="brief_timetable">Timetable</h4>
                         <div class="space-y-3 font-mono text-xs">
-                            <div class="flex justify-between"><span class="text-slate-400">SOBT</span><strong class="text-white" id="bdSobt2">---</strong></div>
-                            <div class="flex justify-between"><span class="text-slate-400">SIBT</span><strong class="text-white" id="bdSibt2">---</strong></div>
-                            <div class="flex justify-between"><span class="text-slate-400">ETE</span><strong class="text-white" id="bdEte2">--:--</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400" data-i18n="brief_sobt">SOBT</span><strong class="text-white" id="bdSobt2">---</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400" data-i18n="brief_sibt">SIBT</span><strong class="text-white" id="bdSibt2">---</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400" data-i18n="brief_ete">ETE</span><strong class="text-white" id="bdEte2">--:--</strong></div>
                         </div>
                     </div>
                     <div class="bg-[#1C1F26] p-6 rounded-xl border border-white/5">
-                        <h4 class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-4">Payload</h4>
+                        <h4 class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-4" data-i18n="brief_payload">Payload</h4>
                         <div class="space-y-3 font-mono text-xs">
-                            <div class="flex justify-between"><span class="text-slate-400">Passengers</span><strong class="text-white" id="bdPax2">---</strong></div>
-                            <div class="flex justify-between"><span class="text-slate-400">Zero Fuel</span><strong class="text-white" id="bdZfw2">---</strong></div>
-                            <div class="flex justify-between"><span class="text-slate-400">Take-Off</span><strong class="text-white" id="bdTow2">---</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400" data-i18n="brief_pax">Passengers</span><strong class="text-white" id="bdPax2">---</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400" data-i18n="brief_zfw">Zero Fuel</span><strong class="text-white" id="bdZfw2">---</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400" data-i18n="brief_tow">Take-Off</span><strong class="text-white" id="bdTow2">---</strong></div>
                         </div>
                     </div>
                 </div>
@@ -356,7 +456,7 @@
                                 <p>Departure conditions at <strong id="dhOrigin2" class="text-white">---</strong> are standing by...</p>
                             </div>
                             <div class="mt-10 border-t border-white/5 pt-6">
-                                <div class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-3">Calculated Route</div>
+                                <div class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-3" data-i18n="brief_calc_route">Calculated Route</div>
                                 <div id="bdRoute" class="bg-[#12141A] p-4 rounded-lg font-mono text-[11px] text-slate-400 leading-relaxed break-words border border-black/50">
                                     PENDING ROUTE CREATION
                                 </div>
@@ -367,12 +467,12 @@
                     <!-- Right Operational Limits / Maintenance -->
                     <div class="col-span-12 lg:col-span-4 space-y-6">
                         <div class="bg-[#1C1F26] p-8 rounded-xl border border-white/5">
-                            <h3 class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-6 border-b border-white/5 pb-4">Operational Limits</h3>
+                            <h3 class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-6 border-b border-white/5 pb-4" data-i18n="brief_op_limits">Operational Limits</h3>
                             <div class="space-y-6">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center gap-4">
                                         <span class="material-symbols-outlined text-emerald-400 text-lg">air</span>
-                                        <span class="text-sm font-medium text-slate-300">Weather</span>
+                                        <span class="text-sm font-medium text-slate-300" data-i18n="brief_weather">Weather</span>
                                     </div>
                                     <div class="flex items-center gap-3">
                                         <div class="text-xs font-bold text-white text-right"><span id="briefWx">VMC</span></div>
@@ -382,7 +482,7 @@
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center gap-4">
                                         <span class="material-symbols-outlined text-emerald-400 text-lg">visibility</span>
-                                        <span class="text-sm font-medium text-slate-300">Visibility</span>
+                                        <span class="text-sm font-medium text-slate-300" data-i18n="brief_visibility">Visibility</span>
                                     </div>
                                     <div class="flex items-center gap-3">
                                         <div class="text-xs font-bold text-white text-right">10+ KM</div>
@@ -392,7 +492,7 @@
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center gap-4">
                                         <span class="material-symbols-outlined text-orange-400 text-lg">thermostat</span>
-                                        <span class="text-sm font-medium text-slate-300">Cruise Alt</span>
+                                        <span class="text-sm font-medium text-slate-300" data-i18n="brief_cruise_alt">Cruise Alt</span>
                                     </div>
                                     <div class="flex items-center gap-3">
                                         <div class="text-xs font-bold text-white text-right" id="bdCruise">FL---</div>
@@ -402,7 +502,7 @@
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center gap-4">
                                         <span class="material-symbols-outlined text-slate-500 text-lg">luggage</span>
-                                        <span class="text-sm font-medium text-slate-300">ZFW / TOW</span>
+                                        <span class="text-sm font-medium text-slate-300" data-i18n="brief_zfw_tow">ZFW / TOW</span>
                                     </div>
                                     <div class="flex items-center gap-3">
                                         <div class="text-xs font-bold text-white text-right"><span id="bdZfw">---</span> / <span id="bdTow">---</span></div>
@@ -411,39 +511,218 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- PNC Cabin Intercom -->
+                        <div class="bg-[#1C1F26] p-8 rounded-xl border border-white/5 relative">
+                            <h3 class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-4 border-b border-white/5 pb-4">Cabin Intercom</h3>
+                            
+                            <!-- Status Indicator -->
+                            <div class="flex flex-col gap-1 mb-6">
+                                <span class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Crew Status</span>
+                                <div class="flex items-center gap-3">
+                                    <div id="pncStatusDot" class="w-2.5 h-2.5 rounded-full bg-slate-500 animate-pulse"></div>
+                                    <span id="pncStatusLabel" class="text-sm font-semibold text-white tracking-wide">Standing By</span>
+                                </div>
+                            </div>
+
+                            <!-- Controls -->
+                            <div class="space-y-4 font-body">
+                                <div>
+                                    <select id="pncCommandSelect" class="w-full bg-[#12141A] border border-white/10 rounded-lg p-3 text-sky-100 focus:border-sky-500 focus:ring-1 focus:outline-none text-xs font-semibold appearance-none cursor-pointer">
+                                        <option value="" disabled selected>-- Select PA Announcement --</option>
+                                        <option value="PREPARE_TAKEOFF">"Cabin Crew, prepare for Takeoff."</option>
+                                        <option value="SEATS_TAKEOFF">"Cabin Crew, seats for Takeoff."</option>
+                                        <option value="START_SERVICE">"Cabin Crew, you may start the service."</option>
+                                        <option value="PREPARE_LANDING">"Cabin Crew, prepare for Landing."</option>
+                                        <option value="SEATS_LANDING">"Cabin Crew, seats for Landing."</option>
+                                        <option value="CANCEL_SERVICE">"Cabin Crew, stop service and be seated."</option>
+                                        <option value="REQUEST_STATUS">"Cabin Crew, cabin report please."</option>
+                                    </select>
+                                </div>
+                                <button id="btnSendPncCommand" class="w-full py-3 bg-[#242934] hover:bg-sky-600 rounded-lg text-white font-bold text-[11px] uppercase tracking-widest transition-colors border border-white/5 flex items-center justify-center gap-2">
+                                    <span class="material-symbols-outlined text-[16px]">campaign</span>
+                                    Transmit Order
+                                </button>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </section>
 
             <!-- CABIN & MANIFEST TAB -->
             <section id="cabin" class="tab-content">
-                <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-8">Cabin & Manifest</h2>
+                <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-8" data-i18n="cabin_title">Cabin & Manifest</h2>
                 <div id="manifestContainer" class="bg-[#1C1F26] p-8 rounded-xl mt-4 text-slate-300 font-mono text-sm border border-white/5">
-                    <p class="text-slate-500 text-center">Waiting for final manifest processing...</p>
+                    <p class="text-slate-500 text-center" data-i18n="cabin_pending">Waiting for final manifest processing...</p>
                 </div>
             </section>
 
             <!-- GROUND OPERATIONS TAB -->
             <section id="groundops" class="tab-content">
-                <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-8">Ground Operations</h2>
+                <div class="flex items-center justify-between mb-8">
+                    <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80" data-i18n="ground_title">Ground Operations</h2>
+                </div>
                 <div id="groundOpsContainer" class="bg-[#1C1F26] p-8 rounded-xl border border-white/5">
-                    <p class="text-slate-500 font-mono text-center">Ground operations pending SimBrief initialization...</p>
+                    <p class="text-slate-500 font-mono text-center" data-i18n="ground_pending">Ground operations pending SimBrief initialization...</p>
                 </div>
             </section>
 
             <!-- LOGS TAB -->
             <section id="logs" class="tab-content">
-                <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-8">Flight Logs</h2>
+                <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-8" data-i18n="logs_title">Flight Logs</h2>
                 <div style="width: 100%; height: calc(100vh - 200px); overflow-y: auto;" class="bg-[#1C1F26] p-6 rounded-xl border border-white/5">
                     <ul id="penaltyLogs" style="list-style: none; margin: 0; padding: 0; font-family: monospace; font-size: 13px;"></ul>
+                </div>
+            </section>
+
+            <!-- PROFILE TAB -->
+            <section id="profile" class="tab-content space-y-6">
+                <!-- Profile Header & Identity -->
+                <div class="flex items-center justify-between mb-8">
+                    <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80" data-i18n="prof_title">Pilot Profile & Career</h2>
+                    <button id="btnEditAvatar" class="py-2 px-6 bg-sky-600/20 text-sky-400 hover:bg-sky-600/40 border border-sky-500/30 rounded-full font-bold text-xs uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(14,165,233,0.3)]">
+                        Upload ID Photo
+                    </button>
+                    <!-- Hidden file input for Avatar -->
+                    <input type="file" id="avatarUploadInput" accept="image/png, image/jpeg" class="hidden" />
+                </div>
+
+                <div class="grid grid-cols-12 gap-6">
+                    <!-- Identity Card -->
+                    <div class="col-span-12 lg:col-span-4 glass-panel rounded-xl p-8 flex flex-col items-center text-center relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                            <span class="material-symbols-outlined text-[100px] leading-none">admin_panel_settings</span>
+                        </div>
+                        <div class="flex flex-col items-center">
+                            <div class="relative group">
+                                <div class="w-40 h-40 rounded-full bg-slate-800 flex items-center justify-center border-4 border-[#1C1F26] mb-4 overflow-hidden relative shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+                                    <img id="prfBigAvatar" src="" alt="Pilot" class="w-full h-full object-cover hidden" />
+                                    <span id="prfBigIcon" class="material-symbols-outlined text-slate-500 text-6xl">person</span>
+                                </div>
+                            </div>
+                            <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-sky-500 text-[#0B0C10] px-4 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase shadow-[0_0_15px_rgba(14,165,233,0.5)] z-20 whitespace-nowrap" id="prfRankBadge">
+                                Trainee
+                            </div>
+                        </div>
+                        <div class="mt-8 flex flex-col items-center w-full max-w-2xl px-4">
+                            <h3 style="line-height:1;" class="text-3xl font-black font-headline text-white tracking-wide hover:bg-white/10 rounded cursor-text px-4 py-1 -mx-4 transition-colors block text-center break-words max-w-full" id="prfCallsign" contenteditable="true" spellcheck="false" title="Click to edit">MAVERICK</h3>
+                            <div class="text-xl tracking-widest text-[#cbd5e1] font-mono mt-2 hover:bg-white/10 rounded cursor-text px-4 py-1 -mx-4 transition-colors block text-center opacity-90" id="prfFullName" contenteditable="true" spellcheck="false" title="Click to edit">John Doe</div>
+                        </div>
+                        <div class="mt-6 flex gap-4 w-full justify-center text-xs font-mono text-slate-300">
+                            <div class="flex flex-col items-center bg-black/20 p-4 rounded-lg flex-1 border border-white/5">
+                                <span class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Home Hub</span>
+                                <span class="text-xl font-black text-sky-400 hover:bg-white/10 rounded cursor-text px-3 -mx-3 transition-colors tracking-widest" id="prfHomeBase" contenteditable="true" spellcheck="false" title="Click to edit">LFPG</span>
+                            </div>
+                            <div class="flex flex-col items-center bg-black/20 p-4 rounded-lg flex-1 border border-white/5">
+                                <span class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Country</span>
+                                <span class="text-xl font-black text-white hover:bg-white/10 rounded cursor-text px-3 -mx-3 transition-colors tracking-widest uppercase" id="prfCountry" contenteditable="true" spellcheck="false" title="Click to edit">FR</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Career Logbook Grid -->
+                    <div class="col-span-12 lg:col-span-8 space-y-6 flex flex-col">
+                        <!-- Top Stats -->
+                        <div class="grid grid-cols-3 gap-6">
+                            <div class="glass-panel p-6 rounded-xl border border-white/5 flex flex-col justify-center">
+                                <span class="text-[9px] text-slate-500 uppercase tracking-widest">Total Block Time</span>
+                                <div class="mt-2 text-3xl font-mono text-sky-400 font-bold" id="prfTotalTime">0h 0m</div>
+                            </div>
+                            <div class="glass-panel p-6 rounded-xl border border-white/5 flex flex-col justify-center">
+                                <span class="text-[9px] text-slate-500 uppercase tracking-widest">Total Flights</span>
+                                <div class="mt-2 text-3xl font-mono text-white font-bold" id="prfTotalFlights">0</div>
+                            </div>
+                            <div class="glass-panel p-6 rounded-xl border border-white/5 flex flex-col justify-center">
+                                <span class="text-[9px] text-slate-500 uppercase tracking-widest">Career SuperScore</span>
+                                <div class="mt-2 flex items-end gap-1">
+                                    <span class="text-3xl font-headline text-emerald-400 font-black drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]" id="prfAvgScore">0</span>
+                                    <span class="text-sm text-slate-500 font-bold mb-1">/1000</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Secondary Stats -->
+                        <div class="glass-panel p-8 rounded-xl border border-white/5 flex-1 relative overflow-hidden">
+                            <h3 class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase mb-6 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[16px] text-sky-400">query_stats</span>
+                                Performance Telemetry
+                            </h3>
+                            <div class="grid grid-cols-2 gap-8 font-mono text-sm pl-4">
+                                <div class="flex justify-between border-b border-white/5 pb-3">
+                                    <span class="text-slate-400">Highest Score</span>
+                                    <span class="text-white font-bold" id="prfHighestScore">0</span>
+                                </div>
+                                <div class="flex justify-between border-b border-white/5 pb-3">
+                                    <span class="text-slate-400">Punctuality Rating</span>
+                                    <span class="text-emerald-400 font-bold" id="prfPunctuality">100%</span>
+                                </div>
+                                <div class="flex justify-between border-b border-white/5 pb-3">
+                                    <span class="text-slate-400">Smoothest Touchdown</span>
+                                    <span class="text-sky-400 font-bold" id="prfBestFpm">--- fpm</span>
+                                </div>
+                                <div class="flex justify-between border-b border-white/5 pb-3">
+                                    <span class="text-slate-400">Manual Flying Time</span>
+                                    <span class="text-white font-bold" id="prfManualTime">0h 0m</span>
+                                </div>
+                                <div class="flex justify-between border-b border-white/5 pb-3">
+                                    <span class="text-slate-400">Go-Arounds</span>
+                                    <span class="text-orange-400 font-bold" id="prfGoArounds">0</span>
+                                </div>
+                                <div class="flex justify-between border-b border-white/5 pb-3">
+                                    <span class="text-slate-400">Diversions</span>
+                                    <span class="text-red-400 font-bold" id="prfDiversions">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- WALL OF FAME (Achievements/Badges) -->
+                <div class="glass-panel p-8 rounded-xl border border-white/5 relative overflow-hidden mt-6">
+                    <div class="flex items-center justify-between mb-8">
+                        <h3 class="text-sm font-label tracking-[0.4em] text-slate-400 uppercase flex items-center gap-2">
+                            <span class="material-symbols-outlined text-orange-400">military_tech</span>
+                            Wall of Fame
+                        </h3>
+                        <span class="text-xs font-mono text-sky-400" id="prfBadgesCount">0 / 0 Unlocked</span>
+                    </div>
+
+                    <!-- Badges Grid will be populated by JS -->
+                    <div id="prfBadgesGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+                        <!-- Scaffolding format for JS generation -->
+                        <div class="bg-black/30 border border-white/5 rounded-xl p-4 flex flex-col items-center text-center opacity-40 grayscale">
+                            <div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mb-3 shadow-inner">
+                                <span class="material-symbols-outlined text-slate-500 text-3xl">lock</span>
+                            </div>
+                            <h4 class="text-[10px] font-bold text-white tracking-widest uppercase mb-1">Locked Badge</h4>
+                            <p class="text-[9px] text-slate-500 font-mono">Complete the criteria to unlock.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- LOGBOOK TAB -->
+            <section id="logs" class="tab-content" style="padding-bottom: 100px;">
+                <div class="flex items-center justify-between mb-8">
+                    <div>
+                        <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2">Flight Archives</h2>
+                        <p class="text-xs text-slate-400 font-body">Complete history of your recorded flights and Black Box data.</p>
+                    </div>
+                    <button class="py-3 px-6 bg-[#12141A] hover:bg-white/5 border border-white/10 rounded-xl text-slate-300 font-bold uppercase tracking-widest text-[10px] transition-colors flex items-center gap-2" onclick="window.chrome.webview.postMessage({action: 'fetchLogbook'})">
+                        <span class="material-symbols-outlined text-[16px]">refresh</span> REFRESH
+                    </button>
+                </div>
+                <div id="logbookGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <!-- Populated dynamically by app.js -->
                 </div>
             </section>
 
             <!-- SETTINGS TAB -->
             <section id="options" class="tab-content">
                 <div class="flex items-center justify-between mb-8">
-                    <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80">Settings</h2>
-                    <button id="btnSaveSettings" class="py-3 px-8 bg-sky-600 hover:bg-sky-500 rounded-full text-white font-bold text-xs uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] hover:brightness-110">Save All Settings</button>
+                    <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80" data-i18n="set_title">Settings</h2>
+                    <button id="btnSaveSettings" class="py-3 px-8 bg-sky-600 hover:bg-sky-500 rounded-full text-white font-bold text-xs uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] hover:brightness-110" data-i18n="set_save_btn">Save All Settings</button>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
@@ -453,53 +732,53 @@
                         
                         <!-- SimBrief Integration -->
                         <div class="bg-[#1C1F26] p-8 rounded-xl border border-white/5">
-                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2">SimBrief Integration</h3>
-                            <p class="text-xs text-slate-400 mb-6">Link your account to fetch flight plans block.</p>
+                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2" data-i18n="set_sb_int">SimBrief Integration</h3>
+                            <p class="text-xs text-slate-400 mb-6" data-i18n="set_sb_desc">Link your account to fetch flight plans block.</p>
                             <div class="mb-4">
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Username</label>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3" data-i18n="set_sb_user">Username</label>
                                 <input type="text" id="sbUsername" placeholder="Enter Username" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-shadow text-xs" />
                             </div>
                             <div class="mb-2 text-sm flex items-center gap-3">
                                 <input type="checkbox" id="sbRemember" checked class="rounded border-white/20 bg-black/40 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 cursor-pointer w-4 h-4"/>
-                                <label class="text-slate-300 text-xs font-medium">Remember Username</label>
+                                <label class="text-slate-300 text-xs font-medium" data-i18n="set_sb_rem">Remember Username</label>
                             </div>
                         </div>
 
                         <!-- Aviation Units -->
                         <div class="bg-[#1C1F26] p-8 rounded-xl border border-white/5">
-                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2">Aviation Units</h3>
-                            <p class="text-xs text-slate-400 mb-6">Preferred metrics for briefing and logs.</p>
+                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2" data-i18n="set_units_title">Aviation Units</h3>
+                            <p class="text-xs text-slate-400 mb-6" data-i18n="set_units_desc">Preferred metrics for briefing and logs.</p>
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Speed</label>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3" data-i18n="set_unit_speed">Speed</label>
                                     <select id="selUnitSpeed" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
                                         <option value="KTS">Knots (KTS)</option>
                                         <option value="KMH">km/h</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Altitude</label>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3" data-i18n="set_unit_alt">Altitude</label>
                                     <select id="selUnitAlt" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
                                         <option value="FT">Feet (FT)</option>
                                         <option value="M">Meters (M)</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Weight</label>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3" data-i18n="set_unit_weight">Weight</label>
                                     <select id="selUnitWeight" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
                                         <option value="KG">Kilograms (KG)</option>
                                         <option value="LBS">Pounds (LBS)</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Temperature</label>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3" data-i18n="set_unit_temp">Temperature</label>
                                     <select id="selUnitTemp" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
                                         <option value="C">Celsius (°C)</option>
                                         <option value="F">Fahrenheit (°F)</option>
                                     </select>
                                 </div>
                                 <div class="col-span-2">
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Pressure</label>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3" data-i18n="set_unit_press">Pressure</label>
                                     <select id="selUnitPress" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
                                         <option value="HPA">Hectopascals / Millibars (hPa)</option>
                                         <option value="INHG">Inches of Mercury (inHg)</option>
@@ -510,11 +789,11 @@
 
                         <!-- External Integrations -->
                         <div class="bg-[#1C1F26] p-8 rounded-xl border border-white/5">
-                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2">Integrations & Wx</h3>
-                            <p class="text-xs text-slate-400 mb-6">Connections to external engines.</p>
+                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2" data-i18n="set_ext_title">Integrations & Wx</h3>
+                            <p class="text-xs text-slate-400 mb-6" data-i18n="set_ext_desc">Connections to external engines.</p>
                             
                             <div class="mb-6">
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Weather Source</label>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3" data-i18n="set_wx_src">Weather Source</label>
                                 <select id="selWeatherSource" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
                                     <option value="SimBrief">SimBrief (NOAA Data)</option>
                                     <option value="ActiveSky">Active Sky</option>
@@ -525,8 +804,8 @@
                             <div class="flex items-start gap-3">
                                 <input type="checkbox" id="chkGsxSync" class="mt-1 rounded border-white/20 bg-black/40 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 cursor-pointer w-4 h-4"/>
                                 <div>
-                                    <label class="text-slate-200 text-xs font-bold mb-1 block">GSX Pro Auto-Sync</label>
-                                    <p class="text-[10px] text-red-400 leading-relaxed font-bold">⚠️ Disable aircraft-specific GSX automations (e.g Fenix EFB Sync).</p>
+                                    <label class="text-slate-200 text-xs font-bold mb-1 block" data-i18n="set_gsx_sync">GSX Pro Auto-Sync</label>
+                                    <p class="text-[10px] text-red-400 leading-relaxed font-bold" data-i18n="set_gsx_warn">⚠️ Disable aircraft-specific GSX automations (e.g Fenix EFB Sync).</p>
                                 </div>
                             </div>
                         </div>
@@ -538,18 +817,18 @@
 
                         <!-- Regional & Locale -->
                         <div class="bg-[#1C1F26] p-8 rounded-xl border border-white/5">
-                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2">Regional & Locale</h3>
-                            <p class="text-xs text-slate-400 mb-6">Configure application language and time formats.</p>
+                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2" data-i18n="set_reg_title">Regional & Locale</h3>
+                            <p class="text-xs text-slate-400 mb-6" data-i18n="set_reg_desc">Configure application language and time formats.</p>
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Language</label>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3" data-i18n="set_lang">Language</label>
                                     <select id="selLanguage" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
                                         <option value="EN">English (EN)</option>
                                         <option value="FR">Français (FR)</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Time Format</label>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3" data-i18n="set_time_fmt">Time Format</label>
                                     <select id="selTimeFormat" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
                                         <option value="24H">24-Hour (14:30Z)</option>
                                         <option value="12H">12-Hour (02:30 PM Z)</option>
@@ -561,14 +840,14 @@
                         <!-- Ground Operations -->
                         <div class="bg-[#1C1F26] p-8 rounded-xl border border-white/5">
                             <div class="flex items-center justify-between mb-2">
-                                <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 m-0">Ground Operations</h3>
+                                <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 m-0" data-i18n="set_go_title">Ground Operations</h3>
                                 <button id="btnResetGroundOps" title="Reset to Defaults" class="text-slate-500 hover:text-white transition-colors">
                                     <span class="material-symbols-outlined text-[16px]">refresh</span>
                                 </button>
                             </div>
-                            <p class="text-xs text-slate-400 mb-6">Behavior of the turnaround simulation.</p>
+                            <p class="text-xs text-slate-400 mb-6" data-i18n="set_go_desc">Behavior of the turnaround simulation.</p>
                             <div class="mb-4">
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">Duration Speed</label>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3" data-i18n="set_go_speed">Duration Speed</label>
                                 <select id="selGroundOpsSpeed" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
                                     <option value="Realistic">Realistic (1x)</option>
                                     <option value="Short">Short (~0.4x)</option>
@@ -577,7 +856,7 @@
                             </div>
                             <div>
                                 <label class="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">
-                                    <span>Random Events Prob.</span>
+                                    <span data-i18n="set_go_prob">Random Events Prob.</span>
                                     <span id="lblProb" class="text-sky-400">20%</span>
                                 </label>
                                 <input type="range" id="rngProb" min="0" max="100" value="20" class="w-full accent-sky-500">
@@ -586,22 +865,22 @@
 
                         <!-- Realism & Rules -->
                         <div class="bg-[#1C1F26] p-8 rounded-xl border border-white/5">
-                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2">Realism & App</h3>
-                            <p class="text-xs text-slate-400 mb-6">Scoring rules and window behavior.</p>
+                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2" data-i18n="set_real_title">Realism & App</h3>
+                            <p class="text-xs text-slate-400 mb-6" data-i18n="set_real_desc">Scoring rules and window behavior.</p>
 
                             <div class="flex items-start gap-3 mb-5">
                                 <input type="checkbox" id="chkHardcore" class="mt-1 rounded border-white/20 bg-black/40 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 cursor-pointer w-4 h-4"/>
                                 <div>
-                                    <label class="text-slate-200 text-xs font-bold mb-1 block">Hardcore Mode</label>
-                                    <p class="text-[10px] text-slate-500 leading-relaxed">Fines are doubled. Safety violations immediately cancel the flight.</p>
+                                    <label class="text-slate-200 text-xs font-bold mb-1 block" data-i18n="set_hardcore">Hardcore Mode</label>
+                                    <p class="text-[10px] text-slate-500 leading-relaxed" data-i18n="set_hardcore_desc">Fines are doubled. Safety violations immediately cancel the flight.</p>
                                 </div>
                             </div>
 
                             <div class="flex items-start gap-3">
                                 <input type="checkbox" id="chkAlwaysOnTop" class="mt-1 rounded border-white/20 bg-black/40 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 cursor-pointer w-4 h-4"/>
                                 <div>
-                                    <label class="text-slate-200 text-xs font-bold mb-1 block">Always on Top</label>
-                                    <p class="text-[10px] text-slate-500 leading-relaxed">Flight Supervisor stays visible above MSFS.</p>
+                                    <label class="text-slate-200 text-xs font-bold mb-1 block" data-i18n="set_ontop">Always on Top</label>
+                                    <p class="text-[10px] text-slate-500 leading-relaxed" data-i18n="set_ontop_desc">Flight Supervisor stays visible above MSFS.</p>
                                 </div>
                             </div>
                         </div>
@@ -619,7 +898,7 @@
         <!-- Re-labeled and redesigned Start Ops to be the secondary "Connect Sim" looking button -->
         <button id="btnStartGroundOps" class="bg-[#1C1F26] border border-white/5 text-slate-300 hover:text-white px-6 py-4 rounded-xl hover:bg-white/5 transition-all flex items-center gap-2 shadow-xl shrink-0 disabled:opacity-30 disabled:cursor-not-allowed uppercase font-bold text-[11px] tracking-widest">
             <span class="material-symbols-outlined text-[18px]">flight_takeoff</span>
-            START OPS
+            <span id="btnStartOpsLabel" data-i18n="btn_start_ops">START OPS</span>
         </button>
         <!-- Re-designed Fetch Plan / Cancel -->
         <button id="btnFetchPlan" class="bg-gradient-to-r from-sky-500 to-sky-400 text-slate-900 px-6 py-4 rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(14,165,233,0.3)] shrink-0 disabled:opacity-50 uppercase font-bold text-[11px] tracking-widest">
@@ -629,24 +908,175 @@
     </footer>
 
     <!-- MODALS -->
+    <!-- Warp Confirmation Modal -->
+    <div id="warpModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm" style="display: none;">
+        <div class="bg-[#1C1F26] border border-orange-500/30 rounded-2xl p-8 max-w-sm w-full shadow-[0_0_50px_rgba(249,115,22,0.15)] transform transition-all text-center">
+            <span class="material-symbols-outlined text-orange-400 text-5xl mb-4">warning</span>
+            <h2 class="text-xl font-headline font-black text-white mb-2 tracking-wide">TIME WARP</h2>
+            <p class="text-slate-400 text-sm mb-8 leading-relaxed">
+                Skiping ground operations will instantly advance to departure but incurs a <span class="text-red-400 font-bold">-300 SuperScore penalty</span> for convenience. Proceed?
+            </p>
+            <div class="flex gap-4 w-full">
+                <button onclick="document.getElementById('warpModal').style.display='none'" class="flex-1 py-3 bg-[#12141A] hover:bg-white/5 border border-white/10 rounded-xl text-slate-300 font-bold uppercase tracking-widest text-[11px] transition-colors">Abort</button>
+                <button onclick="document.getElementById('warpModal').style.display='none'; window.chrome.webview.postMessage({action: 'warpToDeparture'})" class="flex-1 py-3 bg-orange-500/20 hover:bg-orange-500 text-orange-400 hover:text-white border border-orange-500/30 rounded-xl font-bold uppercase tracking-widest text-[11px] transition-all focus:ring-2 focus:ring-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.2)]">Warp</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cancel Modal -->
     <div id="cancelModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm" style="display: none;">
         <div class="bg-[#1C1F26] p-8 rounded-xl max-w-sm text-center border border-white/5 shadow-2xl">
-            <h3 class="text-sky-400 font-bold mb-3 font-headline text-lg uppercase tracking-widest">Cancel Flight?</h3>
-            <p class="text-slate-400 text-xs mb-8 leading-relaxed">Are you sure you want to cancel the current flight plan?<br>All ground operations and telemetry progress will be reset.</p>
+            <h3 class="text-sky-400 font-bold mb-3 font-headline text-lg uppercase tracking-widest" data-i18n="modal_cancel_title">Cancel Flight?</h3>
+            <p class="text-slate-400 text-xs mb-8 leading-relaxed" data-i18n="modal_cancel_desc">Are you sure you want to cancel the current flight plan?<br>All ground operations and telemetry progress will be reset.</p>
             <div class="flex gap-4 justify-center font-manrope">
-                <button id="btnCancelNo" class="bg-[#12141A] border border-white/5 text-slate-300 hover:text-white px-6 py-3 rounded-xl hover:bg-white/5 transition-all shadow-xl uppercase font-bold text-[10px] tracking-widest">KEEP FLIGHT</button>
-                <button id="btnCancelYes" class="bg-gradient-to-r from-sky-500 to-sky-400 text-slate-900 px-6 py-3 rounded-xl hover:brightness-110 transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] uppercase font-bold text-[10px] tracking-widest">CANCEL FLIGHT</button>
+                <button id="btnCancelNo" class="bg-[#12141A] border border-white/5 text-slate-300 hover:text-white px-6 py-3 rounded-xl hover:bg-white/5 transition-all shadow-xl uppercase font-bold text-[10px] tracking-widest" data-i18n="modal_cancel_no">KEEP FLIGHT</button>
+                <button id="btnCancelYes" class="bg-gradient-to-r from-sky-500 to-sky-400 text-slate-900 px-6 py-3 rounded-xl hover:brightness-110 transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] uppercase font-bold text-[10px] tracking-widest" data-i18n="modal_cancel_yes">CANCEL FLIGHT</button>
             </div>
         </div>
     </div>
 
     <div id="abortServiceModal" class="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-sm" style="display: none;">
         <div class="bg-[#1C1F26] p-8 rounded-xl max-w-sm text-center border border-white/5 shadow-2xl">
-            <h3 class="text-sky-400 font-bold mb-3 font-headline text-lg uppercase tracking-widest">Abort Service?</h3>
-            <p class="text-slate-400 text-xs mb-8 leading-relaxed font-body">Are you sure you want to skip <strong id="abortServiceName" class="text-white"></strong>?<br><br><span class="opacity-70">Aborting ground operations early can trigger negative consequences.</span></p>
+            <h3 class="text-sky-400 font-bold mb-3 font-headline text-lg uppercase tracking-widest" data-i18n="modal_abort_title">Abort Service?</h3>
+            <p class="text-slate-400 text-xs mb-8 leading-relaxed font-body"><span data-i18n="modal_abort_desc_pre">Are you sure you want to skip</span> <strong id="abortServiceName" class="text-white"></strong>?<br><br><span class="opacity-70" data-i18n="modal_abort_desc_post">Aborting ground operations early can trigger negative consequences.</span></p>
             <div class="flex gap-4 justify-center font-manrope">
-                <button id="btnAbortNo" class="bg-[#12141A] border border-white/5 text-slate-300 hover:text-white px-6 py-3 rounded-xl hover:bg-white/5 transition-all shadow-xl uppercase font-bold text-[10px] tracking-widest">CONTINUE</button>
-                <button id="btnAbortYes" class="bg-gradient-to-r from-sky-500 to-sky-400 text-slate-900 px-6 py-3 rounded-xl hover:brightness-110 transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] uppercase font-bold text-[10px] tracking-widest">ABORT</button>
+                <button id="btnAbortNo" class="bg-[#12141A] border border-white/5 text-slate-300 hover:text-white px-6 py-3 rounded-xl hover:bg-white/5 transition-all shadow-xl uppercase font-bold text-[10px] tracking-widest" data-i18n="modal_abort_no">CONTINUE</button>
+                <button id="btnAbortYes" class="bg-gradient-to-r from-sky-500 to-sky-400 text-slate-900 px-6 py-3 rounded-xl hover:brightness-110 transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] uppercase font-bold text-[10px] tracking-widest" data-i18n="modal_abort_yes">ABORT</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="groundEventModal" class="fixed inset-0 z-[160] flex items-center justify-center bg-black/80 backdrop-blur-sm" style="display: none;">
+        <div class="bg-[#1C1F26] p-8 rounded-xl max-w-sm text-center border-l-4 border-l-orange-500 border-white/5 shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-bl-[100px]"></div>
+            
+            <div class="flex flex-col items-center">
+                <span class="material-symbols-outlined text-orange-400 text-3xl mb-4 relative z-10 w-12 h-12 flex items-center justify-center bg-orange-500/20 rounded-full border border-orange-500/30">report_problem</span>
+                <h3 id="geTitle" class="text-white font-black mb-3 font-headline text-lg uppercase tracking-widest relative z-10">Event Title</h3>
+                <p id="geDesc" class="text-slate-400 text-xs mb-8 leading-relaxed font-body relative z-10">Event Description...</p>
+                
+                <div id="geChoices" class="flex flex-col gap-3 w-full font-manrope relative z-10">
+                    <!-- Buttons inserted dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="flightReportModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-[#0B0C10]/90 backdrop-blur-md" style="display: none;">
+        <div class="bg-[#12141A] w-full max-w-4xl rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden relative">
+            <div class="h-1.5 w-full bg-gradient-to-r from-sky-500 via-emerald-400 to-sky-500"></div>
+            <div class="p-8 flex flex-col gap-8">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h2 class="text-3xl font-black font-headline text-white tracking-tight uppercase" data-i18n="report_title">POST-FLIGHT DEBRIEF</h2>
+                        <div class="text-sky-400 font-label tracking-[0.2em] mt-2 text-xs bg-sky-900/30 inline-block px-3 py-1.5 rounded inline-flex items-center gap-2 border border-sky-500/20">
+                            <span class="material-symbols-outlined text-[16px]">flight_land</span>
+                            <span id="frFlightNo" class="font-bold">---</span>
+                            <span class="text-white/30">|</span>
+                            <span id="frRoute" class="font-bold">--- ➔ ---</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[10px] font-label tracking-[0.3em] text-slate-500 uppercase mb-1">SUPERSCORE</div>
+                        <div id="frScore" class="text-7xl font-black font-headline leading-none text-emerald-400 drop-shadow-[0_0_20px_rgba(52,211,153,0.3)]">---</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-[#1C1F26] p-5 rounded-xl border border-white/5 flex flex-col items-center text-center shadow-lg">
+                        <span class="material-symbols-outlined text-sky-400 mb-2 text-2xl">security</span>
+                        <span class="text-[10px] font-label tracking-widest text-slate-500 uppercase">Safety</span>
+                        <span id="frSafetyScore" class="text-3xl font-black font-headline text-white mt-1">0</span>
+                    </div>
+                    <div class="bg-[#1C1F26] p-5 rounded-xl border border-white/5 flex flex-col items-center text-center shadow-lg">
+                        <span class="material-symbols-outlined text-emerald-400 mb-2 text-2xl">mood</span>
+                        <span class="text-[10px] font-label tracking-widest text-slate-500 uppercase">Comfort</span>
+                        <span id="frComfortScore" class="text-3xl font-black font-headline text-white mt-1">0</span>
+                    </div>
+                    <div class="bg-[#1C1F26] p-5 rounded-xl border border-white/5 flex flex-col items-center text-center shadow-lg">
+                        <span class="material-symbols-outlined text-orange-400 mb-2 text-2xl">build</span>
+                        <span class="text-[10px] font-label tracking-widest text-slate-500 uppercase">Maintenance</span>
+                        <span id="frMaintScore" class="text-3xl font-black font-headline text-white mt-1">0</span>
+                    </div>
+                    <div class="bg-[#1C1F26] p-5 rounded-xl border border-white/5 flex flex-col items-center text-center shadow-lg">
+                        <span class="material-symbols-outlined text-purple-400 mb-2 text-2xl">schedule</span>
+                        <span class="text-[10px] font-label tracking-widest text-slate-500 uppercase">Operations</span>
+                        <span id="frOpsScore" class="text-3xl font-black font-headline text-white mt-1">0</span>
+                    </div>
+                </div>
+
+                <div class="bg-[#1C1F26] rounded-xl border border-white/5 p-6 shadow-lg mb-4" id="frObjectivesContainer" style="display: none;">
+                    <h3 class="text-[10px] font-label tracking-[0.2em] text-sky-400 uppercase mb-4 border-b border-white/5 pb-3">Airline Objectives</h3>
+                    <div id="frObjectivesList" class="flex flex-col gap-3">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <div class="bg-[#1C1F26] rounded-xl border border-white/5 p-6 shadow-lg mb-4">
+                    <h3 class="text-[10px] font-label tracking-[0.2em] text-slate-500 uppercase mb-4 border-b border-white/5 pb-3">Performance Metrics</h3>
+                    <div class="grid grid-cols-5 gap-6">
+                        <div>
+                            <div class="text-[9px] text-slate-500 uppercase tracking-widest mb-1">Block Time</div>
+                            <div id="frBlock" class="text-xl font-mono text-slate-200">--:--</div>
+                        </div>
+                        <div>
+                            <div class="text-[9px] text-slate-500 uppercase tracking-widest mb-1">Punctuality</div>
+                            <div id="frPunc" class="text-xs mt-1 font-bold bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded inline-block uppercase tracking-wider">On Time</div>
+                        </div>
+                        <div>
+                            <div class="text-[9px] text-slate-500 uppercase tracking-widest mb-1">Block Fuel</div>
+                            <div id="frFuel" class="text-xl font-mono text-slate-200">----</div>
+                        </div>
+                        <div>
+                            <div class="text-[9px] text-slate-500 uppercase tracking-widest mb-1">Touchdown</div>
+                            <div id="frFpm" class="text-xl font-mono font-bold text-slate-200">---</div>
+                        </div>
+                        <div>
+                            <div class="text-[9px] text-slate-500 uppercase tracking-widest mb-1">Impact Force</div>
+                            <div id="frGForce" class="text-xl font-mono font-bold text-slate-200">-.- G</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NEW ACHIEVEMENTS UNLOCKED -->
+                <div class="bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/30 rounded-xl p-6 shadow-[0_0_30px_rgba(245,158,11,0.1)] mb-4" id="frAchievementsContainer" style="display: none;">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="material-symbols-outlined text-amber-400 text-2xl animate-pulse">workspace_premium</span>
+                        <h3 class="text-xs font-label tracking-[0.2em] text-amber-400 uppercase font-bold m-0 text-shadow" data-i18n="report_ach_unlc">New Achievements Unlocked!</h3>
+                    </div>
+                    <div id="frAchievementsList" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <div class="bg-[#1C1F26] rounded-xl border border-white/5 p-6 shadow-lg mb-4 flex gap-6 items-start">
+                    <div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center shrink-0 border border-white/10 shadow-inner">
+                        <span class="material-symbols-outlined text-slate-400 text-2xl">record_voice_over</span>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-[10px] font-label tracking-[0.2em] text-slate-400 uppercase mb-2">Chief Pilot Debriefing</h3>
+                        <div id="frChiefPilotSpeech" class="text-sm font-body text-slate-300 italic leading-relaxed">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Debrief Detailed History Accordion -->
+                <details class="group bg-[#1C1F26] rounded-xl border border-white/5 shadow-lg overflow-hidden">
+                    <summary class="flex justify-between items-center p-6 cursor-pointer hover:bg-white/5 transition-colors">
+                        <h3 class="text-[10px] font-label tracking-[0.2em] text-sky-400 uppercase font-bold m-0" data-i18n="report_details">Detailed Flight Log</h3>
+                        <span class="material-symbols-outlined text-slate-500 group-open:rotate-180 transition-transform duration-300">expand_more</span>
+                    </summary>
+                    <div class="p-6 pt-0 border-t border-white/5 max-h-64 overflow-y-auto custom-scrollbar flex flex-col gap-2" id="frEventLog">
+                        <!-- Populated dynamically by JS -->
+                    </div>
+                </details>
+
+                <div class="flex justify-end pt-2">
+                    <button onclick="document.getElementById('flightReportModal').style.display='none'" class="bg-gradient-to-r from-sky-500 to-emerald-400 text-[#0B0C10] px-10 py-3.5 rounded-xl font-bold text-xs uppercase tracking-[0.2em] hover:brightness-110 transition-all shadow-[0_0_20px_rgba(56,189,248,0.3)]">
+                        ACKNOWLEDGE DEBRIEF
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -654,7 +1084,9 @@
     <!-- Hidden audio element -->
     <audio id="notifSound" src="notification.mp3" preload="auto"></audio>
 
-    <script src="app.js?v=15"></script>
+    <script src="locales.js?v=3"></script>
+    <script src="narrative.js?v=1"></script>
+    <script src="app.js?v=17"></script>
     <script>
         // Update top bar dynamically using the flight status
         setInterval(() => {

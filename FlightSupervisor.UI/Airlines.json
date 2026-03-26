@@ -1,0 +1,118 @@
+[
+  {
+    "icao": "AFR",
+    "name": "Air France",
+    "globalScore": 82,
+    "hardProductScore": 7,
+    "softProductScore": 8,
+    "safetyRecord": 9,
+    "punctualityPriority": 6,
+    "directives": [
+      "Le confort cabine doit rester > 80% (Pénalités doublées).",
+      "Évitez de presser l'embarquement."
+    ],
+    "objectives": {
+      "maxDelaySec": 900,
+      "minComfort": 80,
+      "maxTouchdownFpm": -250,
+      "mustPerformCatering": true
+    }
+  },
+  {
+    "icao": "RYR",
+    "name": "Ryanair",
+    "globalScore": 45,
+    "hardProductScore": 2,
+    "softProductScore": 2,
+    "safetyRecord": 8,
+    "punctualityPriority": 10,
+    "directives": [
+      "Turnaround Express : TOUT retard est lourdement sanctionné.",
+      "Le Catering est optionnel, zappez-le pour gagner du temps.",
+      "Tolérance G-Force élargie (+0.2G) sans pénalité."
+    ],
+    "objectives": {
+      "maxDelaySec": 300,
+      "minComfort": 10,
+      "maxTouchdownFpm": -400,
+      "mustPerformCatering": false
+    }
+  },
+  {
+    "icao": "UAE",
+    "name": "Emirates",
+    "globalScore": 95,
+    "hardProductScore": 9,
+    "softProductScore": 9,
+    "safetyRecord": 9,
+    "punctualityPriority": 7,
+    "directives": [
+      "Interdiction formelle de sauter le Catering ou le Nettoyage.",
+      "Tolérance ZÉRO sur l'atterrissage (<-200fpm = blâme).",
+      "Maintenez l'Anxiété Passager sous les 15%."
+    ],
+    "objectives": {
+      "maxDelaySec": 600,
+      "minComfort": 85,
+      "maxTouchdownFpm": -200,
+      "mustPerformCatering": true
+    }
+  },
+  {
+    "icao": "DLH",
+    "name": "Lufthansa",
+    "globalScore": 85,
+    "hardProductScore": 7,
+    "softProductScore": 6,
+    "safetyRecord": 9,
+    "punctualityPriority": 9,
+    "directives": [
+      "Ponctualité Sacrée : +50pts si SOBT respecté à la minute.",
+      "Procédures strictes : Aucun raccourci au sol toléré."
+    ],
+    "objectives": {
+      "maxDelaySec": 0,
+      "minComfort": 75,
+      "maxTouchdownFpm": -250,
+      "mustPerformCatering": true
+    }
+  },
+  {
+    "icao": "EZY",
+    "name": "EasyJet",
+    "globalScore": 55,
+    "hardProductScore": 4,
+    "softProductScore": 5,
+    "safetyRecord": 8,
+    "punctualityPriority": 8,
+    "directives": [
+      "Temps de rotation < 30 min. Restez en avance.",
+      "Autorisation d'embarquer les passagers avant la fin du Fueling."
+    ],
+    "objectives": {
+      "maxDelaySec": 600,
+      "minComfort": 40,
+      "maxTouchdownFpm": -350,
+      "mustPerformCatering": false
+    }
+  },
+  {
+    "icao": "CHT",
+    "name": "Charter Airlines",
+    "globalScore": 50,
+    "hardProductScore": 5,
+    "softProductScore": 5,
+    "safetyRecord": 6,
+    "punctualityPriority": 4,
+    "directives": [
+      "Opérations non-standard : Préparez-vous à des retards passagers.",
+      "La sécurité prime sur les horaires de toute façon."
+    ],
+    "objectives": {
+      "maxDelaySec": 1800,
+      "minComfort": 50,
+      "maxTouchdownFpm": -300,
+      "mustPerformCatering": false
+    }
+  }
+]

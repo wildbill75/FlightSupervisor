@@ -43,11 +43,29 @@ Before requesting your first flight plan, open the **Settings** menu to set up y
 *   **Live Telemetry:** The main dashboard updates your altitude, ground speed, and heading dynamically.
 *   **Cabin Anxiety & Logs:** The Cabin Manifest tab shows your passengers. Aggressive maneuvers and excessive G-forces will trigger passenger anxiety, reducing your Comfort Score.
 
-### Scoring
-You begin every flight with a **SuperScore** of 1000.
-Safety, Comfort, Maintenance, and Operations sub-scores are tracked actively.
-*   **Comfort:** Avoid steep bank angles and G-force spikes.
-*   **Safety/Ops:** Respect speed limits below 10,000ft, do not over-speed your flaps/gear, and manage your ground ops properly.
+### Scoring Mechanism & The 4 Pillars
+You begin every flight with a **Base SuperScore** of 1000 points, acting as your "Captain's License Trust". 
+*   Ending near **1000** implies a standard, safe flight.
+*   Ending **> 1100** rewards exceptional airmanship (e.g., perfect centerline, kiss landings).
+*   Ending **< 800** flags severe SOP violations or potential incidents.
+
+Your score fluctuates dynamically during the flight, silently distributed across **4 Core Pillars** that are evaluated in your final debriefing:
+
+1. **Safety (Airmanship / Sécurité)** 🦺 
+   Focuses on preventing fatal danger and respecting ATC.
+   *Examples:* Speeding (> 250kts) below 10,000ft, unstable approaches, perfect runway centerline tracking (+50), aggressive pitch attitudes, flying without required lights.
+
+2. **Comfort (Confort Passager)** 🍸 
+   Focuses on passenger well-being and anxiety reduction.
+   *Examples:* Harsh braking during taxi, tight high-speed turns, excessive G-forces, high vertical speeds causing ear pressure, smooth "Butter Landings" (+150).
+
+3. **Maintenance (Intégrité Avion)** 🔧 
+   Focuses on preventing structural damage to the airframe.
+   *Examples:* Severe Hard Landings (> 600 fpm) damaging the gear, extending flaps/gear above placard speeds, tailstrikes, or mismanaging engine failures.
+
+4. **Operations (Company Rules)** ⏱️ 
+   Focuses on fuel efficiency and logistical punctuality.
+   *Examples:* Leaving the APU running during cruise (wasting fuel), excessive block delays, or pushing back with pending ground services (forcing compensation claims).
 
 ## 5. Arrival & Debriefing
 

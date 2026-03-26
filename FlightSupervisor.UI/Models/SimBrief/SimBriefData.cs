@@ -85,6 +85,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
         [JsonPropertyName("icao_airline")]
         public string? Airline { get; set; }
 
+        [JsonPropertyName("iata_airline")]
+        public string? IataAirline { get; set; }
+
         [JsonPropertyName("flight_number")]
         public string? FlightNumber { get; set; }
         
@@ -114,6 +117,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
 
         [JsonPropertyName("name")]
         public string? Name { get; set; }
+
+        [JsonPropertyName("reg")]
+        public string? Reg { get; set; }
 
         [JsonPropertyName("base_type")]
         public string? BaseType { get; set; }

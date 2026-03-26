@@ -5,7 +5,7 @@ using FlightSupervisor.UI.Models.SimBrief;
 
 namespace FlightSupervisor.UI.Services
 {
-    public enum GroundServiceState { NotStarted, InProgress, Delayed, Completed, Skipped }
+    public enum GroundServiceState { NotStarted, InProgress, Delayed, Completed, Skipped, WaitingForAction }
 
     public enum GroundOpsSpeed { Realistic, Short, Instant }
 
@@ -16,10 +16,14 @@ namespace FlightSupervisor.UI.Services
         public int TotalDurationSec { get; set; }
         public int ElapsedSec { get; set; }
         public int DelayAddedSec { get; set; }
-        public string StatusMessage { get; set; } = "En attente";
+        public string StatusMessage { get; set; } = "Pending";
         public string ActiveDelayEvent { get; set; } = "";
         public bool IsOptional { get; set; }
         public bool HasBeenDelayed { get; set; } = false;
+        
+        // Story 29: Scheduled Ground Services
+        public int StartOffsetMinutes { get; set; }
+        public bool RequiresManualStart { get; set; }
 
         public int RemainingSec => Math.Max(0, (TotalDurationSec + DelayAddedSec) - ElapsedSec);
         public int ProgressPercent => (TotalDurationSec + DelayAddedSec) == 0 ? 100 : (int)Math.Min(100, Math.Max(0, ((double)ElapsedSec / (TotalDurationSec + DelayAddedSec)) * 100));
@@ -27,7 +31,9 @@ namespace FlightSupervisor.UI.Services
 
     public class DelayEvent
     {
-        public string Description { get; set; } = "";
+        public string DescriptionEn { get; set; } = "";
+        public string DescriptionFr { get; set; } = "";
+        public string Description => LocalizationService.Translate(DescriptionEn, DescriptionFr);
         public int MinDelaySec { get; set; }
         public int MaxDelaySec { get; set; }
     }
@@ -40,36 +46,38 @@ namespace FlightSupervisor.UI.Services
         private Random _rnd = new Random();
         private bool _isStarted = false;
         private DateTime _lastTick;
+        // Story 29
+        public DateTime? TargetSobt { get; private set; }
 
         private static readonly Dictionary<string, List<DelayEvent>> _delayEvents = new(StringComparer.OrdinalIgnoreCase)
         {
-            { "Refuel", new List<DelayEvent> {
-                new() { Description = "Problème de jauge", MinDelaySec = 120, MaxDelaySec = 300 },
-                new() { Description = "Camion en retard", MinDelaySec = 180, MaxDelaySec = 480 },
-                new() { Description = "Procédure anti-déversement", MinDelaySec = 300, MaxDelaySec = 600 }
+            { "Refueling", new List<DelayEvent> {
+                new() { DescriptionEn = "Gauge malfunction", DescriptionFr = "Problème de jauge", MinDelaySec = 120, MaxDelaySec = 300 },
+                new() { DescriptionEn = "Fuel truck delayed", DescriptionFr = "Camion en retard", MinDelaySec = 180, MaxDelaySec = 480 },
+                new() { DescriptionEn = "Spill safety procedure", DescriptionFr = "Procédure anti-déversement", MinDelaySec = 300, MaxDelaySec = 600 }
             }},
             { "Boarding", new List<DelayEvent> {
-                new() { Description = "Passager manquant", MinDelaySec = 300, MaxDelaySec = 900 },
-                new() { Description = "Attente assistance PMR", MinDelaySec = 180, MaxDelaySec = 420 },
-                new() { Description = "Problème passerelle", MinDelaySec = 240, MaxDelaySec = 600 },
-                new() { Description = "Débarquement bagage", MinDelaySec = 300, MaxDelaySec = 480 }
+                new() { DescriptionEn = "Missing passenger", DescriptionFr = "Passager manquant", MinDelaySec = 300, MaxDelaySec = 900 },
+                new() { DescriptionEn = "Waiting for PRM assistance", DescriptionFr = "Attente assistance PMR", MinDelaySec = 180, MaxDelaySec = 420 },
+                new() { DescriptionEn = "Jetbridge fault", DescriptionFr = "Problème passerelle", MinDelaySec = 240, MaxDelaySec = 600 },
+                new() { DescriptionEn = "Offloading baggage", DescriptionFr = "Débarquement bagage", MinDelaySec = 300, MaxDelaySec = 480 }
             }},
             { "Cargo", new List<DelayEvent> {
-                new() { Description = "Fret hors dimension", MinDelaySec = 300, MaxDelaySec = 720 },
-                new() { Description = "Panne du chargeur", MinDelaySec = 300, MaxDelaySec = 600 },
-                new() { Description = "Retard bagages", MinDelaySec = 180, MaxDelaySec = 480 }
+                new() { DescriptionEn = "Oversized freight", DescriptionFr = "Fret hors dimension", MinDelaySec = 300, MaxDelaySec = 720 },
+                new() { DescriptionEn = "Loader breakdown", DescriptionFr = "Panne du chargeur", MinDelaySec = 300, MaxDelaySec = 600 },
+                new() { DescriptionEn = "Late connecting bags", DescriptionFr = "Retard bagages correspondance", MinDelaySec = 180, MaxDelaySec = 480 }
             }},
             { "Catering", new List<DelayEvent> {
-                new() { Description = "Chariots repas manquants", MinDelaySec = 300, MaxDelaySec = 600 },
-                new() { Description = "Contrôle sûreté chariot", MinDelaySec = 180, MaxDelaySec = 360 }
+                new() { DescriptionEn = "Missing meal carts", DescriptionFr = "Chariots repas manquants", MinDelaySec = 300, MaxDelaySec = 600 },
+                new() { DescriptionEn = "Security check", DescriptionFr = "Contrôle sûreté chariot", MinDelaySec = 180, MaxDelaySec = 360 }
             }},
             { "Cleaning", new List<DelayEvent> {
-                new() { Description = "Nettoyage approfondi", MinDelaySec = 180, MaxDelaySec = 420 },
-                new() { Description = "Manque de personnel", MinDelaySec = 240, MaxDelaySec = 480 }
+                new() { DescriptionEn = "Deep cleaning required", DescriptionFr = "Nettoyage approfondi", MinDelaySec = 180, MaxDelaySec = 420 },
+                new() { DescriptionEn = "Staff shortage", DescriptionFr = "Manque de personnel", MinDelaySec = 240, MaxDelaySec = 480 }
             }},
             { "Water/Waste", new List<DelayEvent> {
-                new() { Description = "Fuite tuyau raccordement", MinDelaySec = 120, MaxDelaySec = 360 },
-                new() { Description = "Véhicule indisponible", MinDelaySec = 300, MaxDelaySec = 720 }
+                new() { DescriptionEn = "Hose connection leak", DescriptionFr = "Fuite tuyau raccordement", MinDelaySec = 120, MaxDelaySec = 360 },
+                new() { DescriptionEn = "Vehicle unavailable", DescriptionFr = "Véhicule indisponible", MinDelaySec = 300, MaxDelaySec = 720 }
             }}
         };
 
@@ -80,10 +88,28 @@ namespace FlightSupervisor.UI.Services
         public void InitializeFromSimBrief(SimBriefResponse? sb)
         {
             Services.Clear();
+            TargetSobt = null;
+
             int pax = 0;
             int.TryParse(sb?.Weights?.PaxCount, out pax);
             int fuel = 0;
             int.TryParse(sb?.Fuel?.PlanRamp, out fuel);
+
+            bool isHeavy = false;
+            if (sb != null)
+            {
+                if (sb.Times?.SchedOut != null && long.TryParse(sb.Times.SchedOut, out long unixSobt))
+                {
+                    TargetSobt = DateTimeOffset.FromUnixTimeSeconds(unixSobt).UtcDateTime;
+                }
+
+                string acType = sb.Aircraft?.BaseType ?? sb.Aircraft?.IcaoCode ?? "";
+                if (acType.StartsWith("A33") || acType.StartsWith("A34") || acType.StartsWith("A35") || acType.StartsWith("A38") || 
+                    acType.StartsWith("B74") || acType.StartsWith("B76") || acType.StartsWith("B77") || acType.StartsWith("B78") || acType.StartsWith("MD1"))
+                {
+                    isHeavy = true;
+                }
+            }
 
             double multiplier = SpeedSetting switch {
                 GroundOpsSpeed.Instant => 0.05,
@@ -97,22 +123,46 @@ namespace FlightSupervisor.UI.Services
                 return (int)Math.Max(2.0, baseSec * variation * multiplier);
             }
 
-            Services.Add(new GroundService { Name = "Refuel", TotalDurationSec = applyTime(Math.Max(60, fuel / 50)), IsOptional = false });
-            Services.Add(new GroundService { Name = "Boarding", TotalDurationSec = applyTime(Math.Max(120, pax * 6)), IsOptional = false });
-            Services.Add(new GroundService { Name = "Cargo", TotalDurationSec = applyTime(Math.Max(120, pax * 5)), IsOptional = false });
-            Services.Add(new GroundService { Name = "Catering", TotalDurationSec = applyTime(180), IsOptional = true });
-            Services.Add(new GroundService { Name = "Cleaning", TotalDurationSec = applyTime(300), IsOptional = true });
-            Services.Add(new GroundService { Name = "Water/Waste", TotalDurationSec = applyTime(150), IsOptional = true });
+            // T-Minus schedules depending on size (in minutes)
+            int boardOffset = isHeavy ? -50 : -40;
+            int cargoOffset = isHeavy ? -60 : -45;
+            int caterOffset = isHeavy ? -60 : -45;
+            int cleanOffset = isHeavy ? -65 : -50;
+            int waterOffset = isHeavy ? -65 : -50;
+
+            Services.Add(new GroundService { Name = "Refueling", TotalDurationSec = applyTime(Math.Max(60, fuel / 50)), IsOptional = false, RequiresManualStart = true, StartOffsetMinutes = 0 });
+            Services.Add(new GroundService { Name = "Boarding", TotalDurationSec = applyTime(Math.Max(120, pax * 6)), IsOptional = false, StartOffsetMinutes = boardOffset });
+            Services.Add(new GroundService { Name = "Cargo", TotalDurationSec = applyTime(Math.Max(120, pax * 5)), IsOptional = false, StartOffsetMinutes = cargoOffset });
+            Services.Add(new GroundService { Name = "Catering", TotalDurationSec = applyTime(180), IsOptional = true, StartOffsetMinutes = caterOffset });
+            Services.Add(new GroundService { Name = "Cleaning", TotalDurationSec = applyTime(300), IsOptional = true, StartOffsetMinutes = cleanOffset });
+            Services.Add(new GroundService { Name = "Water/Waste", TotalDurationSec = applyTime(150), IsOptional = true, StartOffsetMinutes = waterOffset });
             
             _isStarted = false;
+            IsPaused = false;
         }
+
+        public bool IsPaused { get; set; } = false;
 
         public void StartOps()
         {
             if (_isStarted) return;
             _isStarted = true;
             _lastTick = DateTime.UtcNow;
-            foreach (var s in Services) { s.State = GroundServiceState.InProgress; s.StatusMessage = "En cours"; }
+            // No longer forcing to InProgress here. Tick() will sort them out based on time.
+        }
+        
+        // Manual trigger capability for Refueling or other paused features
+        public void StartManualService(string name)
+        {
+            var s = Services.FirstOrDefault(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (s != null && s.State == GroundServiceState.WaitingForAction)
+            {
+                s.State = GroundServiceState.InProgress;
+                s.StatusMessage = LocalizationService.Translate("In Progress", "En cours");
+                s.RequiresManualStart = false; // consume the block
+                OnOpsLog?.Invoke(LocalizationService.Translate($"[RAMP AGENT] {name} starting manually.", $"[RAMP AGENT] L'opération {name} demandée manuellement a démarré."));
+                OnOpsUpdated?.Invoke();
+            }
         }
 
         public void SkipService(string name)
@@ -121,15 +171,35 @@ namespace FlightSupervisor.UI.Services
             if (s != null && s.IsOptional && s.State != GroundServiceState.Completed)
             {
                 s.State = GroundServiceState.Skipped;
-                s.StatusMessage = "Ignoré par le Commandant";
+                s.StatusMessage = LocalizationService.Translate("Skipped by Capt.", "Ignoré par le Cdt.");
                 s.ElapsedSec = s.TotalDurationSec + s.DelayAddedSec;
                 OnOpsUpdated?.Invoke();
             }
         }
 
-        public void Tick()
+        // New warp button
+        public void ForceCompleteAllServices()
         {
             if (!_isStarted) return;
+            foreach (var s in Services)
+            {
+                if (s.State != GroundServiceState.Completed && s.State != GroundServiceState.Skipped)
+                {
+                    s.State = GroundServiceState.Completed;
+                    s.StatusMessage = LocalizationService.Translate("Completed", "Terminé");
+                    s.ElapsedSec = s.TotalDurationSec + s.DelayAddedSec;
+                }
+            }
+            OnOpsLog?.Invoke(LocalizationService.Translate("[CAPTAIN] Time Warp initiated. All ground operations successfully rushed to completion.", "[CAPTAIN] Time Warp declenché. Toutes les opérations terminées instantanément."));
+            OnOpsUpdated?.Invoke();
+            OnOpsCompleted?.Invoke();
+            _isStarted = false;
+        }
+
+        // Overloaded Tick to receive Current MSFS Zulu Time from MainWindow
+        public void Tick(DateTime? currentZulu)
+        {
+            if (!_isStarted || IsPaused) return;
             var now = DateTime.UtcNow;
             var delta = (int)(now - _lastTick).TotalSeconds;
             if (delta <= 0) return;
@@ -138,18 +208,68 @@ namespace FlightSupervisor.UI.Services
             bool allDone = true;
             bool changed = false;
 
+            DateTime simTime = currentZulu ?? DateTime.UtcNow;
+            if (simTime.Year < 2000) simTime = DateTime.UtcNow;
+
             foreach (var s in Services)
             {
                 if (s.State == GroundServiceState.Completed || s.State == GroundServiceState.Skipped) continue;
-
                 allDone = false;
+
+                // Time-gated starts
+                if (s.State == GroundServiceState.NotStarted)
+                {
+                    if (s.RequiresManualStart)
+                    {
+                        s.State = GroundServiceState.WaitingForAction;
+                        s.StatusMessage = LocalizationService.Translate("Waiting for Pilot...", "En attente d'action Cdt...");
+                        changed = true;
+                        continue;
+                    }
+
+                    bool shouldStart = true;
+                    if (TargetSobt != null)
+                    {
+                        var startZulu = TargetSobt.Value.AddMinutes(s.StartOffsetMinutes);
+                        if (simTime < startZulu)
+                        {
+                            var waitSec = (int)(startZulu - simTime).TotalSeconds;
+                            s.StatusMessage = LocalizationService.Translate($"Scheduled in {waitSec/60}m", $"Prévu dans {waitSec/60}m");
+                            shouldStart = false;
+                        }
+                    }
+
+                    if (shouldStart)
+                    {
+                        s.State = GroundServiceState.InProgress;
+                        s.StatusMessage = LocalizationService.Translate("In Progress", "En cours");
+                        changed = true;
+                        
+                        // Virtual Actors Logging Start Events
+                        string actor = GetActorForService(s.Name);
+                        string startMsg = GetStartMessageForService(s.Name);
+                        OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] {startMsg}", $"[{actor}] {startMsg}"));
+                    }
+                    else
+                    {
+                        continue; // Don't tick progress if not started
+                    }
+                }
+
+                if (s.State == GroundServiceState.WaitingForAction) continue;
+
+                // Progress the service
                 s.ElapsedSec += delta;
 
                 if (s.ElapsedSec >= s.TotalDurationSec + s.DelayAddedSec)
                 {
                     s.State = GroundServiceState.Completed;
-                    s.StatusMessage = "Terminé";
+                    s.StatusMessage = LocalizationService.Translate("Completed", "Terminé");
                     changed = true;
+                    
+                    string actor = GetActorForService(s.Name);
+                    string endMsg = GetEndMessageForService(s.Name);
+                    OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] {endMsg}", $"[{actor}] {endMsg}"));
                 }
                 else
                 {
@@ -171,25 +291,76 @@ namespace FlightSupervisor.UI.Services
 
                         s.ActiveDelayEvent = eventDesc;
                         s.DelayAddedSec += additionalDelay;
-                        s.StatusMessage = $"Retard: {eventDesc} (+{(additionalDelay/60)}m)";
+                        s.StatusMessage = LocalizationService.Translate($"Delay: {eventDesc} (+{(additionalDelay/60)}m)", $"Retard: {eventDesc} (+{(additionalDelay/60)}m)");
                         changed = true;
                         
-                        OnOpsLog?.Invoke($"[GROUND OPS] {s.Name} Delayed : {eventDesc} (+{(additionalDelay/60)} min)");
+                        string actor = GetActorForService(s.Name);
+                        OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] Ground Op issue: {eventDesc} (+{(additionalDelay/60)} min)", $"[{actor}] Problème sur l'escale : {eventDesc} (+{(additionalDelay/60)} min)"));
                     }
                     // Recover from delay if progressing normally again
                     else if (s.State == GroundServiceState.Delayed && _rnd.NextDouble() < 0.05)
                     {
                         s.State = GroundServiceState.InProgress;
                         s.ActiveDelayEvent = "";
-                        s.StatusMessage = "En cours";
+                        s.StatusMessage = LocalizationService.Translate("In Progress", "En cours");
                         changed = true;
-                        OnOpsLog?.Invoke($"[GROUND OPS] {s.Name} : Reprise de l'opération.");
+                        string actor = GetActorForService(s.Name);
+                        OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] Issue resolved. Operations resumed.", $"[{actor}] Problème résolu. Reprise de l'opération."));
                     }
                 }
             }
 
             if (changed) OnOpsUpdated?.Invoke();
             if (allDone) { _isStarted = false; OnOpsCompleted?.Invoke(); }
+        }
+        
+        // --- Virtual Actor Data Mapping ---
+        private string GetActorForService(string name)
+        {
+            switch (name.ToLower())
+            {
+                case "board":
+                case "boarding":
+                    return "GATE AGENT";
+                case "catering":
+                case "cleaning":
+                    return "PURSER";
+                default: // Fuel, Cargo, Water
+                    return "RAMP AGENT";
+            }
+        }
+
+        private string GetStartMessageForService(string name)
+        {
+            switch (name.ToLower())
+            {
+                case "boarding": return "We are starting general boarding at the terminal.";
+                case "catering": return "Loading the galley catering carts.";
+                case "cleaning": return "Cleaning crew has entered the cabin.";
+                case "cargo": return "Starting lower deck cargo loading.";
+                case "water/waste": return "Servicing the blue water logic systems.";
+                default: return $"{name} is underway.";
+            }
+        }
+
+        private string GetEndMessageForService(string name)
+        {
+            switch (name.ToLower())
+            {
+                case "boarding": return "Passenger count verified. Cabin is secured.";
+                case "catering": return "All trolleys are locked. Catering is completed.";
+                case "cleaning": return "Cabin interior is tidy and ready for flight.";
+                case "cargo": return "Holds are closed and weight is verified.";
+                case "water/waste": return "Service trucks are driving away.";
+                case "refueling": return "Hoses disconnected. Slip is signed.";
+                default: return $"{name} completed.";
+            }
+        }
+
+        // Maintain old overload for compatibility during compile transitions
+        public void Tick()
+        {
+            Tick(null);
         }
 
         public string GetStatusString()
@@ -212,7 +383,7 @@ namespace FlightSupervisor.UI.Services
                 if (s.State != GroundServiceState.Completed && s.State != GroundServiceState.Skipped)
                 {
                     s.State = GroundServiceState.Skipped; // Reusing skipped logic internally, but modifying text
-                    s.StatusMessage = "ABORTED!";
+                    s.StatusMessage = LocalizationService.Translate("ABORTED!", "ANNULÉ !");
                     s.ElapsedSec = s.TotalDurationSec + s.DelayAddedSec;
                 }
             }

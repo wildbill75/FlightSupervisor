@@ -17,13 +17,13 @@ namespace FlightSupervisor.UI.Services
 
         public string GenerateBriefing(SimBriefResponse? response)
         {
-            if (response == null) return "No flight data available for briefing.";
+            if (response == null) return LocalizationService.Translate("No flight data available for briefing.", "Aucune donnée de vol disponible pour le briefing.");
             var weather = response.Weather;
             var gen = response.General;
-            if (weather == null) return "No weather data available for briefing.";
+            if (weather == null) return LocalizationService.Translate("No weather data available for briefing.", "Aucune donnée météo disponible pour le briefing.");
 
             var briefing = new StringBuilder();
-            briefing.AppendLine("Ladies and gentlemen of the flight deck crew, here is our briefing for today.");
+            briefing.AppendLine(LocalizationService.Translate("Ladies and gentlemen of the flight deck crew, here is our briefing for today.", "Mesdames et messieurs l'équipage, voici notre briefing pour aujourd'hui."));
             briefing.AppendLine();
 
             string origRwy = response.Origin?.PlanRwy;
@@ -38,22 +38,22 @@ namespace FlightSupervisor.UI.Services
                     etaUnix = outUnix + eeteSec;
             }
 
-            briefing.AppendLine("FLIGHT PLAN EXPECTATIONS:");
+            briefing.AppendLine(LocalizationService.Translate("FLIGHT PLAN EXPECTATIONS:", "APERÇU DU VOL :"));
             if (!string.IsNullOrEmpty(origRwy))
-                briefing.AppendLine($"Based on preliminary dispatch data, we are expecting a departure from runway {origRwy}.");
+                briefing.AppendLine(LocalizationService.Translate($"Based on preliminary dispatch data, we are expecting a departure from runway {origRwy}.", $"Selon le dispatch, nous prévoyons un départ de la piste {origRwy}."));
             
             if (!string.IsNullOrEmpty(destRwy))
             {
-                briefing.Append($"For our arrival, the planned runway is {destRwy}");
+                briefing.Append(LocalizationService.Translate($"For our arrival, the planned runway is {destRwy}", $"Pour notre arrivée, la piste prévue est la {destRwy}"));
                 
                 string rwyShiftWarning = AnalyzeRunwayWindShift(destRwy, destTaf, etaUnix);
                 if (!string.IsNullOrEmpty(rwyShiftWarning))
                 {
-                    briefing.AppendLine($", but {rwyShiftWarning}");
+                    briefing.AppendLine(LocalizationService.Translate($", but {rwyShiftWarning}", $", mais {rwyShiftWarning}"));
                 }
                 else
                 {
-                    briefing.AppendLine(", though this will be subject to local ATC and weather changes at the time of arrival.");
+                    briefing.AppendLine(LocalizationService.Translate(", though this will be subject to local ATC and weather changes at the time of arrival.", ", bien que cela soit soumis à l'ATC et à la météo du moment."));
                 }
             }
             
@@ -61,12 +61,12 @@ namespace FlightSupervisor.UI.Services
 
             // Altitude & Tropopause
             if (!string.IsNullOrWhiteSpace(gen?.InitialAlt))
-
             {
                 if (int.TryParse(gen.InitialAlt, out int plannedFeet))
                 {
                     int plannedFl = plannedFeet / 100;
-                    string altText = $"Dispatch has filed us for an initial cruise altitude of FL{plannedFl:D3}.";
+                    string altTextEn = $"Dispatch has filed us for an initial cruise altitude of FL{plannedFl:D3}.";
+                    string altTextFr = $"Le dispatch a prévu une altitude de croisière initiale au niveau FL{plannedFl:D3}.";
 
                     int avgTropo = 0;
                     int tropoCount = 0;
@@ -87,12 +87,17 @@ namespace FlightSupervisor.UI.Services
                         avgTropo /= tropoCount;
                         int tropoFl = (int)Math.Round((double)avgTropo / 100);
                         
-                        altText += $" Our route profiling shows the average tropopause height is around FL{tropoFl}.";
+                        altTextEn += $" Our route profiling shows the average tropopause height is around FL{tropoFl}.";
+                        altTextFr += $" Le profil de notre route indique une tropopause moyenne vers le niveau FL{tropoFl}.";
                         
-                        if (plannedFl >= tropoFl)
-                            altText += " Be advised, we will be cruising near or above the tropopause, so monitor your performance margins closely.";
-                        else if (tropoFl - plannedFl >= 20)
-                            altText += " We have excellent vertical performance margin available today if we need to climb to avoid weather.";
+                        if (plannedFl >= tropoFl) {
+                            altTextEn += " Be advised, we will be cruising near or above the tropopause, so monitor your performance margins closely.";
+                            altTextFr += " Attention, nous volerons près ou au-dessus de la tropopause, surveillez bien vos marges de performance.";
+                        }
+                        else if (tropoFl - plannedFl >= 20) {
+                            altTextEn += " We have excellent vertical performance margin available today if we need to climb to avoid weather.";
+                            altTextFr += " Nous disposons d'une excellente marge de montée aujourd'hui si nous devons éviter la météo.";
+                        }
                     }
 
                     if (!string.IsNullOrWhiteSpace(gen?.StepClimbString))
@@ -100,11 +105,12 @@ namespace FlightSupervisor.UI.Services
                         string stepStr = gen.StepClimbString.Trim();
                         if (stepStr.Contains(',') || stepStr.Split('/').Length > 2)
                         {
-                            altText += $" Later in the flight, expect planned step climbs to optimise our fuel burn: {stepStr}.";
+                            altTextEn += $" Later in the flight, expect planned step climbs to optimise our fuel burn: {stepStr}.";
+                            altTextFr += $" Plus tard dans le vol, des montées par paliers sont prévues pour optimiser le carburant : {stepStr}.";
                         }
                     }
 
-                    briefing.AppendLine(altText);
+                    briefing.AppendLine(LocalizationService.Translate(altTextEn, altTextFr));
                 }
             }
             briefing.AppendLine();
@@ -113,8 +119,8 @@ namespace FlightSupervisor.UI.Services
             string destMetar = weather.DestMetar ?? "";
 
             // Departure
-            briefing.AppendLine("DEPARTURE:");
-            briefing.AppendLine(AnalyzeMetar(origMetar, "departure"));
+            briefing.AppendLine(LocalizationService.Translate("DEPARTURE:", "DÉPART :"));
+            briefing.AppendLine(AnalyzeMetar(origMetar, LocalizationService.Translate("departure", "le départ")));
             if (!string.IsNullOrEmpty(response.Origin?.IcaoCode))
             {
                 string origNotams = AnalyzeNotamAlerts(response.Text?.PlanHtml, response.Origin.IcaoCode);
@@ -123,14 +129,14 @@ namespace FlightSupervisor.UI.Services
             briefing.AppendLine();
 
             // Destination
-            briefing.AppendLine("DESTINATION:");
+            briefing.AppendLine(LocalizationService.Translate("DESTINATION:", "DESTINATION :"));
             if (etaUnix > 0 && !string.IsNullOrWhiteSpace(destTaf))
             {
                 briefing.AppendLine(AnalyzeTafAtEta(destTaf, etaUnix));
             }
             else
             {
-                briefing.AppendLine(AnalyzeMetar(destMetar, "destination"));
+                briefing.AppendLine(AnalyzeMetar(destMetar, LocalizationService.Translate("destination", "la destination")));
             }
 
             if (!string.IsNullOrEmpty(response.Destination?.IcaoCode))
@@ -153,24 +159,24 @@ namespace FlightSupervisor.UI.Services
 
             if (!string.IsNullOrWhiteSpace(altnMetarStr) || !string.IsNullOrWhiteSpace(altnTafStr))
             {
-                briefing.AppendLine("ALTERNATE PLAN:");
-                string altnIcao = response.Alternate?.IcaoCode ?? "our alternate";
-                briefing.AppendLine($"Regarding our primary destination alternate, {altnIcao}:");
+                briefing.AppendLine(LocalizationService.Translate("ALTERNATE PLAN:", "PLAN DE DÉGAGEMENT :"));
+                string altnIcao = response.Alternate?.IcaoCode ?? LocalizationService.Translate("our alternate", "notre aéroport de dégagement");
+                briefing.AppendLine(LocalizationService.Translate($"Regarding our primary destination alternate, {altnIcao}:", $"Concernant notre dégagement principal, {altnIcao} :"));
                 
                 // If we have an ETA, maybe use TAF, but for alternate, Metar is usually fine unless it's a long long flight. 
                 // Let's use the TAF if available and we have ETA, else METAR.
                 if (etaUnix > 0 && !string.IsNullOrWhiteSpace(altnTafStr))
                     briefing.AppendLine(AnalyzeTafAtEta(altnTafStr, etaUnix));
                 else if (!string.IsNullOrWhiteSpace(altnMetarStr))
-                    briefing.AppendLine(AnalyzeMetar(altnMetarStr, "the alternate"));
+                    briefing.AppendLine(AnalyzeMetar(altnMetarStr, LocalizationService.Translate("the alternate", "le dégagement")));
                 else
-                    briefing.AppendLine($"We have the necessary weather minimums to safely divert to {altnIcao} if required.");
+                    briefing.AppendLine(LocalizationService.Translate($"We have the necessary weather minimums to safely divert to {altnIcao} if required.", $"Nous avons les minimums météorologiques requis pour nous dérouter vers {altnIcao} en toute sécurité si besoin."));
                 
                 briefing.AppendLine();
             }
 
             // Enroute
-            briefing.AppendLine("ENROUTE & OPERATIONS:");
+            briefing.AppendLine(LocalizationService.Translate("ENROUTE & OPERATIONS:", "EN ROUTE & OPÉRATIONS :"));
 
             // Winds
             if (!string.IsNullOrWhiteSpace(gen?.AvgWindComp) && gen.AvgWindComp != "0")
@@ -179,9 +185,10 @@ namespace FlightSupervisor.UI.Services
                 
                 // If it's just a number, we don't know if it's head or tail in some old formats, but usually positive means tailwind, negative means headwind.
                 // In simbrief, P is plus (tail), M is minus (head). Sometimes it's just "14" (usually positive tail) or "-14".
-                string compType = "tailwind"; // Default positive
-                if (rawComp.StartsWith("M") || rawComp.StartsWith("-") || rawComp.StartsWith("HD")) compType = "headwind";
-                else if (rawComp.StartsWith("P") || rawComp.StartsWith("TL")) compType = "tailwind";
+                string compTypeEn = "tailwind"; // Default positive
+                string compTypeFr = "vent arrière";
+                if (rawComp.StartsWith("M") || rawComp.StartsWith("-") || rawComp.StartsWith("HD")) { compTypeEn = "headwind"; compTypeFr = "vent de face"; }
+                else if (rawComp.StartsWith("P") || rawComp.StartsWith("TL")) { compTypeEn = "tailwind"; compTypeFr = "vent arrière"; }
                                   
                 string compSpdStr = rawComp.Replace("M", "").Replace("P", "").Replace("HD", "").Replace("TL", "").Replace("-", "").Replace("+", "").TrimStart('0');
                 if (string.IsNullOrEmpty(compSpdStr)) compSpdStr = "0";
@@ -193,18 +200,18 @@ namespace FlightSupervisor.UI.Services
                     if (_units.Speed == "KMH")
                     {
                         int kmSpd = (int)Math.Round(compSpd * 1.852);
-                        briefing.AppendLine($"We are expecting an average {compType} of {kmSpd} km/h during cruise.");
+                        briefing.AppendLine(LocalizationService.Translate($"We are expecting an average {compTypeEn} of {kmSpd} km/h during cruise.", $"Nous prévoyons un {compTypeFr} moyen de {kmSpd} km/h en croisière."));
                     }
                     else
                     {
-                        briefing.AppendLine($"We are expecting an average {compType} of {compSpd} knots during cruise.");
+                        briefing.AppendLine(LocalizationService.Translate($"We are expecting an average {compTypeEn} of {compSpd} knots during cruise.", $"Nous prévoyons un {compTypeFr} moyen de {compSpd} nœuds en croisière."));
                     }
 
                     // Format for MCDU (Head/Tail + 3 digits)
-                    string prefix = compType == "headwind" ? "HD" : "TL";
+                    string prefix = compTypeEn == "headwind" ? "HD" : "TL";
                     string mcduFormat = $"{prefix}{compSpd:D3}";
                     
-                    briefing.AppendLine($"For your FMS/MCDU performance initialization, the Trip Wind entry is {mcduFormat}.");
+                    briefing.AppendLine(LocalizationService.Translate($"For your FMS/MCDU performance initialization, the Trip Wind entry is {mcduFormat}.", $"Pour l'initialisation de vos performances FMS/MCDU, l'entrée Vent est {mcduFormat}."));
                     briefing.AppendLine();
                 }
             }
@@ -213,11 +220,11 @@ namespace FlightSupervisor.UI.Services
             bool isOceanic = gen?.Etops == "1" || (gen?.Route != null && (gen.Route.Contains(" NAT") || gen.Route.Contains(" ETP")));
             if (isOceanic)
             {
-                briefing.AppendLine("We are operating this flight under ETOPS regulations for our oceanic crossing. We've verified our Equal-Time Point (ETP) alternates, and weather minimums currently remain well within legal limits for a safe diversion if necessary.");
+                briefing.AppendLine(LocalizationService.Translate("We are operating this flight under ETOPS regulations for our oceanic crossing. We've verified our Equal-Time Point (ETP) alternates, and weather minimums currently remain well within legal limits for a safe diversion if necessary.", "Ce vol est opéré sous la réglementation ETOPS pour notre traversée océanique. Nous avons vérifié nos aéroports de dégagement ETP, et la météo reste dans les marges légales pour un déroutement sûr si besoin."));
             }
             else
             {
-                briefing.AppendLine("We will be closely monitoring our enroute alternates along the flight path for any required diversions.");
+                briefing.AppendLine(LocalizationService.Translate("We will be closely monitoring our enroute alternates along the flight path for any required diversions.", "Nous surveillerons étroitement nos aéroports de dégagement en route pour tout besoin éventuel de déroutement."));
             }
 
             int maxTurb = 0;
@@ -234,16 +241,16 @@ namespace FlightSupervisor.UI.Services
             }
 
             if (maxTurb >= 4)
-                briefing.AppendLine("Weather charts show areas of severe turbulence. Passengers and crew will need to remain seated for significant portions of the flight.");
+                briefing.AppendLine(LocalizationService.Translate("Weather charts show areas of severe turbulence. Passengers and crew will need to remain seated for significant portions of the flight.", "Les cartes météo montrent des zones de turbulences sévères. Les passagers et l'équipage devront rester attachés pendant une grande partie du vol."));
             else if (maxShear >= 3)
-                briefing.AppendLine("Forecasts indicate notable wind shear along our route. We will monitor the radar closely.");
+                briefing.AppendLine(LocalizationService.Translate("Forecasts indicate notable wind shear along our route. We will monitor the radar closely.", "Les prévisions indiquent un cisaillement de vent notable sur notre trajet. Nous garderons un œil attentif sur le radar."));
             else if (maxTurb >= 2)
-                briefing.AppendLine("We might encounter occasional light to moderate turbulence, but overall conditions are acceptable.");
+                briefing.AppendLine(LocalizationService.Translate("We might encounter occasional light to moderate turbulence, but overall conditions are acceptable.", "Nous pourrions rencontrer quelques turbulences légères à modérées, mais les conditions globales sont correctes."));
             else
-                briefing.AppendLine("Enroute winds are stable, expecting a very smooth ride today.");
+                briefing.AppendLine(LocalizationService.Translate("Enroute winds are stable, expecting a very smooth ride today.", "Les vents en route sont stables, nous nous attendons à un vol très calme aujourd'hui."));
             briefing.AppendLine();
 
-            briefing.AppendLine("Please secure the cabin whenever the seatbelt sign is illuminated. Let's have a great flight.");
+            briefing.AppendLine(LocalizationService.Translate("Please secure the cabin whenever the seatbelt sign is illuminated. Let's have a great flight.", "Veuillez vérifier la cabine lorsque la consigne ceintures est allumée. Bon vol à tous."));
 
             return briefing.ToString();
         }
@@ -253,14 +260,14 @@ namespace FlightSupervisor.UI.Services
             var sb = new StringBuilder();
             if (!string.IsNullOrWhiteSpace(metar))
             {
-                sb.AppendLine("CURRENT CONDITIONS:");
-                sb.AppendLine(AnalyzeMetar(metar, "the local area"));
+                sb.AppendLine(LocalizationService.Translate("CURRENT CONDITIONS:", "CONDITIONS ACTUELLES :"));
+                sb.AppendLine(AnalyzeMetar(metar, LocalizationService.Translate("the local area", "la zone locale")));
                 sb.AppendLine();
             }
             if (!string.IsNullOrWhiteSpace(taf))
             {
-                sb.AppendLine("FORECAST (TAF):");
-                sb.AppendLine(AnalyzeMetar(taf, "the forecast"));
+                sb.AppendLine(LocalizationService.Translate("FORECAST (TAF):", "PRÉVISONS (TAF) :"));
+                sb.AppendLine(AnalyzeMetar(taf, LocalizationService.Translate("the forecast", "les prévisions")));
             }
             return sb.ToString().TrimEnd();
         }
@@ -369,7 +376,8 @@ namespace FlightSupervisor.UI.Services
         {
             if (string.IsNullOrWhiteSpace(planHtml)) return "";
             
-            var alerts = new System.Collections.Generic.List<string>();
+            var alertsEn = new System.Collections.Generic.List<string>();
+            var alertsFr = new System.Collections.Generic.List<string>();
             
             var match = Regex.Match(planHtml, $@"(?:NOTAMS? FOR |LOCATION: ){icao}(.*?)(?:NOTAMS? FOR |LOCATION: |END OF |</pre>)", RegexOptions.Singleline | RegexOptions.IgnoreCase);
             if (!match.Success)
@@ -383,23 +391,34 @@ namespace FlightSupervisor.UI.Services
 
             if (Regex.IsMatch(textToScan, @"RWY\s+[0-9]{2}[LRC]?/[0-9]{2}[LRC]?\s+(?:CLSD|CLOSED)", RegexOptions.IgnoreCase) || Regex.IsMatch(textToScan, @"RWY\s+[0-9]{2}[LRC]?\s+(?:CLSD|CLOSED)", RegexOptions.IgnoreCase))
             {
-                alerts.Add("one or more runways are reported closed");
+                alertsEn.Add("one or more runways are reported closed");
+                alertsFr.Add("une ou plusieurs pistes sont fermées");
             }
             if (Regex.IsMatch(textToScan, @"ILS\s+.*?U/S", RegexOptions.IgnoreCase) || Regex.IsMatch(textToScan, @"ILS\s+.*?OUT OF SERVICE", RegexOptions.IgnoreCase) || Regex.IsMatch(textToScan, @"GLIDE PATH.*?U/S", RegexOptions.IgnoreCase))
             {
-                alerts.Add("an Instrument Landing System is reported unserviceable");
+                alertsEn.Add("an Instrument Landing System is reported unserviceable");
+                alertsFr.Add("un système d'atterrissage aux instruments est inopérant");
             }
             if (Regex.IsMatch(textToScan, @"TWY\s+.*?CLSD", RegexOptions.IgnoreCase) || Regex.IsMatch(textToScan, @"TAXIWAY.*?CLSD", RegexOptions.IgnoreCase))
             {
-                alerts.Add("some taxiways are closed");
+                alertsEn.Add("some taxiways are closed");
+                alertsFr.Add("certains taxiways sont fermés");
             }
 
-            if (alerts.Count > 0)
+            if (alertsEn.Count > 0)
             {
-                return $"Reviewing the Notices to Airmen for {icao}, please be aware that {string.Join(" and ", alerts)}. We will brief this in more detail if necessary.";
+                string jointEn = string.Join(" and ", alertsEn);
+                string jointFr = string.Join(" et ", alertsFr);
+                return LocalizationService.Translate(
+                    $"Reviewing the Notices to Airmen for {icao}, please be aware that {jointEn}. We will brief this in more detail if necessary.",
+                    $"À la lecture des NOTAM de {icao}, notez que {jointFr}. Nous approfondirons cela si nécessaire."
+                );
             }
             
-            return $"We have reviewed the Notices to Airmen for {icao}, and no significant operational restrictions were observed.";
+            return LocalizationService.Translate(
+                $"We have reviewed the Notices to Airmen for {icao}, and no significant operational restrictions were observed.",
+                $"Nous avons vérifié les NOTAM de {icao}, et aucune restriction opérationnelle majeure n'a été relevée."
+            );
         }
 
         private string AnalyzeRunwayWindShift(string plannedRwy, string taf, long etaUnix)
@@ -428,7 +447,10 @@ namespace FlightSupervisor.UI.Services
                             // If it's a tailwind of more than 5 knots
                             if (headwindComp <= -5)
                             {
-                                return $"based on the terminal forecast for our arrival time, the winds are expected to shift, creating a significant tailwind. We should anticipate a likely runway change to the opposite direction.";
+                                return LocalizationService.Translate(
+                                    $"based on the terminal forecast for our arrival time, the winds are expected to shift, creating a significant tailwind. We should anticipate a likely runway change to the opposite direction.",
+                                    $"selon les prévisions à notre arrivée, le vent devrait tourner, créant un fort vent arrière. Attendez-vous à un probable changement de piste dans la direction opposée."
+                                );
                             }
                         }
                     }
@@ -447,18 +469,22 @@ namespace FlightSupervisor.UI.Services
                 string activeForecast = GetActiveTafBlockAtEta(taf, etaUnix, out tempoStr);
                 
                 var sb = new StringBuilder();
-                sb.AppendLine("Based on the terminal area forecast for our scheduled arrival time:");
-                sb.AppendLine(AnalyzeMetar(activeForecast, "your arrival"));
+                sb.AppendLine(LocalizationService.Translate("Based on the terminal area forecast for our scheduled arrival time:", "D'après les prévisions pour notre heure d'arrivée prévue :"));
+                sb.AppendLine(AnalyzeMetar(activeForecast, LocalizationService.Translate("your arrival", "votre arrivée")));
 
                 if (tempoStr.Length > 0)
                 {
-                    string tempoAnalyzed = AnalyzeMetar(tempoStr, "temporarily");
-                    var cleanTempo = tempoAnalyzed.Replace("We are lacking recent weather reports for temporarily. Expect standard procedures.", "").Replace("Therefore, we do not anticipate any particular weather-related issues for this phase.", "").Trim();
+                    string tempoAnalyzed = AnalyzeMetar(tempoStr, LocalizationService.Translate("temporarily", "temporairement"));
+                    var cleanTempo = tempoAnalyzed.Replace("We are lacking recent weather reports for temporarily. Expect standard procedures.", "")
+                                                .Replace("Therefore, we do not anticipate any particular weather-related issues for this phase.", "")
+                                                .Replace("Nous manquons de bulletins météo récents pour temporairement. Attendez-vous aux procédures standards.", "")
+                                                .Replace("Par conséquent, nous n'anticipons aucun problème météorologique particulier pour cette phase.", "")
+                                                .Trim();
                     
                     if (!string.IsNullOrWhiteSpace(cleanTempo))
                     {
                         sb.AppendLine();
-                        sb.AppendLine($"However, please be advised that we may encounter the following temporary conditions during our arrival window:");
+                        sb.AppendLine(LocalizationService.Translate("However, please be advised that we may encounter the following temporary conditions during our arrival window:", "Cependant, notez que nous pourrions rencontrer les conditions temporaires suivantes durant notre fenêtre d'arrivée :"));
                         sb.AppendLine(cleanTempo);
                     }
                 }
@@ -467,13 +493,13 @@ namespace FlightSupervisor.UI.Services
             }
             catch(Exception)
             {
-                return AnalyzeMetar(taf, "destination");
+                return AnalyzeMetar(taf, LocalizationService.Translate("destination", "la destination"));
             }
         }
 
         private string AnalyzeMetar(string metar, string phase)
         {
-            if (string.IsNullOrWhiteSpace(metar)) return $"We are lacking recent weather reports for {phase}. Expect standard procedures.";
+            if (string.IsNullOrWhiteSpace(metar)) return LocalizationService.Translate($"We are lacking recent weather reports for {phase}. Expect standard procedures.", $"Nous manquons de bulletins météo récents pour {phase}. Attendez-vous aux procédures standards.");
 
             var conditions = new StringBuilder();
             var upperMetar = metar.ToUpperInvariant();
@@ -503,21 +529,22 @@ namespace FlightSupervisor.UI.Services
                 }
 
                 if (displaySpeed > thresholdStrong || hasGusts) hasBadWeather = true;
-                string intensity = displaySpeed > thresholdStrong ? "strong" : displaySpeed > thresholdMod ? "moderate" : "light";
+                string intensityEn = displaySpeed > thresholdStrong ? "strong" : displaySpeed > thresholdMod ? "moderate" : "light";
+                string intensityFr = displaySpeed > thresholdStrong ? "fort" : displaySpeed > thresholdMod ? "modéré" : "léger";
                 
                 if (dirStr == "VRB")
                 {
-                    conditions.Append($"We have variable {intensity} winds at {displaySpeed} {speedUnit}. ");
+                    conditions.Append(LocalizationService.Translate($"We have variable {intensityEn} winds at {displaySpeed} {speedUnit}. ", $"Nous avons un vent variable {intensityFr} à {displaySpeed} {speedUnit}. "));
                 }
                 else if (int.TryParse(dirStr, out int dir))
                 {
                     string cardinal = GetCardinalDirection(dir);
-                    conditions.Append($"Winds are {intensity}, coming from the {cardinal} at {displaySpeed} {speedUnit}. ");
+                    conditions.Append(cardinal);
                 }
             }
             else
             {
-                conditions.Append("Wind conditions are calm or unavailable. ");
+                conditions.Append(LocalizationService.Translate("Wind conditions are calm or unavailable. ", "Le vent est calme ou les données sont indisponibles. "));
             }
 
             // Parse Temp
@@ -535,10 +562,10 @@ namespace FlightSupervisor.UI.Services
                     tempUnit = "F";
                 }
                 
-                conditions.Append($"The outside temperature is {displayTemp}°{tempUnit}. ");
+                conditions.Append(LocalizationService.Translate($"The outside temperature is {displayTemp}°{tempUnit}. ", $"La température extérieure est de {displayTemp}°{tempUnit}. "));
                 if (tempC <= 3 && (upperMetar.Contains(" BR") || upperMetar.Contains(" FG") || upperMetar.Contains(" SN")))
                 {
-                    conditions.Append("Icing conditions are possible, anti-ice systems might be required. ");
+                    conditions.Append(LocalizationService.Translate("Icing conditions are possible, anti-ice systems might be required. ", "Des conditions givrantes sont possibles, nos systèmes d'anti-givrage pourraient être nécessaires. "));
                     hasBadWeather = true;
                 }
             }
@@ -553,7 +580,7 @@ namespace FlightSupervisor.UI.Services
                 if (pType == "Q") // METAR in hPa
                 {
                     if (_units.Press == "INHG")
-                        conditions.Append($"Altimeter setting is {(pVal * 0.0295300):F2} inHg. ");
+                        conditions.Append(LocalizationService.Translate($"Altimeter setting is {(pVal * 0.0295300):F2} inHg. ", $"Le calage altimétrique est de {(pVal * 0.0295300):F2} inHg. "));
                     else
                         conditions.Append($"QNH {pVal}. ");
                 }
@@ -563,71 +590,74 @@ namespace FlightSupervisor.UI.Services
                     if (_units.Press == "HPA")
                         conditions.Append($"QNH {(int)Math.Round(inHg * 33.8639)}. ");
                     else
-                        conditions.Append($"Altimeter setting is {inHg:F2} inHg. ");
+                        conditions.Append(LocalizationService.Translate($"Altimeter setting is {inHg:F2} inHg. ", $"Le calage altimétrique est de {inHg:F2} inHg. "));
                 }
             }
 
             // Visibility
             if (upperMetar.Contains("CAVOK"))
             {
-                conditions.Append("Visibility is excellent (CAVOK). ");
+                conditions.Append(LocalizationService.Translate("Visibility is excellent (CAVOK). ", "La visibilité est excellente (CAVOK). "));
             }
             else
             {
                 var visMatch = Regex.Match(upperMetar, @"\s([0-9]{4})\s");
                 if (visMatch.Success && int.TryParse(visMatch.Groups[1].Value, out int visMeters))
                 {
-                    if (visMeters < 1000) { conditions.Append("Visibility is extremely low (less than 1km). "); hasBadWeather = true; }
-                    else if (visMeters < 5000) { conditions.Append("Visibility is reduced. "); }
-                    else conditions.Append("Visibility is generally good (over 5km). ");
+                    if (visMeters < 1000) { conditions.Append(LocalizationService.Translate("Visibility is extremely low (less than 1km). ", "La visibilité est extrêmement faible (moins de 1km). ")); hasBadWeather = true; }
+                    else if (visMeters < 5000) { conditions.Append(LocalizationService.Translate("Visibility is reduced. ", "La visibilité est réduite. ")); }
+                    else conditions.Append(LocalizationService.Translate("Visibility is generally good (over 5km). ", "La visibilité est bonne (plus de 5km). "));
                 }
             }
 
             // Weather phenomena
             if (upperMetar.Contains(" TS") || upperMetar.Contains("TSRA") || upperMetar.Contains("VCTS"))
             {
-                conditions.Append("Thunderstorms are reported in the vicinity. ");
+                conditions.Append(LocalizationService.Translate("Thunderstorms are reported in the vicinity. ", "Des orages sont signalés à proximité. "));
                 hasBadWeather = true;
             }
             if (upperMetar.Contains(" -RA") || Regex.IsMatch(upperMetar, @"\sRA\s") || upperMetar.Contains(" +RA"))
             {
-                conditions.Append(upperMetar.Contains(" +RA") ? "Heavy rain is expected. " : "Expect some light to moderate rain. ");
+                conditions.Append(LocalizationService.Translate(
+                    upperMetar.Contains(" +RA") ? "Heavy rain is expected. " : "Expect some light to moderate rain. ",
+                    upperMetar.Contains(" +RA") ? "De fortes pluies sont attendues. " : "Attendez-vous à de la pluie légère à modérée. "
+                ));
                 hasBadWeather = true;
             }
             if (upperMetar.Contains(" SN"))
             {
-                conditions.Append("Snow is reported, de-icing might be required. ");
+                conditions.Append(LocalizationService.Translate("Snow is reported, de-icing might be required. ", "De la neige est signalée, un dégivrage pourrait être nécessaire. "));
                 hasBadWeather = true;
             }
             if (upperMetar.Contains(" FG") || upperMetar.Contains(" BR") || upperMetar.Contains("LIFR") || upperMetar.Contains("VV00") || upperMetar.Contains(" R0"))
             {
-                conditions.Append("Fog or mist is reducing visibility, be prepared for low visibility operations. ");
+                conditions.Append(LocalizationService.Translate("Fog or mist is reducing visibility, be prepared for low visibility operations. ", "Brouillard ou brume réduisant la visibilité, préparons-nous à des opérations par faible visibilité. "));
                 hasBadWeather = true;
             }
             if (upperMetar.Contains(" CB"))
             {
-                conditions.Append("Cumulonimbus clouds are present, potential for heavy turbulence. ");
+                conditions.Append(LocalizationService.Translate("Cumulonimbus clouds are present, potential for heavy turbulence. ", "Nuages cumulonimbus repérés, possible présence de fortes turbulences. "));
                 hasBadWeather = true;
             }
             if (upperMetar.Contains(" WS"))
             {
-                conditions.Append("Wind shear is reported on the runways. ");
+                conditions.Append(LocalizationService.Translate("Wind shear is reported on the runways. ", "Cisaillement de vent signalé sur les pistes. "));
                 hasBadWeather = true;
             }
 
             if (!hasBadWeather && !upperMetar.Contains("CAVOK"))
             {
-                conditions.Append("No significant adverse weather phenomena reported. ");
+                conditions.Append(LocalizationService.Translate("No significant adverse weather phenomena reported. ", "Aucun phénomène météorologique défavorable majeur signalé. "));
             }
 
             // Conclusion
             if (hasBadWeather)
             {
-                conditions.Append("In conclusion, expect some challenging conditions and heightened vigilance.");
+                conditions.Append(LocalizationService.Translate("In conclusion, expect some challenging conditions and heightened vigilance.", "En conclusion, attendez-vous à des conditions délicates exigeant une vigilance accrue."));
             }
             else
             {
-                conditions.Append("Therefore, we do not anticipate any particular weather-related issues for this phase.");
+                conditions.Append(LocalizationService.Translate("Therefore, we do not anticipate any particular weather-related issues for this phase.", "Par conséquent, nous n'anticipons aucun problème météorologique particulier pour cette phase."));
             }
 
             return conditions.ToString().Trim();
@@ -635,10 +665,11 @@ namespace FlightSupervisor.UI.Services
 
         private string GetCardinalDirection(int degrees)
         {
-            string[] directions = { "North", "North-East", "East", "South-East", "South", "South-West", "West", "North-West" };
+            string[] directionsEn = { "North", "North-East", "East", "South-East", "South", "South-West", "West", "North-West" };
+            string[] directionsFr = { "Nord", "Nord-Est", "Est", "Sud-Est", "Sud", "Sud-Ouest", "Ouest", "Nord-Ouest" };
             int index = (int)Math.Round(((double)degrees % 360) / 45);
             if (index == 8) index = 0;
-            return directions[index];
+            return LocalizationService.Translate($"Winds are coming from the {directionsEn[index]}. ", $"Le vent vient du {directionsFr[index]}. ");
         }
     }
 }
