@@ -50,6 +50,7 @@ namespace FlightSupervisor.UI.Services
         private bool _hasTriggeredGearOverspeed = false;
         private bool _hasTriggeredGearLate = false;
         private bool _hasTriggeredGearUpBonus = false;
+        private bool _hasTriggered10kClimbBonus = false;
         private bool _hasTriggeredAbnormalGear = false;
         private bool _hasTriggeredEngineFailure = false;
         private DateTime _lastTightTurnPenalty = DateTime.MinValue;
@@ -80,9 +81,16 @@ namespace FlightSupervisor.UI.Services
         // Fenix specific states
         public int FenixNoseLight { get; set; } = 0;
         public bool IsRunwayTurnoffLightOn { get; set; } = false;
+        public bool IsSeatbeltsOn { get; set; } = true;
         public bool FenixApuMaster { get; set; } = false;
         public bool FenixApuStart { get; set; } = false;
         public bool FenixApuBleed { get; set; } = false;
+        public bool FenixPack1 { get; set; } = false;
+        public bool FenixPack2 { get; set; } = false;
+        
+        public float FenixCabinTempCockpit { get; set; } = 0f;
+        public float FenixCabinTempFwd { get; set; } = 0f;
+        public float FenixCabinTempAft { get; set; } = 0f;
         private DateTime _lastApuPenalty = DateTime.MinValue;
         private DateTime _lastLightPenalty = DateTime.MinValue;
         private DateTime _lastBankPenalty = DateTime.MinValue;
@@ -251,23 +259,8 @@ namespace FlightSupervisor.UI.Services
                     _lastBankPenalty = DateTime.Now;
                     OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Safety Violation: Excessive Bank Angle ({Math.Abs(bank):F0}°)", $"Violation Sécurité: Angle d'inclinaison excessif ({Math.Abs(bank):F0}°)"));
                 }
-                else if (Math.Abs(bank) > 28.0 && (DateTime.Now - _lastBankPenalty).TotalSeconds > 10)
-                {
-                    _lastBankPenalty = DateTime.Now;
-                    OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Comfort Violation: Steep Bank Angle ({Math.Abs(bank):F0}°) causing passenger anxiety", $"Violation Confort: Forte inclinaison ({Math.Abs(bank):F0}°) créant de l'anxiété"));
-                }
                 
-                bool isExcessiveVSC = VerticalSpeed > 4500;
-                bool isExcessiveVSD = VerticalSpeed < -3500;
-                
-                if ((isExcessiveVSC || isExcessiveVSD) && radioHeight > 1500 && (DateTime.Now - _lastVsPenalty).TotalSeconds > 10)
-                {
-                    _lastVsPenalty = DateTime.Now;
-                    string vsDirEn = VerticalSpeed > 0 ? "Climb" : "Descent";
-                    string vsDirFr = VerticalSpeed > 0 ? "Montée" : "Descente";
-                    OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Comfort Violation: High Vertical Speed ({Math.Abs(VerticalSpeed):F0} fpm {vsDirEn}) causing ear pressure", $"Violation Confort: Vitesse Verticale trop forte ({Math.Abs(VerticalSpeed):F0} fpm en {vsDirFr})"));
-                }
-                
+
                 // Pitch Limits: > 30 up or < -15 down (Structural Limits)
                 if ((pitch > 30.0 || pitch < -15.0) && (DateTime.Now - _lastPitchPenalty).TotalSeconds > 10)
                 {
@@ -281,11 +274,6 @@ namespace FlightSupervisor.UI.Services
                     {
                         _lastPitchPenalty = DateTime.Now;
                         OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Safety Violation: Excessive Pitch Angle ({pitch:F0}°)", $"Violation Sécurité: Assiette excessive ({pitch:F0}°)"));
-                    }
-                    else if ((pitch > maxPitchUp - 3.0 || pitch < -7.0) && radioHeight > 500 && (DateTime.Now - _lastPitchPenalty).TotalSeconds > 10)
-                    {
-                        _lastPitchPenalty = DateTime.Now;
-                        OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Comfort Violation: Uncomfortable Pitch Angle ({pitch:F0}°) felt in cabin", $"Violation Confort: Assiette inconfortable ({pitch:F0}°) ressentie en cabine"));
                     }
                 }
 
@@ -301,11 +289,6 @@ namespace FlightSupervisor.UI.Services
                     {
                         _lastGForcePenalty = DateTime.Now;
                         OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Safety Violation: Severe G-Force ({GForce:F2}G)", $"Violation Sécurité: Force G Sévère ({GForce:F2}G)"));
-                    }
-                    else if (GForce > 1.3 || GForce < 0.7)
-                    {
-                        _lastGForcePenalty = DateTime.Now;
-                        OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Comfort Violation: Uncomfortable G-Force ({GForce:F2}G)", $"Violation Confort: Force G Inconfortable ({GForce:F2}G)"));
                     }
                 }
 
@@ -326,11 +309,27 @@ namespace FlightSupervisor.UI.Services
                 }
             }
 
-            // APU Left ON during Cruise Penalty
+            // APU Left ON during Cruise Penalty - DISABLED FOR NOW (STORY 48)
+            /*
             if (CurrentPhase == FlightPhase.Cruise && FenixApuMaster && (DateTime.Now - _lastApuPenalty).TotalMinutes > 15)
             {
                 _lastApuPenalty = DateTime.Now;
                 OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Efficiency Violation: APU left running during Cruise!", "Violation Efficacité: APU oublié en Croisière!"));
+            }
+            */
+
+            // Unpressurized Takeoff Penalty
+            if ((CurrentPhase == FlightPhase.Takeoff || CurrentPhase == FlightPhase.InitialClimb) && 
+                !FenixPack1 && !FenixPack2 && !FenixApuBleed)
+            {
+                if ((DateTime.Now - _lastApuPenalty).TotalMinutes > 0.5)
+                {
+                    _lastApuPenalty = DateTime.Now;
+                    OnPenaltyTriggered?.Invoke(LocalizationService.Translate(
+                        "Safety Violation: Unpressurized Takeoff! (Packs & APU Bleed OFF)", 
+                        "Violation Sécurité: Décollage non pressurisé ! (Packs & APU Bleed OFF)"
+                    ));
+                }
             }
 
             // Ground lighting rules (Strobe & Landing Lights OFF)
@@ -432,11 +431,30 @@ namespace FlightSupervisor.UI.Services
                     break;
 
                 case FlightPhase.Climb:
+                    // 10,000ft Climb Flow Bonus
+                    if (altitude >= 10000 && altitude <= 12000 && !_hasTriggered10kClimbBonus)
+                    {
+                        if (!IsLandingLightOn && FenixNoseLight == 0 && !IsSeatbeltsOn)
+                        {
+                            _hasTriggered10kClimbBonus = true;
+                            OnPenaltyTriggered?.Invoke(LocalizationService.Translate("10,000ft Climb Flow Complete (+50)", "Procédure de montée 10,000ft Complète (+50)"));
+                        }
+                    }
+
                     // If within 500ft of target cruise altitude and leveling off (VS < 500 fpm)
                     if (altitude >= TargetCruiseAltitude - 500 && Math.Abs(VerticalSpeed) < 500) 
                     {
                         ChangePhase(FlightPhase.Cruise);
                         TargetCruiseAltitude = altitude; // Dynamically adjust if we leveled off higher/lower
+                    }
+                    // Critical Bug Fix: Override descent if target cruise altitude was never reached (SimBrief vs actual FL)
+                    else if (VerticalSpeed < -500 && altitude < _highestAltitudeReached - 3000)
+                    {
+                        ChangePhase(FlightPhase.Descent);
+                    }
+                    else if (altitude < 10000 && altitude > 5000 && TargetCruiseAltitude > 10000 && VerticalSpeed < -500) // Fallback
+                    {
+                        ChangePhase(FlightPhase.Descent);
                     }
                     break;
 
@@ -472,12 +490,12 @@ namespace FlightSupervisor.UI.Services
                     {
                         _timeAt50Ft = DateTime.Now;
                     }
-                    if (radioHeight <= 50 && !IsOnGround)
+
+                    if (IsOnGround)
                     {
                         if (_vsHistory.Count > 0)
                         {
-                            // On prend la valeur la plus représentative avant le spike du gear compression
-                            // MSFS a tendance à donner un spike positif ou fortement négatif à l'instant du contact.
+                            // On prend la moyenne des dernières frames avant le contact sol (radioHeight > 2.0)
                             TouchdownFpm = _vsHistory.Average(); 
                         }
                         else
@@ -485,7 +503,7 @@ namespace FlightSupervisor.UI.Services
                             TouchdownFpm = VerticalSpeed;
                         }
                         
-                        if (groundSpeed < 170) ChangePhase(FlightPhase.Landing);
+                        ChangePhase(FlightPhase.Landing);
                     }
                     break;
                 case FlightPhase.Landing:

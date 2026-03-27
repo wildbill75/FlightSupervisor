@@ -1,15 +1,17 @@
 # Flight Supervisor - Agile Tasks Workspace
 
 > **Légende d'avancement :**
-> - `[ ]` : À faire
-> - `[?] À tester (via simulateur)`
-> - `[!] Testé mais défectueux (Bug)`
-> - `[x]` : Développé, testé et validé !
+> - `[ ]` : Ticket À faire
+> - `[?]` : Ticket À tester (via simulateur)
+> - `[!]` : Ticket Testé mais défectueux (Bug)
+> - `[x]` : Ticket Développé, testé et validé !
+> 
+> *Lexique: Le **Ticket** correspond à la ligne d'action d'une liste (ex: "- [ ] Faire la jauge"), et la **Story** correspond au grand ensemble/thème global (ex: "Story 17 : Passenger Satisfaction").*
 
 > **HANDOFF POUR L'AGENT SUIVANT :**
 > - **Mission accomplie :** L'UI est figée, le design carré/uppercase est en place, les espacements de grille réparés. Le rapport de vol (Flight Report) complet a été implémenté en Glassmorphism. L'architecture de "SuperScore" à 4 piliers est définie dans le manuel. L'Artefact a été restauré et fusionné sur Git.
 > - **Documentation :** Voir `docs/UI_Design_System.md` pour les règles graphiques, `docs/User_Manual.md` pour le manuel de fond, et CE FICHIER (`docs/agile_story_task.md`) pour la feuille de route technique.
-> - **Prochaine priorité recommandée :** L'Amnistie du Pilote Automatique (Story 4), la dérogation APU (Story 4), et l'intégration ACARS (Story 6).
+> - **Prochaine priorité recommandée :** Terminer les tests des tickets `[?]`, intégrer la dynamique cabine et les passagers.
 
 ---
 
@@ -50,6 +52,7 @@
 - [ ] Recherche L:Vars Fenix A320 (Seatbelts) via WASM
 - [ ] **Bugfix** : Trouver la bonne LVAR car Seatbelts Fenix reste inerte.
 - [ ] **Validation Live** sous MSFS 2024 / Fenix A320
+- [?] **Ticket** : Reconnexion automatique *silencieuse* MSFS (Si SimConnect coupe, vérifie si l'appli se reconnecte en arrière-plan sans spammer l'UI).
 
 ## Story 2 : Flight State Machine & Resilience
 - [x] Fiabilisation par Radio Height à l'atterrissage
@@ -71,6 +74,7 @@
 - [ ] **Séquençage Logique :** Empêcher le Boarding tant que le Cleaning et le Catering ne sont pas terminés.
 - [ ] **Maintenance Inspection (Turnaround) :** Générer dynamiquement une étape de "Maintenance" supplémentaire dans les Opérations au Sol si l'atterrissage précédent a été trop rude.
 - [ ] **Time-Scale Sync (SOBT vs MSFS) :** Avertir le joueur si le temps restant avant SOBT est insuffisant pour les Ground Ops.
+- [?] **Ticket** : GroundEventEngine (Un cooldown de 5 minutes évite que la valise tombe de la passerelle en boucle).
 
 ## Story 4 : SuperScore & Flight Safety Envelope
 - [x] Système complet d'analyse d'atterrissage (FPM, G-Force)
@@ -93,6 +97,9 @@
 - [ ] **Engine Cooldown (Maintenance)** : Assurer un délai minimum (ex: 3 minutes) entre l'atterrissage et la coupure des réacteurs.
 - [ ] **Contamination Hivernale (Maintenance)** : Pénaliser la rentrée des volets au sol après un atterrissage s'il fait très froid (OAT < 3°C).
 - [ ] **Go-Around / Unstable Approach** : Pénaliser lourdement un atterrissage forcé depuis une approche instable à 1000ft, mais récompenser le Go-Around.
+- [?] **Ticket** : Équilibrage : Les pénalités d'éclairage sont réduites (-50 pour Taxi/Landing oublié, -20 pour Strobes allumés au sol).
+- [?] **Ticket** : Soft Cap du Confort : Le confort a une "soft cap" au sol pour ne pas trop te punir à la porte.
+- [?] **Ticket** : Calcul du Confort: La moyenne du confort est désormais lissée sur le vol entier (un petit coup de frein ne ruine plus l'objectif de 80%).
 
 ## Story 5 : Chronometry & Final Flight Report
 - [x] Rapatriement de la Timetable sur le Dashboard
@@ -102,6 +109,8 @@
 - [x] Générer le "Flight Report" visuel complet de fin de vol (Modale modernisée Glassmorphism).
 - [x] Découplage du rapport : Garantir le prompt du Flight Report à l'arrivée même si SimBrief SchedIn est manquant.
 - [ ] Ajournement des pénalités de retard (Amnistie jusqu'à la phase Arrived)
+- [?] **Ticket** : La modale de Debrief ne dépasse plus de l'écran (Scroll interne implémenté avec hauteur max).
+- [ ] **Ticket** : Develop Post-Flight Briefing Adherence logic (Block Fuel, ZFW, Speed).
 
 ## Story 6 : UI/UX Reorganization
 - [x] Relocaliser "Fetch Plan" et "Start Ops" dans la Sidebar gauche
@@ -118,6 +127,7 @@
 - [x] Ajouter les détails textuels des opérations bloquantes dans la Meta-Bar du Dashboard
 - [x] Refonte des 4 blocs du Dashboard (Flight Details, Routing, Payload, Timetable)
 - [ ] **Système ACARS Intégré (Météo & Dispatch)** : Ajouter un module "ACARS Messages" sur le Dashboard. Permettre de fetch (ou push auto en descente) le METAR/TAF. Générer une notification sonore/visuelle façon "Incoming Message".
+- [ ] **Ticket** : Add Flight Phase Timeline Tracker and Display.
 
 ## Story 7 : Localization (i18n) Support
 - [x] Frontend (`locales.js`) for static UI (buttons, menus, labels).
@@ -181,11 +191,21 @@
 - [x] **Anxiété Cabine (Turbulences) :** Créer la jauge "Passenger Anxiety" basée sur G-Force et assiettes.
 - [x] **Anxiété Cabine (Retard SOBT) :** Retard au départ = angoisse progressive.
 - [x] **Interface "Captain Announcements" (MVP) :** Générer un bouton dynamique ("Announce Delay", "Announce Turbulence") sur le Dashboard qui calme l'anxiété.
-- [ ] **Cabin Intercom (MVP) :** Remplacer le bouton par un module Intercom (Menu déroulant des ordres : "Prepare for Takeoff", "Seats for Landing", etc. + Bouton Send).
+- [x] **Cabin Intercom (MVP) :** Remplacer le bouton par un module Intercom (Menu déroulant des ordres : "Prepare for Takeoff", "Seats for Landing", etc. + Bouton Send).
 - [ ] **Logique Cabin Secured (Backend) :** Intégrer un délai de réponse des PNC suite à un ordre avant d'autoriser certaines phases (ex: Takeoff) sous peine de pénalité de sécurité grave.
 - [ ] **Intégration LVAR Fenix (Advanced) :** Binder le bouton physique `CAB` du Radio Management Panel (RMP) du Fenix A320 pour déclencher l'Intercom directement depuis le cockpit virtuel.
 - [x] **Conséquences Abort / Lost Baggage :** Répercussions des Opérations au Sol abrégées (Plaintes Catering incomplet, valises manquantes).
 - [x] **Intégration UI Stitch :** Refonte générale des jauges vers la charte Neon/Glassmorphism.
+- [x] **Ticket** : Intercom PNC Rénové. Les boutons PA s'affichent dynamiquement selon la phase.
+- [x] **Ticket** : Chaque bouton PNC cliqué la première fois donne +25 pts d'Opérations.
+- [x] **Ticket** : Service Catering. Le bouton "Start Service" lance une jauge de 16 min. Pause si ceintures attachées.
+- [?] **Ticket** : Buff "Satiety". Quand le Catering est à 100%, l'icône de Satiété s'allume et l'anxiété due aux G-Force est divisée par 2.
+- [?] **Ticket** : Les Turbulences (G-Force) affectent maintenant le confort de manière agressive mais douce.
+- [?] **Ticket** : Bruit blanc cabine (Idles) fait très légèrement osciller l'Anxiété. Les commandes Intercom déjà utilisées se cachent de l'UI.
+- [?] **Ticket** : PA Welcome & Descent dynamiques basées sur SimBrief (Destination, Durée, Météo).
+- [ ] **Ticket** : Dynamic In-Flight Service calculation (Base catering speed on block time or distance).
+- [ ] **Ticket** : Manual "Stop Service" / "Resume Service" button for PNC to pause catering during turbulences manually.
+- [ ] **Ticket** : Dynamic Cabin Preparation Time (Add a progress bar for "Prepare Cabin" based on passenger discipline and cabin crew efficiency).
 
 ## Story 18 : Impondérables & Diversions (Déroutements)
 - [ ] **Générateur de Crise :** Créer un moteur de probabilité générant une urgence médicale.
@@ -207,6 +227,7 @@
 ## Story 22 : Flight Logger & History
 - [ ] **Bouton Save Report :** Ajouter un bouton "Save & Close" sur la modale du Final Flight Report pour sauvegarder la session en JSON local.
 - [ ] **Page Flight History :** Créer un onglet UI affichant l'historique complet.
+- [x] **Ticket** : Crash Javascript du Logbook corrigé (Les apostrophes dans le nom des aéroports/villes corrompaient le code source de l'UI en rouvrant un vol).
 
 ## Story 23 : True Airmanship (Manual Flying Bonus)
 - [x] **Détection A/P & A/THR (Approche) :** Démarrer un chrono au passage des 4000ft (début phase Approach) jusqu'au Touchdown.
@@ -243,6 +264,7 @@
 - [x] **Générateur Démographique** : Créer aléatoirement un profil de passagers (Grumpy, Relaxed, Anxious).
 - [x] **Modificateurs Dynamiques** : Altérer les jauges Comfort/Anxiety selon la compagnie et le profil.
 - [x] **Pénalité de Retard (Sans Comms)** : Incrémenter l'anxiété et le confort à la porte (AtGate) si le SOBT est dépassé et qu'aucune annonce de retard n'a été faite.
+- [ ] **Ticket** : Advanced Passenger Demographics (Generate baseline proportions of "Anxious" and "Grumpy" passengers at spawn. These define the incompressible floor levels for Anxiety and Comfort, and dictate the severity of reactions to G-Forces and Delays).
 
 ## Story 29 : Realistic Ground Ops & Time Warp
 - [?] **Automated Scheduling (T-Minus)** : Lier le Catering, Cleaning, et Boarding à l'horloge interne par rapport au SOBT (SimBrief), selon la catégorie de l'avion (Ex: Boarding à T-40 min pour A320).
@@ -280,6 +302,7 @@
   - **⚠️ [TODO 1.0 RELEASE]** : Ré-équilibrer la probabilité d'apparition des évènements (actuellement boostée pour les tests) pour la version finale.
 - [ ] **Scoring Pondéré** : Le SuperScoreManager doit évaluer la décision finale à l'aune des Directives de la Compagnie de la carte d'identité.
 - [x] **Système d'Objectifs (Airline Objectives)** : Ajouter des contrats chiffrés et évaluables (ex: `MaxDelay=15`, `MinComfort=80`, `MaxTouchdownFpm=-200`) dans `Airlines.json`. Les intégrer au `SuperScoreManager.cs` pour une validation stricte (Pass/Fail) à la fin du vol, avec affichage d'une toute nouvelle section "Airline Objectives" [✅/❌] dans le composant UI du Flight Report final.
+- [?] **Ticket** : UI: Les objectifs s'appellent désormais **COMPANY CHALLENGES**. Si tu n'importes rien (SimBrief vide), il est écrit *"No Company Challenge Taken"*.
 
 ## Story 33 : Pilot Profile & Gamification (Statistics & Achievements)
 - [!] **Modèle de Données (C#)** : Persistance locale capricieuse (Le JS ne récupère pas toujours le JSON au lancement). Bug enregistré, on passe à autre chose pour le moment.
@@ -295,3 +318,11 @@
 ### Bugs Fixés
 - [?] **Traductions Ground Ops** : Remplacement des constantes Javascript en dur par le dictionnaire `locales.js` pour supporter dynamiquement le FR et l'EN.
 - [?] **Feedback Immersif Modal** : Le log de feedback (ex: "Décision Cdt reçue") après avoir pris une décision depuis un Pop-up s'affichait dans l'onglet des pénalités caché. Le flux C# a été routé vers `type = "cabinLog"` pour apparaître directement dans le live feed des opérations au sol.
+- [❓] **Bugfix** : "Severe Hard Landing" MSFS physics spike (-700fpm) bypassé. Le FlightPhaseManager enregistre dorénavant le FPM réel lissé de l'arrondi (Flare) et non la rafale physique à 0 AGL.
+- [?] **Bugfix** : Correction de l'inversion de Math de Score. "Perfect Flare" et "10k Climb Flow" ne renvoient plus un malus par défaut de -100 points dans le SuperScoreManager.
+
+## Story 34 : Category C Airports Gameplay
+- [ ] **Ticket** : Qualif/Rewards for Madeira, Ajaccio, etc.
+
+## Story 35 : Pre-Flight Cockpit Scrambler
+- [ ] **Ticket** : Randomize switches on first spawn to simulate messy previous crew.

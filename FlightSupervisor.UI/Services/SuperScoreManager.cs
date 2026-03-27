@@ -59,10 +59,10 @@ namespace FlightSupervisor.UI.Services
                 else if (msg.Contains("Unstable Approach") || msg.Contains("Approche Instable")) { penalty = -500; category = ScoreCategory.Safety; }
                 else if (msg.Contains("Excessive Bank") || msg.Contains("Inclinaison")) { penalty = -100; category = ScoreCategory.Safety; }
                 else if (msg.Contains("Excessive Pitch") || msg.Contains("Assiette")) { penalty = -100; category = ScoreCategory.Safety; }
-                else if (msg.Contains("Landing Lights")) { penalty = -100; category = ScoreCategory.Safety; }
-                else if (msg.Contains("Taxi Lights") || msg.Contains("Phares de Taxi")) { penalty = -100; category = ScoreCategory.Safety; }
-                else if (msg.Contains("Strobes or Landing Lights ON during ground ops") || msg.Contains("Strobes/Landing au sol")) { penalty = -100; category = ScoreCategory.Safety; }
-                else if (msg.Contains("Taxiing without Taxi Lights ON") || msg.Contains("sans Phares de Taxi")) { penalty = -100; category = ScoreCategory.Safety; }
+                else if (msg.Contains("Landing Lights")) { penalty = -50; category = ScoreCategory.Safety; }
+                else if (msg.Contains("Taxi Lights") || msg.Contains("Phares de Taxi")) { penalty = -50; category = ScoreCategory.Safety; }
+                else if (msg.Contains("Strobes or Landing Lights ON during ground ops") || msg.Contains("Strobes/Landing au sol")) { penalty = -20; category = ScoreCategory.Safety; }
+                else if (msg.Contains("Taxiing without Taxi Lights ON") || msg.Contains("sans Phares de Taxi")) { penalty = -50; category = ScoreCategory.Safety; }
                 else if (msg.Contains("Severe Hard Landing") || msg.Contains("Impact TRÈS violent")) { penalty = -300; category = ScoreCategory.Maintenance; }
                 else if (msg.Contains("Hard Landing") || msg.Contains("Impact rude")) { penalty = -150; category = ScoreCategory.Comfort; }
                 else if (msg.Contains("Butter Landing") || msg.Contains("Atterrissage Parfait")) { penalty = 150; category = ScoreCategory.Comfort; }
@@ -73,6 +73,7 @@ namespace FlightSupervisor.UI.Services
                 else if (msg.Contains("Comfort Violation: Steep Bank Angle") || msg.Contains("Inclinaison inconfortable")) { penalty = -10; category = ScoreCategory.Comfort; }
                 else if (msg.Contains("Comfort Violation: High Vertical Speed") || msg.Contains("Vitesse Verticale trop forte")) { penalty = -10; category = ScoreCategory.Comfort; }
                 else if (msg.Contains("Comfort Violation: Uncomfortable Pitch Angle") || msg.Contains("Assiette inconfortable")) { penalty = -10; category = ScoreCategory.Comfort; }
+                else if (msg.Contains("Unpressurized Takeoff") || msg.Contains("Décollage non pressurisé")) { penalty = -500; category = ScoreCategory.Safety; }
                 else if (msg.Contains("Poor Line-up Configuration") || msg.Contains("Mauvaise Configuration Alignement")) { penalty = -100; category = ScoreCategory.Safety; }
                 else if (msg.Contains("Line-up Configuration Bonus") || msg.Contains("Bonus Alignement")) { penalty = 50; category = ScoreCategory.Safety; }
                 else if (msg.Contains("Extreme Crosswind Landing") || msg.Contains("Atterrissage Extrême de Travers")) { penalty = 150; category = ScoreCategory.Safety; }
@@ -84,6 +85,8 @@ namespace FlightSupervisor.UI.Services
                 else if (msg.Contains("Short Landing") || msg.Contains("Atterrissage trop court")) { penalty = -100; category = ScoreCategory.Safety; }
                 else if (msg.Contains("Float Landing") || msg.Contains("Atterrissage trop long")) { penalty = -100; category = ScoreCategory.Safety; }
                 else if (msg.Contains("Perfect Touchdown Zone") || msg.Contains("Zone de Toucher Parfaite")) { penalty = 50; category = ScoreCategory.Safety; }
+                else if (msg.Contains("Perfect Flare") || msg.Contains("Arrondi Parfait")) { penalty = 50; category = ScoreCategory.Safety; }
+                else if (msg.Contains("10,000ft Climb Flow Complete") || msg.Contains("Procédure de montée 10,000ft Complète")) { penalty = 50; category = ScoreCategory.Operations; }
                 else if (msg.Contains("Centerline Deviation") || msg.Contains("Déviation majeure")) { penalty = -100; category = ScoreCategory.Safety; }
                 else if (msg.Contains("Perfect Centerline") || msg.Contains("Axe Parfait")) { penalty = 50; category = ScoreCategory.Safety; }
                 else if (msg.Contains("Crosswind Bonus Cancelled") || msg.Contains("Bonus Vent de Travers Annulé")) { penalty = 0; category = ScoreCategory.Safety; }

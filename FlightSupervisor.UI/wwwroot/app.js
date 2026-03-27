@@ -74,12 +74,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // UI Options Load
-    const selItems = ['selLanguage', 'selTimeFormat', 'selUnitSpeed', 'selUnitAlt', 'selUnitWeight', 'selUnitTemp', 'selUnitPress'];
+    const selItems = ['selLanguage', 'selTimeFormat', 'selUnitSpeed', 'selUnitAlt', 'selUnitWeight', 'selUnitTemp', 'selUnitPress', 'selCrisisFreq'];
     selItems.forEach(id => {
         const val = localStorage.getItem(id);
         const el = document.getElementById(id);
         if (val && el) el.value = val;
     });
+    
+    setTimeout(() => {
+        const initialFreq = localStorage.getItem('selCrisisFreq') || 'Realistic';
+        window.chrome.webview.postMessage({ action: 'setCrisisFrequency', value: initialFreq });
+    }, 500);
 
     // Time Formatting
     window.getFormattedTime = function(unix) {
@@ -146,6 +151,95 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 500);
 
+    window.closeSystemMenu = function() {
+        const sysMenu = document.getElementById('systemMenu');
+        sysMenu.classList.add('opacity-0', 'pointer-events-none');
+        sysMenu.classList.remove('opacity-100');
+    }
+
+    function updateIntercomButtons(payload) {
+        const container = document.getElementById('dynamicIntercomContainer');
+        if (!container) return;
+
+        let buttonsHtml = '';
+        const phase = payload.phaseEnum; // Provided via backend: "AtGate", "TaxiOut", "Cruise", etc.
+        const used = payload.issuedCommands || [];
+
+        // Button Generator Helper
+        const makeBtn = (action, val, text, colorClass, iconHtml) => {
+            const propName = action === 'pncCommand' ? 'command' : (action === 'resolveCrisis' ? 'crisisType' : 'annType');
+            return `<button onclick="window.chrome.webview.postMessage({action:'${action}', ${propName}:'${val}'})" class="w-full py-2 ${colorClass} rounded-lg text-white font-bold text-[10px] uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow hover:brightness-110">
+                        <span class="material-symbols-outlined text-[14px]">${iconHtml}</span> ${text}
+                    </button>`;
+        };
+
+        const colorsPnc = 'bg-sky-900/40 border border-sky-500/30 text-sky-400';
+        const colorsPa = 'bg-emerald-900/40 border border-emerald-500/30 text-emerald-400';
+        const colorsAlert = 'bg-orange-900/40 border border-orange-500/30 text-orange-400';
+
+        // Cabin Passenger Announcements (PA)
+        if (phase === 'AtGate' || phase === 'Boarding') {
+            if (!used.includes('PA_Welcome')) {
+                buttonsHtml += makeBtn('announceCabin', 'Welcome', 'PA: Welcome Aboard', colorsPa, 'campaign');
+            }
+            if (payload.isDelayed && !used.includes('PA_Delay')) {
+                buttonsHtml += makeBtn('announceCabin', 'Delay', 'PA: Apology for Delay', colorsAlert, 'warning');
+            }
+        } else if (phase === 'Descent') {
+            if (!used.includes('PA_Descent')) {
+                buttonsHtml += makeBtn('announceCabin', 'Descent', 'PA: Initial Descent', colorsPa, 'campaign');
+            }
+        }
+
+        // PNC Crew Commands (Intercom)
+        if (phase === 'TaxiOut') {
+            if (!used.includes('PREPARE_TAKEOFF')) {
+                buttonsHtml += makeBtn('pncCommand', 'PREPARE_TAKEOFF', 'PNC: Prepare for Takeoff', colorsPnc, 'airline_seat_recline_normal');
+            }
+        }
+        if (phase === 'TaxiOut' || phase === 'Takeoff' || phase === 'InitialClimb') {
+            if (!used.includes('SEATS_TAKEOFF')) {
+                buttonsHtml += makeBtn('pncCommand', 'SEATS_TAKEOFF', 'PNC: Seats for Takeoff', colorsPnc, 'airline_seat_recline_extra');
+            }
+        }
+        if (phase === 'Climb' || phase === 'Cruise') {
+            if (!used.includes('START_SERVICE') && payload.cabinState !== 'ServingMeals') {
+                buttonsHtml += makeBtn('pncCommand', 'START_SERVICE', 'PNC: Start Service', colorsPnc, 'room_service');
+            }
+        }
+        if (phase === 'Descent') {
+            if (!used.includes('PREPARE_LANDING')) {
+                buttonsHtml += makeBtn('pncCommand', 'PREPARE_LANDING', 'PNC: Prepare for Landing', colorsPnc, 'flight_land');
+            }
+        }
+        if (phase === 'Approach' || phase === 'FinalApproach') {
+            if (!used.includes('SEATS_LANDING')) {
+                buttonsHtml += makeBtn('pncCommand', 'SEATS_LANDING', 'PNC: Seats for Landing', colorsPnc, 'airline_seat_recline_extra');
+            }
+        }
+
+        // Turbulence / Seatbelt Warnings (Available Airborne)
+        if (phase !== 'AtGate' && phase !== 'TaxiOut' && phase !== 'TaxiIn') {
+            if (payload.seatbeltsOn) {
+                buttonsHtml += makeBtn('announceCabin', 'Turbulence', 'PA: Turbulence Warning', colorsAlert, 'campaign');
+            }
+        }
+
+        // Active Crisis Resolutions
+        if (payload.activeCrisis === 'MedicalEmergency') {
+            buttonsHtml += makeBtn('resolveCrisis', 'MedicalEmergency', 'PA: Page Doctor On Board', 'bg-red-900/60 border border-red-500 text-red-400 animate-pulse', 'medical_services');
+        } else if (payload.activeCrisis === 'UnrulyPassenger') {
+            buttonsHtml += makeBtn('resolveCrisis', 'UnrulyPassenger', 'PNC: Restrain Passenger', 'bg-red-900/60 border border-red-500 text-red-400 animate-pulse', 'security');
+        }
+
+        // Always Available
+        buttonsHtml += makeBtn('pncCommand', 'REQUEST_STATUS', 'PNC: Request Cabin Report', 'bg-slate-800/80 border border-slate-600/50 text-slate-300', 'assignment');
+
+        // Prevent redundant DOM updates
+        if (container.innerHTML !== buttonsHtml) {
+            container.innerHTML = buttonsHtml;
+        }
+    }
     const selLanguage = document.getElementById('selLanguage');
     if (selLanguage) {
         selLanguage.addEventListener('change', (e) => {
@@ -209,10 +303,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const weatherSrc = document.getElementById('selWeatherSource') ? document.getElementById('selWeatherSource').value : 'SimBrief';
             const gsxSync = document.getElementById('chkGsxSync') ? document.getElementById('chkGsxSync').checked : false;
             
-            const selItems = ['selLanguage', 'selTimeFormat', 'selUnitSpeed', 'selUnitAlt', 'selUnitWeight', 'selUnitTemp', 'selUnitPress'];
+            const selItems = ['selLanguage', 'selTimeFormat', 'selUnitSpeed', 'selUnitAlt', 'selUnitWeight', 'selUnitTemp', 'selUnitPress', 'selCrisisFreq'];
             selItems.forEach(id => {
                 const el = document.getElementById(id);
-                if (el) localStorage.setItem(id, el.value);
+                if (el) {
+                    localStorage.setItem(id, el.value);
+                    if (id === 'selCrisisFreq') {
+                        window.chrome.webview.postMessage({ action: 'setCrisisFrequency', value: el.value });
+                    }
+                }
             });
             const hardcore = document.getElementById('chkHardcore') ? document.getElementById('chkHardcore').checked : false;
             localStorage.setItem('chkHardcore', hardcore);
@@ -427,6 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
             action: 'fetch',
             username: username,
             remember: remember,
+            weatherSource: localStorage.getItem('weatherSource') || 'simbrief',
             groundSpeed: groundSpeed,
             groundProb: groundProb,
             units: {
@@ -525,6 +625,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 break;
             case 'telemetry':
+                updateIntercomButtons(payload);
                 document.getElementById('flightPhase').innerText = `${payload.phase}`;
                 if (payload.anxiety !== undefined) {
                     const anxEl = document.getElementById('paxAnxietyValue');
@@ -557,6 +658,31 @@ document.addEventListener('DOMContentLoaded', () => {
                         comfEl.style.textShadow = `0 0 20px ${color}4A`;
                         comfBar.style.backgroundColor = color;
                         comfBar.style.boxShadow = `0 0 8px ${color}80`;
+                    }
+                }
+
+                // Satiety and Catering Progression
+                const sIcon = document.getElementById('satietyIcon');
+                if (sIcon) {
+                    if (payload.satietyActive) sIcon.classList.remove('hidden');
+                    else sIcon.classList.add('hidden');
+                }
+                
+                if (payload.serviceProgress !== undefined && payload.cabinState) {
+                    const cBox = document.getElementById('cateringProgressBox');
+                    const cBar = document.getElementById('cateringBar');
+                    const cVal = document.getElementById('cateringValue');
+                    
+                    if (cBox && cBar && cVal) {
+                        if (payload.cabinState === 'ServingMeals' && payload.serviceProgress > 0 && payload.serviceProgress < 100) {
+                            cBox.classList.remove('opacity-0', 'h-0');
+                            cBox.classList.add('opacity-100', 'h-10');
+                            cBar.style.width = `${payload.serviceProgress}%`;
+                            cVal.innerHTML = `${Math.round(payload.serviceProgress)}<span class="text-[10px] text-slate-500 font-light ml-1">%</span>`;
+                        } else {
+                            cBox.classList.remove('opacity-100', 'h-10');
+                            cBox.classList.add('opacity-0', 'h-0');
+                        }
                     }
                 }
 
@@ -709,6 +835,46 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 break;
+            case 'crisisTriggered':
+                const crisisBanner = document.getElementById('crisisBanner');
+                const crisisTitle = document.getElementById('crisisTitle');
+                const crisisDesc = document.getElementById('crisisDesc');
+                const crisisAudio = document.getElementById('crisisAudio');
+                
+                if (crisisBanner) {
+                    if (crisisTitle) crisisTitle.innerText = payload.title || "CRITICAL ALERT";
+                    if (crisisDesc) crisisDesc.innerText = payload.desc || "Immediate crew action required in the cabin.";
+                    crisisBanner.style.transform = 'translateY(0)';
+                }
+                if (crisisAudio) {
+                    crisisAudio.loop = true;
+                    crisisAudio.play().catch(e => console.warn("Audio autoplay blocked:", e));
+                }
+                break;
+            case 'crisisTick':
+                const cTimer = document.getElementById('crisisTimer');
+                if (cTimer && payload.elapsedSeconds !== undefined) {
+                    const elapsed = payload.elapsedSeconds;
+                    const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                    const s = (elapsed % 60).toString().padStart(2, '0');
+                    cTimer.innerText = `${m}:${s}`;
+                    cTimer.classList.remove('text-white', 'text-red-400');
+                    if (elapsed > 60) cTimer.classList.add('text-red-400');
+                    else cTimer.classList.add('text-white');
+                }
+                break;
+            case 'crisisResolved':
+                const cBannerRes = document.getElementById('crisisBanner');
+                const cAudioRes = document.getElementById('crisisAudio');
+                
+                if (cBannerRes) {
+                    cBannerRes.style.transform = 'translateY(-100%)';
+                }
+                if (cAudioRes) {
+                    cAudioRes.pause();
+                    cAudioRes.currentTime = 0;
+                }
+                break;
             case 'phaseUpdate':
                 document.getElementById('flightPhase').innerText = `${payload.phase}`;
                 if (payload.aobtUnix) {
@@ -796,15 +962,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const objList = document.getElementById('frObjectivesList');
                 if (objContainer && objList) {
                     objList.innerHTML = '';
+                    objContainer.style.display = 'block';
+                    
                     if (rep.Objectives && rep.Objectives.length > 0) {
-                        objContainer.style.display = 'block';
                         rep.Objectives.forEach(obj => {
                             const isPass = obj.Passed;
                             const icon = isPass ? 'check_circle' : 'cancel';
                             const iconColor = isPass ? 'text-emerald-400' : 'text-red-400';
                             const bgColor = isPass ? 'bg-emerald-500/10' : 'bg-red-500/10';
                             const ptsStr = obj.Points > 0 ? `+${obj.Points} pts` : `${obj.Points} pts`;
-                            
+
                             const row = document.createElement('div');
                             row.className = `flex items-center justify-between p-3 rounded-xl border border-white/5 ${bgColor}`;
                             row.innerHTML = `
@@ -817,7 +984,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             objList.appendChild(row);
                         });
                     } else {
-                        objContainer.style.display = 'none';
+                        objList.innerHTML = `
+                            <div class="flex items-center justify-center p-3 rounded-xl border border-white/5 bg-slate-800/30">
+                                <span class="text-sm text-slate-400 font-medium italic">No Company Challenge taken</span>
+                            </div>
+                        `;
                     }
                 }
 
@@ -931,18 +1102,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'penalty':
             case 'log':
-                const log = document.getElementById('penaltyLogs');
-                const li = document.createElement('li');
-                li.innerText = `[${window.getLocalFormattedTime()}] ${payload.message}`;
+                const log1 = document.getElementById('penaltyLogs');
+                const log2 = document.getElementById('liveScoreLog');
                 
                 let logColor = '#cbd5e1';
                 if (payload.type === 'penalty') {
                     logColor = (payload.message.includes('(+') || payload.message.includes('Bonus') || payload.message.includes('Parfait')) ? '#34D399' : '#F87171';
                 }
-                li.style.color = logColor;
+
+                if (log1) {
+                    const li = document.createElement('li');
+                    li.innerText = `[${window.getLocalFormattedTime()}] ${payload.message}`;
+                    li.style.color = logColor;
+                    li.style.marginBottom = '5px';
+                    log1.prepend(li);
+                }
                 
-                li.style.marginBottom = '5px';
-                log.prepend(li);
+                if (log2) {
+                    const placeholder = log2.querySelector('li.text-center');
+                    if (placeholder) placeholder.remove();
+                    const li2 = document.createElement('li');
+                    li2.innerText = `[${window.getLocalFormattedTime()}] ${payload.message}`;
+                    li2.style.color = logColor;
+                    li2.style.fontSize = '11px';
+                    li2.style.borderLeft = `2px solid ${logColor}`;
+                    li2.style.paddingLeft = '6px';
+                    li2.style.marginBottom = '4px';
+                    log2.prepend(li2);
+                }
                 break;
             case 'cabinLog':
                 const clog = document.getElementById('cabinLogsList');
@@ -957,7 +1144,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     cli.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
                     cli.style.paddingBottom = '3px';
                     clog.prepend(cli);
-                    if (clog.children.length > 8) clog.removeChild(clog.lastChild);
+                    if (clog.children.length > 3) clog.removeChild(clog.lastChild);
                 }
                 break;
             case 'InitProfile':
@@ -1389,56 +1576,91 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (document.getElementById('bdFuel')) document.getElementById('bdFuel').innerText = convertWeight(fuel) + ' ' + uiWeightUnit;
                 }
 
-                window.parseBriefing = (text) => {
-                    if (!text) return '';
-                    
-                    const sections = text.split(/(?:\r?\n)?(FLIGHT PLAN EXPECTATIONS:|APERÇU DU VOL :|DEPARTURE:|DÉPART :|DESTINATION:|DESTINATION :|ALTERNATE PLAN:|PLAN DE DÉGAGEMENT :|ENROUTE & OPERATIONS:|EN ROUTE & OPÉRATIONS :)\r?\n/);
+                window.parseBriefing = (data) => {
+                    if (!data) return '';
+                    if (typeof data === 'string') return "<i>Updating format...</i>";
                     
                     let html = '';
                     
-                    if (sections[0] && sections[0].trim().length > 0) {
-                        html += `<div class="mb-6 italic text-slate-400 text-sm px-2">${sections[0].trim()}</div>`;
+                    if (data.HeaderText) {
+                        html += `<div class="mb-6 italic text-amber-400 font-semibold text-sm px-2 text-center border-b border-amber-900/30 pb-4">${data.HeaderText}</div>`;
                     }
 
-                    html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+                    html += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">';
                     
-                    for (let i = 1; i < sections.length; i+=2) {
-                        let title = sections[i].replace(':', '').trim();
-                        let content = sections[i+1] ? sections[i+1].trim() : '';
-                        
-                        // Syntax highlighting
-                        content = content.replace(/(?:\bRunway\s+|\bPiste\s+|\brunway\s+|\bpiste\s+)([0-9]{2}[A-Z]?)/gi, 'Runway <span class="text-sky-400 font-bold bg-sky-900/30 px-1.5 py-0.5 rounded">$1</span>');
-                        content = content.replace(/(FL[0-9]{3}|TL[0-9]{3}|HD[0-9]{3})/g, '<span class="text-pink-400 font-bold font-mono bg-pink-900/30 px-1.5 py-0.5 rounded">$1</span>');
-                        content = content.replace(/([0-9]+\s*knots|winds.*?at\s+[0-9]+\s*knots|[0-9]+\s*nœuds)/gi, '<span class="text-emerald-400 font-bold">$&</span>');
-                        content = content.replace(/(-?[0-9]+°[CF])/g, '<span class="text-amber-400 font-bold">$1</span>');
-                        content = content.replace(/(QNH\s+[0-9]{4})/gi, '<span class="text-purple-400 font-bold bg-purple-900/30 px-1.5 py-0.5 rounded">$1</span>');
-                        
-                        content = content.replace(/(destination alternate,\s*|dégagement prévu,\s*)([A-Z]{4})/gi, '$1<span class="text-sky-400 font-bold border-b border-dashed border-sky-400">$2</span>');
-                        
-                        content = content.replace(/(closed|unserviceable|wind shear|severe turbulence|significant tailwind|out of service|fermée|hors service|cisaillement|vent arrière|turbulences)/gi, '<span class="text-red-400 font-bold underline">$&</span>');
-                        content = content.replace(/(no significant operational restrictions|Aucune restriction)/gi, '<span class="text-emerald-400 font-bold">$&</span>');
+                    if (data.Stations && Array.isArray(data.Stations)) {
+                        data.Stations.forEach(station => {
+                            let icon = "📋";
+                            if (station.Id.toLowerCase() === "origin") icon = "🛫";
+                            else if (station.Id.toLowerCase() === "destination") icon = "🛬";
+                            else if (station.Id.toLowerCase() === "alternate") icon = "🔄";
+                            
+                            let variablesHtml = '';
+                            const addPill = (label, value, colorClass) => {
+                                if(value && value.trim() !== '') {
+                                    variablesHtml += `
+                                        <div class="flex flex-col bg-black/40 rounded border border-white/5 p-2 justify-center items-center text-center">
+                                            <span class="text-[9px] uppercase tracking-wider text-slate-500 mb-1">${label}</span>
+                                            <span class="font-bold text-xs ${colorClass}">${value}</span>
+                                        </div>
+                                    `;
+                                }
+                            };
 
-                        content = content.replace(/\r\n\r\n|\n\n/g, '<br/><br/>').replace(/\r\n|\n/g, '<br/>');
+                            addPill('QNH', station.Qnh, 'text-purple-400');
+                            addPill('Wind', station.Wind, 'text-emerald-400');
+                            addPill('Temp/Dew', station.TempDew, 'text-amber-400');
+                            addPill('Visibility', station.Visibility, 'text-sky-400');
 
-                        let icon = "📋";
-                        if (title.includes("EXPECTATIONS") || title.includes("APERÇU")) icon = "✨";
-                        if (title.includes("DEPARTURE") || title.includes("DÉPART")) icon = "🛫";
-                        if (title.includes("DESTINATION")) icon = "🛬";
-                        if (title.includes("ALTERNATE") || title.includes("DÉGAGEMENT")) icon = "🔄";
-                        if (title.includes("ENROUTE") || title.includes("EN ROUTE") || title.includes("OPÉRATIONS")) icon = "✈️";
+                            html += `
+                            <div class="bg-[#12141A] p-5 rounded-xl border border-white/5 flex flex-col gap-4 shadow-xl">
+                                <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-slate-400 text-lg">${icon}</span>
+                                        <h4 class="text-slate-200 font-bold uppercase tracking-widest text-xs m-0">${station.Label}</h4>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-black/60 rounded p-3 font-mono text-[11px] text-slate-400 leading-relaxed border border-white/5">
+                                    <span class="block mb-2 text-white/90 break-words">${station.RawMetar || 'NO METAR'}</span>
+                                    <span class="block break-words">${station.RawTaf || 'NO TAF'}</span>
+                                </div>
+                                
+                                ${variablesHtml !== '' ? `<div class="grid grid-cols-2 xl:grid-cols-4 gap-2 mt-2">${variablesHtml}</div>` : ''}
+                                
+                                ${station.Commentary ? `
+                                <div class="mt-4 text-sky-200/90 italic font-serif text-[13px] border-l-2 border-sky-500/50 pl-4 py-2 bg-sky-900/10 rounded-r-lg leading-relaxed">
+                                    "${station.Commentary}"
+                                </div>` : ''}
+                                
+                                ${station.RunwayAdvice ? `
+                                <div class="mt-2 text-emerald-400/90 font-medium text-[11px] flex items-center gap-2 bg-emerald-900/10 p-2 rounded border border-emerald-500/10">
+                                    <span>🛣️</span>
+                                    ${station.RunwayAdvice}
+                                </div>` : ''}
 
+                                ${station.Notams && station.Notams.trim() !== '' ? `
+                                <div class="mt-4 pt-4 border-t border-red-500/20 bg-red-900/5 p-3 rounded">
+                                    <h5 class="text-red-400/90 uppercase text-[9px] font-bold tracking-widest mb-2 flex items-center gap-1"><span class="text-red-500">⚠</span> NOTAMS & ALERTS</h5>
+                                    <div class="text-red-200/80 text-[10px] whitespace-pre-wrap leading-relaxed">${station.Notams}</div>
+                                </div>` : ''}
+                            </div>`;
+                        });
+                    }
+                    html += '</div>';
+
+                    if (data.EnrouteText) {
                         html += `
-                        <div class="bg-[#12141A] p-5 rounded-xl border border-white/5">
-                            <div class="flex items-center gap-2 mb-3 border-b border-white/5 pb-2">
-                                <span class="text-slate-400 text-sm">${icon}</span>
-                                <h4 class="text-slate-400 font-bold uppercase tracking-widest text-[10px] m-0">${title}</h4>
+                        <div class="mt-6 bg-[#12141A] p-5 rounded-xl border border-white/5 shadow-xl">
+                            <div class="flex items-center gap-2 mb-4 border-b border-white/5 pb-2">
+                                <span class="text-slate-400 text-lg">✈️</span>
+                                <h4 class="text-slate-200 font-bold uppercase tracking-widest text-xs m-0">EN ROUTE & OPERATIONS</h4>
                             </div>
-                            <div class="text-slate-300 leading-relaxed font-body text-xs">
-                                ${content}
+                            <div class="text-slate-300 leading-relaxed font-body text-xs whitespace-pre-wrap">
+                                ${data.EnrouteText}
                             </div>
                         </div>`;
                     }
-                    html += '</div>';
 
                     return html;
                 };
@@ -1469,6 +1691,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'groundOpsComplete':
                 document.getElementById('groundOpsContainer').innerHTML = '<p style="color:#34D399; font-weight:bold;">All ground operations are complete. Aircraft is secure.</p>';
+                break;
+            case 'groundOpsProgress':
+                const globalC = document.getElementById('globalProgressContainer');
+                const globalBar = document.getElementById('globalProgressBar');
+                const botC = document.getElementById('groundOpsBottomProgress');
+                const botBar = document.getElementById('groundOpsProgressBar');
+                const statusTxt = document.getElementById('groundOpsStatusText');
+                const timeTxt = document.getElementById('groundOpsTimeText');
+
+                if (payload.isActive && payload.pct >= 0 && payload.pct <= 100) {
+                    if (globalC) globalC.style.display = 'block';
+                    if (botC) botC.style.display = 'flex';
+                    
+                    if (globalBar) globalBar.style.width = payload.pct + '%';
+                    if (botBar) botBar.style.width = payload.pct + '%';
+                    
+                    if (statusTxt) statusTxt.innerText = payload.status || 'IN PROGRESS';
+                    if (timeTxt) timeTxt.innerText = payload.timeString || '';
+                } else {
+                    if (globalC) globalC.style.display = 'none';
+                    if (botC) botC.style.display = 'none';
+                }
                 break;
         }
     });
@@ -2055,7 +2299,7 @@ function renderLogbook(history) {
         const dateStr = new Date(f.FlightDate).toLocaleDateString([], { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         const blkFormat = f.BlockTime > 0 ? `${Math.floor(f.BlockTime/60)}h ${f.BlockTime%60}m` : '0m';
         
-        const payloadStr = encodeURIComponent(JSON.stringify(f));
+        const payloadStr = encodeURIComponent(JSON.stringify(f)).replace(/'/g, "%27");
 
         return `
         <div class="bg-[#1C1F26] p-6 rounded-xl border border-white/5 relative hover:border-sky-500/30 hover:bg-white/[0.02] transition-colors cursor-pointer group" onclick="replayFlightLog('${payloadStr}')">

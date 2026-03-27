@@ -45,6 +45,11 @@ namespace FlightSupervisor.UI
         private bool? _lastLogApuMaster = null;
         private bool? _lastLogApuStart = null;
         private bool? _lastLogApuBleed = null;
+        private bool? _lastLogPack1 = null;
+        private bool? _lastLogPack2 = null;
+        private float? _lastLogTempCkpt = null;
+        private float? _lastLogTempFwd = null;
+        private float? _lastLogTempAft = null;
         
         private GroundOpsManager _groundOpsManager;
         private System.Windows.Threading.DispatcherTimer _uiTimer;
@@ -54,13 +59,19 @@ namespace FlightSupervisor.UI
         private CabinManager _cabinManager;
         private AirlineProfileManager _airlineDb;
         private FlightSupervisor.UI.Services.GroundEventEngine _eventEngine;
+        private CrisisManager _crisisManager;
         public AirlineProfile? CurrentAirline { get; private set; }
         private ProfileManager _profileManager;
+        private ActiveSkyService _activeSkyService;
+        private NoaaWeatherService _noaaWeatherService;
+        private System.Windows.Threading.DispatcherTimer _weatherUpdateTimer;
 
         public MainWindow()
         {
             InitializeComponent();
             _simBriefService = new SimBriefService();
+            _activeSkyService = new ActiveSkyService();
+            _noaaWeatherService = new NoaaWeatherService();
             _panelServer = new PanelServerService();
             _panelServer.StartServer();
 
@@ -99,11 +110,36 @@ namespace FlightSupervisor.UI
                 _notifyIcon.Visible = false;
             };
 
+            // Start ACARS Live Weather updater
+            _weatherUpdateTimer = new System.Windows.Threading.DispatcherTimer();
+            _weatherUpdateTimer.Interval = TimeSpan.FromMinutes(15);
+            _weatherUpdateTimer.Tick += async (s, e) => { await RefreshLiveWeatherAsync(); };
+            _weatherUpdateTimer.Start();
+
             // Start Dashboard update loop
             _uiTimer = new System.Windows.Threading.DispatcherTimer();
             _uiTimer.Interval = TimeSpan.FromSeconds(1);
-            _uiTimer.Tick += (s, e) => { 
+            _uiTimer.Tick += (s, e) => {
                 _groundOpsManager.Tick(_currentSimTime);
+
+                int totalSvc = _groundOpsManager.Services.Count;
+                if (totalSvc > 0)
+                {
+                    int doneSvc = _groundOpsManager.Services.Count(s => s.State == GroundServiceState.Completed);
+                    int inProgSvc = _groundOpsManager.Services.Count(s => s.State == GroundServiceState.InProgress);
+                    double pct = (doneSvc * 100.0) / totalSvc;
+                    if (inProgSvc > 0) pct += (50.0 / totalSvc);
+
+                    string timeStr = "";
+                    if (_groundOpsManager.TargetSobt.HasValue && _groundOpsManager.IsAnyOperationInProgress())
+                    {
+                        var diff = _groundOpsManager.TargetSobt.Value - _currentSimTime;
+                        if (diff.TotalMinutes > 0) timeStr = $"T-Minus {Math.Ceiling(diff.TotalMinutes)}m";
+                        else timeStr = "SOBT REACHED";
+                    }
+
+                    SendToWeb(new { type = "groundOpsProgress", isActive = _groundOpsManager.IsAnyOperationInProgress() || doneSvc > 0, pct = pct, status = _groundOpsManager.GetStatusString(), timeString = timeStr });
+                }
 
                 if (_groundOpsManager.IsAnyOperationInProgress() && !_groundOpsManager.IsPaused && _phaseManager.CurrentPhase == FlightPhase.AtGate)
                 {
@@ -126,7 +162,7 @@ namespace FlightSupervisor.UI
                 {
                     sobtDate = DateTimeOffset.FromUnixTimeSeconds(sobtUnix).DateTime;
                 }
-                _cabinManager.Tick(_phaseManager.GForce, _phaseManager.Heading, isBoardingComplete, _currentSimTime, sobtDate, _phaseManager.CurrentPhase);
+                _cabinManager.Tick(_phaseManager.GForce, _lastKnownBank, isBoardingComplete, _currentSimTime, sobtDate, _phaseManager.CurrentPhase);
                 
                 SendTelemetryToWeb();
                 
@@ -213,7 +249,7 @@ namespace FlightSupervisor.UI
 
                         bool cateringPerformed = _groundOpsManager.Services.Any(s => s.Name.Equals("Catering", StringComparison.OrdinalIgnoreCase) && s.State == GroundServiceState.Completed);
                         bool anySkipped = _groundOpsManager.Services.Any(s => s.State == GroundServiceState.Skipped);
-                        var objectiveResults = _scoreManager.EvaluateObjectives(CurrentAirline, effectiveDelaySec, (int)Math.Round(_cabinManager.ComfortLevel), _phaseManager.TouchdownFpm, cateringPerformed);
+                        var objectiveResults = _scoreManager.EvaluateObjectives(CurrentAirline, effectiveDelaySec, (int)Math.Round(_cabinManager.AverageComfort), _phaseManager.TouchdownFpm, cateringPerformed);
 
                         int blockMins = _aobt.HasValue && _aibt.HasValue ? (int)(_aibt.Value - _aobt.Value).TotalMinutes : 0;
                         
@@ -349,9 +385,51 @@ namespace FlightSupervisor.UI
 
 
             _simConnectService = new SimConnectService();
+            
+            _crisisManager = new CrisisManager(_phaseManager, _simConnectService);
+            _crisisManager.OnCrisisTriggered += crisis => {
+                Dispatcher.Invoke(() => SendToWeb(new { type = "crisisTriggered", crisisType = crisis.ToString() }));
+            };
+            
+            _crisisManager.OnCabinMessage += (level, msg) => {
+                Dispatcher.Invoke(() => SendToWeb(new { type = "cabinLog", level = level, message = msg }));
+            };
+            _crisisManager.OnCrisisResolved += (crisis, success, isManual) => {
+                if (!isManual && crisis == CrisisType.MedicalEmergency)
+                {
+                    _scoreManager.AddScore(-500, "Medical Emergency Ignored", ScoreCategory.Safety);
+                    Dispatcher.Invoke(() => SendToWeb(new { type = "cabinLog", level = "red", message = "[PNC] We had a medical emergency and you ignored it. The passenger is in critical condition." }));
+                }
+                else if (!isManual && crisis == CrisisType.UnrulyPassenger)
+                {
+                    _scoreManager.AddScore(-200, "Unruly Passenger Ignored", ScoreCategory.Safety);
+                    _cabinManager.ApplyComfortImpact(-50);
+                    Dispatcher.Invoke(() => SendToWeb(new { type = "cabinLog", level = "red", message = "[PNC] The unruly passenger escalated because you did nothing. Cabin comfort is plummeting." }));
+                }
+                else if (crisis == CrisisType.Depressurization)
+                {
+                    if (success)
+                    {
+                        _scoreManager.AddScore(250, "Emergency Descent Executed", ScoreCategory.Safety);
+                        Dispatcher.Invoke(() => SendToWeb(new { type = "cabinLog", level = "cyan", message = "[PNC] We are below 10,000 ft. Passengers are breathing normally again. Great job." }));
+                    }
+                    else
+                    {
+                        _scoreManager.AddScore(-1000, "Depressurization Ignored", ScoreCategory.Safety);
+                        _cabinManager.ApplyComfortImpact(-100);
+                        Dispatcher.Invoke(() => SendToWeb(new { type = "cabinLog", level = "red", message = "[CRITICAL] Oxygen masks are depleted! Passengers are losing consciousness!" }));
+                    }
+                }
+                Dispatcher.Invoke(() => SendToWeb(new { type = "crisisResolved", crisisType = crisis.ToString(), success = success }));
+            };
+
             _scoreManager = new SuperScoreManager(_phaseManager, _simConnectService);
             _scoreManager.OnScoreChanged += (score, delta, reason) => {
                 Dispatcher.Invoke(() => SendToWeb(new { type = "scoreUpdate", score = score, delta = delta, msg = reason }));
+            };
+
+            _cabinManager.OnOperationBonusTriggered += (amount, msg) => {
+                _scoreManager.AddScore(amount, msg, ScoreCategory.Operations);
             };
 
             _simConnectService.OnConnectionStateChanged += state => {
@@ -424,13 +502,14 @@ namespace FlightSupervisor.UI
             _simConnectService.OnPitchReceived += p => { _lastKnownPitch = p; };
             _simConnectService.OnBankReceived += b => { _lastKnownBank = b; };
 
-            // Fenix Custom Hooks
-            _simConnectService.OnFenixSeatbeltsReceived += sb => { 
+            // Unified Telemetry Hooks (Handled by Overrider)
+            _simConnectService.OnCabinSeatbeltsChanged += sb => { 
                 _cabinManager.UpdateSeatbelts(sb, _phaseManager.CurrentPhase); 
+                _phaseManager.IsSeatbeltsOn = sb;
                 if (_lastLogSeatbelts != null && _lastLogSeatbelts != sb) SendToWeb(new { type = "log", message = sb ? "Fasten Seatbelts ON" : "Fasten Seatbelts OFF" });
                 _lastLogSeatbelts = sb;
             };
-            _simConnectService.OnFenixApuReceived += (mst, start, bleed) => {
+            _simConnectService.OnApuStateChanged += (mst, start, bleed) => {
                 _phaseManager.FenixApuMaster = mst;
                 _phaseManager.FenixApuStart = start;
                 _phaseManager.FenixApuBleed = bleed;
@@ -444,17 +523,43 @@ namespace FlightSupervisor.UI
                 _lastLogApuBleed = bleed;
             };
             
-            int? _lastLogFenixNose = null;
-            _simConnectService.OnFenixNoseLightReceived += nl => { 
+            _simConnectService.OnPacksChanged += (pack1, pack2) => {
+                _phaseManager.FenixPack1 = pack1;
+                _phaseManager.FenixPack2 = pack2;
+                
+                if (_lastLogPack1 != null && _lastLogPack1 != pack1) SendToWeb(new { type = "log", message = pack1 ? "PACK 1 ON" : "PACK 1 OFF" });
+                if (_lastLogPack2 != null && _lastLogPack2 != pack2) SendToWeb(new { type = "log", message = pack2 ? "PACK 2 ON" : "PACK 2 OFF" });
+                
+                _lastLogPack1 = pack1;
+                _lastLogPack2 = pack2;
+            };
+
+            _simConnectService.OnCabinTemperatureTargetsChanged += (ckpt, fwd, aft) => {
+                _phaseManager.FenixCabinTempCockpit = ckpt;
+                _phaseManager.FenixCabinTempFwd = fwd;
+                _phaseManager.FenixCabinTempAft = aft;
+                
+                if (_lastLogTempCkpt != null && Math.Abs(_lastLogTempCkpt.Value - ckpt) > 0.05f) SendToWeb(new { type = "log", message = $"CKPT Temp Tgt: {ckpt:F2}" });
+                if (_lastLogTempFwd != null && Math.Abs(_lastLogTempFwd.Value - fwd) > 0.05f) SendToWeb(new { type = "log", message = $"FWD Temp Tgt: {fwd:F2}" });
+                if (_lastLogTempAft != null && Math.Abs(_lastLogTempAft.Value - aft) > 0.05f) SendToWeb(new { type = "log", message = $"AFT Temp Tgt: {aft:F2}" });
+                
+                _lastLogTempCkpt = ckpt;
+                _lastLogTempFwd = fwd;
+                _lastLogTempAft = aft;
+            };
+
+
+            int? _lastLogNoseLight = null;
+            _simConnectService.OnNoseLightChanged += nl => { 
                 _phaseManager.FenixNoseLight = nl;
-                if (_lastLogFenixNose != null && _lastLogFenixNose != nl)
+                if (_lastLogNoseLight != null && _lastLogNoseLight != nl)
                 {
                     string state = nl == 0 ? "OFF" : (nl == 1 ? "TAXI" : "TAKE-OFF");
-                    SendToWeb(new { type = "log", message = $"Nose Light {state} (Fenix)" });
+                    SendToWeb(new { type = "log", message = $"Nose Light {state} (Aircraft)" });
                 }
-                _lastLogFenixNose = nl;
+                _lastLogNoseLight = nl;
             };
-            _simConnectService.OnFenixRunwayTurnoffReceived += rwy => { _phaseManager.IsRunwayTurnoffLightOn = rwy; };
+            _simConnectService.OnRunwayTurnoffChanged += rwy => { _phaseManager.IsRunwayTurnoffLightOn = rwy; };
 
             _simConnectService.OnSimTimeReceived += time => { 
                 _currentSimTime = time;
@@ -554,10 +659,34 @@ namespace FlightSupervisor.UI
                     var history = FlightSupervisor.UI.Services.FlightLogger.GetLogbook();
                     SendToWeb(new { type = "logbookData", history });
                 }
+                else if (action == "resolveCrisis")
+                {
+                    var crisisTypeStr = doc.RootElement.GetProperty("crisisType").GetString();
+                    if (_crisisManager.ActiveCrisis.ToString() == crisisTypeStr)
+                    {
+                        var elapsed = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _crisisManager.CrisisStartTimeSeconds;
+                        bool success = false;
+                        if (crisisTypeStr == "MedicalEmergency")
+                        {
+                            success = elapsed < 300; // Resolved under 5 minutes
+                            _scoreManager.AddScore(success ? 150 : -500, success ? "Medical Emergency Handled Promptly" : "Medical Emergency Handled Too Late", ScoreCategory.Safety);
+                            SendToWeb(new { type = "cabinLog", level = success ? "cyan" : "red", message = success ? "[PNC] We've secured a doctor on board! The passenger has been stabilized." : "[PNC] It took too long, the passenger's condition has severely worsened." });
+                            _crisisManager.ResolveCrisis(success);
+                        }
+                        else if (crisisTypeStr == "UnrulyPassenger")
+                        {
+                            success = elapsed < 300;
+                            _scoreManager.AddScore(success ? 100 : -300, success ? "Unruly Passenger Restrained" : "Unruly Passenger Ignored", ScoreCategory.Safety);
+                            if (!success) _cabinManager.ApplyComfortImpact(-50);
+                            SendToWeb(new { type = "cabinLog", level = success ? "cyan" : "red", message = success ? "[PNC] Passenger successfully restrained. Thanks for the quick PA command." : "[PNC] The situation escalated into a full brawl because of no captain intervention! Total chaos in the cabin." });
+                            _crisisManager.ResolveCrisis(success);
+                        }
+                    }
+                }
                 else if (action == "resolveGroundEvent")
                 {
-                    var eventId = doc.RootElement.GetProperty("eventId").GetString();
-                    var choiceId = doc.RootElement.GetProperty("choiceId").GetString();
+                    var eventId = doc.RootElement.GetProperty("eventId").GetString() ?? "";
+                    var choiceId = doc.RootElement.GetProperty("choiceId").GetString() ?? "";
                     
                     var evt = _eventEngine.GetEventById(eventId);
                     if (evt != null)
@@ -617,6 +746,14 @@ namespace FlightSupervisor.UI
                     var username = doc.RootElement.GetProperty("username").GetString() ?? "";
                     var remember = doc.RootElement.GetProperty("remember").GetBoolean();
                     
+                    var weatherSource = "simbrief";
+                    if (doc.RootElement.TryGetProperty("weatherSource", out var wsProp))
+                        weatherSource = wsProp.GetString() ?? "simbrief";
+
+                    var prof = _profileManager.CurrentProfile;
+                    prof.WeatherSource = weatherSource;
+                    _profileManager.SaveProfile();
+                    
                     if (doc.RootElement.TryGetProperty("groundSpeed", out var gsProp))
                     {
                         if (Enum.TryParse<GroundOpsSpeed>(gsProp.GetString(), true, out var speed))
@@ -639,7 +776,7 @@ namespace FlightSupervisor.UI
                         units.Time = unitsProp.GetProperty("time").GetString() ?? "24H";
                     }
                     
-                    await FetchFlightPlan(username, remember, units);
+                    await FetchFlightPlan(username, remember, units, weatherSource);
                 }
                 else if (action == "connectSim")
                 {
@@ -679,14 +816,17 @@ namespace FlightSupervisor.UI
                 }
                 else if (action == "skipService")
                 {
-                    var srvName = doc.RootElement.GetProperty("service").GetString();
-                    _groundOpsManager.SkipService(srvName);
-                    
-                    var srv = _groundOpsManager.Services.FirstOrDefault(s => s.Name == srvName);
+                    var srvName = doc.RootElement.GetProperty("service").GetString() ?? "";
+                    if (!string.IsNullOrEmpty(srvName))
+                    {
+                        _groundOpsManager.SkipService(srvName);
+                        
+                        var srv = _groundOpsManager.Services.FirstOrDefault(s => s.Name == srvName);
                     if (srv != null)
                     {
                         if (srvName == "Catering") _cabinManager.CateringCompletion = srv.ProgressPercent;
                         if (srvName == "Cargo") _cabinManager.BaggageCompletion = srv.ProgressPercent;
+                    }
                     }
                 }
                 else if (action == "startService")
@@ -719,10 +859,45 @@ namespace FlightSupervisor.UI
                         this.Topmost = doc.RootElement.GetProperty("value").GetBoolean();
                     });
                 }
+                else if (action == "setCrisisFrequency")
+                {
+                    if (doc.RootElement.TryGetProperty("value", out var valProp) && valProp.ValueKind == System.Text.Json.JsonValueKind.String)
+                    {
+                        if (Enum.TryParse<CrisisFrequency>(valProp.GetString(), out var freq))
+                        {
+                            _crisisManager.Frequency = freq;
+                            System.Diagnostics.Debug.WriteLine($"[CRISIS] Frequency configured to: {freq}");
+                        }
+                    }
+                }
                 else if (action == "announceCabin")
                 {
                     var annType = doc.RootElement.GetProperty("annType").GetString();
-                    if (annType != null) _cabinManager.AnnounceToCabin(annType);
+                    if (annType != null) 
+                    {
+                        if (annType == "Welcome")
+                        {
+                            string destName = _currentResponse?.Destination?.Name ?? _currentResponse?.Destination?.IcaoCode ?? "our destination";
+                            int.TryParse(_currentResponse?.Times?.EstTimeEnroute, out int timeSecs);
+                            int timeMins = timeSecs / 60;
+                            string timeStr = timeMins >= 60 ? $"{timeMins / 60} hour(s) and {timeMins % 60} minutes" : $"{timeMins} minutes";
+                            
+                            bool badWeather = false;
+                            string metar = _currentResponse?.Weather?.DestMetar?.ToUpper() ?? "";
+                            if (metar.Contains(" TS") || metar.Contains(" RA") || metar.Contains(" SN") || metar.Contains(" FG")) badWeather = true;
+
+                            _cabinManager.AnnounceWelcome(destName, timeStr, badWeather);
+                        }
+                        else if (annType == "Descent")
+                        {
+                            string destName = _currentResponse?.Destination?.Name ?? _currentResponse?.Destination?.IcaoCode ?? "our destination";
+                            _cabinManager.AnnounceDescent(destName);
+                        }
+                        else
+                        {
+                            _cabinManager.AnnounceToCabin(annType);
+                        }
+                    }
                 }
                 else if (action == "pncCommand")
                 {
@@ -749,8 +924,8 @@ namespace FlightSupervisor.UI
                     if (_currentResponse != null)
                     {
                         var weatherService = new FlightSupervisor.UI.Services.WeatherBriefingService(new FlightSupervisor.UI.Models.UnitPreferences());
-                        var briefingText = weatherService.GenerateBriefing(_currentResponse);
-                        SendToWeb(new { type = "briefingUpdate", briefing = briefingText });
+                        var briefingData = weatherService.GenerateBriefing(_currentResponse);
+                        SendToWeb(new { type = "briefingUpdate", briefing = briefingData });
                     }
                 }
             } catch { }
@@ -777,13 +952,22 @@ namespace FlightSupervisor.UI
             {
                 type = "telemetry",
                 phase = _phaseManager.GetLocalizedPhaseName(),
+                phaseEnum = _phaseManager.CurrentPhase.ToString(),
                 altitude = _lastKnownAltitude,
                 groundSpeed = _lastKnownGroundSpeed,
                 radioHeight = _lastKnownRadioHeight,
                 isGearDown = _isGearDown,
+                seatbeltsOn = _cabinManager.IsSeatbeltsOn,
+                isDelayed = _groundOpsManager.TargetSobt != null && _currentSimTime > _groundOpsManager.TargetSobt.Value.AddMinutes(5),
                 anxiety = Math.Round(_cabinManager.PassengerAnxiety, 1),
                 comfort = Math.Round(_cabinManager.ComfortLevel, 1),
-                airline = CurrentAirline
+                serviceProgress = Math.Round(_cabinManager.InFlightServiceProgress, 1),
+                satietyActive = _cabinManager.IsSatietyActive,
+                cabinState = _cabinManager.State.ToString(),
+                airline = CurrentAirline,
+                issuedCommands = _cabinManager.IssuedCommands.ToList(),
+                activeCrisis = _crisisManager.ActiveCrisis.ToString(),
+                crisisElapsed = _crisisManager.CrisisStartTimeSeconds > 0 ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _crisisManager.CrisisStartTimeSeconds : 0
             });
             
             if (_groundOpsManager.Services.Count > 0)
@@ -796,7 +980,7 @@ namespace FlightSupervisor.UI
             }
         }
 
-        private async System.Threading.Tasks.Task FetchFlightPlan(string username, bool remember, FlightSupervisor.UI.Models.UnitPreferences? units = null)
+        private async System.Threading.Tasks.Task FetchFlightPlan(string username, bool remember, FlightSupervisor.UI.Models.UnitPreferences? units = null, string weatherSource = "simbrief")
         {
             if (units == null) units = new FlightSupervisor.UI.Models.UnitPreferences();
             if (string.IsNullOrEmpty(username)) return;
@@ -815,6 +999,64 @@ namespace FlightSupervisor.UI
 
                 if (response != null && response.Fetch?.Status == "Success")
                 {
+                    if (response.Weather != null)
+                    {
+                        if (weatherSource == "activesky")
+                        {
+                            var (destMetar, destTaf) = await _activeSkyService.GetWeatherAsync(response.Destination?.IcaoCode ?? "");
+                            if (!string.IsNullOrEmpty(destMetar)) response.Weather.DestMetar = destMetar;
+                            if (!string.IsNullOrEmpty(destTaf)) response.Weather.DestTaf = destTaf;
+
+                            var (origMetar, _) = await _activeSkyService.GetWeatherAsync(response.Origin?.IcaoCode ?? "");
+                            if (!string.IsNullOrEmpty(origMetar)) response.Weather.OrigMetar = origMetar;
+
+                            var altnIcao = response.Alternate?.IcaoCode ?? "";
+                            if (!string.IsNullOrEmpty(altnIcao))
+                            {
+                                var (altnMetar, altnTaf) = await _activeSkyService.GetWeatherAsync(altnIcao);
+                                if (!string.IsNullOrEmpty(altnMetar)) 
+                                {
+                                    using var doc = System.Text.Json.JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(altnMetar));
+                                    response.Weather.AltnMetar = doc.RootElement.Clone();
+                                }
+                                if (!string.IsNullOrEmpty(altnTaf)) 
+                                {
+                                    using var doc = System.Text.Json.JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(altnTaf));
+                                    response.Weather.AltnTaf = doc.RootElement.Clone();
+                                }
+                            }
+                        }
+                        else if (weatherSource == "noaa")
+                        {
+                            var destIcao = response.Destination?.IcaoCode ?? "";
+                            var destMetar = await _noaaWeatherService.GetMetarAsync(destIcao);
+                            if (!string.IsNullOrEmpty(destMetar)) response.Weather.DestMetar = destMetar;
+                            var destTaf = await _noaaWeatherService.GetTafAsync(destIcao);
+                            if (!string.IsNullOrEmpty(destTaf)) response.Weather.DestTaf = destTaf;
+
+                            var origIcao = response.Origin?.IcaoCode ?? "";
+                            var origMetar = await _noaaWeatherService.GetMetarAsync(origIcao);
+                            if (!string.IsNullOrEmpty(origMetar)) response.Weather.OrigMetar = origMetar;
+
+                            var altnIcao = response.Alternate?.IcaoCode ?? "";
+                            if (!string.IsNullOrEmpty(altnIcao))
+                            {
+                                var altnMetar = await _noaaWeatherService.GetMetarAsync(altnIcao);
+                                if (!string.IsNullOrEmpty(altnMetar)) 
+                                {
+                                    using var doc = System.Text.Json.JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(altnMetar));
+                                    response.Weather.AltnMetar = doc.RootElement.Clone();
+                                }
+                                var altnTaf = await _noaaWeatherService.GetTafAsync(altnIcao);
+                                if (!string.IsNullOrEmpty(altnTaf)) 
+                                {
+                                    using var doc = System.Text.Json.JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(altnTaf));
+                                    response.Weather.AltnTaf = doc.RootElement.Clone();
+                                }
+                            }
+                        }
+                    }
+
                     _phaseManager.Reset();
                     _scoreManager.Reset();
                     _cabinManager.Reset();
@@ -823,6 +1065,10 @@ namespace FlightSupervisor.UI
                     CurrentAirline = _airlineDb.GetProfileFor(response.General?.Airline ?? "");
                     _cabinManager.InitializeFlightDemographics(CurrentAirline);
                     _groundOpsManager.InitializeFromSimBrief(response);
+                    
+                    // Trigger an immediate background fetch to populate initial live data without blocking the UI rendering if needed
+                    _ = RefreshLiveWeatherAsync();
+
                     SendToWeb(new { type = "groundOpsReady" });
 
                     if (!string.IsNullOrEmpty(response.General?.InitialAlt))
@@ -844,7 +1090,7 @@ namespace FlightSupervisor.UI
                         _phaseManager.AircraftCategory = "Medium";
                     
                     var weatherService = new WeatherBriefingService(units);
-                    var briefingText = weatherService.GenerateBriefing(response);
+                    var briefingData = weatherService.GenerateBriefing(response);
 
                     var passengerService = new FlightSupervisor.UI.Services.PassengerManifestService();
                     var manifestData = passengerService.GenerateManifest(response);
@@ -853,7 +1099,7 @@ namespace FlightSupervisor.UI
                     SendToWeb(new { 
                         type = "flightData", 
                         data = response,
-                        briefing = briefingText,
+                        briefing = briefingData,
                         manifest = manifestData
                     });
                     
@@ -951,5 +1197,87 @@ namespace FlightSupervisor.UI
         public static extern IntPtr MonitorFromWindow(IntPtr handle, uint flags);
 
         private const uint MONITOR_DEFAULTTONEAREST = 0x00000002;
+
+        private async System.Threading.Tasks.Task RefreshLiveWeatherAsync()
+        {
+            if (_currentResponse?.Weather == null) return;
+            string weatherSource = _profileManager.CurrentProfile.WeatherSource ?? "simbrief";
+
+            if (weatherSource == "activesky")
+            {
+                var destIcao = _currentResponse.Destination?.IcaoCode;
+                if (!string.IsNullOrEmpty(destIcao))
+                {
+                    var (destMetar, destTaf) = await _activeSkyService.GetWeatherAsync(destIcao);
+                    if (!string.IsNullOrEmpty(destMetar)) _currentResponse.Weather.DestMetar = destMetar;
+                    if (!string.IsNullOrEmpty(destTaf)) _currentResponse.Weather.DestTaf = destTaf;
+                }
+
+                var origIcao = _currentResponse.Origin?.IcaoCode;
+                if (!string.IsNullOrEmpty(origIcao))
+                {
+                    var (origMetar, _) = await _activeSkyService.GetWeatherAsync(origIcao);
+                    if (!string.IsNullOrEmpty(origMetar)) _currentResponse.Weather.OrigMetar = origMetar;
+                }
+
+                var altnIcao = _currentResponse.Alternate?.IcaoCode;
+                if (!string.IsNullOrEmpty(altnIcao))
+                {
+                    var (altnMetar, altnTaf) = await _activeSkyService.GetWeatherAsync(altnIcao);
+                    if (!string.IsNullOrEmpty(altnMetar)) 
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(altnMetar));
+                        _currentResponse.Weather.AltnMetar = doc.RootElement.Clone();
+                    }
+                    if (!string.IsNullOrEmpty(altnTaf)) 
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(altnTaf));
+                        _currentResponse.Weather.AltnTaf = doc.RootElement.Clone();
+                    }
+                }
+            }
+            else if (weatherSource == "noaa")
+            {
+                var destIcao = _currentResponse.Destination?.IcaoCode;
+                if (!string.IsNullOrEmpty(destIcao))
+                {
+                    var destMetar = await _noaaWeatherService.GetMetarAsync(destIcao);
+                    if (!string.IsNullOrEmpty(destMetar)) _currentResponse.Weather.DestMetar = destMetar;
+                    var destTaf = await _noaaWeatherService.GetTafAsync(destIcao);
+                    if (!string.IsNullOrEmpty(destTaf)) _currentResponse.Weather.DestTaf = destTaf;
+                }
+
+                var origIcao = _currentResponse.Origin?.IcaoCode;
+                if (!string.IsNullOrEmpty(origIcao))
+                {
+                    var origMetar = await _noaaWeatherService.GetMetarAsync(origIcao);
+                    if (!string.IsNullOrEmpty(origMetar)) _currentResponse.Weather.OrigMetar = origMetar;
+                }
+
+                var altnIcao = _currentResponse.Alternate?.IcaoCode;
+                if (!string.IsNullOrEmpty(altnIcao))
+                {
+                    var altnMetar = await _noaaWeatherService.GetMetarAsync(altnIcao);
+                    if (!string.IsNullOrEmpty(altnMetar)) 
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(altnMetar));
+                        _currentResponse.Weather.AltnMetar = doc.RootElement.Clone();
+                    }
+                    var altnTaf = await _noaaWeatherService.GetTafAsync(altnIcao);
+                    if (!string.IsNullOrEmpty(altnTaf)) 
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(altnTaf));
+                        _currentResponse.Weather.AltnTaf = doc.RootElement.Clone();
+                    }
+                }
+            }
+            
+            if (weatherSource == "activesky" || weatherSource == "noaa")
+            {
+                var weatherService = new FlightSupervisor.UI.Services.WeatherBriefingService();
+                var briefingData = weatherService.GenerateBriefing(_currentResponse);
+                SendToWeb(new { type = "briefingUpdate", briefing = briefingData });
+            }
+        }
     }
 }

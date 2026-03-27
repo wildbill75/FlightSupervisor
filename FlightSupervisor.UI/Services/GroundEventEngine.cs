@@ -10,7 +10,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<GroundEventDTO>? OnEventTriggered;
 
         private List<GroundEvent> _eventPool;
-        private bool _eventFiredThisFlight = false;
+        private DateTime _lastEventTime = DateTime.MinValue;
 
         public GroundEventEngine()
         {
@@ -37,30 +37,20 @@ namespace FlightSupervisor.UI.Services
                         new EventChoice { Id = "C1", Text = "Wait for replacement truck", DelayImpactSec = 1200, ComfortImpact = 0, SafetyImpact = 0, ResponseLog = "On appelle un autre camion de restauration immédiatement. Désolé pour le retard occasionné." },
                         new EventChoice { Id = "C2", Text = "Depart without meals", DelayImpactSec = 0, ComfortImpact = -50, SafetyImpact = 0, ResponseLog = "Reçu. On shunte le traiteur, fermeture des portes imminente... les PAX risquent de tirer la tronche par contre." }
                     }
-                },
-                new GroundEvent
-                {
-                    Id = "EVT_DRUNK_PAX",
-                    Title = "Unruly Passenger",
-                    Description = "Gate agent reports an aggressive passenger.",
-                    Choices = new List<EventChoice>
-                    {
-                        new EventChoice { Id = "C1", Text = "Deny Boarding (Call Security)", DelayImpactSec = 600, ComfortImpact = 0, SafetyImpact = 100, ResponseLog = "Compris, c'est mort pour lui. La sécurité aéroportuaire est en route pour le sortir du terminal." },
-                        new EventChoice { Id = "C2", Text = "Let them board and hope for the best", DelayImpactSec = 0, ComfortImpact = -100, SafetyImpact = -500, ResponseLog = "Vous êtes sûr ? OK... On le fait monter à bord. Bonne chance à vos PNC en cabine." }
-                    }
                 }
             };
         }
 
         public void Reset()
         {
-            _eventFiredThisFlight = false;
+            _lastEventTime = DateTime.MinValue;
         }
 
         public void Tick(int probabilityPercent, AirlineProfile? currentAirline)
         {
-            if (_eventFiredThisFlight || currentAirline == null) return;
+            if (currentAirline == null) return;
             if (probabilityPercent <= 0) return;
+            if ((DateTime.Now - _lastEventTime).TotalMinutes < 5) return;
 
             // At 100% probability => 1 in 150 chance per second -> approx 2.5 mins average.
             // At default 20% => 1 in 750 chance per second -> approx 12.5 mins average.
@@ -79,7 +69,7 @@ namespace FlightSupervisor.UI.Services
         private void FireRandomEvent(AirlineProfile airline)
         {
             if (_eventPool.Count == 0 || airline == null) return;
-            _eventFiredThisFlight = true;
+            _lastEventTime = DateTime.Now;
 
             var evt = _eventPool[_rnd.Next(_eventPool.Count)];
 

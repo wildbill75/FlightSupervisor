@@ -11,6 +11,7 @@ namespace FlightSupervisor.UI.Models
         
         // Identity & Roleplay
         public string SimBriefUsername { get; set; } = "";
+        public string WeatherSource { get; set; } = "simbrief"; // Valid: "simbrief", "noaa", "activesky"
         public string HomeBaseIcao { get; set; } = "LFPG";
         public string CountryCode { get; set; } = "fr"; // ISO 2-letter for flags
         public string FavoriteAircraft { get; set; } = "A320 Family";

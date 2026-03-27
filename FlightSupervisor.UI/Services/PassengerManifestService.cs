@@ -93,7 +93,7 @@ namespace FlightSupervisor.UI.Services
             {
                 string nat = mixedNationalities[i];
                 string name = GenerateNames(nat, 1)[0];
-                string seat = seats.Count > 0 ? seats[i] : "UNASSIGNED";
+                string seat = (i < seats.Count) ? seats[i] : "UNASSIGNED";
                 
                 // Base age distribution: 5% Kids(2-12), 10% Teens(13-19), 65% Adults(20-60), 20% Seniors(61-85)
                 int ageRoll = _rnd.Next(100);
@@ -134,6 +134,7 @@ namespace FlightSupervisor.UI.Services
                 columns = new[] { 'A', 'B', 'C', 'D', 'E', 'F' }; // 6 abreast (narrowbody)
 
             int numRows = (int)Math.Ceiling((double)maxPax / columns.Length);
+            if (numRows >= 13) numRows++; // Add an extra row to compensate for skipping 13
 
             for (int r = 1; r <= numRows; r++)
             {

@@ -113,6 +113,28 @@
         </div>
     </div>
 
+    <!-- GLOBAL TOP PROGRESS BAR (For Ground Ops Flow) -->
+    <div id="globalProgressContainer" class="fixed top-0 left-0 w-full h-[4px] bg-[#12141A] z-50 overflow-hidden" style="display: none;">
+        <div id="globalProgressBar" class="h-full bg-gradient-to-r from-orange-400 to-orange-500 shadow-[0_0_15px_rgba(249,115,22,1)] rounded-r-full transition-all duration-1000 ease-out w-[0%]">
+        </div>
+    </div>
+
+    <!-- GLOBAL CRISIS BANNER -->
+    <div id="crisisBanner" class="fixed top-0 left-0 w-full z-[100] bg-red-600/90 backdrop-blur-xl text-white border-b border-red-400 shadow-[0_10px_50px_rgba(220,38,38,0.5)] flex flex-col items-center justify-center py-4 transform -translate-y-full transition-transform duration-500 drop-shadow-2xl no-drag pt-8">
+        <div class="flex items-center gap-6">
+            <span class="material-symbols-outlined text-[48px] animate-pulse drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">emergency</span>
+            <div>
+                <h1 class="text-2xl font-black font-headline tracking-widest uppercase drop-shadow-lg" id="crisisTitle">CRITICAL ALERT</h1>
+                <p class="text-xs font-mono tracking-widest text-red-100 mt-1" id="crisisDesc">Immediate crew action required in the cabin.</p>
+            </div>
+            <div class="ml-12 text-center bg-black/40 px-6 py-2 rounded-xl border border-white/20 shadow-inner">
+                <span class="text-[9px] uppercase tracking-[0.3em] font-bold text-red-200 block mb-1">Time to Respond</span>
+                <span class="text-2xl font-mono font-black tracking-widest text-white" id="crisisTimer">00:00</span>
+            </div>
+        </div>
+        <audio id="crisisAudio" src="assets/sounds/chime_emergency.wav" preload="auto"></audio>
+    </div>
+
     <!-- SIDE NAV BAR (Aviation Logistics Layout) -->
     <aside id="sidebar" class="fixed left-0 top-0 h-full z-40 bg-[#161A21] w-64 border-r border-[#242A35] shadow-[32px_0_32px_-16px_rgba(0,0,0,0.4)] flex flex-col pt-8">
         <!-- Logo Container (More obvious, centered perfectly) -->
@@ -220,6 +242,13 @@
                                 <span id="mainScoreValue" class="text-5xl font-black font-headline text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)]">1000</span>
                                 <span class="text-[10px] text-slate-500 font-bold tracking-[0.2em] uppercase mt-2" data-i18n="dash_pts">PTS</span>
                             </div>
+                        </div>
+
+                        <!-- LIVE FEEDBACK LOG (Story 40) -->
+                        <div class="w-full h-32 mt-6 bg-black/40 rounded-lg border border-white/5 overflow-y-auto custom-scrollbar p-3 text-left">
+                            <ul id="liveScoreLog" class="flex flex-col gap-2">
+                                <li class="text-[10px] font-mono text-slate-500 text-center tracking-widest mt-8">AWAITING EVENTS...</li>
+                            </ul>
                         </div>
                     </div>
 
@@ -357,18 +386,30 @@
                             <!-- Anxiety Gauge -->
                             <div>
                                 <div class="flex items-end justify-between mb-2">
-                                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Anxiety</span>
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1">
+                                        Anxiety
+                                        <span id="satietyIcon" class="material-symbols-outlined text-[12px] text-emerald-400 hidden" title="Satiety Buff Active (-50% Anxiety)">restaurant</span>
+                                    </span>
                                     <span class="text-2xl font-black font-headline text-emerald-400 leading-none" id="paxAnxietyValue">0<span class="text-sm text-slate-500 font-light ml-1">%</span></span>
                                 </div>
                                 <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5">
                                     <div id="paxAnxietyBar" class="h-full bg-emerald-400 w-0 transition-all duration-700 shadow-[0_0_8px_rgba(52,211,153,0.5)]"></div>
                                 </div>
                             </div>
-
-                            <div id="cabinActionButtons" style="display:flex; flex-direction:column; gap:8px; margin-top:20px; width:100%; opacity:0; pointer-events:none; transition:opacity 0.3s ease;">
-                                <button onclick="window.chrome.webview.postMessage({action:'announceCabin', annType:'Delay'})" class="bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 px-3 py-2 rounded text-[10px] font-bold tracking-widest uppercase transition-colors" data-i18n="dash_btn_ann_delay">Announce: Delay Apology</button>
-                                <button onclick="window.chrome.webview.postMessage({action:'announceCabin', annType:'Turbulence'})" class="bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20 px-3 py-2 rounded text-[10px] font-bold tracking-widest uppercase transition-colors" data-i18n="dash_btn_ann_turb">Announce: Turbulence</button>
+                            
+                            <!-- Catering Service Progress -->
+                            <div id="cateringProgressBox" class="mt-2 transition-all duration-500 opacity-0 h-0 overflow-hidden">
+                                <div class="flex items-end justify-between mb-2">
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1">
+                                        <span class="material-symbols-outlined text-[12px] text-sky-400">room_service</span> In-Flight Service
+                                    </span>
+                                    <span class="text-sm font-black font-headline text-sky-400 leading-none" id="cateringValue">0<span class="text-[10px] text-slate-500 font-light ml-1">%</span></span>
+                                </div>
+                                <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5">
+                                    <div id="cateringBar" class="h-full bg-sky-400 w-0 transition-all duration-1000 shadow-[0_0_8px_rgba(56,189,248,0.5)]"></div>
+                                </div>
                             </div>
+
                         </div>
                     </div>
 
@@ -377,10 +418,25 @@
                             <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse drop-shadow-[0_0_4px_rgba(56,189,248,0.8)]"></span>
                             <span data-i18n="dash_pnc_comms">PNC Comms</span>
                         </h3>
-                        <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+
+                        <!-- Status Indicator -->
+                        <div class="flex items-center justify-between mb-4 pb-4 border-b border-white/5">
+                            <span class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Status</span>
+                            <div class="flex items-center gap-2">
+                                <div id="pncStatusDot" class="w-2 h-2 rounded-full bg-slate-500 animate-pulse"></div>
+                                <span id="pncStatusLabel" class="text-xs font-semibold text-white tracking-wide">Standing By</span>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar mb-4">
                             <ul id="cabinLogsList" class="space-y-3 font-body text-xs">
                                 <li class="text-slate-500 text-center text-[10px] uppercase tracking-widest mt-4" data-i18n="dash_pnc_standby">Standing by...</li>
                             </ul>
+                        </div>
+
+                        <!-- Controls -->
+                        <div id="dynamicIntercomContainer" class="flex flex-col gap-2 mt-auto pt-4 border-t border-white/5">
+                            <!-- Populated dynamically via app.js depending on flight phase -->
                         </div>
                     </div>
                 </div>
@@ -495,7 +551,7 @@
                                         <span class="text-sm font-medium text-slate-300" data-i18n="brief_cruise_alt">Cruise Alt</span>
                                     </div>
                                     <div class="flex items-center gap-3">
-                                        <div class="text-xs font-bold text-white text-right" id="bdCruise">FL---</div>
+                                        <div class="text-xs font-bold text-white text-right hover:bg-white/10 rounded cursor-text px-1 transition-colors" id="bdCruise" contenteditable="true" spellcheck="false" title="Click to override" onblur="if(window.updateCruiseAlt) window.updateCruiseAlt(this.innerText)">FL---</div>
                                         <div class="w-2 h-2 rounded-full bg-orange-500"></div>
                                     </div>
                                 </div>
@@ -512,39 +568,7 @@
                             </div>
                         </div>
 
-                        <!-- PNC Cabin Intercom -->
-                        <div class="bg-[#1C1F26] p-8 rounded-xl border border-white/5 relative">
-                            <h3 class="text-[10px] font-label tracking-[0.4em] text-slate-500 uppercase mb-4 border-b border-white/5 pb-4">Cabin Intercom</h3>
-                            
-                            <!-- Status Indicator -->
-                            <div class="flex flex-col gap-1 mb-6">
-                                <span class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Crew Status</span>
-                                <div class="flex items-center gap-3">
-                                    <div id="pncStatusDot" class="w-2.5 h-2.5 rounded-full bg-slate-500 animate-pulse"></div>
-                                    <span id="pncStatusLabel" class="text-sm font-semibold text-white tracking-wide">Standing By</span>
-                                </div>
-                            </div>
 
-                            <!-- Controls -->
-                            <div class="space-y-4 font-body">
-                                <div>
-                                    <select id="pncCommandSelect" class="w-full bg-[#12141A] border border-white/10 rounded-lg p-3 text-sky-100 focus:border-sky-500 focus:ring-1 focus:outline-none text-xs font-semibold appearance-none cursor-pointer">
-                                        <option value="" disabled selected>-- Select PA Announcement --</option>
-                                        <option value="PREPARE_TAKEOFF">"Cabin Crew, prepare for Takeoff."</option>
-                                        <option value="SEATS_TAKEOFF">"Cabin Crew, seats for Takeoff."</option>
-                                        <option value="START_SERVICE">"Cabin Crew, you may start the service."</option>
-                                        <option value="PREPARE_LANDING">"Cabin Crew, prepare for Landing."</option>
-                                        <option value="SEATS_LANDING">"Cabin Crew, seats for Landing."</option>
-                                        <option value="CANCEL_SERVICE">"Cabin Crew, stop service and be seated."</option>
-                                        <option value="REQUEST_STATUS">"Cabin Crew, cabin report please."</option>
-                                    </select>
-                                </div>
-                                <button id="btnSendPncCommand" class="w-full py-3 bg-[#242934] hover:bg-sky-600 rounded-lg text-white font-bold text-[11px] uppercase tracking-widest transition-colors border border-white/5 flex items-center justify-center gap-2">
-                                    <span class="material-symbols-outlined text-[16px]">campaign</span>
-                                    Transmit Order
-                                </button>
-                            </div>
-                        </div>
 
                     </div>
                 </div>
@@ -563,8 +587,19 @@
                 <div class="flex items-center justify-between mb-8">
                     <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80" data-i18n="ground_title">Ground Operations</h2>
                 </div>
-                <div id="groundOpsContainer" class="bg-[#1C1F26] p-8 rounded-xl border border-white/5">
+                <div id="groundOpsContainer" class="bg-[#1C1F26] p-8 rounded-xl border border-white/5 relative pb-20">
                     <p class="text-slate-500 font-mono text-center" data-i18n="ground_pending">Ground operations pending SimBrief initialization...</p>
+                </div>
+                
+                <!-- Ground Ops Bottom Progress Bar -->
+                <div id="groundOpsBottomProgress" class="mt-4 bg-[#1C1F26] rounded-xl border border-white/5 p-6 flex flex-col gap-3" style="display: none;">
+                    <div class="flex justify-between items-end">
+                        <span class="text-xs font-bold tracking-widest uppercase text-sky-400" id="groundOpsStatusText">BOARDING IN PROGRESS</span>
+                        <span class="text-xs font-mono text-slate-400" id="groundOpsTimeText">T-Minus 15m</span>
+                    </div>
+                    <div class="w-full bg-slate-800/50 h-2 rounded-full overflow-hidden">
+                        <div id="groundOpsProgressBar" class="h-full bg-sky-500 shadow-[0_0_10px_rgba(14,165,233,0.6)] transition-all duration-1000 w-[0%]"></div>
+                    </div>
                 </div>
             </section>
 
@@ -868,6 +903,16 @@
                             <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2" data-i18n="set_real_title">Realism & App</h3>
                             <p class="text-xs text-slate-400 mb-6" data-i18n="set_real_desc">Scoring rules and window behavior.</p>
 
+                            <div class="mb-5">
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3">In-Flight Crisis Frequency</label>
+                                <select id="selCrisisFreq" class="w-full bg-[#12141A] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                    <option value="Off">Off</option>
+                                    <option value="Realistic" selected>Realistic (~1% per min)</option>
+                                    <option value="Frequent">Frequent (~5% per min)</option>
+                                    <option value="Chaos">Chaos (~20% per min)</option>
+                                </select>
+                            </div>
+
                             <div class="flex items-start gap-3 mb-5">
                                 <input type="checkbox" id="chkHardcore" class="mt-1 rounded border-white/20 bg-black/40 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 cursor-pointer w-4 h-4"/>
                                 <div>
@@ -912,13 +957,13 @@
     <div id="warpModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm" style="display: none;">
         <div class="bg-[#1C1F26] border border-orange-500/30 rounded-2xl p-8 max-w-sm w-full shadow-[0_0_50px_rgba(249,115,22,0.15)] transform transition-all text-center">
             <span class="material-symbols-outlined text-orange-400 text-5xl mb-4">warning</span>
-            <h2 class="text-xl font-headline font-black text-white mb-2 tracking-wide">TIME WARP</h2>
+            <h2 class="text-xl font-headline font-black text-white mb-2 tracking-wide text-orange-400">FORCE COMPLETION</h2>
             <p class="text-slate-400 text-sm mb-8 leading-relaxed">
-                Skiping ground operations will instantly advance to departure but incurs a <span class="text-red-400 font-bold">-300 SuperScore penalty</span> for convenience. Proceed?
+                Forcing ground operations will instantly complete all tasks but incurs a <span class="text-red-400 font-bold">-300 SuperScore penalty</span>. Simulator time will NOT be modified. Proceed?
             </p>
             <div class="flex gap-4 w-full">
-                <button onclick="document.getElementById('warpModal').style.display='none'" class="flex-1 py-3 bg-[#12141A] hover:bg-white/5 border border-white/10 rounded-xl text-slate-300 font-bold uppercase tracking-widest text-[11px] transition-colors">Abort</button>
-                <button onclick="document.getElementById('warpModal').style.display='none'; window.chrome.webview.postMessage({action: 'warpToDeparture'})" class="flex-1 py-3 bg-orange-500/20 hover:bg-orange-500 text-orange-400 hover:text-white border border-orange-500/30 rounded-xl font-bold uppercase tracking-widest text-[11px] transition-all focus:ring-2 focus:ring-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.2)]">Warp</button>
+                <button onclick="document.getElementById('warpModal').style.display='none'" class="flex-1 py-3 bg-[#12141A] hover:bg-white/5 border border-white/10 rounded-xl text-slate-300 font-bold uppercase tracking-widest text-[11px] transition-colors">Cancel</button>
+                <button onclick="document.getElementById('warpModal').style.display='none'; window.chrome.webview.postMessage({action: 'warpToDeparture'})" class="flex-1 py-3 bg-orange-500/20 hover:bg-orange-500 text-orange-400 hover:text-white border border-orange-500/30 rounded-xl font-bold uppercase tracking-widest text-[11px] transition-all focus:ring-2 focus:ring-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.2)]">Force</button>
             </div>
         </div>
     </div>
@@ -962,10 +1007,10 @@
         </div>
     </div>
 
-    <div id="flightReportModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-[#0B0C10]/90 backdrop-blur-md" style="display: none;">
-        <div class="bg-[#12141A] w-full max-w-4xl rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden relative">
-            <div class="h-1.5 w-full bg-gradient-to-r from-sky-500 via-emerald-400 to-sky-500"></div>
-            <div class="p-8 flex flex-col gap-8">
+    <div id="flightReportModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-[#0B0C10]/90 backdrop-blur-md p-4" style="display: none;">
+        <div class="bg-[#12141A] w-full max-w-4xl max-h-[95vh] rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden relative">
+            <div class="h-1.5 w-full shrink-0 bg-gradient-to-r from-sky-500 via-emerald-400 to-sky-500"></div>
+            <div class="p-8 flex flex-col gap-8 overflow-y-auto custom-scrollbar">
                 <div class="flex justify-between items-start">
                     <div>
                         <h2 class="text-3xl font-black font-headline text-white tracking-tight uppercase" data-i18n="report_title">POST-FLIGHT DEBRIEF</h2>
@@ -1006,7 +1051,7 @@
                 </div>
 
                 <div class="bg-[#1C1F26] rounded-xl border border-white/5 p-6 shadow-lg mb-4" id="frObjectivesContainer" style="display: none;">
-                    <h3 class="text-[10px] font-label tracking-[0.2em] text-sky-400 uppercase mb-4 border-b border-white/5 pb-3">Airline Objectives</h3>
+                    <h3 class="text-[10px] font-label tracking-[0.2em] text-sky-400 uppercase mb-4 border-b border-white/5 pb-3">Company Challenges</h3>
                     <div id="frObjectivesList" class="flex flex-col gap-3">
                         <!-- Populated by JS -->
                     </div>
