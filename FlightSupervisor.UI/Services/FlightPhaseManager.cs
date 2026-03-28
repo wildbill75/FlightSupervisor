@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace FlightSupervisor.UI.Services
 {
@@ -16,6 +18,15 @@ namespace FlightSupervisor.UI.Services
         Landing,
         TaxiIn,
         Arrived
+    }
+
+    public enum TurbulenceSeverityLevel
+    {
+        None,
+        Light,
+        Moderate,
+        Severe,
+        Extreme
     }
 
     public class FlightPhaseManager
@@ -62,6 +73,10 @@ namespace FlightSupervisor.UI.Services
         public bool Eng2Combustion { get; private set; } = true;
         private int _taxiOverspeedSeconds = 0;
         private int _overspeedSeconds = 0;
+        public bool IsGoAroundActive { get; private set; } = false;
+        public bool IsSevereTurbulenceActive { get; private set; } = false;
+        public bool HasEngineFailure => _hasTriggeredEngineFailure;
+        private DateTime? _goAroundStartTime = null;
         private double _highestAltitudeReached = 0;
         private bool _isAutopilotActive = false;
         private bool _isAutothrustActive = false;
@@ -72,11 +87,24 @@ namespace FlightSupervisor.UI.Services
         public bool IsStrobeLightOn { get; set; } = false;
         public bool IsOnGround { get; set; } = true;
         public double VerticalSpeed { get; set; } = 0.0;
-        public double GForce { get; set; } = 1.0;
+        private double _gForce = 1.0;
+        public double GForce 
+        { 
+            get => _gForce;
+            set 
+            {
+                _gForce = value;
+                CalculateTurbulence(value);
+            }
+        }
         public double GroundSpeed { get; private set; } = 0.0;
         private bool _hasLanded = false;
         public double TouchdownFpm { get; private set; } = 0.0;
         public double TouchdownGForce { get; private set; } = 1.0;
+
+        public TurbulenceSeverityLevel TurbulenceSeverity { get; private set; } = TurbulenceSeverityLevel.None;
+        private System.Collections.Generic.Queue<double> _gForceHistory = new System.Collections.Generic.Queue<double>();
+        private const int JitterWindowSize = 300; // ~5 seconds at Visual Frame rate (60Hz)
 
         // Fenix specific states
         public int FenixNoseLight { get; set; } = 0;
@@ -277,18 +305,25 @@ namespace FlightSupervisor.UI.Services
                     }
                 }
 
-                // G-Force limits (Airborne)
-                if (!IsOnGround && (DateTime.Now - _lastGForcePenalty).TotalSeconds > 10)
-                {
-                    if (GForce > 2.0 || GForce < 0.0)
+                    // Severe turbulence flag is now driven by the categorizer
+                    IsSevereTurbulenceActive = TurbulenceSeverity >= TurbulenceSeverityLevel.Severe;
+                    if (Math.Abs(GForce - 1.0) < 0.1)
                     {
-                        _lastGForcePenalty = DateTime.Now;
-                        OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Safety Violation: Structural G-Force Limit Exceeded ({GForce:F2}G)", $"Violation Sécurité: Limite Structurelle Force G dépassée ({GForce:F2}G)"));
+                        IsSevereTurbulenceActive = false;
                     }
-                    else if (GForce > 1.6 || GForce < 0.4)
+
+                    if ((DateTime.Now - _lastGForcePenalty).TotalSeconds > 10)
                     {
-                        _lastGForcePenalty = DateTime.Now;
-                        OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Safety Violation: Severe G-Force ({GForce:F2}G)", $"Violation Sécurité: Force G Sévère ({GForce:F2}G)"));
+                        if (GForce > 2.0 || GForce < 0.0)
+                        {
+                            _lastGForcePenalty = DateTime.Now;
+                            OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Safety Violation: Structural G-Force Limit Exceeded ({GForce:F2}G)", $"Violation Sécurité: Limite Structurelle Force G dépassée ({GForce:F2}G)"));
+                        }
+                        else if (GForce > 1.6 || GForce < 0.4)
+                        {
+                            _lastGForcePenalty = DateTime.Now;
+                            OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Safety Violation: Severe G-Force ({GForce:F2}G)", $"Violation Sécurité: Force G Sévère ({GForce:F2}G)"));
+                        }
                     }
                 }
 
@@ -307,7 +342,6 @@ namespace FlightSupervisor.UI.Services
                     _lastLightPenalty = DateTime.Now;
                     OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Safety Violation: Landing Lights ON above 10,000ft", "Violation Sécurité: Phares d'atterrissage ALLUMES au-dessus de 10,000ft"));
                 }
-            }
 
             // APU Left ON during Cruise Penalty - DISABLED FOR NOW (STORY 48)
             /*
@@ -493,6 +527,8 @@ namespace FlightSupervisor.UI.Services
 
                     if (IsOnGround)
                     {
+                        IsGoAroundActive = false;
+                        _goAroundStartTime = null;
                         if (_vsHistory.Count > 0)
                         {
                             // On prend la moyenne des dernières frames avant le contact sol (radioHeight > 2.0)
@@ -504,6 +540,18 @@ namespace FlightSupervisor.UI.Services
                         }
                         
                         ChangePhase(FlightPhase.Landing);
+                    }
+                    else
+                    {
+                        // Detect Go-Around: Positive VS during approach
+                        if (VerticalSpeed > 700 && radioHeight < 2000)
+                        {
+                            if (_goAroundStartTime == null) _goAroundStartTime = DateTime.Now;
+                            else if ((DateTime.Now - _goAroundStartTime.Value).TotalSeconds > 3)
+                            {
+                                IsGoAroundActive = true;
+                            }
+                        }
                     }
                     break;
                 case FlightPhase.Landing:
@@ -669,6 +717,55 @@ namespace FlightSupervisor.UI.Services
             }
         }
 
+        private void CalculateTurbulence(double gf)
+        {
+            if (IsOnGround)
+            {
+                _gForceHistory.Clear();
+                TurbulenceSeverity = TurbulenceSeverityLevel.None;
+                return;
+            }
+
+            _gForceHistory.Enqueue(gf);
+            if (_gForceHistory.Count > JitterWindowSize) _gForceHistory.Dequeue();
+            if (_gForceHistory.Count < 5) return;
+
+            double maxDev = 0;
+            int crossings = 0;
+            double? prev = null;
+
+            foreach (var val in _gForceHistory)
+            {
+                double dev = Math.Abs(val - 1.0);
+                if (dev > maxDev) maxDev = dev;
+                
+                if (prev.HasValue)
+                {
+                    if ((prev.Value < 1.0 && val >= 1.0) || (prev.Value > 1.0 && val <= 1.0))
+                        crossings++;
+                }
+                prev = val;
+            }
+
+            // High frequency jitter detection: crossing the 1.0G line multiple times.
+            // If Autopilot is ON, any deviation is environmental.
+            // If Autopilot is OFF, we require jitter to classify as "Weather Turbulence" vs "Pilot Input".
+            bool isJitter = crossings >= 2; 
+
+            if (_isAutopilotActive || isJitter)
+            {
+                if (maxDev < 0.1) TurbulenceSeverity = TurbulenceSeverityLevel.None;
+                else if (maxDev < 0.25) TurbulenceSeverity = TurbulenceSeverityLevel.Light;
+                else if (maxDev < 0.45) TurbulenceSeverity = TurbulenceSeverityLevel.Moderate;
+                else if (maxDev < 0.7) TurbulenceSeverity = TurbulenceSeverityLevel.Severe;
+                else TurbulenceSeverity = TurbulenceSeverityLevel.Extreme;
+            }
+            else
+            {
+                TurbulenceSeverity = TurbulenceSeverityLevel.None;
+            }
+        }
+
         public void Reset()
         {
             ChangePhase(FlightPhase.AtGate);
@@ -679,6 +776,8 @@ namespace FlightSupervisor.UI.Services
             IsOnGround = true;
             _timeAt50Ft = null;
             _vsHistory.Clear();
+            _gForceHistory.Clear();
+            TurbulenceSeverity = TurbulenceSeverityLevel.None;
         }
     }
 }

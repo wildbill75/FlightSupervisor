@@ -10,7 +10,7 @@ namespace FlightSupervisor.UI.Services
     {
         private readonly UnitPreferences _units;
 
-        public WeatherBriefingService(UnitPreferences units = null)
+        public WeatherBriefingService(UnitPreferences? units = null)
         {
             _units = units ?? new UnitPreferences();
         }
@@ -556,6 +556,15 @@ namespace FlightSupervisor.UI.Services
                 }
 
                 if (displaySpeed > thresholdStrong || hasGusts) hasBadWeather = true;
+                
+                // Severity calculation
+                if (station != null)
+                {
+                    if (speed > 35 || (hasGusts && speed > 25)) station.WindSeverity = WeatherSeverity.Danger;
+                    else if (speed > 25 || hasGusts) station.WindSeverity = WeatherSeverity.Warning;
+                    else station.WindSeverity = WeatherSeverity.Normal;
+                }
+
                 string intensityEn = displaySpeed > thresholdStrong ? "strong" : displaySpeed > thresholdMod ? "moderate" : "light";
                 string intensityFr = displaySpeed > thresholdStrong ? "fort" : displaySpeed > thresholdMod ? "modéré" : "léger";
                 
@@ -635,7 +644,13 @@ namespace FlightSupervisor.UI.Services
                 var visMatch = Regex.Match(upperMetar, @"\s([0-9]{4})\s");
                 if (visMatch.Success && int.TryParse(visMatch.Groups[1].Value, out int visMeters))
                 {
-                    if (station != null) station.Visibility = $"{visMeters} m";
+                    if (station != null) 
+                    {
+                        station.Visibility = $"{visMeters} m";
+                        if (visMeters < 600) station.VisibilitySeverity = WeatherSeverity.Danger;
+                        else if (visMeters < 1500) station.VisibilitySeverity = WeatherSeverity.Warning;
+                        else station.VisibilitySeverity = WeatherSeverity.Normal;
+                    }
                     if (visMeters < 1000) { conditions.Append(LocalizationService.Translate("Visibility is extremely low (less than 1km). ", "La visibilité est extrêmement faible (moins de 1km). ")); hasBadWeather = true; }
                     else if (visMeters < 5000) { conditions.Append(LocalizationService.Translate("Visibility is reduced. ", "La visibilité est réduite. ")); }
                     else conditions.Append(LocalizationService.Translate("Visibility is generally good (over 5km). ", "La visibilité est bonne (plus de 5km). "));
@@ -647,9 +662,25 @@ namespace FlightSupervisor.UI.Services
             {
                 var cloudMatches = Regex.Matches(upperMetar, @"(FEW|SCT|BKN|OVC)([0-9]{3})(CB|TCU)?");
                 var cloudList = new System.Collections.Generic.List<string>();
-                foreach (Match m in cloudMatches) cloudList.Add(m.Value);
+                int lowestCeiling = 999;
+
+                foreach (Match m in cloudMatches)
+                {
+                    cloudList.Add(m.Value);
+                    string type = m.Groups[1].Value;
+                    if ((type == "BKN" || type == "OVC") && int.TryParse(m.Groups[2].Value, out int height))
+                    {
+                        if (height < lowestCeiling) lowestCeiling = height;
+                    }
+                }
+
                 if (cloudList.Count > 0) station.CloudBase = string.Join(" ", cloudList);
                 else if (upperMetar.Contains("CAVOK") || upperMetar.Contains("NSC")) station.CloudBase = "CLR";
+
+                // Severity calculation (height is in hundreds of feet)
+                if (lowestCeiling < 2) station.CloudSeverity = WeatherSeverity.Danger; // < 200ft
+                else if (lowestCeiling < 5) station.CloudSeverity = WeatherSeverity.Warning; // < 500ft
+                else station.CloudSeverity = WeatherSeverity.Normal;
             }
 
             // Weather phenomena

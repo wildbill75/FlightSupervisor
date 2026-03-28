@@ -1,0 +1,2424 @@
+﻿diff --git a/.vs/FlightSupervisor.slnx/FileContentIndex/87c3ce6a-5dcc-4431-a072-27e13f495b5f.vsidx b/.vs/FlightSupervisor.slnx/FileContentIndex/87c3ce6a-5dcc-4431-a072-27e13f495b5f.vsidx
+deleted file mode 100644
+index 556615d..0000000
+Binary files a/.vs/FlightSupervisor.slnx/FileContentIndex/87c3ce6a-5dcc-4431-a072-27e13f495b5f.vsidx and /dev/null differ
+diff --git a/.vs/FlightSupervisor.slnx/FileContentIndex/924f33da-65d9-4f12-a911-1fe8a1ff3008.vsidx b/.vs/FlightSupervisor.slnx/FileContentIndex/924f33da-65d9-4f12-a911-1fe8a1ff3008.vsidx
+deleted file mode 100644
+index ad202a3..0000000
+Binary files a/.vs/FlightSupervisor.slnx/FileContentIndex/924f33da-65d9-4f12-a911-1fe8a1ff3008.vsidx and /dev/null differ
+diff --git a/.vs/FlightSupervisor.slnx/FileContentIndex/f0175a34-5622-4297-bca2-70913a1cf501.vsidx b/.vs/FlightSupervisor.slnx/FileContentIndex/f0175a34-5622-4297-bca2-70913a1cf501.vsidx
+deleted file mode 100644
+index ed960b4..0000000
+Binary files a/.vs/FlightSupervisor.slnx/FileContentIndex/f0175a34-5622-4297-bca2-70913a1cf501.vsidx and /dev/null differ
+diff --git a/.vs/FlightSupervisor.slnx/v18/.futdcache.v2 b/.vs/FlightSupervisor.slnx/v18/.futdcache.v2
+index 2aee0ca..6b477ff 100644
+Binary files a/.vs/FlightSupervisor.slnx/v18/.futdcache.v2 and b/.vs/FlightSupervisor.slnx/v18/.futdcache.v2 differ
+diff --git a/.vs/FlightSupervisor.slnx/v18/.suo b/.vs/FlightSupervisor.slnx/v18/.suo
+index a650457..56023b5 100644
+Binary files a/.vs/FlightSupervisor.slnx/v18/.suo and b/.vs/FlightSupervisor.slnx/v18/.suo differ
+diff --git a/FlightSupervisor.UI/MainWindow.xaml.cs b/FlightSupervisor.UI/MainWindow.xaml.cs
+index 00cbac3..56c1c5e 100644
+--- a/FlightSupervisor.UI/MainWindow.xaml.cs
++++ b/FlightSupervisor.UI/MainWindow.xaml.cs
+@@ -24,6 +24,7 @@ namespace FlightSupervisor.UI
+         private bool _isParkingBrakeSet = false;
+         private double _lastKnownThrottle = 0;
+         private double _lastKnownPitch = 0;
++        private double _lastKnownVerticalSpeed = 0;
+         private double _lastKnownBank = 0;
+         private bool _isGearDown = true;
+         private DateTime _currentSimTime = DateTime.MinValue;
+@@ -97,6 +98,16 @@ namespace FlightSupervisor.UI
+             _cabinManager.OnPncStatusChanged += (status, state) => {
+                 Dispatcher.Invoke(() => SendToWeb(new { type = "pncStatus", status = status, state = state.ToString() }));
+             };
++            _cabinManager.OnOperationBonusTriggered += (bonus, reason) => {
++                if (reason == "pnc_ready_chime") {
++                    SendToWeb(new { type = "playSound", sound = "chime_emergency" });
++                }
++            };
++            _cabinManager.OnMedicalEmergencyRequested += () => {
++                if (_crisisManager != null && _crisisManager.ActiveCrisis == CrisisType.None) {
++                    _crisisManager.TriggerSpecificCrisis(CrisisType.MedicalEmergency);
++                }
++            };
+ 
+             // Tray Icon Setup
+             _notifyIcon = new System.Windows.Forms.NotifyIcon();
+@@ -162,7 +173,10 @@ namespace FlightSupervisor.UI
+                 {
+                     sobtDate = DateTimeOffset.FromUnixTimeSeconds(sobtUnix).DateTime;
+                 }
+-                _cabinManager.Tick(_phaseManager.GForce, _lastKnownBank, isBoardingComplete, _currentSimTime, sobtDate, _phaseManager.CurrentPhase);
++                _cabinManager.Tick(_phaseManager.GForce, _lastKnownBank, isBoardingComplete, 
++                                   _currentSimTime, sobtDate, _phaseManager.CurrentPhase, _lastKnownGroundSpeed,
++                                   _lastKnownAltitude, _lastKnownVerticalSpeed,
++                                   _phaseManager.IsGoAroundActive || _phaseManager.IsSevereTurbulenceActive || _phaseManager.HasEngineFailure);
+                 
+                 SendTelemetryToWeb();
+                 
+@@ -439,6 +453,9 @@ namespace FlightSupervisor.UI
+                 _lastKnownAltitude = alt;
+                 _phaseManager.UpdateTelemetry(_lastKnownGroundSpeed, _lastKnownAirspeed, alt, _lastKnownRadioHeight, _isParkingBrakeSet, _isGearDown, _lastKnownThrottle, _lastKnownPitch, _lastKnownBank);
+             };
++            _simConnectService.OnVerticalSpeedReceived += vs => {
++                _lastKnownVerticalSpeed = vs;
++            };
+             _simConnectService.OnGearDownReceived += gd => { 
+                 _isGearDown = gd; 
+                 if (_lastLogGearDown != null && _lastLogGearDown != gd) SendToWeb(new { type = "log", message = gd ? "Landing Gear DOWN" : "Landing Gear UP" });
+@@ -623,6 +640,22 @@ namespace FlightSupervisor.UI
+                         SendMessage(helper.Handle, 0xA1, 2, 0);
+                     });
+                 }
++                else if (action == "intercomQuery")
++                {
++                    bool canReport = _cabinManager.RequestCabinReport(_phaseManager.CurrentPhase, _crisisManager?.ActiveCrisis != CrisisType.None);
++                    if (!canReport) 
++                    {
++                        SendToWeb(new { type = "playSound", sound = "intercom_busy" });
++                    }
++                    else 
++                    {
++                        SendToWeb(new { type = "playSound", sound = "intercom_ding" });
++                    }
++                }
++                else if (action == "toggleService")
++                {
++                    _cabinManager.ToggleServiceInterruption();
++                }
+                 else if (action == "updateAvatar")
+                 {
+                     var payloadStr = doc.RootElement.GetProperty("payload").GetString();
+@@ -962,12 +995,21 @@ namespace FlightSupervisor.UI
+                 anxiety = Math.Round(_cabinManager.PassengerAnxiety, 1),
+                 comfort = Math.Round(_cabinManager.ComfortLevel, 1),
+                 serviceProgress = Math.Round(_cabinManager.InFlightServiceProgress, 1),
++                securingProgress = Math.Round(_cabinManager.SecuringProgress, 1),
++                isSecuringHalted = _cabinManager.IsSecuringHalted,
+                 satietyActive = _cabinManager.IsSatietyActive,
+                 cabinState = _cabinManager.State.ToString(),
++                isServiceHalted = _cabinManager.IsServiceHalted,
++                cabinReportCooldownElapsed = _cabinManager.SecondsSinceLastReport,
+                 airline = CurrentAirline,
+                 issuedCommands = _cabinManager.IssuedCommands.ToList(),
+                 activeCrisis = _crisisManager.ActiveCrisis.ToString(),
+-                crisisElapsed = _crisisManager.CrisisStartTimeSeconds > 0 ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _crisisManager.CrisisStartTimeSeconds : 0
++                isGoAroundActive = _phaseManager.IsGoAroundActive,
++                isSevereTurbulenceActive = _phaseManager.IsSevereTurbulenceActive,
++                isSilencePenaltyActive = _cabinManager.IsSilencePenaltyActive,
++                crisisElapsed = _crisisManager.CrisisStartTimeSeconds > 0 ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _crisisManager.CrisisStartTimeSeconds : 0,
++                passengers = _cabinManager.PassengerManifest,
++                turbulenceSeverity = _phaseManager.TurbulenceSeverity.ToString()
+             });
+             
+             if (_groundOpsManager.Services.Count > 0)
+@@ -999,6 +1041,15 @@ namespace FlightSupervisor.UI
+ 
+                 if (response != null && response.Fetch?.Status == "Success")
+                 {
++                    _currentResponse = response;
++                    _cabinManager.CurrentFlight = _currentResponse;
++                    
++                    // Dispatcher 
++                    Dispatcher.Invoke(() => {
++                        // Any UI updates that depend on _currentResponse or _cabinManager.CurrentFlight can go here if needed.
++                        // The original code for weather fetching and other logic will follow.
++                    });
++
+                     if (response.Weather != null)
+                     {
+                         if (weatherSource == "activesky")
+diff --git a/FlightSupervisor.UI/Models/BriefingData.cs b/FlightSupervisor.UI/Models/BriefingData.cs
+index b792677..99b3227 100644
+--- a/FlightSupervisor.UI/Models/BriefingData.cs
++++ b/FlightSupervisor.UI/Models/BriefingData.cs
+@@ -12,6 +12,13 @@ namespace FlightSupervisor.UI.Models
+         public List<BriefingStation> Stations { get; set; } = new List<BriefingStation>();
+     }
+ 
++    public enum WeatherSeverity
++    {
++        Normal,
++        Warning,
++        Danger
++    }
++
+     public class BriefingStation
+     {
+         public string Id { get; set; } = ""; // origin, destination, alternate
+@@ -22,8 +29,14 @@ namespace FlightSupervisor.UI.Models
+         
+         // Highlight Variables
+         public string Wind { get; set; } = "";
++        public WeatherSeverity WindSeverity { get; set; } = WeatherSeverity.Normal;
++
+         public string Visibility { get; set; } = "";
++        public WeatherSeverity VisibilitySeverity { get; set; } = WeatherSeverity.Normal;
++
+         public string CloudBase { get; set; } = "";
++        public WeatherSeverity CloudSeverity { get; set; } = WeatherSeverity.Normal;
++
+         public string TempDew { get; set; } = "";
+         public string Qnh { get; set; } = "";
+         
+diff --git a/FlightSupervisor.UI/Services/CabinManager.cs b/FlightSupervisor.UI/Services/CabinManager.cs
+index 2a13d2d..ef3bd01 100644
+--- a/FlightSupervisor.UI/Services/CabinManager.cs
++++ b/FlightSupervisor.UI/Services/CabinManager.cs
+@@ -1,5 +1,7 @@
+ using System;
+ using System.Collections.Generic;
++using FlightSupervisor.UI.Models;
++using FlightSupervisor.UI.Models.SimBrief;
+ 
+ namespace FlightSupervisor.UI.Services
+ {
+@@ -21,13 +23,27 @@ namespace FlightSupervisor.UI.Services
+         Relaxed
+     }
+ 
++    public class PassengerState
++    {
++        public string SeatId { get; set; } = "";
++        public bool IsSeatbeltFastened { get; set; } = true;
++        public double IndividualAnxiety { get; set; } = 0.0;
++        public PassengerDemographic Demographic { get; set; } = PassengerDemographic.Standard;
++        public bool IsInjured { get; set; } = false;
++        public string InjuryType { get; set; } = "";
++        public DateTime? LastComplianceCheck { get; set; }
++    }
++
+     public class CabinManager
+     {
++        public double SecuringProgress { get; private set; } = 0.0;
++        private bool _isSecuring = false;
++        private double _currentSecuringRate = 0.0;
++        public bool IsSecuringHalted { get; private set; } = false;
++        private CabinState _targetState = CabinState.Idle;
+         public CabinState State { get; private set; } = CabinState.Idle;
+         public bool IsCrewSeated { get; private set; } = false;
+-        public event Action<string, CabinState>? OnPncStatusChanged;
+         private DateTime? _securingEndTime = null;
+-        private CabinState _targetState = CabinState.Idle;
+         public double PassengerAnxiety { get; private set; } = 0.0; // 0 to 100
+         public double ComfortLevel { get; private set; } = 100.0; // 100 to 0
+ 
+@@ -42,13 +58,17 @@ namespace FlightSupervisor.UI.Services
+ 
+         public event Action<string, string>? OnCrewMessage;
+         public event Action<int, string>? OnPenaltyTriggered;
++        public event Action<string, CabinState>? OnPncStatusChanged;
++        public event Action? OnMedicalEmergencyRequested;
+ 
+         public HashSet<string> IssuedCommands => _issuedCommands;
+ 
+         private DateTime _lastTurbulenceNotice = DateTime.MinValue;
+         private Queue<double> _gForceHistory = new Queue<double>();
++        private DateTime _lastSecureProgressUpdate = DateTime.MinValue;
++        private DateTime _lastServiceHaltNotice = DateTime.MinValue;
++        private DateTime _lastSafetyCheckNotice = DateTime.MinValue;
+         private DateTime _lastDelayNotice = DateTime.MinValue;
+-        private DateTime _timeOfLastDelayPA = DateTime.MinValue;
+         private bool _hasTriggeredCateringComplaint = false;
+         
+         private Random _rnd = new Random();
+@@ -92,8 +112,29 @@ namespace FlightSupervisor.UI.Services
+         private bool _seatbeltsOn = true;
+ 
+         // In-Flight Service
+-        public double InFlightServiceProgress { get; private set; } = 0.0;
+-        public bool IsSatietyActive { get; private set; } = false;
++        public double InFlightServiceProgress { get; set; } = 0.0;
++        public bool IsServiceHalted { get; set; } = false;
++        public bool IsSatietyActive { get; set; } = false;
++
++        public SimBriefResponse? CurrentFlight { get; set; }
++        public BriefingData? CurrentWeather { get; set; }
++
++        private DateTime? _silenceTimerStart = null;
++        public bool IsSilencePenaltyActive { get; private set; } = false;
++        private bool _welcomePADone = false;
++        private bool _descentPADone = false;
++        private DateTime? _lastPhaseChangeTime = null;
++        private DateTime _timeOfLastDelayPA = DateTime.MinValue;
++        
++        public List<PassengerState> PassengerManifest { get; private set; } = new List<PassengerState>();
++        private DateTime? _turbulenceReactionTimerStart = null;
++        private bool _hasPenalizedTurbulenceReaction = false;
++        private bool _hasRewardedTurbulenceReaction = false;
++        public double SecondsSinceLastReport => (DateTime.Now - _lastReportRequest).TotalSeconds;
++        private DateTime _lastReportRequest = DateTime.MinValue;
++        private DateTime? _strategicPenaltyEndTime = null;
++
++        public event Action<int, string>? OnInjuryTriggered;
+ 
+         public void InitializeFlightDemographics(AirlineProfile profile)
+         {
+@@ -133,11 +174,47 @@ namespace FlightSupervisor.UI.Services
+                     break;
+             }
+ 
+-            // Cap the gauges
+             if (ComfortLevel > 100) ComfortLevel = 100;
+             if (ComfortLevel < 0) ComfortLevel = 0;
+             if (PassengerAnxiety < 0) PassengerAnxiety = 0;
+             if (PassengerAnxiety > 100) PassengerAnxiety = 100;
++
++            GenerateManifest();
++        }
++
++        private void GenerateManifest()
++        {
++            PassengerManifest.Clear();
++            int paxCount = 0;
++            if (CurrentFlight?.Weights?.PaxCount != null && int.TryParse(CurrentFlight.Weights.PaxCount, out paxCount))
++            {
++                for (int i = 0; i < paxCount; i++)
++                {
++                    int row = (i / 6) + 1;
++                    char letter = (char)('A' + (i % 6));
++                    var p = new PassengerState {
++                        SeatId = $"{row}{letter}",
++                        Demographic = RollIndividualDemographic(),
++                        IsSeatbeltFastened = _seatbeltsOn,
++                        IndividualAnxiety = PassengerAnxiety
++                    };
++                    PassengerManifest.Add(p);
++                }
++            }
++        }
++
++        private PassengerDemographic RollIndividualDemographic()
++        {
++            int roll = _rnd.Next(100);
++            // Bias individual demographics slightly based on the flight's overall demographic
++            int grumpyChance = FlightDemographic == PassengerDemographic.Grumpy ? 40 : 15;
++            int anxiousChance = FlightDemographic == PassengerDemographic.Anxious ? 40 : 10;
++            int relaxedChance = FlightDemographic == PassengerDemographic.Relaxed ? 40 : 15;
++
++            if (roll < grumpyChance) return PassengerDemographic.Grumpy;
++            if (roll < grumpyChance + anxiousChance) return PassengerDemographic.Anxious;
++            if (roll < grumpyChance + anxiousChance + relaxedChance) return PassengerDemographic.Relaxed;
++            return PassengerDemographic.Standard;
+         }
+ 
+         public void UpdateSeatbelts(bool isOn, FlightPhase phase)
+@@ -151,10 +228,30 @@ namespace FlightSupervisor.UI.Services
+                     {
+                         OnCrewMessage?.Invoke("info", LocalizationService.Translate("Captain turned ON the Fasten Seatbelt sign.", "Le Commandant a ALLUM├ë le signal Attachez vos Ceintures."));
+                         DecreaseAnxiety(10.0);
++                        
++                        // Initial compliance spike
++                        foreach (var p in PassengerManifest)
++                        {
++                            double chance = p.Demographic switch {
++                                PassengerDemographic.Anxious => 95,
++                                PassengerDemographic.Standard => 70,
++                                PassengerDemographic.Relaxed => 50,
++                                PassengerDemographic.Grumpy => 40,
++                                _ => 70
++                            };
++                            if (_rnd.Next(100) < chance) p.IsSeatbeltFastened = true;
++                        }
+                     }
+                     else
+                     {
+                         OnCrewMessage?.Invoke("info", LocalizationService.Translate("Captain turned OFF the Fasten Seatbelt sign.", "Le Commandant a ├ëTEINT le signal Attachez vos Ceintures."));
++                        
++                        // Some passengers immediately unfasten
++                        foreach (var p in PassengerManifest)
++                        {
++                            if (p.Demographic == PassengerDemographic.Relaxed && _rnd.Next(100) < 60)
++                                p.IsSeatbeltFastened = false;
++                        }
+                     }
+                 }
+             }
+@@ -172,16 +269,32 @@ namespace FlightSupervisor.UI.Services
+             {
+                 case "PREPARE_TAKEOFF":
+                     IsCrewSeated = false;
++                    _isSecuring = true;
++                    SecuringProgress = 0.0;
++                    _currentSecuringRate = 0.15; // Approx 1.5 mins at 1 tic/sec (Adjusted for 1Hz tick in MainWindow)
+                     State = CabinState.SecuringForTakeoff;
+                     _targetState = CabinState.TakeoffSecured;
+-                    _securingEndTime = DateTime.Now.AddMinutes(2);
+                     OnPncStatusChanged?.Invoke("Securing cabin for T.O...", State);
+                     OnCrewMessage?.Invoke("info", LocalizationService.Translate("Cabin Crew, prepare for Takeoff.", "PNC, pr├⌐parez la cabine pour le d├⌐collage."));
+                     break;
+                 case "SEATS_TAKEOFF":
+-                    IsCrewSeated = true;
+-                    OnCrewMessage?.Invoke("info", LocalizationService.Translate("Cabin Crew, seats for Takeoff.", "PNC, aux postes pour le d├⌐collage."));
+-                    if (State == CabinState.TakeoffSecured) OnPncStatusChanged?.Invoke("Cabin Ready & Seated", State);
++                    if (!_isSecuring && SecuringProgress >= 100.0)
++                    {
++                        IsCrewSeated = true;
++                        OnCrewMessage?.Invoke("info", LocalizationService.Translate("Cabin Crew, seats for Takeoff.", "PNC, aux postes pour le d├⌐collage."));
++                        if (State == CabinState.TakeoffSecured) OnPncStatusChanged?.Invoke("Cabin Ready & Seated", State);
++                    }
++                    else
++                    {
++                        // Forced override penalty
++                        _isSecuring = false;
++                        SecuringProgress = 100.0;
++                        IsCrewSeated = true;
++                        State = CabinState.TakeoffSecured;
++                        OnPenaltyTriggered?.Invoke(-300, LocalizationService.Translate("SAFETY: Forced crew seating without secure cabin!", "S├ëCURIT├ë: ├ëquipage assis de force sans cabine s├⌐curis├⌐e !"));
++                        OnCrewMessage?.Invoke("red", LocalizationService.Translate("Captain, we are not ready but we are seating now as ordered! This is dangerous.", "Commandant, nous ne sommes pas pr├¬tes mais nous nous asseyons comme ordonn├⌐ ! C'est dangereux."));
++                        OnPncStatusChanged?.Invoke("FORCED READY & SEATED", State);
++                    }
+                     break;
+                 case "START_SERVICE":
+                     IsCrewSeated = false;
+@@ -192,16 +305,32 @@ namespace FlightSupervisor.UI.Services
+                     break;
+                 case "PREPARE_LANDING":
+                     IsCrewSeated = false;
++                    _isSecuring = true;
++                    SecuringProgress = 0.0;
++                    _currentSecuringRate = 0.1; // Takes approx 2.5 mins
+                     State = CabinState.SecuringForLanding;
+                     _targetState = CabinState.LandingSecured;
+-                    _securingEndTime = DateTime.Now.AddMinutes(3); // Takes longer to secure for landing
+                     OnPncStatusChanged?.Invoke("Securing cabin for LDG...", State);
+                     OnCrewMessage?.Invoke("info", LocalizationService.Translate("Cabin Crew, prepare for Landing.", "PNC, pr├⌐parez la cabine pour l'atterrissage."));
+                     break;
+                 case "SEATS_LANDING":
+-                    IsCrewSeated = true;
+-                    OnCrewMessage?.Invoke("info", LocalizationService.Translate("Cabin Crew, seats for Landing.", "PNC, aux postes pour l'atterrissage."));
+-                    if (State == CabinState.LandingSecured) OnPncStatusChanged?.Invoke("Cabin Ready & Seated", State);
++                    if (!_isSecuring && SecuringProgress >= 100.0)
++                    {
++                        IsCrewSeated = true;
++                        OnCrewMessage?.Invoke("info", LocalizationService.Translate("Cabin Crew, seats for Landing.", "PNC, aux postes pour l'atterrissage."));
++                        if (State == CabinState.LandingSecured) OnPncStatusChanged?.Invoke("Cabin Ready & Seated", State);
++                    }
++                    else
++                    {
++                        // Forced override penalty
++                        _isSecuring = false;
++                        SecuringProgress = 100.0;
++                        IsCrewSeated = true;
++                        State = CabinState.LandingSecured;
++                        OnPenaltyTriggered?.Invoke(-300, LocalizationService.Translate("SAFETY: Forced crew seating without secure cabin!", "S├ëCURIT├ë: ├ëquipage assis de force sans cabine s├⌐curis├⌐e !"));
++                        OnCrewMessage?.Invoke("red", LocalizationService.Translate("Captain, we are not ready but we are seating now as ordered! This is dangerous.", "Commandant, nous ne sommes pas pr├¬tes mais nous nous asseyons comme ordonn├⌐ ! C'est dangereux."));
++                        OnPncStatusChanged?.Invoke("FORCED READY & SEATED", State);
++                    }
+                     break;
+                 case "CANCEL_SERVICE":
+                     IsCrewSeated = true;
+@@ -240,7 +369,7 @@ namespace FlightSupervisor.UI.Services
+             }
+         }
+         
+-        public void Tick(double gForce, double bankAngle, bool isBoarded, DateTime currentZulu, DateTime? sobt, FlightPhase phase)
++        public void Tick(double gForce, double bankAngle, bool isBoarded, DateTime currentZulu, DateTime? sobt, FlightPhase phase, double groundSpeed, double altitude, double verticalSpeed, bool isCrisisActive)
+         {
+             if (phase == FlightPhase.AtGate && !HasBoardingStarted) return;
+ 
+@@ -266,19 +395,86 @@ namespace FlightSupervisor.UI.Services
+                     OnCrewMessage?.Invoke("green", LocalizationService.Translate("Passengers are very relieved to be back on the ground safely.", "Les passagers sont tr├¿s soulag├⌐s d'├¬tre ├á nouveau au sol en s├⌐curit├⌐."));
+                 }
+                 _lastPhase = phase;
++                _lastPhaseChangeTime = DateTime.Now;
++            }
++
++            // --- Crisis & Silence Penalty Logic ---
++            bool isSevereTurbulence = phase != FlightPhase.AtGate && isCrisisActive; // Simplified for now as isCrisisActive includes SevereTurbulence in MainWindow
++            
++            if (isCrisisActive)
++            {
++                if (_silenceTimerStart == null) _silenceTimerStart = DateTime.Now;
++                else if ((DateTime.Now - _silenceTimerStart.Value).TotalSeconds > 120)
++                {
++                    IsSilencePenaltyActive = true;
++                }
++            }
++            else
++            {
++                ResetSilenceTimer();
+             }
+ 
+-            if (_securingEndTime.HasValue && DateTime.Now >= _securingEndTime.Value)
++            // Passenger Compliance & Injury RNG
++            UpdatePassengerStates(phase, isSevereTurbulence);
++            
++            if (isSevereTurbulence)
+             {
+-                State = _targetState;
+-                _securingEndTime = null;
+-                
+-                string msgEn = State == CabinState.TakeoffSecured ? "Captain, cabin is secure for takeoff." : "Captain, cabin is secure for landing.";
+-                string msgFr = State == CabinState.TakeoffSecured ? "Commandant, la cabine est pr├¬te pour le d├⌐collage." : "Commandant, cabine pr├¬te pour l'atterrissage.";
+-                string uiStatus = State == CabinState.TakeoffSecured ? (IsCrewSeated ? "Cabin Ready & Seated" : "Cabin Ready (Not Seated)") : (IsCrewSeated ? "Cabin Ready & Seated" : "Cabin Ready (Not Seated)");
+-                
+-                OnCrewMessage?.Invoke("green", LocalizationService.Translate(msgEn, msgFr));
+-                OnPncStatusChanged?.Invoke(uiStatus, State);
++                if (_turbulenceReactionTimerStart == null)
++                {
++                    _turbulenceReactionTimerStart = DateTime.Now;
++                    _hasPenalizedTurbulenceReaction = false;
++                    _hasRewardedTurbulenceReaction = false;
++                }
++                else
++                {
++                    double elapsed = (DateTime.Now - _turbulenceReactionTimerStart.Value).TotalSeconds;
++                    if (elapsed > 30 && !_hasPenalizedTurbulenceReaction)
++                    {
++                        _hasPenalizedTurbulenceReaction = true;
++                        OnPenaltyTriggered?.Invoke(-100, LocalizationService.Translate("Pilot Inaction: No PA during severe turbulence/crisis", "Inaction Pilote : Pas d'annonce PA pendant la crise/turbulence"));
++                        IncreaseAnxiety(20.0, phase, isCrisisActive);
++                    }
++                }
++            }
++            else
++            {
++                _turbulenceReactionTimerStart = null;
++            }
++
++            if (_isSecuring)
++            {
++                // Halting conditions: Speed > 25kts during taxi, or G-Force > 1.2 or < 0.8
++                bool speedHalt = (phase == FlightPhase.TaxiOut || phase == FlightPhase.TaxiIn) && groundSpeed > 25.0;
++                bool gHalt = gForce > 1.2 || gForce < 0.8;
++
++                IsSecuringHalted = speedHalt || gHalt;
++
++                if (!IsSecuringHalted)
++                {
++                    double effectiveRate = _currentSecuringRate;
++                    if (_strategicPenaltyEndTime.HasValue && DateTime.Now < _strategicPenaltyEndTime.Value)
++                    {
++                        effectiveRate *= 0.5; // Strategic Penalty: PNC distracted by Intercom Query
++                    }
++                    SecuringProgress += effectiveRate;
++                    if (SecuringProgress >= 100.0)
++                    {
++                        SecuringProgress = 100.0;
++                        _isSecuring = false;
++                        
++                        string msgEn = _targetState == CabinState.TakeoffSecured ? "Cabin is now secure and ready for takeoff." : "Cabin is now secure for landing.";
++                        string msgFr = _targetState == CabinState.TakeoffSecured ? "La cabine est maintenant pr├¬te et s├⌐curis├⌐e pour le d├⌐collage." : "La cabine est s├⌐curis├⌐e pour l'atterrissage.";
++                        
++                        OnCrewMessage?.Invoke("green", LocalizationService.Translate(msgEn, msgFr));
++                        // TRIGGER CHIME (handled via telemetry/event in MainWindow)
++                        OnOperationBonusTriggered?.Invoke(0, "pnc_ready_chime"); 
++
++                        State = _targetState;
++
++                        string uiStatus = State == CabinState.TakeoffSecured ? (IsCrewSeated ? "Cabin Ready & Seated" : "Cabin Ready (Not Seated)") : (IsCrewSeated ? "Cabin Ready & Seated" : "Cabin Ready (Not Seated)");
++                        OnPncStatusChanged?.Invoke(uiStatus, State);
++                    }
++                }
+             }
+ 
+             // 1. Turbulence / Manoeuvres Anxiety
+@@ -295,7 +491,7 @@ namespace FlightSupervisor.UI.Services
+             // If G-Force swings wildly (e.g. < 0.6 or > 1.4 repeatedly), anxiety spikes
+             if (phase != FlightPhase.AtGate && (gMax - gMin > 0.6))
+             {
+-                IncreaseAnxiety(0.5, phase); // Add 0.5% per tick of severe turbulence
++                IncreaseAnxiety(0.5, phase, isCrisisActive); // Add 0.5% per tick of severe turbulence
+                 
+                 if (!_seatbeltsOn && (DateTime.Now - _lastTurbulenceNotice).TotalSeconds > 30)
+                 {
+@@ -315,7 +511,7 @@ namespace FlightSupervisor.UI.Services
+             // If bank angle is steep (> 28 degrees)
+             if (phase != FlightPhase.AtGate && Math.Abs(bankAngle) > 28.0)
+             {
+-                IncreaseAnxiety(0.2, phase);
++                IncreaseAnxiety(0.2, phase, isCrisisActive);
+             }
+             
+             // 2. Delay Anxiety (SOBT passed)
+@@ -335,7 +531,7 @@ namespace FlightSupervisor.UI.Services
+                         anxInc *= 2.0;
+                     }
+                     
+-                    if (PassengerAnxiety < 50.0) IncreaseAnxiety(anxInc, phase);
++                    if (PassengerAnxiety < 50.0) IncreaseAnxiety(anxInc, phase, isCrisisActive);
+                     if (ComfortLevel > 50.0) DecreaseComfort(comfDec);
+                     
+                     if (PassengerAnxiety > 30 && (DateTime.Now - _lastDelayNotice).TotalMinutes > 10)
+@@ -353,9 +549,35 @@ namespace FlightSupervisor.UI.Services
+             // 3. In-Flight Service Progression
+             if (State == CabinState.ServingMeals)
+             {
+-                if (!_seatbeltsOn)
++                bool isHaltedByBelts = _seatbeltsOn;
++                bool isHaltedByAlt = altitude < 10000 && phase != FlightPhase.Cruise; 
++                bool isHaltedByDescent = verticalSpeed < -1000 && altitude < 20000;
++                bool isHaltedByTurbulence = gMax - gMin > 0.6; // Severe turbulence automatically halts service
++
++                if (isHaltedByTurbulence && !IsServiceHalted)
+                 {
+-                    InFlightServiceProgress += 0.01; // Approx 16 mins to hit 100% at 10 ticks/sec
++                    IsServiceHalted = true;
++                    OnCrewMessage?.Invoke("orange", LocalizationService.Translate(
++                        "Captain, we are suspending the service immediately due to severe turbulence. The crew is taking their seats.",
++                        "Commandant, nous suspendons le service imm├⌐diatement ├á cause des fortes turbulences. L'├⌐quipage regagne ses si├¿ges."));
++                }
++
++                if (!IsServiceHalted && !isHaltedByBelts && !isHaltedByAlt && !isHaltedByDescent)
++                {
++                    // EET Scaling for Service (Base is 16 mins for 150 pax on 2h flight)
++                    double headCount = PassengerManifest?.Count ?? 150;
++                    double paxScale = 150.0 / Math.Max(1.0, headCount);
++            
++                    // Expected Enroute Time in seconds
++                    int.TryParse(CurrentFlight?.Times?.EstTimeEnroute, out int eetSecs);
++                    if (eetSecs < 1800) eetSecs = 1800; // Min 30 mins
++            
++                    // Adjust speed: Longer flights = slower service. 
++                    // 7200s (2h) = 1.0x factor.
++                    double eetFactor = 7200.0 / eetSecs;
++                    double baseIncrement = 0.01 * paxScale * eetFactor;
++
++                    InFlightServiceProgress += baseIncrement;
+                     if (InFlightServiceProgress >= 100.0)
+                     {
+                         InFlightServiceProgress = 100.0;
+@@ -367,6 +589,24 @@ namespace FlightSupervisor.UI.Services
+                             "Commandant, le service de repas est termin├⌐. Les passagers sont repus et relax├⌐s."));
+                     }
+                 }
++                else
++                {
++                    // Service Halted - Notify if enough time has passed
++                    if ((DateTime.Now - _lastServiceHaltNotice).TotalSeconds > 120) // Notify every 2 mins max
++                    {
++                        string reasonEn = isHaltedByBelts ? "due to the seatbelt sign" : (isHaltedByDescent ? "because we are descending" : "low altitude");
++                        string reasonFr = isHaltedByBelts ? "├á cause des consignes ceintures" : (isHaltedByDescent ? "├á cause de la descente" : "basse altitude");
++
++                        OnCrewMessage?.Invoke("orange", LocalizationService.Translate(
++                            $"Captain, just so you know, the in-flight service is currently suspended {reasonEn}.",
++                            $"Commandant, pour information, le service en cabine est suspendu {reasonFr}."
++                        ));
++                        _lastServiceHaltNotice = DateTime.Now;
++                    }
++                    
++                    // Small comfort penalty if service is halted for too long
++                    DecreaseComfort(0.01);
++                }
+             }
+             
+             // 4. Natural decay of anxiety over time if things are smooth
+@@ -386,7 +626,7 @@ namespace FlightSupervisor.UI.Services
+                     "Captain, because the catering was aborted, we don't have enough meals for everyone. Passengers are very unhappy.",
+                     "Commandant, comme le catering a ├⌐t├⌐ annul├⌐, nous n'avons pas assez de repas. Les passagers sont m├⌐contents."
+                 ));
+-                IncreaseAnxiety(30.0, phase);
++                IncreaseAnxiety(30.0, phase, isCrisisActive);
+                 OnPenaltyTriggered?.Invoke(-100, LocalizationService.Translate("Aborted Catering: Meal Shortage", "Catering Annul├⌐ : Manque de repas")); // Triggers a SuperScore penalty
+             }
+ 
+@@ -419,8 +659,20 @@ namespace FlightSupervisor.UI.Services
+ 
+             if (announcementType == "Turbulence")
+             {
++                if (_turbulenceReactionTimerStart != null && !_hasRewardedTurbulenceReaction && !_hasPenalizedTurbulenceReaction)
++                {
++                    double elapsed = (DateTime.Now - _turbulenceReactionTimerStart.Value).TotalSeconds;
++                    if (elapsed < 15)
++                    {
++                        OnOperationBonusTriggered?.Invoke(50, "Quick Reaction PA (Turbulence)");
++                        _hasRewardedTurbulenceReaction = true;
++                    }
++                }
++                _turbulenceReactionTimerStart = null;
++
+                 DecreaseAnxiety(25.0);
+                 OnCrewMessage?.Invoke("orange", LocalizationService.Translate("PA: Please return to your seats and fasten your seatbelts.", "PA: Veuillez regagner vos si├¿ges et attacher vos ceintures."));
++                ResetSilenceTimer();
+             }
+             else if (announcementType == "Delay")
+             {
+@@ -428,6 +680,18 @@ namespace FlightSupervisor.UI.Services
+                 _timeOfLastDelayPA = DateTime.Now;
+                 OnCrewMessage?.Invoke("orange", LocalizationService.Translate("PA: Apologies for the delay, we will be departing shortly.", "PA: Toutes nos excuses pour ce retard, nous partons bient├┤t."));
+             }
++            else if (announcementType == "GoAround")
++            {
++                DecreaseAnxiety(50.0);
++                OnCrewMessage?.Invoke("orange", LocalizationService.Translate("PA: Ladies and Gentlemen, as you may have noticed, we are performing a go-around due to [Reason]. Nothing to worry about.", "PA: Mesdames et Messieurs, comme vous l'avez remarqu├⌐, nous effectuons une remise de gaz d├╗ ├á [Raison]. Tout est sous contr├┤le."));
++                ResetSilenceTimer();
++            }
++        }
++
++        private void ResetSilenceTimer()
++        {
++            _silenceTimerStart = null;
++            IsSilencePenaltyActive = false;
+         }
+ 
+         public void AnnounceWelcome(string destName, string flightTime, bool badWeather)
+@@ -441,7 +705,7 @@ namespace FlightSupervisor.UI.Services
+             if (!badWeather) {
+                 DecreaseAnxiety(20.0);
+             } else {
+-                IncreaseAnxiety(15.0, FlightPhase.AtGate);
++                IncreaseAnxiety(15.0, FlightPhase.AtGate, false);
+             }
+ 
+             string wxcText = !badWeather ? "looking great" : "quite poor today";
+@@ -468,21 +732,34 @@ namespace FlightSupervisor.UI.Services
+             ));
+         }
+         
+-        private void IncreaseAnxiety(double amount, FlightPhase phase)
++        private void IncreaseAnxiety(double amount, FlightPhase phase, bool isCrisisActive)
+         {
+             double previousAnxiety = PassengerAnxiety;
+-            PassengerAnxiety += (amount * BaseAnxietySpikeMultiplier);
++            double multiplier = BaseAnxietySpikeMultiplier;
++            if (IsSilencePenaltyActive) multiplier *= 2.0;
++
++            double inc = (amount * multiplier);
+             
+             bool isOnGround = phase == FlightPhase.AtGate || phase == FlightPhase.Pushback || phase == FlightPhase.TaxiOut || phase == FlightPhase.TaxiIn || phase == FlightPhase.Arrived;
+                               
+-            if (isOnGround && PassengerAnxiety > 60.0) 
++            if (isOnGround && (PassengerAnxiety + inc) > 60.0) 
+             {
+                 PassengerAnxiety = Math.Max(60.0, previousAnxiety); // Soft cap at 60 on ground
+             }
++            else if (!isCrisisActive && (PassengerAnxiety + inc) > 90.0)
++            {
++                 // Anxiety Cap: 90% for non-critical events (Story 26)
++                 PassengerAnxiety = Math.Max(90.0, previousAnxiety);
++            }
++            else
++            {
++                PassengerAnxiety += inc;
++            }
+ 
+             if (IsSatietyActive && phase == FlightPhase.Cruise) amount *= 0.5; // Food coma buff
+-
+-            PassengerAnxiety += (amount * BaseAnxietySpikeMultiplier);
++            
++            // Note: amount is already used via inc above for the primary spike. 
++            // We'll keep the secondary logic consistent but capped.
+             if (PassengerAnxiety > 100.0) PassengerAnxiety = 100.0;
+             DecreaseComfort((amount * BaseComfortLossMultiplier) * 0.5); // Anxiety directly impacts comfort
+         }
+@@ -541,5 +818,121 @@ namespace FlightSupervisor.UI.Services
+             _comfortSamples = 0;
+             _issuedCommands.Clear();
+         }
++        private void UpdatePassengerStates(FlightPhase phase, bool isSevere)
++        {
++            int injuryCount = 0;
++            foreach (var p in PassengerManifest)
++            {
++                // Gradual compliance if sign is ON
++                if (_seatbeltsOn && !p.IsSeatbeltFastened)
++                {
++                    if (_rnd.Next(100) < 5) p.IsSeatbeltFastened = true; // 5% chance per second to fasten
++                }
++
++                // Injury RNG during extreme shakes
++                if (isSevere && !p.IsSeatbeltFastened && !p.IsInjured)
++                {
++                    double injuryChance = 0.5; // Default low
++                    // If we want to be more specific, we'd need TurbulenceSeverity level here.
++                    // Let's assume isSevere = true means SEVERE+. 
++                    if (_rnd.NextDouble() < injuryChance / 100.0) // 0.5% per second during severe turbulence
++                    {
++                        p.IsInjured = true;
++                        p.InjuryType = "Head trauma"; // Simplified
++                        injuryCount++;
++                        OnInjuryTriggered?.Invoke(-500, $"PASSENGER INJURED: {p.SeatId} ({p.InjuryType})");
++                        OnCrewMessage?.Invoke("red", LocalizationService.Translate($"Captain, we have an injured passenger in seat {p.SeatId}! They hit their head during the turbulence.", $"Commandant, un passager est bless├⌐ au si├¿ge {p.SeatId} ! Il s'est cogn├⌐ la t├¬te pendant les turbulences."));
++                    }
++                }
++
++                // Comfort/Anxiety individual drift
++                if (isSevere && !p.IsSeatbeltFastened) p.IndividualAnxiety += 2.0;
++                if (p.IndividualAnxiety > 100) p.IndividualAnxiety = 100;
++            }
++
++            if (injuryCount > 0)
++            {
++                // Request Medical Emergency (Story 24)
++                OnMedicalEmergencyRequested?.Invoke();
++            }
++        }
++
++        public void ToggleServiceInterruption()
++        {
++            IsServiceHalted = !IsServiceHalted;
++            string statusEn = IsServiceHalted ? "suspended" : "resumed";
++            string statusFr = IsServiceHalted ? "suspendu" : "repris";
++            
++            OnCrewMessage?.Invoke(IsServiceHalted ? "orange" : "green", LocalizationService.Translate(
++                $"Captain, the in-flight service has been {statusEn} at your request.",
++                $"Commandant, le service en cabine a ├⌐t├⌐ {statusFr} ├á votre demande."));
++        }
++
++        public bool RequestCabinReport(FlightPhase phase, bool isCrisisActive)
++        {
++            if ((DateTime.Now - _lastReportRequest).TotalMinutes < 2)
++            {
++                return false;
++            }
++
++            _lastReportRequest = DateTime.Now;
++
++            // Apply strategic penalty if securing is in progress
++            if (_isSecuring && SecuringProgress < 100.0)
++            {
++                _strategicPenaltyEndTime = DateTime.Now.AddSeconds(15);
++            }
++
++            string reportEn = "Cabin is clear and quiet, Captain.";
++            string reportFr = "La cabine est calme et pr├¬te, Commandant.";
++
++            // 1. Critical Phase / Prep
++            if (_isSecuring && phase == FlightPhase.TaxiOut)
++            {
++                reportEn = "We're almost finished with the bins and oversized luggage. Nearly ready.";
++                reportFr = "Nous terminons de ranger les bagages volumineux. Presque pr├¬tes.";
++            }
++            else if (_isSecuring && phase == FlightPhase.Descent)
++            {
++                reportEn = "Galley is being secured, and we're starting the final cabin check.";
++                reportFr = "Le galley est en cours de s├⌐curisation, nous d├⌐butons la v├⌐rification finale.";
++            }
++            // 2. Post-Crisis (Injuries check)
++            else if (PassengerManifest.Exists(p => p.IsInjured))
++            {
++                var injured = PassengerManifest.FindAll(p => p.IsInjured);
++                reportEn = $"We are still tending to {injured.Count} injured passenger(s). The mood is very somber.";
++                reportFr = $"Nous nous occupons toujours de {injured.Count} passager(s) bless├⌐(s). L'ambiance est tr├¿s lourde.";
++            }
++            // 3. Normal Service
++            else if (phase == FlightPhase.Cruise)
++            {
++                if (InFlightServiceProgress < 20) {
++                    reportEn = "We've just started preparing the service carts.";
++                    reportFr = "Nous venons de commencer la pr├⌐paration des chariots de service.";
++                } else if (InFlightServiceProgress < 80) {
++                    reportEn = "The meal service is in full swing. Everyone seems satisfied.";
++                    reportFr = "Le service des repas bat son plein. Tout le monde semble satisfait.";
++                } else {
++                    reportEn = "Service is complete, and the cabin is resting.";
++                    reportFr = "Le service est termin├⌐, la cabine se repose.";
++                }
++            }
++            
++            // 4. Mood override (Anxiety/Comfort)
++            if (!isCrisisActive && PassengerAnxiety > 50.0)
++            {
++                reportEn += " Note that some passengers are quite anxious about the flight.";
++                reportFr += " ├Ç noter que certains passagers sont assez anxieux par rapport au vol.";
++            }
++            else if (ComfortLevel < 40.0)
++            {
++                reportEn += " Passengers are complaining about the general comfort level.";
++                reportFr += " Les passagers se plaignent du niveau de confort g├⌐n├⌐ral.";
++            }
++
++            OnCrewMessage?.Invoke("info", LocalizationService.Translate(reportEn, reportFr));
++            return true;
++        }
+     }
+ }
+diff --git a/FlightSupervisor.UI/Services/CrisisManager.cs b/FlightSupervisor.UI/Services/CrisisManager.cs
+index 2187c84..2bb8fdb 100644
+--- a/FlightSupervisor.UI/Services/CrisisManager.cs
++++ b/FlightSupervisor.UI/Services/CrisisManager.cs
+@@ -117,7 +117,7 @@ namespace FlightSupervisor.UI.Services
+             }
+         }
+ 
+-        private void TriggerSpecificCrisis(CrisisType type)
++        public void TriggerSpecificCrisis(CrisisType type)
+         {
+             if (ActiveCrisis != CrisisType.None) return;
+             
+diff --git a/FlightSupervisor.UI/Services/FlightPhaseManager.cs b/FlightSupervisor.UI/Services/FlightPhaseManager.cs
+index 2497430..bc612e7 100644
+--- a/FlightSupervisor.UI/Services/FlightPhaseManager.cs
++++ b/FlightSupervisor.UI/Services/FlightPhaseManager.cs
+@@ -1,4 +1,6 @@
+ using System;
++using System.Collections.Generic;
++using System.Linq;
+ 
+ namespace FlightSupervisor.UI.Services
+ {
+@@ -18,6 +20,15 @@ namespace FlightSupervisor.UI.Services
+         Arrived
+     }
+ 
++    public enum TurbulenceSeverityLevel
++    {
++        None,
++        Light,
++        Moderate,
++        Severe,
++        Extreme
++    }
++
+     public class FlightPhaseManager
+     {
+         public FlightPhase CurrentPhase { get; private set; } = FlightPhase.AtGate;
+@@ -62,6 +73,10 @@ namespace FlightSupervisor.UI.Services
+         public bool Eng2Combustion { get; private set; } = true;
+         private int _taxiOverspeedSeconds = 0;
+         private int _overspeedSeconds = 0;
++        public bool IsGoAroundActive { get; private set; } = false;
++        public bool IsSevereTurbulenceActive { get; private set; } = false;
++        public bool HasEngineFailure => _hasTriggeredEngineFailure;
++        private DateTime? _goAroundStartTime = null;
+         private double _highestAltitudeReached = 0;
+         private bool _isAutopilotActive = false;
+         private bool _isAutothrustActive = false;
+@@ -72,12 +87,25 @@ namespace FlightSupervisor.UI.Services
+         public bool IsStrobeLightOn { get; set; } = false;
+         public bool IsOnGround { get; set; } = true;
+         public double VerticalSpeed { get; set; } = 0.0;
+-        public double GForce { get; set; } = 1.0;
++        private double _gForce = 1.0;
++        public double GForce 
++        { 
++            get => _gForce;
++            set 
++            {
++                _gForce = value;
++                CalculateTurbulence(value);
++            }
++        }
+         public double GroundSpeed { get; private set; } = 0.0;
+         private bool _hasLanded = false;
+         public double TouchdownFpm { get; private set; } = 0.0;
+         public double TouchdownGForce { get; private set; } = 1.0;
+ 
++        public TurbulenceSeverityLevel TurbulenceSeverity { get; private set; } = TurbulenceSeverityLevel.None;
++        private System.Collections.Generic.Queue<double> _gForceHistory = new System.Collections.Generic.Queue<double>();
++        private const int JitterWindowSize = 300; // ~5 seconds at Visual Frame rate (60Hz)
++
+         // Fenix specific states
+         public int FenixNoseLight { get; set; } = 0;
+         public bool IsRunwayTurnoffLightOn { get; set; } = false;
+@@ -277,18 +305,25 @@ namespace FlightSupervisor.UI.Services
+                     }
+                 }
+ 
+-                // G-Force limits (Airborne)
+-                if (!IsOnGround && (DateTime.Now - _lastGForcePenalty).TotalSeconds > 10)
+-                {
+-                    if (GForce > 2.0 || GForce < 0.0)
++                    // Severe turbulence flag is now driven by the categorizer
++                    IsSevereTurbulenceActive = TurbulenceSeverity >= TurbulenceSeverityLevel.Severe;
++                    if (Math.Abs(GForce - 1.0) < 0.1)
+                     {
+-                        _lastGForcePenalty = DateTime.Now;
+-                        OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Safety Violation: Structural G-Force Limit Exceeded ({GForce:F2}G)", $"Violation S├⌐curit├⌐: Limite Structurelle Force G d├⌐pass├⌐e ({GForce:F2}G)"));
++                        IsSevereTurbulenceActive = false;
+                     }
+-                    else if (GForce > 1.6 || GForce < 0.4)
++
++                    if ((DateTime.Now - _lastGForcePenalty).TotalSeconds > 10)
+                     {
+-                        _lastGForcePenalty = DateTime.Now;
+-                        OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Safety Violation: Severe G-Force ({GForce:F2}G)", $"Violation S├⌐curit├⌐: Force G S├⌐v├¿re ({GForce:F2}G)"));
++                        if (GForce > 2.0 || GForce < 0.0)
++                        {
++                            _lastGForcePenalty = DateTime.Now;
++                            OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Safety Violation: Structural G-Force Limit Exceeded ({GForce:F2}G)", $"Violation S├⌐curit├⌐: Limite Structurelle Force G d├⌐pass├⌐e ({GForce:F2}G)"));
++                        }
++                        else if (GForce > 1.6 || GForce < 0.4)
++                        {
++                            _lastGForcePenalty = DateTime.Now;
++                            OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Safety Violation: Severe G-Force ({GForce:F2}G)", $"Violation S├⌐curit├⌐: Force G S├⌐v├¿re ({GForce:F2}G)"));
++                        }
+                     }
+                 }
+ 
+@@ -307,7 +342,6 @@ namespace FlightSupervisor.UI.Services
+                     _lastLightPenalty = DateTime.Now;
+                     OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Safety Violation: Landing Lights ON above 10,000ft", "Violation S├⌐curit├⌐: Phares d'atterrissage ALLUMES au-dessus de 10,000ft"));
+                 }
+-            }
+ 
+             // APU Left ON during Cruise Penalty - DISABLED FOR NOW (STORY 48)
+             /*
+@@ -493,6 +527,8 @@ namespace FlightSupervisor.UI.Services
+ 
+                     if (IsOnGround)
+                     {
++                        IsGoAroundActive = false;
++                        _goAroundStartTime = null;
+                         if (_vsHistory.Count > 0)
+                         {
+                             // On prend la moyenne des derni├¿res frames avant le contact sol (radioHeight > 2.0)
+@@ -505,6 +541,18 @@ namespace FlightSupervisor.UI.Services
+                         
+                         ChangePhase(FlightPhase.Landing);
+                     }
++                    else
++                    {
++                        // Detect Go-Around: Positive VS during approach
++                        if (VerticalSpeed > 700 && radioHeight < 2000)
++                        {
++                            if (_goAroundStartTime == null) _goAroundStartTime = DateTime.Now;
++                            else if ((DateTime.Now - _goAroundStartTime.Value).TotalSeconds > 3)
++                            {
++                                IsGoAroundActive = true;
++                            }
++                        }
++                    }
+                     break;
+                 case FlightPhase.Landing:
+                     if (IsOnGround && !_hasLanded)
+@@ -669,6 +717,55 @@ namespace FlightSupervisor.UI.Services
+             }
+         }
+ 
++        private void CalculateTurbulence(double gf)
++        {
++            if (IsOnGround)
++            {
++                _gForceHistory.Clear();
++                TurbulenceSeverity = TurbulenceSeverityLevel.None;
++                return;
++            }
++
++            _gForceHistory.Enqueue(gf);
++            if (_gForceHistory.Count > JitterWindowSize) _gForceHistory.Dequeue();
++            if (_gForceHistory.Count < 5) return;
++
++            double maxDev = 0;
++            int crossings = 0;
++            double? prev = null;
++
++            foreach (var val in _gForceHistory)
++            {
++                double dev = Math.Abs(val - 1.0);
++                if (dev > maxDev) maxDev = dev;
++                
++                if (prev.HasValue)
++                {
++                    if ((prev.Value < 1.0 && val >= 1.0) || (prev.Value > 1.0 && val <= 1.0))
++                        crossings++;
++                }
++                prev = val;
++            }
++
++            // High frequency jitter detection: crossing the 1.0G line multiple times.
++            // If Autopilot is ON, any deviation is environmental.
++            // If Autopilot is OFF, we require jitter to classify as "Weather Turbulence" vs "Pilot Input".
++            bool isJitter = crossings >= 2; 
++
++            if (_isAutopilotActive || isJitter)
++            {
++                if (maxDev < 0.1) TurbulenceSeverity = TurbulenceSeverityLevel.None;
++                else if (maxDev < 0.25) TurbulenceSeverity = TurbulenceSeverityLevel.Light;
++                else if (maxDev < 0.45) TurbulenceSeverity = TurbulenceSeverityLevel.Moderate;
++                else if (maxDev < 0.7) TurbulenceSeverity = TurbulenceSeverityLevel.Severe;
++                else TurbulenceSeverity = TurbulenceSeverityLevel.Extreme;
++            }
++            else
++            {
++                TurbulenceSeverity = TurbulenceSeverityLevel.None;
++            }
++        }
++
+         public void Reset()
+         {
+             ChangePhase(FlightPhase.AtGate);
+@@ -679,6 +776,8 @@ namespace FlightSupervisor.UI.Services
+             IsOnGround = true;
+             _timeAt50Ft = null;
+             _vsHistory.Clear();
++            _gForceHistory.Clear();
++            TurbulenceSeverity = TurbulenceSeverityLevel.None;
+         }
+     }
+ }
+diff --git a/FlightSupervisor.UI/Services/SimConnectService.cs b/FlightSupervisor.UI/Services/SimConnectService.cs
+index 2f64cc6..686f58a 100644
+--- a/FlightSupervisor.UI/Services/SimConnectService.cs
++++ b/FlightSupervisor.UI/Services/SimConnectService.cs
+@@ -1,7 +1,6 @@
+ using System;
+ using System.Diagnostics;
+ using System.Runtime.InteropServices;
+-using System.Windows.Interop;
+ using Microsoft.FlightSimulator.SimConnect;
+ 
+ namespace FlightSupervisor.UI.Services
+@@ -13,7 +12,7 @@ namespace FlightSupervisor.UI.Services
+         private IntPtr _windowHandle;
+         private bool _isNativelyConnected = false;
+         private WasmLVarClient? _wasmClient = null;
+-        public bool IsWasmOverriding { get; set; } = true; // Actif par defaut pour la story Fenix
++        public bool IsWasmOverriding { get; set; } = true;
+ 
+         public event Action<string>? OnConnectionStateChanged;
+         public event Action<double>? OnAltitudeReceived;
+@@ -43,20 +42,19 @@ namespace FlightSupervisor.UI.Services
+         public event Action<double, double>? OnWindReceived;
+         public event Action<double, double, bool>? OnNavigationReceived;
+ 
+-        // Unified Telemetry Events (Native vs WASM overrided)
+         public event Action<bool>? OnCabinSeatbeltsChanged;
+         public event Action<bool>? OnNoSmokingChanged;
+-        public event Action<bool, bool, bool>? OnApuStateChanged; // Master, Start, Bleed
+-        public event Action<bool, bool>? OnEngineBleedsChanged; // Eng1, Eng2
+-        public event Action<bool, bool>? OnPacksChanged; // Pack1, Pack2
+-        public event Action<bool, bool, bool>? OnAntiIceChanged;  // Wing, Eng1, Eng2
+-        public event Action<int, bool, bool>? OnEngineSwitchesChanged; // Mode, Master1, Master2
+-        public event Action<float, float, float>? OnCabinTemperatureTargetsChanged; // Cockpit, Fwd, Aft
+-        public event Action<int>? OnNoseLightChanged; // 0=Off, 1=Taxi, 2=Takeoff
++        public event Action<bool, bool, bool>? OnApuStateChanged;
++        public event Action<bool, bool>? OnEngineBleedsChanged;
++        public event Action<bool, bool>? OnPacksChanged;
++        public event Action<bool, bool, bool>? OnAntiIceChanged;
++        public event Action<int, bool, bool>? OnEngineSwitchesChanged;
++        public event Action<float, float, float>? OnCabinTemperatureTargetsChanged;
++        public event Action<int>? OnNoseLightChanged;
+         public event Action<bool>? OnRunwayTurnoffChanged;
+ 
+-        enum DEFINITIONS { PlaneData }
+-        enum REQUESTS { PlaneDataReq }
++        enum DEFINITIONS { PlaneData, GForceData }
++        enum REQUESTS { PlaneDataReq, GForceReq }
+         enum EVENTS { SetZuluHours, SetZuluMinutes }
+         enum GROUP { Group0 }
+ 
+@@ -96,6 +94,12 @@ namespace FlightSupervisor.UI.Services
+             public double CabinSeatbelts;
+         }
+ 
++        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
++        struct GForceDataStruct
++        {
++            public double GForce;
++        }
++
+         public SimConnectService() { }
+ 
+         public void Connect(IntPtr windowHandle)
+@@ -120,7 +124,6 @@ namespace FlightSupervisor.UI.Services
+                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "INDICATED ALTITUDE", "Feet", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GROUND VELOCITY", "Knots", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AIRSPEED INDICATED", "Knots", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+-                
+                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "ZULU TIME", "Seconds", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "BRAKE PARKING INDICATOR", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "RADIO HEIGHT", "Feet", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+@@ -150,37 +153,28 @@ namespace FlightSupervisor.UI.Services
+                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "NAV HAS LOCALIZER:1", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "CABIN SEATBELTS ALERT SWITCH", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+ 
++                _simconnect.AddToDataDefinition(DEFINITIONS.GForceData, "G FORCE", "GForce", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
++
+                 _simconnect.MapClientEventToSimEvent(EVENTS.SetZuluHours, "ZULU_HOURS_SET");
+                 _simconnect.MapClientEventToSimEvent(EVENTS.SetZuluMinutes, "ZULU_MINUTES_SET");
+ 
+                 _simconnect.RegisterDataDefineStruct<PlaneDataStruct>(DEFINITIONS.PlaneData);
+-                
++                _simconnect.RegisterDataDefineStruct<GForceDataStruct>(DEFINITIONS.GForceData);
++
+                 _simconnect.RequestDataOnSimObject(REQUESTS.PlaneDataReq, DEFINITIONS.PlaneData, SimConnect.SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD.SECOND, SIMCONNECT_DATA_REQUEST_FLAG.CHANGED, 0, 0, 0);
++                _simconnect.RequestDataOnSimObject(REQUESTS.GForceReq, DEFINITIONS.GForceData, SimConnect.SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD.VISUAL_FRAME, SIMCONNECT_DATA_REQUEST_FLAG.CHANGED, 0, 0, 0);
+             }
+-            catch (COMException ex)
+-            {
+-                OnConnectionStateChanged?.Invoke($"MSFS not found ({ex.ErrorCode})");
+-            }
+-            catch (Exception ex)
+-            {
+-                OnConnectionStateChanged?.Invoke($"Connection error: {ex.Message}");
+-            }
++            catch (COMException ex) { OnConnectionStateChanged?.Invoke($"MSFS not found ({ex.ErrorCode})"); }
++            catch (Exception ex) { OnConnectionStateChanged?.Invoke($"Connection error: {ex.Message}"); }
+         }
+ 
+         public void Disconnect()
+         {
+             if (_simconnect != null)
+             {
+-                if (_wasmClient != null) 
+-                {
+-                    _wasmClient.OnFenixLVarsReceived -= WasmClient_OnFenixLVarsReceived;
+-                    _wasmClient = null;
+-                }
+-                
+-                _simconnect.Dispose();
+-                _simconnect = null;
+-                _isNativelyConnected = false;
+-                OnConnectionStateChanged?.Invoke("Disconnected.");
++                if (_wasmClient != null) { _wasmClient.OnFenixLVarsReceived -= WasmClient_OnFenixLVarsReceived; _wasmClient = null; }
++                _simconnect.Dispose(); _simconnect = null;
++                _isNativelyConnected = false; OnConnectionStateChanged?.Invoke("Disconnected.");
+             }
+         }
+ 
+@@ -195,11 +189,7 @@ namespace FlightSupervisor.UI.Services
+ 
+         public void ReceiveMessage()
+         {
+-            if (_simconnect != null)
+-            {
+-                try { _simconnect.ReceiveMessage(); }
+-                catch (COMException) { Disconnect(); }
+-            }
++            if (_simconnect != null) { try { _simconnect.ReceiveMessage(); } catch (COMException) { Disconnect(); } }
+         }
+ 
+         private void SimConnect_OnRecvOpen(SimConnect sender, SIMCONNECT_RECV_OPEN data)
+@@ -209,25 +199,14 @@ namespace FlightSupervisor.UI.Services
+             OnConnectionStateChanged?.Invoke("Linked to " + appName);
+         }
+ 
+-        private void SimConnect_OnRecvQuit(SimConnect sender, SIMCONNECT_RECV data)
+-        {
+-            Disconnect();
+-        }
+-
+-        private void SimConnect_OnRecvException(SimConnect sender, SIMCONNECT_RECV_EXCEPTION data)
+-        {
+-            Debug.WriteLine("SimConnect Exception: " + data.dwException);
+-        }
++        private void SimConnect_OnRecvQuit(SimConnect sender, SIMCONNECT_RECV data) => Disconnect();
++        private void SimConnect_OnRecvException(SimConnect sender, SIMCONNECT_RECV_EXCEPTION data) => Debug.WriteLine("SimConnect Exception: " + data.dwException);
+ 
+         private void SimConnect_OnRecvSimobjectData(SimConnect sender, SIMCONNECT_RECV_SIMOBJECT_DATA data)
+         {
+             if (data.dwRequestID == (uint)REQUESTS.PlaneDataReq)
+             {
+-                if (!_isNativelyConnected)
+-                {
+-                    _isNativelyConnected = true;
+-                    OnConnectionStateChanged?.Invoke("Linked to MSFS (Telemetry)");
+-                }
++                if (!_isNativelyConnected) { _isNativelyConnected = true; OnConnectionStateChanged?.Invoke("Linked to MSFS (Telemetry)"); }
+                 var planeData = (PlaneDataStruct)data.dwData[0];
+                 OnAltitudeReceived?.Invoke(planeData.Altitude);
+                 OnGroundSpeedReceived?.Invoke(planeData.GroundSpeed);
+@@ -239,18 +218,15 @@ namespace FlightSupervisor.UI.Services
+                 OnAutothrustReceived?.Invoke(planeData.AutothrustMaster > 0.5);
+                 OnThrottleReceived?.Invoke(planeData.ThrottleLever);
+                 OnSpoilersReceived?.Invoke(planeData.SpoilersHandle);
+-                // Note: values are in degrees, invert pitch because MSFS logic (nose up is negative)
+                 OnPitchReceived?.Invoke(-planeData.Pitch);
+                 OnBankReceived?.Invoke(-planeData.Bank);
+                 OnSimOnGroundReceived?.Invoke(planeData.SimOnGround != 0);
+                 OnVerticalSpeedReceived?.Invoke(planeData.VerticalSpeed);
+-                OnGForceReceived?.Invoke(planeData.GForce);
+                 OnEngineCombustionReceived?.Invoke(planeData.Eng1Combustion > 0.5, planeData.Eng2Combustion > 0.5);
+                 OnHeadingReceived?.Invoke(planeData.Heading);
+                 OnWindReceived?.Invoke(planeData.WindDirection, planeData.WindVelocity);
+                 OnNavigationReceived?.Invoke(planeData.NavLocalizerError, planeData.GpsCrossTrackError, planeData.HasLocalizer > 0.5);
+ 
+-                // Default Native Overrides (Only trigger if WASM is inactive or standard aircraft)
+                 if (!IsWasmOverriding)
+                 {
+                     OnCabinSeatbeltsChanged?.Invoke(planeData.CabinSeatbelts > 0.5);
+@@ -259,49 +235,34 @@ namespace FlightSupervisor.UI.Services
+                     OnLightStrobeReceived?.Invoke(planeData.LightStrobe > 0.5);
+                     OnLightNavReceived?.Invoke(planeData.LightNav > 0.5);
+                     OnLightTaxiReceived?.Invoke(planeData.LightTaxi > 0.5);
+-                    OnLightLandingReceived?.Invoke(planeData.LightLanding != 0);
+-                    // Standard avions Asobo don't have native API mapped here, add Asobo APU later if needed
++                    OnLightLandingReceived?.Invoke(planeData.LightLanding > 0.5);
+                 }
+-
+-                // Build Sim Time
+-                try
+-                {
+-                    var timeSpan = TimeSpan.FromSeconds(planeData.ZuluTime);
+-                    var simTime = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds, DateTimeKind.Utc);
+-                    OnSimTimeReceived?.Invoke(simTime);
+-                }
+-                catch { }
++            }
++            else if (data.dwRequestID == (uint)REQUESTS.GForceReq)
++            {
++                var gData = (GForceDataStruct)data.dwData[0];
++                OnGForceReceived?.Invoke(gData.GForce);
+             }
+         }
+ 
+-        private void SimConnect_OnRecvClientData(SimConnect sender, SIMCONNECT_RECV_CLIENT_DATA data)
+-        {
+-            _wasmClient?.ProcessClientData(data);
+-        }
++        private void SimConnect_OnRecvClientData(SimConnect sender, SIMCONNECT_RECV_CLIENT_DATA data) { }
+ 
+-        private void WasmClient_OnFenixLVarsReceived(WasmLVarClient.FenixLVarPayload fenixPayload)
++        private void WasmClient_OnFenixLVarsReceived(WasmLVarClient.FenixLVarPayload data)
+         {
+             if (IsWasmOverriding)
+             {
+-                OnCabinSeatbeltsChanged?.Invoke(fenixPayload.Seatbelts > 0.5f);
+-                OnNoSmokingChanged?.Invoke(fenixPayload.NoSmoking > 0.5f);
+-                OnApuStateChanged?.Invoke(fenixPayload.ApuMaster > 0.5f, fenixPayload.ApuStart > 0.5f, fenixPayload.ApuBleed > 0.5f);
+-                OnEngineBleedsChanged?.Invoke(fenixPayload.Eng1Bleed > 0.5f, fenixPayload.Eng2Bleed > 0.5f);
+-                OnPacksChanged?.Invoke(fenixPayload.Pack1 > 0.5f, fenixPayload.Pack2 > 0.5f);
+-                OnAntiIceChanged?.Invoke(fenixPayload.WingAntiIce > 0.5f, fenixPayload.Eng1AntiIce > 0.5f, fenixPayload.Eng2AntiIce > 0.5f);
+-                OnEngineSwitchesChanged?.Invoke((int)Math.Round(fenixPayload.EngMode), fenixPayload.EngMaster1 > 0.5f, fenixPayload.EngMaster2 > 0.5f);
+-                OnCabinTemperatureTargetsChanged?.Invoke(fenixPayload.CabinTempCockpit, fenixPayload.CabinTempFwd, fenixPayload.CabinTempAft);
+-                
+-                OnNoseLightChanged?.Invoke((int)Math.Round(fenixPayload.NoseLight));
+-                OnRunwayTurnoffChanged?.Invoke(fenixPayload.TurnoffLight > 0.5f);
+-                
+-                OnLightBeaconReceived?.Invoke(fenixPayload.BeaconLight > 0.5f);
+-                OnLightStrobeReceived?.Invoke(fenixPayload.StrobeLight > 0.5f);
+-                OnLightNavReceived?.Invoke(fenixPayload.NavLight > 0.5f);
+-                OnLightTaxiReceived?.Invoke(fenixPayload.NoseLight > 0.5f);
+-                OnLightLandingReceived?.Invoke(fenixPayload.LandingLightL > 0.5f || fenixPayload.LandingLightR > 0.5f);
+-                
+-                OnParkingBrakeReceived?.Invoke(fenixPayload.ParkingBrake > 0.5f);
++                OnCabinSeatbeltsChanged?.Invoke(data.Seatbelts > 0.5);
++                OnParkingBrakeReceived?.Invoke(data.ParkingBrake > 0.5);
++                OnApuStateChanged?.Invoke(data.ApuMaster > 0.5, data.ApuStart > 0.5, data.ApuBleed > 0.5);
++                OnPacksChanged?.Invoke(data.Pack1 > 0.5, data.Pack2 > 0.5);
++                OnCabinTemperatureTargetsChanged?.Invoke(data.CabinTempCockpit, data.CabinTempFwd, data.CabinTempAft);
++                OnNoseLightChanged?.Invoke((int)data.NoseLight);
++                OnRunwayTurnoffChanged?.Invoke(data.TurnoffLight > 0.5);
++                OnLightBeaconReceived?.Invoke(data.BeaconLight > 0.5);
++                OnLightStrobeReceived?.Invoke(data.StrobeLight > 0.5);
++                OnLightNavReceived?.Invoke(data.NavLight > 0.5);
++                OnLightTaxiReceived?.Invoke(data.NoseLight == 1); // 1 = Taxi, 2 = TO
++                OnLightLandingReceived?.Invoke(data.LandingLightL > 0.5 || data.LandingLightR > 0.5);
+             }
+         }
+     }
+diff --git a/FlightSupervisor.UI/Services/WeatherBriefingService.cs b/FlightSupervisor.UI/Services/WeatherBriefingService.cs
+index b9663bd..e33e220 100644
+--- a/FlightSupervisor.UI/Services/WeatherBriefingService.cs
++++ b/FlightSupervisor.UI/Services/WeatherBriefingService.cs
+@@ -556,6 +556,15 @@ namespace FlightSupervisor.UI.Services
+                 }
+ 
+                 if (displaySpeed > thresholdStrong || hasGusts) hasBadWeather = true;
++                
++                // Severity calculation
++                if (station != null)
++                {
++                    if (speed > 35 || (hasGusts && speed > 25)) station.WindSeverity = WeatherSeverity.Danger;
++                    else if (speed > 25 || hasGusts) station.WindSeverity = WeatherSeverity.Warning;
++                    else station.WindSeverity = WeatherSeverity.Normal;
++                }
++
+                 string intensityEn = displaySpeed > thresholdStrong ? "strong" : displaySpeed > thresholdMod ? "moderate" : "light";
+                 string intensityFr = displaySpeed > thresholdStrong ? "fort" : displaySpeed > thresholdMod ? "mod├⌐r├⌐" : "l├⌐ger";
+                 
+@@ -635,7 +644,13 @@ namespace FlightSupervisor.UI.Services
+                 var visMatch = Regex.Match(upperMetar, @"\s([0-9]{4})\s");
+                 if (visMatch.Success && int.TryParse(visMatch.Groups[1].Value, out int visMeters))
+                 {
+-                    if (station != null) station.Visibility = $"{visMeters} m";
++                    if (station != null) 
++                    {
++                        station.Visibility = $"{visMeters} m";
++                        if (visMeters < 600) station.VisibilitySeverity = WeatherSeverity.Danger;
++                        else if (visMeters < 1500) station.VisibilitySeverity = WeatherSeverity.Warning;
++                        else station.VisibilitySeverity = WeatherSeverity.Normal;
++                    }
+                     if (visMeters < 1000) { conditions.Append(LocalizationService.Translate("Visibility is extremely low (less than 1km). ", "La visibilit├⌐ est extr├¬mement faible (moins de 1km). ")); hasBadWeather = true; }
+                     else if (visMeters < 5000) { conditions.Append(LocalizationService.Translate("Visibility is reduced. ", "La visibilit├⌐ est r├⌐duite. ")); }
+                     else conditions.Append(LocalizationService.Translate("Visibility is generally good (over 5km). ", "La visibilit├⌐ est bonne (plus de 5km). "));
+@@ -647,9 +662,25 @@ namespace FlightSupervisor.UI.Services
+             {
+                 var cloudMatches = Regex.Matches(upperMetar, @"(FEW|SCT|BKN|OVC)([0-9]{3})(CB|TCU)?");
+                 var cloudList = new System.Collections.Generic.List<string>();
+-                foreach (Match m in cloudMatches) cloudList.Add(m.Value);
++                int lowestCeiling = 999;
++
++                foreach (Match m in cloudMatches)
++                {
++                    cloudList.Add(m.Value);
++                    string type = m.Groups[1].Value;
++                    if ((type == "BKN" || type == "OVC") && int.TryParse(m.Groups[2].Value, out int height))
++                    {
++                        if (height < lowestCeiling) lowestCeiling = height;
++                    }
++                }
++
+                 if (cloudList.Count > 0) station.CloudBase = string.Join(" ", cloudList);
+                 else if (upperMetar.Contains("CAVOK") || upperMetar.Contains("NSC")) station.CloudBase = "CLR";
++
++                // Severity calculation (height is in hundreds of feet)
++                if (lowestCeiling < 2) station.CloudSeverity = WeatherSeverity.Danger; // < 200ft
++                else if (lowestCeiling < 5) station.CloudSeverity = WeatherSeverity.Warning; // < 500ft
++                else station.CloudSeverity = WeatherSeverity.Normal;
+             }
+ 
+             // Weather phenomena
+diff --git a/FlightSupervisor.UI/wwwroot/app.js b/FlightSupervisor.UI/wwwroot/app.js
+index 413d37c..03165e7 100644
+--- a/FlightSupervisor.UI/wwwroot/app.js
++++ b/FlightSupervisor.UI/wwwroot/app.js
+@@ -178,19 +178,33 @@ document.addEventListener('DOMContentLoaded', () => {
+         const colorsAlert = 'bg-orange-900/40 border border-orange-500/30 text-orange-400';
+ 
+         // Cabin Passenger Announcements (PA)
+-        if (phase === 'AtGate' || phase === 'Boarding') {
++        if (phase === 'TaxiOut' || phase === 'Pushback') {
+             if (!used.includes('PA_Welcome')) {
+                 buttonsHtml += makeBtn('announceCabin', 'Welcome', 'PA: Welcome Aboard', colorsPa, 'campaign');
+             }
+-            if (payload.isDelayed && !used.includes('PA_Delay')) {
+-                buttonsHtml += makeBtn('announceCabin', 'Delay', 'PA: Apology for Delay', colorsAlert, 'warning');
+-            }
+-        } else if (phase === 'Descent') {
++        } else if (phase === 'Descent' && payload.altitude < 10000) {
+             if (!used.includes('PA_Descent')) {
+                 buttonsHtml += makeBtn('announceCabin', 'Descent', 'PA: Initial Descent', colorsPa, 'campaign');
+             }
+         }
+ 
++        // Crisis PAs (High Priority)
++        if (payload.isGoAroundActive) {
++            const silenceClass = payload.isSilencePenaltyActive ? 'bg-red-600 border-red-400 animate-pulse' : colorsAlert;
++            buttonsHtml += makeBtn('announceCabin', 'GoAround', 'PA: Go-Around', silenceClass, 'replay');
++        }
++        
++        if (payload.isSevereTurbulenceActive) {
++            const silenceClass = payload.isSilencePenaltyActive ? 'bg-red-600 border-red-400 animate-pulse' : colorsAlert;
++            buttonsHtml += makeBtn('announceCabin', 'Turbulence', 'PA: Severe Turbulence', silenceClass, 'warning');
++        } else if (payload.seatbeltsOn && (phase === 'Cruise' || phase === 'Climb' || phase === 'Descent')) {
++             buttonsHtml += makeBtn('announceCabin', 'Turbulence', 'PA: Turbulence Warning', colorsAlert, 'campaign');
++        }
++
++        if (payload.isDelayed && !used.includes('PA_Delay') && (phase === 'AtGate' || phase === 'Boarding')) {
++            buttonsHtml += makeBtn('announceCabin', 'Delay', 'PA: Apology for Delay', colorsAlert, 'warning');
++        }
++
+         // PNC Crew Commands (Intercom)
+         if (phase === 'TaxiOut') {
+             if (!used.includes('PREPARE_TAKEOFF')) {
+@@ -199,7 +213,10 @@ document.addEventListener('DOMContentLoaded', () => {
+         }
+         if (phase === 'TaxiOut' || phase === 'Takeoff' || phase === 'InitialClimb') {
+             if (!used.includes('SEATS_TAKEOFF')) {
+-                buttonsHtml += makeBtn('pncCommand', 'SEATS_TAKEOFF', 'PNC: Seats for Takeoff', colorsPnc, 'airline_seat_recline_extra');
++                const isReady = payload.securingProgress >= 100;
++                const btnText = isReady ? 'PNC: Seats for Takeoff' : 'PNC: Force Seats (Caution)';
++                const btnClass = isReady ? colorsPnc : 'bg-red-900/40 border border-red-500/30 text-red-500';
++                buttonsHtml += makeBtn('pncCommand', 'SEATS_TAKEOFF', btnText, btnClass, 'airline_seat_recline_extra');
+             }
+         }
+         if (phase === 'Climb' || phase === 'Cruise') {
+@@ -214,7 +231,10 @@ document.addEventListener('DOMContentLoaded', () => {
+         }
+         if (phase === 'Approach' || phase === 'FinalApproach') {
+             if (!used.includes('SEATS_LANDING')) {
+-                buttonsHtml += makeBtn('pncCommand', 'SEATS_LANDING', 'PNC: Seats for Landing', colorsPnc, 'airline_seat_recline_extra');
++                const isReady = payload.securingProgress >= 100;
++                const btnText = isReady ? 'PNC: Seats for Landing' : 'PNC: Force Seats (Caution)';
++                const btnClass = isReady ? colorsPnc : 'bg-red-900/40 border border-red-500/30 text-red-500';
++                buttonsHtml += makeBtn('pncCommand', 'SEATS_LANDING', btnText, btnClass, 'airline_seat_recline_extra');
+             }
+         }
+ 
+@@ -232,14 +252,42 @@ document.addEventListener('DOMContentLoaded', () => {
+             buttonsHtml += makeBtn('resolveCrisis', 'UnrulyPassenger', 'PNC: Restrain Passenger', 'bg-red-900/60 border border-red-500 text-red-400 animate-pulse', 'security');
+         }
+ 
+-        // Always Available
+-        buttonsHtml += makeBtn('pncCommand', 'REQUEST_STATUS', 'PNC: Request Cabin Report', 'bg-slate-800/80 border border-slate-600/50 text-slate-300', 'assignment');
++        // Intercom Reporting (Always available in flight)
++        const diffSec = payload.cabinReportCooldownElapsed || 999;
++        const isCd = diffSec < 120; // 2 minutes cooldown
++        const cdLeft = Math.ceil(120 - diffSec);
++        
++        const reportText = isCd ? `Report CD (${Math.floor(cdLeft/60)}m ${cdLeft%60}s)` : 'PNC: Request Cabin Report';
++        const reportClass = isCd ? 'bg-slate-800/40 border border-slate-700/30 text-slate-500 cursor-not-allowed opacity-70' : 'bg-slate-800/80 border border-slate-600/50 text-slate-300';
++        
++        buttonsHtml += `<button ${isCd ? 'disabled' : ''} onclick="requestCabinReport()" class="w-full py-2 ${reportClass} rounded-lg font-bold text-[10px] uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow hover:brightness-110 mb-2">
++                        <span class="material-symbols-outlined text-[14px]">assignment</span> ${reportText}
++                    </button>`;
++
++        // Service Interruption Button (Only if serving)
++        if (payload.cabinState === 'ServingMeals') {
++            const svcText = payload.isServiceHalted ? 'PNC: Resume Service' : 'PNC: Pause Service';
++            const svcClass = payload.isServiceHalted ? 'bg-emerald-900/40 border border-emerald-500/50 text-emerald-400' : 'bg-red-900/40 border border-red-500/50 text-red-400';
++            const svcIcon = payload.isServiceHalted ? 'play_arrow' : 'pause';
++            
++            buttonsHtml += `<button onclick="toggleServiceInterruption()" class="w-full py-2 ${svcClass} rounded-lg font-bold text-[10px] uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow hover:brightness-110">
++                            <span class="material-symbols-outlined text-[14px]">${svcIcon}</span> ${svcText}
++                        </button>`;
++        }
+ 
+         // Prevent redundant DOM updates
+         if (container.innerHTML !== buttonsHtml) {
+             container.innerHTML = buttonsHtml;
+         }
+     }
++
++    window.requestCabinReport = function() {
++        window.chrome.webview.postMessage({ action: 'intercomQuery' });
++    };
++
++    window.toggleServiceInterruption = function() {
++        window.chrome.webview.postMessage({ action: 'toggleService' });
++    };
+     const selLanguage = document.getElementById('selLanguage');
+     if (selLanguage) {
+         selLanguage.addEventListener('change', (e) => {
+@@ -627,6 +675,39 @@ document.addEventListener('DOMContentLoaded', () => {
+             case 'telemetry':
+                 updateIntercomButtons(payload);
+                 document.getElementById('flightPhase').innerText = `${payload.phase}`;
++
++                // Turbulence Severity Update (Story 25)
++                if (payload.turbulenceSeverity !== undefined) {
++                    const turbValue = document.getElementById('turbSeverityValue');
++                    const turbBar = document.getElementById('turbSeverityBar');
++                    const severities = ['NONE', 'LIGHT', 'MODERATE', 'SEVERE', 'EXTREME'];
++                    const colors = ['#64748b', '#38bdf8', '#fb923c', '#ef4444', '#a855f7'];
++                    const percentages = [0, 25, 50, 75, 100];
++                    
++                    const index = payload.turbulenceSeverity;
++                    if (turbValue) {
++                        turbValue.innerText = severities[index] || 'UNKNOWN';
++                        turbValue.style.color = colors[index] || '#64748b';
++                    }
++                    if (turbBar) {
++                        turbBar.style.width = percentages[index] + '%';
++                        turbBar.style.backgroundColor = colors[index] || '#64748b';
++                        turbBar.style.boxShadow = `0 0 8px ${colors[index] || '#64748b'}80`;
++                    }
++                }
++
++                // Passenger Manifest Refresh (Story 25)
++                if (payload.passengers && Array.isArray(payload.passengers)) {
++                    // Update the global manifest object and re-render if we are on the cabin tab
++                    if (window.manifest) {
++                        window.manifest.Passengers = payload.passengers;
++                    }
++                    const cabinTab = document.getElementById('cabin');
++                    if (cabinTab && cabinTab.classList.contains('active')) {
++                        window.renderManifest({ Passengers: payload.passengers });
++                    }
++                }
++
+                 if (payload.anxiety !== undefined) {
+                     const anxEl = document.getElementById('paxAnxietyValue');
+                     const anxBar = document.getElementById('paxAnxietyBar');
+@@ -679,6 +760,16 @@ document.addEventListener('DOMContentLoaded', () => {
+                             cBox.classList.add('opacity-100', 'h-10');
+                             cBar.style.width = `${payload.serviceProgress}%`;
+                             cVal.innerHTML = `${Math.round(payload.serviceProgress)}<span class="text-[10px] text-slate-500 font-light ml-1">%</span>`;
++                            
++                            if (payload.isServiceHalted) {
++                                cBar.classList.add('bg-red-500', 'animate-pulse');
++                                cBar.classList.remove('bg-sky-500');
++                                cVal.classList.add('text-red-500');
++                            } else {
++                                cBar.classList.remove('bg-red-500', 'animate-pulse');
++                                cBar.classList.add('bg-sky-500');
++                                cVal.classList.remove('text-red-500');
++                            }
+                         } else {
+                             cBox.classList.remove('opacity-100', 'h-10');
+                             cBox.classList.add('opacity-0', 'h-0');
+@@ -686,6 +777,29 @@ document.addEventListener('DOMContentLoaded', () => {
+                     }
+                 }
+ 
++                if (payload.securingProgress !== undefined) {
++                    const pBox = document.getElementById('pncProgressBox');
++                    const pBar = document.getElementById('pncProgressBar');
++                    if (pBox && pBar) {
++                        if (payload.securingProgress > 0 && payload.securingProgress < 100) {
++                            pBox.classList.remove('opacity-0', 'h-0', 'mb-0');
++                            pBox.classList.add('opacity-100', 'h-2', 'mb-4');
++                            pBar.style.width = `${payload.securingProgress}%`;
++                            
++                            if (payload.isSecuringHalted) {
++                                pBar.classList.add('bg-red-500', 'animate-pulse');
++                                pBar.classList.remove('bg-orange-500');
++                            } else {
++                                pBar.classList.remove('bg-red-500', 'animate-pulse');
++                                pBar.classList.add('bg-orange-500');
++                            }
++                        } else {
++                            pBox.classList.remove('opacity-100', 'h-2', 'mb-4');
++                            pBox.classList.add('opacity-0', 'h-0', 'mb-0');
++                        }
++                    }
++                }
++
+                 if (payload.airline) {
+                     const card = document.getElementById('airlineIdentityCard');
+                     if (card) card.style.display = 'flex';
+@@ -1596,21 +1710,31 @@ document.addEventListener('DOMContentLoaded', () => {
+                             else if (station.Id.toLowerCase() === "alternate") icon = "≡ƒöä";
+                             
+                             let variablesHtml = '';
+-                            const addPill = (label, value, colorClass) => {
++                            const getSeverityStyle = (severity) => {
++                                if (severity === 2) return 'text-red-500 animate-bounce font-black shadow-[0_0_10px_rgba(239,68,68,0.5)]'; // Danger
++                                if (severity === 1) return 'text-orange-400 animate-pulse font-black'; // Warning
++                                return ''; // Normal (uses default color from call)
++                            };
++
++                            const addPill = (label, value, defaultColorClass, severity) => {
+                                 if(value && value.trim() !== '') {
++                                    const severityClass = getSeverityStyle(severity);
++                                    const finalColorClass = severityClass !== '' ? severityClass : defaultColorClass;
++                                    
+                                     variablesHtml += `
+                                         <div class="flex flex-col bg-black/40 rounded border border-white/5 p-2 justify-center items-center text-center">
+                                             <span class="text-[9px] uppercase tracking-wider text-slate-500 mb-1">${label}</span>
+-                                            <span class="font-bold text-xs ${colorClass}">${value}</span>
++                                            <span class="font-bold text-xs ${finalColorClass}">${value}</span>
+                                         </div>
+                                     `;
+                                 }
+                             };
+ 
+-                            addPill('QNH', station.Qnh, 'text-purple-400');
+-                            addPill('Wind', station.Wind, 'text-emerald-400');
+-                            addPill('Temp/Dew', station.TempDew, 'text-amber-400');
+-                            addPill('Visibility', station.Visibility, 'text-sky-400');
++                            addPill('QNH', station.Qnh, 'text-purple-400', 0);
++                            addPill('Wind', station.Wind, 'text-emerald-400', station.WindSeverity);
++                            addPill('Temp/Dew', station.TempDew, 'text-amber-400', 0);
++                            addPill('Visibility', station.Visibility, 'text-sky-400', station.VisibilitySeverity);
++                            addPill('Clouds', station.CloudBase, 'text-sky-200', station.CloudSeverity);
+ 
+                             html += `
+                             <div class="bg-[#12141A] p-5 rounded-xl border border-white/5 flex flex-col gap-4 shadow-xl">
+@@ -2107,7 +2231,15 @@ window.renderManifest = function(manifest) {
+             let sId = r + l;
+             let p = manifest.Passengers.find(x => x.Seat === sId);
+             if (p) {
+-                seatMapHtml += `<div class="seat occupied"><span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span></div>`;
++                const sbColor = p.IsSeatbeltFastened ? '#10b981' : '#ef4444';
++                const sbTooltip = p.IsSeatbeltFastened ? 'Seatbelt Fastened' : 'Seatbelt Unfastened';
++                const injuryIcon = p.IsInjured ? '<span class="material-symbols-outlined text-[10px] text-red-500 absolute -top-1 -left-1 animate-pulse" style="z-index:10;">medical_services</span>' : '';
++                
++                seatMapHtml += `<div class="seat occupied relative">
++                    ${injuryIcon}
++                    <div class="absolute -top-1 -right-1 w-2 h-2 rounded-full border border-[#12141A] shadow-sm" style="background-color: ${sbColor}; z-index:10;" title="${sbTooltip}"></div>
++                    <span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span>
++                </div>`;
+             } else {
+                 seatMapHtml += `<div class="seat"></div>`;
+             }
+@@ -2121,7 +2253,15 @@ window.renderManifest = function(manifest) {
+                 let sId = r + l;
+                 let p = manifest.Passengers.find(x => x.Seat === sId);
+                 if (p) {
+-                    seatMapHtml += `<div class="seat occupied"><span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span></div>`;
++                    const sbColor = p.IsSeatbeltFastened ? '#10b981' : '#ef4444';
++                    const sbTooltip = p.IsSeatbeltFastened ? 'Seatbelt Fastened' : 'Seatbelt Unfastened';
++                    const injuryIcon = p.IsInjured ? '<span class="material-symbols-outlined text-[10px] text-red-500 absolute -top-1 -left-1 animate-pulse" style="z-index:10;">medical_services</span>' : '';
++                    
++                    seatMapHtml += `<div class="seat occupied relative">
++                        ${injuryIcon}
++                        <div class="absolute -top-1 -right-1 w-2 h-2 rounded-full border border-[#12141A] shadow-sm" style="background-color: ${sbColor}; z-index:10;" title="${sbTooltip}"></div>
++                        <span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span>
++                    </div>`;
+                 } else {
+                     seatMapHtml += `<div class="seat"></div>`;
+                 }
+@@ -2135,7 +2275,15 @@ window.renderManifest = function(manifest) {
+             let sId = r + l;
+             let p = manifest.Passengers.find(x => x.Seat === sId);
+             if (p) {
+-                seatMapHtml += `<div class="seat occupied"><span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span></div>`;
++                const sbColor = p.IsSeatbeltFastened ? '#10b981' : '#ef4444';
++                const sbTooltip = p.IsSeatbeltFastened ? 'Seatbelt Fastened' : 'Seatbelt Unfastened';
++                const injuryIcon = p.IsInjured ? '<span class="material-symbols-outlined text-[10px] text-red-500 absolute -top-1 -left-1 animate-pulse" style="z-index:10;">medical_services</span>' : '';
++                
++                seatMapHtml += `<div class="seat occupied relative">
++                    ${injuryIcon}
++                    <div class="absolute -top-1 -right-1 w-2 h-2 rounded-full border border-[#12141A] shadow-sm" style="background-color: ${sbColor}; z-index:10;" title="${sbTooltip}"></div>
++                    <span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span>
++                </div>`;
+             } else {
+                 seatMapHtml += `<div class="seat"></div>`;
+             }
+diff --git a/FlightSupervisor.UI/wwwroot/index.html b/FlightSupervisor.UI/wwwroot/index.html
+index 4086818..ced8a84 100644
+--- a/FlightSupervisor.UI/wwwroot/index.html
++++ b/FlightSupervisor.UI/wwwroot/index.html
+@@ -397,6 +397,17 @@
+                                 </div>
+                             </div>
+                             
++                            <!-- Turbulence Gauge -->
++                            <div id="turbProgressBox" class="mt-2 transition-all duration-500">
++                                <div class="flex items-end justify-between mb-2">
++                                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Turbulence Level</span>
++                                    <span class="text-sm font-black font-headline text-slate-300 leading-none uppercase tracking-widest" id="turbSeverityValue">NONE</span>
++                                </div>
++                                <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5">
++                                    <div id="turbSeverityBar" class="h-full bg-slate-500 w-0 transition-all duration-700 shadow-[0_0_8px_rgba(148,163,184,0.5)]"></div>
++                                </div>
++                            </div>
++
+                             <!-- Catering Service Progress -->
+                             <div id="cateringProgressBox" class="mt-2 transition-all duration-500 opacity-0 h-0 overflow-hidden">
+                                 <div class="flex items-end justify-between mb-2">
+@@ -420,7 +431,7 @@
+                         </h3>
+ 
+                         <!-- Status Indicator -->
+-                        <div class="flex items-center justify-between mb-4 pb-4 border-b border-white/5">
++                        <div class="flex items-center justify-between mb-2">
+                             <span class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Status</span>
+                             <div class="flex items-center gap-2">
+                                 <div id="pncStatusDot" class="w-2 h-2 rounded-full bg-slate-500 animate-pulse"></div>
+@@ -428,6 +439,13 @@
+                             </div>
+                         </div>
+ 
++                        <!-- Securing Progress Bar -->
++                        <div id="pncProgressBox" class="mb-0 transition-all duration-500 opacity-0 h-0 overflow-hidden">
++                            <div class="h-1 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5">
++                                <div id="pncProgressBar" class="h-full bg-orange-500 w-0 transition-all duration-300 shadow-[0_0_8px_rgba(249,115,22,0.5)]"></div>
++                            </div>
++                        </div>
++
+                         <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar mb-4">
+                             <ul id="cabinLogsList" class="space-y-3 font-body text-xs">
+                                 <li class="text-slate-500 text-center text-[10px] uppercase tracking-widest mt-4" data-i18n="dash_pnc_standby">Standing by...</li>
+@@ -1127,6 +1145,7 @@
+     </div>
+ 
+     <!-- Hidden audio element -->
++    <audio id="chimeEmergency" src="assets/sounds/chime_emergency.wav" preload="auto"></audio>
+     <audio id="notifSound" src="notification.mp3" preload="auto"></audio>
+ 
+     <script src="locales.js?v=3"></script>
+diff --git a/docs/UI_Design_System.md b/docs/UI_Design_System.md
+deleted file mode 100644
+index d466231..0000000
+--- a/docs/UI_Design_System.md
++++ /dev/null
+@@ -1,63 +0,0 @@
+-# Flight Supervisor UI Design System
+-
+-This document outlines the visual language, typography, and component specifications used across the Flight Supervisor application. Future agents and developers MUST respect these guidelines to maintain a cohesive, high-density, and professional aviation aesthetic.
+-
+-## 1. Color Palette
+-
+-The application uses a dark mode, high-contrast, professional scheme inspired by modern avionics.
+-
+-*   **App Background:** `#030712` (Tailwind `gray-950`) or `#0F111A`
+-*   **Panel / Card Background:** `#1C1F26` (often combined with `bg-gradient-to-br from-[#1C1F26] to-[#12141A]`)
+-*   **Borders:** Soft translucent white borders (`border border-white/5` or `border-slate-800`).
+-*   **Primary Accent:** Tailwind `sky-400` (`#38bdf8`) to `sky-500` (`#0ea5e9`). Used for active states, primary headers, highlights, and primary action buttons.
+-*   **Secondary Text (Labels/Hint):** Tailwind `slate-400` (`#94a3b8`) or `slate-500`.
+-*   **Primary Text:** Tailwind `slate-200` (`#e2e8f0`) or `white`.
+-
+-### Status Colors
+-*   **Success/Good:** `emerald-400` (`#34D399`)
+-*   **Warning/Delay:** `amber-400` (`#FBBF24`) or `orange-500`
+-*   **Danger/Penalty:** `red-400` (`#F87171`) or `rose-500`
+-*   **Info:** `sky-400`
+-
+-## 2. Typography
+-
+-We rely on three core typefaces to build hierarchy and a "chic" dashboard feel. 
+-(Fonts are declared in `index.html` via Google Fonts and Tailwind config).
+-
+-*   **Headlines / Titles (`font-headline`):** (e.g., Mona Sans or similar strong sans-serif).
+-*   **Data / Code (`font-mono`):** (e.g., JetBrains Mono). Used for all aviation data (altitudes, speeds, fuel, ICAO codes).
+-*   **Labels / Caps (`font-label`):** Used for section headers and small labels.
+-*   **Standard Text (`font-body`):** (e.g., Inter).
+-
+-### Shared Title Styling
+-*   **Window/Panel Titles (Settings, Manifest, Ground Ops):**
+-    *   Classes: `text-sky-400 font-label tracking-[0.4em] uppercase text-xs opacity-80 mb-6`.
+-    *   *Rule:* ALL panel titles and section subheadings must feature wide tracking (`tracking-widest` or `tracking-[0.4em]`) and be uppercase to give a premium, spacious feel.
+-
+-## 3. UI Components
+-
+-### Buttons
+-*   **Primary Settings Save Button:** 
+-    *   Design: Fully rounded (pill shape).
+-    *   Classes: `rounded-full bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs uppercase tracking-widest px-8 py-3`.
+-*   **Bottom Action Bar Buttons (e.g., START OPS) & Modals:** 
+-    *   Design: Squared-off corners (rounded-xl) - also referred to as "Design Carr├⌐".
+-    *   Classes: `rounded-xl uppercase font-bold text-[11px] tracking-widest`.
+-    *   *Rule:* All action buttons must be explicitly uppercase in the HTML and JS logic (e.g. `START OPS`, `FETCH PLAN`, `CANCEL FLIGHT`, `CONTINUE`).
+-
+-### Cards & Containers
+-*   **Standard Card:** `bg-[#1C1F26] rounded-xl border border-white/5 p-6 shadow-xl`.
+-*   Layout grids should prefer CSS Flexbox in columns for aligning components vertically perfectly (e.g., Settings screen uses two distinct flex columns to avoid vertical gaps between differently sized cards).
+-
+-### Icons
+-*   Library: **Google Material Symbols Outlined**.
+-*   Size: Usually `text-[18px]` to `text-[24px]`.
+-*   Ground Ops styling: Custom coloring per service (Refuel: orange, Boarding: sky, Catering: pink, Water/Waste: emerald). 
+-
+-## 4. Window Metrics
+-*   **Default Window Size:** `1850 x 1020`. The UI is designed to be spacious and readable in a windowed state without requiring maximum screen utilization. Use large fonts to prevent "squinting".
+-
+-## 5. Development Principles
+-1.  **Don't reinvent the wheel:** If a new panel is needed, duplicate the layout structure, borders, and typography of an existing one (e.g., Manifest or Settings).
+-2.  **No gaps / Ragged edges:** Ensure sections align vertically. Use flex columns if grid elements vary significantly in height.
+-3.  **Caps & Tracking:** When in doubt for a UI label or title, use uppercase with wide tracking for immediate "dashboard" credibility.
+diff --git a/docs/agile_story_task.md b/docs/agile_story_task.md
+deleted file mode 100644
+index 5ff803e..0000000
+--- a/docs/agile_story_task.md
++++ /dev/null
+@@ -1,328 +0,0 @@
+-# Flight Supervisor - Agile Tasks Workspace
+-
+-> **L├⌐gende d'avancement :**
+-> - `[ ]` : Ticket ├Ç faire
+-> - `[?]` : Ticket ├Ç tester (via simulateur)
+-> - `[!]` : Ticket Test├⌐ mais d├⌐fectueux (Bug)
+-> - `[x]` : Ticket D├⌐velopp├⌐, test├⌐ et valid├⌐ !
+-> 
+-> *Lexique: Le **Ticket** correspond ├á la ligne d'action d'une liste (ex: "- [ ] Faire la jauge"), et la **Story** correspond au grand ensemble/th├¿me global (ex: "Story 17 : Passenger Satisfaction").*
+-
+-> **HANDOFF POUR L'AGENT SUIVANT :**
+-> - **Mission accomplie :** L'UI est fig├⌐e, le design carr├⌐/uppercase est en place, les espacements de grille r├⌐par├⌐s. Le rapport de vol (Flight Report) complet a ├⌐t├⌐ impl├⌐ment├⌐ en Glassmorphism. L'architecture de "SuperScore" ├á 4 piliers est d├⌐finie dans le manuel. L'Artefact a ├⌐t├⌐ restaur├⌐ et fusionn├⌐ sur Git.
+-> - **Documentation :** Voir `docs/UI_Design_System.md` pour les r├¿gles graphiques, `docs/User_Manual.md` pour le manuel de fond, et CE FICHIER (`docs/agile_story_task.md`) pour la feuille de route technique.
+-> - **Prochaine priorit├⌐ recommand├⌐e :** Terminer les tests des tickets `[?]`, int├⌐grer la dynamique cabine et les passagers.
+-
+----
+-
+-## ≡ƒÄ» SCOPE & ROADMAP DU PROJET
+-
+-### ≡ƒÜÇ VERSION 1.0 (MVP)
+-*La version actuelle en cours de d├⌐veloppement.*
+-- **Features** : Toutes les Stories de 1 ├á 33 list├⌐es ci-dessous.
+-- **Flotte MSFS 2020 / 2024 Support├⌐e** : 
+-  - Γ£à Tous les avions de base Asobo (Narrow bodies / Piston / Turboprop). *Hors Wide Bodies.*
+-  - Γ£à FlyByWire A32NX Family.
+-  - Γ£à Fenix A320 Family (A319, A320, A321).
+-- **Objectif** : Une boucle de gameplay Short/Medium Haul parfaitement stable avec une interface UI l├⌐ch├⌐e et une int├⌐gration SimConnect solide.
+-
+-### ≡ƒîî VERSION 2.0 (POST-RELEASE)
+-*Les concepts ambitieux repouss├⌐s pour une architecture ult├⌐rieure.*
+-- **Compatibilit├⌐ Long Courrier & Wide Bodies** :
+-  - Support natif des r├¿gles ETOPS, fatigue d'├⌐quipage prolong├⌐e, et Alternate complexes.
+-- **Extension Flotte Payware MSFS** :
+-  - iniBuilds A300, A310, A350.
+-  - Aerosoft A330 (et autres).
+-  - FSLabs A321 NEO (si dispo).
+-  - PMDG Family (737 Narrow, 777/747 Wide bodies).
+-- **Extension Plateforme** :
+-  - Portage natif pour **X-Plane 12** (via un nouveau pont de t├⌐l├⌐m├⌐trie type XPlaneConnect / UDP ou plugin C++ d├⌐di├⌐).
+-- **Custom Ground Ops Animations (Remplacement GSX)** :
+-  - Remplacement total de *GSX Pro* par le d├⌐veloppement "In-House" de nos propres mod├¿les 3D, v├⌐hicules d'escales, et animations MSFS (Attention: Demande de lourdes comp├⌐tences SDK MSFS et 3D Mod├⌐lisation `glTF` !).
+-- **Extension Avions Toliss (X-Plane)** :
+-  - Toliss A340-600 et famille A320 Neo.
+-
+----
+-
+-## Story 1 : Core Architecture & Telemetry Bridge
+-- [x] Restructuration totale en WebView2
+-- [x] Int├⌐gration dans le PlaneDataStruct `SimConnectService.cs`
+-- [x] Ajout des variables Seatbelts, APU Master/Start/Bleed, EXT_LT_NOSE, RWY_TURNOFF
+-- [x] C├óblage des p├⌐nalit├⌐s (APU Cruise, Turbulence sans ceinture, Line-up Nose Light) dans les Managers
+-- [ ] Recherche L:Vars Fenix A320 (Seatbelts) via WASM
+-- [ ] **Bugfix** : Trouver la bonne LVAR car Seatbelts Fenix reste inerte.
+-- [ ] **Validation Live** sous MSFS 2024 / Fenix A320
+-- [?] **Ticket** : Reconnexion automatique *silencieuse* MSFS (Si SimConnect coupe, v├⌐rifie si l'appli se reconnecte en arri├¿re-plan sans spammer l'UI).
+-
+-## Story 2 : Flight State Machine & Resilience
+-- [x] Fiabilisation par Radio Height ├á l'atterrissage
+-- [x] S├⌐curisation TCAS & Step Climbs (limite d'altitude pour la descente)
+-- [ ] Tester rigoureusement les transitions de phases r├⌐elles (TaxiOut -> Takeoff)
+-- [x] **Bugfix** : Correction de la phase "Cruise" qui se d├⌐clenche pr├⌐matur├⌐ment.
+-- [x] **Bugfix** : R├⌐trogradation "Cruise -> Climb" corrig├⌐e.
+-
+-## Story 3 : Ground Operations & Anti-Cheat
+-- [x] D├⌐clenchement manuel via le bouton "Start Ground Operations"
+-- [x] S├⌐curit├⌐ Anti-Cheat (Annulation sur mouvement)
+-- [x] Sanction Anti-Cheat (Flight Cancelled & figeage)
+-- [x] Formatage du temps en MM:SS dans les barres de progression
+-- [x] Refonte Visuelle Tab Ground Ops (Drop-down Accord├⌐ons, icones narratives)
+-- [x] M├⌐ta-Barre Ground Ops int├⌐gr├⌐e au Dashboard
+-- [x] Refonte des dur├⌐es de chargement (Param├⌐trage algorithmique et dur├⌐e optionnelle)
+-- [x] G├⌐n├⌐ration al├⌐atoire d'├⌐v├¿nements impactant le retard
+-- [ ] **Tol├⌐rance Freins de Parc (Wheel Chocks) :** Ne pas d├⌐clencher l'Anti-Cheat si le frein de parc est rel├óch├⌐ pendant l'escale TANT QUE l'avion reste strictement immobile.
+-- [ ] **S├⌐quen├ºage Logique :** Emp├¬cher le Boarding tant que le Cleaning et le Catering ne sont pas termin├⌐s.
+-- [ ] **Maintenance Inspection (Turnaround) :** G├⌐n├⌐rer dynamiquement une ├⌐tape de "Maintenance" suppl├⌐mentaire dans les Op├⌐rations au Sol si l'atterrissage pr├⌐c├⌐dent a ├⌐t├⌐ trop rude.
+-- [ ] **Time-Scale Sync (SOBT vs MSFS) :** Avertir le joueur si le temps restant avant SOBT est insuffisant pour les Ground Ops.
+-- [?] **Ticket** : GroundEventEngine (Un cooldown de 5 minutes ├⌐vite que la valise tombe de la passerelle en boucle).
+-
+-## Story 4 : SuperScore & Flight Safety Envelope
+-- [x] Syst├¿me complet d'analyse d'atterrissage (FPM, G-Force)
+-- [x] P├⌐nalit├⌐s de phares (Taxi, Landing lights)
+-- [x] Bonus Line-up : V├⌐rification Strobes/Landing et Taxi (Tol├⌐rance T.O Airbus)
+-- [x] **Malus ├ëclairage au Sol (Runway Vacation)** : P├⌐naliser l'activation des *Strobes* ou *Landing Lights* au sol (Avec tol├⌐rance de 120s apr├¿s TaxiIn).
+-- [x] **Ajustement Pitch Airbus** : Adoucir la limite de *Pitch Angle* ├á 20┬░ pour la mont├⌐e.
+-- [x] **Malus Landing Lights (Croisi├¿re)** : P├⌐naliser l'oubli au-dessus de 10 000 ft.
+-- [x] **Bonus Gear Up** : R├⌐compenser le pilote (+50) pour une rentr├⌐e propre.
+-- [x] **Malus Sortie de Train Anormale** : P├⌐naliser s├⌐v├¿rement (-200) la sortie hors approche.
+-- [x] **Malus Coupure Moteur en Vol** : P├⌐naliser massivement (-500) la perte de combustion en vol.
+-- [x] ├ëvaluation atterrissage : Pr├⌐cision du point de toucher (Touchdown Zone) et Axe de piste (Centerline).
+-- [x] **Amnistie Phase Finale** : Lock de l'historique de V/S sous 2ft AGL pour supprimer les faux-positifs "Impact rude" de compression MSFS.
+-- [ ] **D├⌐rogation APU en Croisi├¿re** : D├⌐sactiver le malus (-50 Safety) de l'APU en croisi├¿re pour ne pas p├⌐naliser les proc├⌐dures d'urgences (panne g├⌐n├⌐ratrice).
+-- [x] **Amnistie Pilote Automatique (AP1/AP2)** : D├⌐sactiver les malus de pilotage direct (danger de pitch, bank, G) lorsque le Pilote Automatique est engag├⌐.
+-- [ ] **Tol├⌐rance 10 000ft (Seatbelts/Lights/Speed)** : Ajouter une marge de tol├⌐rance de +/- 500 ft autour de l'altitude de transition pour ne pas punir les actions d├⌐cal├⌐es de quelques secondes.
+-- [ ] **T├⌐l├⌐m├⌐trie Freins (Brake Temp)** : R├⌐cup├⌐rer et ├⌐valuer la chauffe des freins apr├¿s le d├⌐gagement de la piste (Maintenance).
+-- [ ] **Tail Strike (Maintenance)** : D├⌐tecter un cabr├⌐ excessif (> 11┬░) alors que le train principal touche le sol (Takeoff/Landing).
+-- [ ] **Flaps Overspeed (Maintenance)** : P├⌐naliser le maintien des volets ├á une vitesse structurellement dangereuse (> 260 kts).
+-- [ ] **Engine Cooldown (Maintenance)** : Assurer un d├⌐lai minimum (ex: 3 minutes) entre l'atterrissage et la coupure des r├⌐acteurs.
+-- [ ] **Contamination Hivernale (Maintenance)** : P├⌐naliser la rentr├⌐e des volets au sol apr├¿s un atterrissage s'il fait tr├¿s froid (OAT < 3┬░C).
+-- [ ] **Go-Around / Unstable Approach** : P├⌐naliser lourdement un atterrissage forc├⌐ depuis une approche instable ├á 1000ft, mais r├⌐compenser le Go-Around.
+-- [?] **Ticket** : ├ëquilibrage : Les p├⌐nalit├⌐s d'├⌐clairage sont r├⌐duites (-50 pour Taxi/Landing oubli├⌐, -20 pour Strobes allum├⌐s au sol).
+-- [?] **Ticket** : Soft Cap du Confort : Le confort a une "soft cap" au sol pour ne pas trop te punir ├á la porte.
+-- [?] **Ticket** : Calcul du Confort: La moyenne du confort est d├⌐sormais liss├⌐e sur le vol entier (un petit coup de frein ne ruine plus l'objectif de 80%).
+-
+-## Story 5 : Chronometry & Final Flight Report
+-- [x] Rapatriement de la Timetable sur le Dashboard
+-- [x] Figeage des temps AOBT/AIBT au pushback et ├á la porte
+-- [x] Int├⌐gration de la Charte Visuelle de Ponctualit├⌐ (Gradient Bleu/Vert/Orange/Rouge)
+-- [x] S├⌐paration du SuperScore en 4 Piliers : Safety, Comfort, Maintenance, Operations.
+-- [x] G├⌐n├⌐rer le "Flight Report" visuel complet de fin de vol (Modale modernis├⌐e Glassmorphism).
+-- [x] D├⌐couplage du rapport : Garantir le prompt du Flight Report ├á l'arriv├⌐e m├¬me si SimBrief SchedIn est manquant.
+-- [ ] Ajournement des p├⌐nalit├⌐s de retard (Amnistie jusqu'├á la phase Arrived)
+-- [?] **Ticket** : La modale de Debrief ne d├⌐passe plus de l'├⌐cran (Scroll interne impl├⌐ment├⌐ avec hauteur max).
+-- [ ] **Ticket** : Develop Post-Flight Briefing Adherence logic (Block Fuel, ZFW, Speed).
+-
+-## Story 6 : UI/UX Reorganization
+-- [x] Relocaliser "Fetch Plan" et "Start Ops" dans la Sidebar gauche
+-- [x] R├⌐initialisation compl├¿te de l'interface (Ground Ops) lors d'un nouveau Fetch
+-- [x] Remplacer le bouton "Fetch Plan" par "Cancel Flight" apr├¿s chargement.
+-- [x] Dashboard Overview : Ajouter l'en-t├¬te (Origine Γ£ê∩╕Å Destination), N┬░ Vol, et Compagnie
+-- [?] Dashboard Overview : Afficher le layout ICAO/IATA (ex: AFR/AF606) et la Variante Custom de l'Avion (Fetching SimBrief)
+-- [x] Ajouter un bouton "Save Settings" dans l'onglet Options avec un visuel de confirmation.
+-- [x] Ajouter une ic├┤ne circulaire "Reset" (≡ƒöä) pour restaurer les param├¿tres par d├⌐faut des Ground Ops
+-- [x] Mode "Always on Top"
+-- [x] Bouton Maximize (Plein ├ëcran)
+-- [x] Option "Ground Ops Duration" dans les Settings
+-- [x] Slider de probabilit├⌐ des ├⌐v├¿nements al├⌐atoires (Ground Ops)
+-- [x] Ajouter les d├⌐tails textuels des op├⌐rations bloquantes dans la Meta-Bar du Dashboard
+-- [x] Refonte des 4 blocs du Dashboard (Flight Details, Routing, Payload, Timetable)
+-- [ ] **Syst├¿me ACARS Int├⌐gr├⌐ (M├⌐t├⌐o & Dispatch)** : Ajouter un module "ACARS Messages" sur le Dashboard. Permettre de fetch (ou push auto en descente) le METAR/TAF. G├⌐n├⌐rer une notification sonore/visuelle fa├ºon "Incoming Message".
+-- [ ] **Ticket** : Add Flight Phase Timeline Tracker and Display.
+-
+-## Story 7 : Localization (i18n) Support
+-- [x] Frontend (`locales.js`) for static UI (buttons, menus, labels).
+-- [x] Add a language selection option in the Settings menu (FR/EN).
+-- [ ] Backend (`LocalizationService.cs`) for generated messages (logs, penalties, briefings).
+-- [ ] Ensure language switch syncs Backend instantly (e.g., regenerate Weather Briefing).
+-
+-## Story 8 : Third-Party Weather Integration
+-- [x] Options UI : Ajouter le choix de la source m├⌐t├⌐o (SimBrief vs Active Sky vs MSFS)
+-- [ ] Backend : D├⌐tecter et lire Active Sky (`current_wx_snapshot.txt` ou API HTTP locale)
+-- [ ] Logique : Remplacer les donn├⌐es SimBrief par la source tierce dans le Tactical Briefing
+-
+-## Story 9 : GSX Advanced Integration (Hybrid Master/Slave Architecture)
+-- [x] Options UI : Ajouter un toggle "Enable GSX Auto-Sync"
+-- [ ] Pr├⌐-requis Utilisateur : Avertir l'utilisateur de d├⌐sactiver toutes les options GSX auto dans les tablettes de ses avions.
+-- [ ] Backend : ├ëtude de faisabilit├⌐ lecture et ├⌐criture des LVARs GSX (`L:FSDT_GSX_BOARDING_STATE`, `L:FSDT_GSX_MENU_SELECT`) via SimConnect.
+-
+-## Story 10 : Measuring Units Architecture
+-- [x] Backend : Cr├⌐er un service de conversion (KGS/LBS, C/F, FT/M, HPA/INHG, KTS/KMH)
+-- [x] Backend (SimBrief) : Convertir les poids bruts (`estzfw`, `esttow`, `pax_count`, etc.) selon l'option choisie
+-- [x] Backend (Weather) : Parser le METAR et convertir Temp├⌐rature et Pression de QNH
+-- [x] Frontend : Mettre ├á jour dynamiquement l'affichage du Briefing.
+-- [x] **Bugfix** : Correction du formatage de temps (12H/24H) ├á travers l'UI pour unifier l'exp├⌐rience.
+-
+-## Story 11 : Contextual Tooltips & Onboarding
+-- [ ] Cr├⌐er un syst├¿me d'infobulles contextuelles pour expliquer les acronymes complexes.
+-- [ ] D├⌐velopper un mini-tutoriel d'onboarding "premier lancement".
+-
+-## Story 12 : Documentation Centrale
+-- [x] R├⌐daction initiale du document de r├⌐f├⌐rence d├⌐taillant toutes les features (User Manual).
+-- [x] Inscription d├⌐finitive des 4 piliers du SuperScore au coeur du manuel.
+-- [x] Migration de l'Agile Story Task (Backlog technique) en dur dans le d├⌐p├┤t Git (ce fichier).
+-- [ ] G├⌐rer l'it├⌐ration et la mise ├á jour continue du manuel au fil du d├⌐veloppement.
+-
+-## Story 13 : Le Briefing & Planning de Rotation (Multi-Leg)
+-- [ ] **Mise ├á jour visuelle du Briefing :** Rajouter une section "Day Roster" affichant le vol actuel comme "Leg 1".
+-- [ ] **Logique SimBrief in-game :** Coder la m├⌐thode "Fetch Next Leg" qui va t├⌐l├⌐charger le plan g├⌐n├⌐r├⌐ sur l'EFB pendant l'escale.
+-- [ ] **Mise ├á jour M├⌐t├⌐o :** R├⌐g├⌐n├⌐rer le briefing m├⌐t├⌐o tactique (METAR/TAF) sur la nouvelle destination au moment du "Fetch Next Leg".
+-
+-## Story 14 : Passenger & Crew Manifest (Onglet Cabine)
+-- [x] **Moteur PNC (Backend C#) :** G├⌐n├⌐ration des PNC (1 PNC par 50 si├¿ges).
+-- [x] **Moteur Passagers (Backend C#) :** G├⌐n├⌐rateur de nationalit├⌐s bas├⌐ sur l'a├⌐roport.
+-- [x] **Logique Seat Map (Backend C#) :** Assigner virtuellement un si├¿ge.
+-- [x] **UI Nouvelle Page (Frontend) :** Cr├⌐er un nouvel onglet "Cabin / Manifest".
+-- [x] **UI Grille Visuelle (Frontend) :** Coder le composant graphique (Seat Map 2D interactif).
+-
+-## Story 15 : Advanced Dispatch & Meteorological Briefing
+-- [x] **Analyseur Temporel TAF :** Parser les TAFs (`FM`, `BECMG`, `TEMPO`) et croiser avec l'ETA.
+-- [x] **Runway Anticipation Predictor :** Affiche la piste pr├⌐vue et d├⌐tecte les vents arri├¿re potentiels.
+-- [x] **Parseur de NOTAMs :** Extraire et r├⌐sumer les NOTAMs de d├⌐part/arriv├⌐e.
+-- [x] **Parseur de SIGMETs :** D├⌐tecter la m├⌐t├⌐o convective et le givrage en route.
+-- [x] **Refonte Visuelle du Briefing :** Grille CSS et design de tickets pour Alternate / Routing.
+-- [x] **L'Alternate Airport :** Extraire l'Alternate de SimBrief et l'afficher formellement.
+-- [x] **Route Optimization :** Analyser le profil de Tropopause et exposer les Step Climbs pr├⌐vus.
+-
+-## Story 16 : In-Flight Judgment & Airmanship
+-- [ ] **SuperScore M├⌐t├⌐o :** P├⌐naliser la travers├⌐e "aveugle" d'un volume SIGMET actif.
+-- [ ] **R├⌐compense de D├⌐viation Tactique :** D├⌐tecter et r├⌐compenser la d├⌐viation manuelle hors route (`GPS WP CROSS TRK` ├⌐lev├⌐) pour contourner le mauvais temps.
+-
+-## Story 17 : Passenger Satisfaction & Cabin Management
+-- [x] **Anxi├⌐t├⌐ Cabine (Turbulences) :** Cr├⌐er la jauge "Passenger Anxiety" bas├⌐e sur G-Force et assiettes.
+-- [x] **Anxi├⌐t├⌐ Cabine (Retard SOBT) :** Retard au d├⌐part = angoisse progressive.
+-- [x] **Interface "Captain Announcements" (MVP) :** G├⌐n├⌐rer un bouton dynamique ("Announce Delay", "Announce Turbulence") sur le Dashboard qui calme l'anxi├⌐t├⌐.
+-- [x] **Cabin Intercom (MVP) :** Remplacer le bouton par un module Intercom (Menu d├⌐roulant des ordres : "Prepare for Takeoff", "Seats for Landing", etc. + Bouton Send).
+-- [ ] **Logique Cabin Secured (Backend) :** Int├⌐grer un d├⌐lai de r├⌐ponse des PNC suite ├á un ordre avant d'autoriser certaines phases (ex: Takeoff) sous peine de p├⌐nalit├⌐ de s├⌐curit├⌐ grave.
+-- [ ] **Int├⌐gration LVAR Fenix (Advanced) :** Binder le bouton physique `CAB` du Radio Management Panel (RMP) du Fenix A320 pour d├⌐clencher l'Intercom directement depuis le cockpit virtuel.
+-- [x] **Cons├⌐quences Abort / Lost Baggage :** R├⌐percussions des Op├⌐rations au Sol abr├⌐g├⌐es (Plaintes Catering incomplet, valises manquantes).
+-- [x] **Int├⌐gration UI Stitch :** Refonte g├⌐n├⌐rale des jauges vers la charte Neon/Glassmorphism.
+-- [x] **Ticket** : Intercom PNC R├⌐nov├⌐. Les boutons PA s'affichent dynamiquement selon la phase.
+-- [x] **Ticket** : Chaque bouton PNC cliqu├⌐ la premi├¿re fois donne +25 pts d'Op├⌐rations.
+-- [x] **Ticket** : Service Catering. Le bouton "Start Service" lance une jauge de 16 min. Pause si ceintures attach├⌐es.
+-- [?] **Ticket** : Buff "Satiety". Quand le Catering est ├á 100%, l'ic├┤ne de Sati├⌐t├⌐ s'allume et l'anxi├⌐t├⌐ due aux G-Force est divis├⌐e par 2.
+-- [?] **Ticket** : Les Turbulences (G-Force) affectent maintenant le confort de mani├¿re agressive mais douce.
+-- [?] **Ticket** : Bruit blanc cabine (Idles) fait tr├¿s l├⌐g├¿rement osciller l'Anxi├⌐t├⌐. Les commandes Intercom d├⌐j├á utilis├⌐es se cachent de l'UI.
+-- [?] **Ticket** : PA Welcome & Descent dynamiques bas├⌐es sur SimBrief (Destination, Dur├⌐e, M├⌐t├⌐o).
+-- [ ] **Ticket** : Dynamic In-Flight Service calculation (Base catering speed on block time or distance).
+-- [ ] **Ticket** : Manual "Stop Service" / "Resume Service" button for PNC to pause catering during turbulences manually.
+-- [ ] **Ticket** : Dynamic Cabin Preparation Time (Add a progress bar for "Prepare Cabin" based on passenger discipline and cabin crew efficiency).
+-
+-## Story 18 : Impond├⌐rables & Diversions (D├⌐routements)
+-- [ ] **G├⌐n├⌐rateur de Crise :** Cr├⌐er un moteur de probabilit├⌐ g├⌐n├⌐rant une urgence m├⌐dicale.
+-- [ ] **State Machine "Diversion" :** Ajouter un ├⌐tat de vol `Diverting` pour clore le plan de vol initial sur un a├⌐roport d'atterrissage impromptu valide.
+-
+-## Story 19 : Airline Policies & Risk Management
+-- [ ] **Base de donn├⌐es Compagnies (Profils) :** Profils de tol├⌐rance (Low-Cost vs Legacy/Premium).
+-- [ ] **Pond├⌐ration SuperScore (Delay vs Comfort) :** Adapter dynamiquement le poids des malus selon le profil de la compagnie.
+-- [ ] **Le Dilemme "Missing Pax" (Boarding) :** Si un passager manque, Interactive decision ("Attendre" vs "Laisser").
+-
+-## Story 20 : Virtual Reality & MSFS In-Game Toolbar
+-- [x] **D├⌐veloppement du Panel In-Game :** Packager un add-on MSFS natif (HTML/JS)
+-- [x] **Communication Localhost (WebSocket) :** ├ëtablir le lien bidirectionnel en temps r├⌐el.
+-
+-## Story 21 : Fuel Economy & Ecological Operations
+-- [ ] **T├⌐l├⌐m├⌐trie Fuel (Backend C#) :** Logger le fuel pr├⌐vu vs le final actuel.
+-- [ ] **SuperScore Company Ops :** R├⌐compenser un vol o├╣ la consommation est inf├⌐rieure ou ├⌐gale au plan, et analyser la br├╗lure d'Extra Fuel.
+-
+-## Story 22 : Flight Logger & History
+-- [ ] **Bouton Save Report :** Ajouter un bouton "Save & Close" sur la modale du Final Flight Report pour sauvegarder la session en JSON local.
+-- [ ] **Page Flight History :** Cr├⌐er un onglet UI affichant l'historique complet.
+-- [x] **Ticket** : Crash Javascript du Logbook corrig├⌐ (Les apostrophes dans le nom des a├⌐roports/villes corrompaient le code source de l'UI en rouvrant un vol).
+-
+-## Story 23 : True Airmanship (Manual Flying Bonus)
+-- [x] **D├⌐tection A/P & A/THR (Approche) :** D├⌐marrer un chrono au passage des 4000ft (d├⌐but phase Approach) jusqu'au Touchdown.
+-- [x] **Calcul Temps Manuel :** Comptabiliser le temps pass├⌐ totalement en manuel.
+-- [x] **SuperScore Airmanship :** R├⌐compenser le pilotage manuel avec un gros bonus (+100, +200).
+-
+-## Story 24 : Moteur de Profils A├⌐rodynamiques (Aircraft Profiles)
+-- [ ] **Extraction de la Cat├⌐gorie :** Utiliser la variable `AircraftCategory` (Light, Medium, Heavy) de SimBrief pour le profil de base.
+-- [ ] **Base Config JSON :** Cr├⌐er un fichier de configuration des limites a├⌐rodynamiques et structurelles par appareil (Max Bank, G-Force Limite, Max Pitch).
+-- [ ] **SuperScore Ajustable :** Le FlightPhaseManager doit lire le profil d'avion inject├⌐ au lieu d'utiliser les variables "en dur" (Part 25) du code C# pour juger les violations de confort.
+-
+-## Story 24 : Immersive Mode (Hidden Scoring)
+-- [ ] **Option UI :** Ajouter une case ├á cocher "Immersive Mode".
+-- [ ] **Masquage Frontend :** Masquer les compteurs de points et popups pendant le vol pour ne pas break l'immersion, ne les d├⌐couvrant qu'au Debrief Final.
+-
+-## Story 25 : Chief Pilot Narrative Debrief (Flight Report)
+-- [?] **Moteur de Synth├¿se (JS) :** Parseur des p├⌐nalit├⌐s du Report Final.
+-- [?] **G├⌐n├⌐ration de Texte :** Construire dynamiquement 2/3 paragraphes narratifs du Head of Operations selon la r├⌐ussite du vol.
+-- [?] **Int├⌐gration Modale :** Ajouter ce bloc comment├⌐ au bas de la modale Flight Report.
+-
+-## Story 26 : Debrief Breakdown Accordion
+-- [x] **History Logs Backend :** Sauvegarder chaque variation de score (`amount`, `reason`, `category`) dans une liste.
+-- [x] **Injection Payload :** Envoyer cet Array dans le WebMessage `EndFlight`.
+-- [?] **UI Accord├⌐on :** Cr├⌐er une zone d├⌐pliante dans la Modale Debrief listant toutes les p├⌐nalit├⌐s et bonus obtenus ligne par ligne de mani├¿re ├⌐l├⌐gante (Glassmorphism).
+-
+-## Story 27 : Dynamic Cabin Comfort Feedback (Intercom)
+-- [ ] **Jauges Dynamiques :** C├óbler les jauges "Anxiet├⌐" (commence ├á 0% vert -> rouge) et "Confort" (commence ├á 100% bleu -> rouge) aux ├⌐v├⌐nements physiques (V/S, Bank, G-Force).
+-- [ ] **R├⌐g├⌐n├⌐ration :** Permettre aux jauges de s'am├⌐liorer progressivement avec le temps si les param├¿tres de vol sont cl├⌐ments.
+-- [ ] **Ordre PNC "Cabin Status" :** Ajouter "Comment ├ºa se passe en cabine ?" dans le Dropdown Intercom du Dashboard.
+-- [ ] **Narrative Response :** G├⌐n├⌐rer une r├⌐ponse contextuelle des PNC (ex: "Horrible, une valise est tomb├⌐e" vs "Tout va bien on sert les caf├⌐s") en fonction de l'historique r├⌐cent des p├⌐nalit├⌐s ou du niveau de confort actuel, qui mettra ├⌐galement ├á jour les jauges visuelles.
+-
+-## Story 28 : Dynamic Passenger Demographics & Airline Reputation
+-- [x] **Base de donn├⌐es Compagnies** : Injecter un ranking empirique (Premium, Standard, LowCost).
+-- [x] **G├⌐n├⌐rateur D├⌐mographique** : Cr├⌐er al├⌐atoirement un profil de passagers (Grumpy, Relaxed, Anxious).
+-- [x] **Modificateurs Dynamiques** : Alt├⌐rer les jauges Comfort/Anxiety selon la compagnie et le profil.
+-- [x] **P├⌐nalit├⌐ de Retard (Sans Comms)** : Incr├⌐menter l'anxi├⌐t├⌐ et le confort ├á la porte (AtGate) si le SOBT est d├⌐pass├⌐ et qu'aucune annonce de retard n'a ├⌐t├⌐ faite.
+-- [ ] **Ticket** : Advanced Passenger Demographics (Generate baseline proportions of "Anxious" and "Grumpy" passengers at spawn. These define the incompressible floor levels for Anxiety and Comfort, and dictate the severity of reactions to G-Forces and Delays).
+-
+-## Story 29 : Realistic Ground Ops & Time Warp
+-- [?] **Automated Scheduling (T-Minus)** : Lier le Catering, Cleaning, et Boarding ├á l'horloge interne par rapport au SOBT (SimBrief), selon la cat├⌐gorie de l'avion (Ex: Boarding ├á T-40 min pour A320).
+-- [?] **D├⌐clencheurs Manuels (Pilot-in-Command)** : L'approvisionnement en fioul ("Request Refueling") n├⌐cessitera une activation via UI.
+-- [?] **Bouton Time Warp ("Skip to Departure")** : Ajouter un bouton UI qui compl├¿te instantan├⌐ment les Ground Ops en attente.
+-- [?] **Synchronisation ZULU MSFS** : C├óbler le bouton Time Warp pour envoyer les ├⌐v├¿nements SimConnect ZULU_HOURS_SET / ZULU_MINUTES_SET et aligner le temps MSFS sur le SOBT.
+-- [?] **P├⌐nalit├⌐ de Convenience (Trade-off)** : Appliquer un malus fixe au SuperScore si le Time Warp est utilis├⌐.
+-
+-## Story 30 : Difficulty Tiers & Immersive Options (Global Architecture)
+-- [ ] **Refonte de l'onglet Settings** : Ajouter un s├⌐lecteur de difficult├⌐ globale : Easy / Normal / Hardcore.
+-- [ ] **Tier 'Easy'** : D├⌐sactive les malus de confort passager, autorise le Time Warp sans p├⌐nalit├⌐.
+-- [ ] **Tier 'Normal' (D├⌐faut)** : Exp├⌐rience ├⌐quilibr├⌐e. Le Time Warp applique un l├⌐ger malus.
+-- [ ] **Tier 'Hardcore'** : Tol├⌐rance z├⌐ro (Catering complet exig├⌐, SOBT strict, p├⌐nalit├⌐s X2, Time Warp lourdement sanctionn├⌐).
+-- [ ] **C├óblage SuperScoreManager** : Lier la variable globale CurrentDifficulty pour pond├⌐rer ou d├⌐sactiver les p├⌐nalit├⌐s calcul├⌐es.
+-
+-## Story 31 : Dynamic Ground Ops Virtual Actors (Live Logging)
+-- [ ] **D├⌐finition des Acteurs Virtuels** :
+-  - **Chef de Cabine (Purser)** : G├¿re le Service Traiteur (Catering), le Nettoyage (Cleaning), et l'accueil Embarquement.
+-  - **Chef d'Escale (Gate Agent)** : G├¿re le flux Embarquement depuis le terminal et les passagers manquants.
+-  - **Agent de Piste (Ramp Agent)** : G├¿re l'Avitaillement (Fuel), le Chargement des Soutes (Baggage/Cargo), et le Service d'Eau/Toilettes.
+-- [ ] **Remplacement des Textes Statiques** : Mettre ├á jour l'UI des 6 modules Ground Ops pour afficher un flux de logs dynamiques narratifs au lieu d'une phrase g├⌐n├⌐rique.
+-- [ ] **G├⌐n├⌐rateur de Dialogues (Backend ou JS)** : Cr├⌐er des phrases interactives (ex: "Ramp Agent : Tuyau connect├⌐, transfert en cours (1500 kg / 4500 kg)...").
+-
+-## Story 32 : Airline Tycoon & Captain Decisions Engine (Sprint 2)
+-- [ ] **Mod├¿le de R├⌐putation (Reputation Engine)** : Remplacer le simple Enum (Premium/Standard/LowCost) par une structure riche :
+-  - *Hard Product* (Confort des si├¿ges, espace). Impacte la r├⌐g├⌐n├⌐ration de base du ComfortLevel.
+-  - *Soft Product* (Nourriture, service, PNC). Impacte la tol├⌐rance des passagers aux al├⌐as.
+-  - *Safety & Maintenance Record* (Accidentologie pass├⌐e). Voler sur une compagnie "douteuse" d├⌐marre le vol avec une anxi├⌐t├⌐ de base ├⌐lev├⌐e pour tous les passagers (surtout les anxieux).
+-  - *Punctuality Score* : La tol├⌐rance de la compagnie face aux retards.
+-- [ ] **Airline Identity Card (Dashboard UI)** : Cr├⌐er un bloc visuel sur le Dashboard affichant la Note Globale sur 100 de la compagnie et 3 "Directives" sous forme de bullet points (Ex: "La ponctualit├⌐ prime sur le confort client").
+-- [ ] **Moteur d'├ëv├¿nements Tol├⌐rance (Decision Tree)** : G├⌐n├⌐rer des Impond├⌐rables Ground Ops interactifs :
+-  - Passagers manquants -> [Attendre / D├⌐barquer les valises].
+-  - Camion Catering en panne -> [Attendre la r├⌐paration / Partir sans Catering].
+-  - Passager ivre/agressif -> [Refuser l'acc├¿s (Retard) / Laisser faire (Risque S├⌐curit├⌐)].
+-  - **ΓÜá∩╕Å [TODO 1.0 RELEASE]** : R├⌐-├⌐quilibrer la probabilit├⌐ d'apparition des ├⌐v├¿nements (actuellement boost├⌐e pour les tests) pour la version finale.
+-- [ ] **Scoring Pond├⌐r├⌐** : Le SuperScoreManager doit ├⌐valuer la d├⌐cision finale ├á l'aune des Directives de la Compagnie de la carte d'identit├⌐.
+-- [x] **Syst├¿me d'Objectifs (Airline Objectives)** : Ajouter des contrats chiffr├⌐s et ├⌐valuables (ex: `MaxDelay=15`, `MinComfort=80`, `MaxTouchdownFpm=-200`) dans `Airlines.json`. Les int├⌐grer au `SuperScoreManager.cs` pour une validation stricte (Pass/Fail) ├á la fin du vol, avec affichage d'une toute nouvelle section "Airline Objectives" [Γ£à/Γ¥î] dans le composant UI du Flight Report final.
+-- [?] **Ticket** : UI: Les objectifs s'appellent d├⌐sormais **COMPANY CHALLENGES**. Si tu n'importes rien (SimBrief vide), il est ├⌐crit *"No Company Challenge Taken"*.
+-
+-## Story 33 : Pilot Profile & Gamification (Statistics & Achievements)
+-- [!] **Mod├¿le de Donn├⌐es (C#)** : Persistance locale capricieuse (Le JS ne r├⌐cup├¿re pas toujours le JSON au lancement). Bug enregistr├⌐, on passe ├á autre chose pour le moment.
+-- [x] **Tab Profile UI (Frontend)** : Dessiner un tout nouvel onglet affichant visuellement le passeport du pilote, ses heures de vol et ses badges fa├ºon vitrine.
+-- [ ] **Statistiques Globales (Logbook)** : Cumul des `Total Flights`, `Block Time`, `Distance Flown`, `Passengers`, `Cargo Hauled`, et `Fuel Burned`.
+-- [ ] **M├⌐triques de Performance (Leaderboard Data)** : Sauvegarder `Average SuperScore`, `Highest Score`, `Punctuality %`, `Smoothest Touchdown`, `Hardest Impact`, et le % de vol manuel.
+-- [ ] **Achievement Engine (Backend)** : ├Ç la cl├┤ture du vol, parser le vol par rapport ├á une liste de badges bloqu├⌐s pour d├⌐clencher des unlocks if conditions met.
+-- [ ] **Badges Tier 1 (Rookie)** : `First Entry`, `Butter the Bread` (> -150fpm), `Swiss Watch` (0 retard), `By the Book` (Ops parfaites).
+-- [ ] **Badges Tier 2 (Line Captain)** : `Frequent Flyer` (50 vols), `The Hand of God` (10min vol manuel), `Company Man` (SuperScore > 1000), `Safe and Sound` (10 vols sans p├⌐nalit├⌐ de s├⌐curit├⌐), `Go-Around, Flaps 3`.
+-- [ ] **Badges Tier 3 (Check Airman)** : `Flawless Execution` (0 p├⌐nalit├⌐s + 100% objs), `Through the Storm` (Atterrissage par xwind violent / MSFS sans se faire engueuler par les PAX), `Feather Touch` (Touchdown entre -10 et -50 fpm), `Iron Bladder` (10h Block Time en continu), `Airmanship Master` (SuperScore > 1200).
+-- [ ] **Secret Tier (Casseroles)** : `Spine Crusher` (Touch < -600 fpm), `Coffee Machine Broken` (Partir sans Catering), `Pitch Black` (Atterrir sans Landing Lights la nuit).
+-
+-### Bugs Fix├⌐s
+-- [?] **Traductions Ground Ops** : Remplacement des constantes Javascript en dur par le dictionnaire `locales.js` pour supporter dynamiquement le FR et l'EN.
+-- [?] **Feedback Immersif Modal** : Le log de feedback (ex: "D├⌐cision Cdt re├ºue") apr├¿s avoir pris une d├⌐cision depuis un Pop-up s'affichait dans l'onglet des p├⌐nalit├⌐s cach├⌐. Le flux C# a ├⌐t├⌐ rout├⌐ vers `type = "cabinLog"` pour appara├«tre directement dans le live feed des op├⌐rations au sol.
+-- [Γ¥ô] **Bugfix** : "Severe Hard Landing" MSFS physics spike (-700fpm) bypass├⌐. Le FlightPhaseManager enregistre dor├⌐navant le FPM r├⌐el liss├⌐ de l'arrondi (Flare) et non la rafale physique ├á 0 AGL.
+-- [?] **Bugfix** : Correction de l'inversion de Math de Score. "Perfect Flare" et "10k Climb Flow" ne renvoient plus un malus par d├⌐faut de -100 points dans le SuperScoreManager.
+-
+-## Story 34 : Category C Airports Gameplay
+-- [ ] **Ticket** : Qualif/Rewards for Madeira, Ajaccio, etc.
+-
+-## Story 35 : Pre-Flight Cockpit Scrambler
+-- [ ] **Ticket** : Randomize switches on first spawn to simulate messy previous crew.
+diff --git a/docs/game_design/Crisis_Generator.md b/docs/game_design/Crisis_Generator.md
+deleted file mode 100644
+index 2bdd545..0000000
+--- a/docs/game_design/Crisis_Generator.md
++++ /dev/null
+@@ -1,61 +0,0 @@
+-# Design Document: G├⌐n├⌐rateur de Crise (Crisis Generator)
+-
+-## 1. Synth├¿se du Concept
+-Le **G├⌐n├⌐rateur de Crise** est un moteur d'├⌐v├⌐nements al├⌐atoires ou conditionnels con├ºu pour briser la monotonie des longs vols (particuli├¿rement en croisi├¿re) et tester la r├⌐activit├⌐ du commandant de bord (le joueur). 
+-
+-Plut├┤t que de subir un vol parfait, le joueur peut ├¬tre confront├⌐ ├á des urgences m├⌐dicales, des incidents passagers, des al├⌐as m├⌐t├⌐orologiques extr├¬mes ou des pannes simul├⌐es. La gestion de ces crises aura un impact massif sur le **SuperScore**, l'**Anxi├⌐t├⌐** et le **Confort** de la cabine, offrant d'├⌐normes bonus de leadership si la situation est bien g├⌐r├⌐e, ou des p├⌐nalit├⌐s fatales si elle est ignor├⌐e.
+-
+-## 2. Id├⌐es et M├⌐caniques Actives
+-
+-### A. Le Moteur de D├⌐clenchement (Trigger Engine)
+-Les crises ne sont pas purement al├⌐atoires, elles doivent avoir du sens :
+-- **Probabilit├⌐ de base :** % de chance par heure de vol (param├⌐trable dans les r├⌐glages "Probabilit├⌐ de Crise").
+-- **D├⌐clencheurs contextuels :** 
+-  - *Turbulences s├⌐v├¿res prolong├⌐es* -> Augmente les risques d'urgence m├⌐dicale ou de passager indisciplin├⌐.
+-  - *Retard important (AOBT)* -> Augmente la probabilit├⌐ de tensions cabine.
+-
+-### B. Typologie des Crises
+-1. **Urgence M├⌐dicale (Medical Incident) :** Un passager fait un malaise.
+-   - *Action requise :* Appel PNC (Intercom) -> Annonce PA ("Doctor on board") -> D├⌐cision de diversion (si grave) ou traitement ├á bord.
+-   - *Impact :* L'anxi├⌐t├⌐ cabine grimpe lentement. La g├⌐rer rapidement rassure tout le monde.
+-2. **Passager Indisciplin├⌐ (Unruly Passenger Escalation) :** Une ├⌐volution de l'├⌐v├⌐nement actuel.
+-   - *Action requise :* Refus de servir de l'alcool (Catering), Annonce PA autoritaire, avertissement de la police locale ├á l'arriv├⌐e.
+-3. **D├⌐pressurisation Cabine / Technique (Cabin Depressurization) :** 
+-   - *Action requise :* Check t├⌐l├⌐m├⌐trie MSFS (chute d'altitude rapide exig├⌐e < 10,000ft), Annonce masque ├á oxyg├¿ne.
+-4. **Alerte M├⌐t├⌐o Critique (Severe Weather / ATC Hold) :**
+-   - *Action requise :* Attacher les ceintures imm├⌐diatement, arr├¬ter le service Catering, rassurer par PA.
+-
+-### C. UI / UX Visuelle
+-- **Alerte Critique :** Une banni├¿re rouge clignotante appara├«t sur le Dashboard principal de Flight Supervisor (accompagn├⌐e d'un son "Chime" d'urgence, type triple ding).
+-- **Timer de R├⌐action :** Une jauge de temps s'├⌐coule. Plus le joueur met de temps ├á r├⌐agir (via l'Intercom ou le pilotage), plus l'anxi├⌐t├⌐ de la cabine devient incontr├┤lable.
+-
+----
+-
+-## 3. Liste des Tickets (Structure du Design)
+-
+-Voici le d├⌐coupage technique pour int├⌐grer ce design ├⌐tape par ├⌐tape dans l'application :
+-
+-- [ ] **TICKET 1 : Architecture du Core CrisisEngine**
+-  - Cr├⌐ation du service `CrisisManager.cs` en C#.
+-  - Impl├⌐mentation du syst├¿me de probabilit├⌐s et d'├⌐valuation conditionnelle dans la boucle `Tick()` du vol (actif uniquement apr├¿s le d├⌐collage).
+-  
+-- [ ] **TICKET 2 : UI Crisis Banner & Alarme Sonore**
+-  - Ajout d'une zone d'alerte UI dans `app.js` et `index.html` (qui ├⌐crase temporairement le Meta Bar ou le Dashboard Header).
+-  - Lecture d'un fichier audio (Emergency Chime) via l'UI lors de la r├⌐ception d'un event `crisisTriggered`.
+-
+-- [ ] **TICKET 3 : Impl├⌐mentation "Urgence M├⌐dicale"**
+-  - Ajout du sc├⌐nario Medical Emergency dans le `CrisisManager`.
+-  - Int├⌐gration des boutons de r├⌐solution sp├⌐cifiques (Nouveau bouton PA "Medical Assistance", bouton Intercom "Report to Captain").
+-  - Calcul du SuperScore : +150 points si g├⌐r├⌐ en moins de 3 minutes.
+-
+-- [ ] **TICKET 4 : Impl├⌐mentation "Passager Indisciplin├⌐ ├ëvolu├⌐"**
+-  - Migration de l'ancien ├⌐v├⌐nement vers le nouveau syst├¿me de crise.
+-  - P├⌐nalit├⌐ dynamique appliqu├⌐e ├á la barre de confort (tout le monde est d├⌐rang├⌐) jusqu'├á ce que le joueur r├¿gle le probl├¿me via l'Intercom.
+-
+-- [ ] **TICKET 5 : Couplage T├⌐l├⌐m├⌐trie "D├⌐pressurisation" (Optionnel/Plus Tard)**
+-  - Lecture de l'altitude MSFS en temps r├⌐el d├¿s le d├⌐clenchement de la crise.
+-  - Validation de la crise uniquement si le joueur atteint 10,000ft en moins de X minutes (Emergency Descent).
+-
+-- [ ] **TICKET 6 : Param├¿tres Utilisateur**
+-  - Ajout d'un slider "Fr├⌐quence des Crises" (Off, R├⌐aliste, Fr├⌐quent, Chaos) dans l'onglet Settings.
+-  - Sauvegarde du param├¿tre et retransmission au C# lors du `FetchFlightPlan`.
+diff --git a/docs/sprint_blackbox_scoring.md b/docs/sprint_blackbox_scoring.md
+deleted file mode 100644
+index c73fd95..0000000
+--- a/docs/sprint_blackbox_scoring.md
++++ /dev/null
+@@ -1,28 +0,0 @@
+-# SPRINT SCOPE: Black Box & Scoring (Pushback -> Arrived)
+-
+-Ce document temporaire rassemble l'ensemble des fonctionnalit├⌐s relatives ├á la t├⌐l├⌐m├⌐trie en vol, au syst├¿me de notation (SuperScore) et ├á la Bo├«te Noire (Flight Report) jusqu'├á l'arriv├⌐e de l'avion en porte. L'objectif est de cl├┤turer et boucler de bout-en-bout le flow op├⌐rationnel d'un vol.
+-
+-## ≡ƒƒó D├⌐velopp├⌐ mais en attente de validation / test
+-L'infrastructure fondamentale a ├⌐t├⌐ cod├⌐e mais n├⌐cessite des vols de qualification complets pour confirmer que ce flux de donn├⌐es op├¿re parfaitement d'un bout ├á l'autre :
+-- [ ] **Story 1 :** LVARs Fenix A320 (Seatbelts et Lumi├¿res complexes) - Les variables natifs manquent, ├á valider en vol si notre syst├¿me WASM de secours tiendra.
+-- [ ] **Story 2 :** Transitions de phases r├⌐elles (TaxiOut -> Takeoff -> InitialClimb -> Climb -> Cruise -> Descent -> Approach -> Landing -> TaxiIn -> Arrived). V├⌐rifier qu'aucune phase ne s'active pr├⌐matur├⌐ment ou en retard.
+-- [ ] **Story 4 :** P├⌐nalit├⌐s dynamiques (FPM atterrissage, G-Force s├⌐v├⌐rit├⌐, Pitch & Bank limits, Gear Retraction, Engine Failure en vol, Landing Lights 10k ft). D├⌐j├á cod├⌐es. 
+-
+-## ≡ƒƒí T├óches "To Do" : Tol├⌐rances & Confort en vol
+-Ces tickets vont parfaire le jugement et rendre le pilotage naturel sans punition injust├⌐e.
+-- [ ] **Story 4 :** D├⌐rogation APU en Croisi├¿re (Ne pas punir l'APU si panne g├⌐n├⌐ratrice en vol).
+-- [ ] **Story 4 :** Tol├⌐rance 10 000ft (Seatbelts/Lights/Speed) : Marge de +/- 500 ft autour du niveau de transition pour que le Chief Pilot ne flashe pas instantan├⌐ment au pied de la barri├¿re symbolique.
+-- [ ] **Story 5 :** Ajournement des p├⌐nalit├⌐s de retard : Cacher l'anxi├⌐t├⌐ ou le malus temporel jusqu'├á la phase Arrived afin que le joueur puisse tenter un rattrapage de Fuel ou de Raccourci avant l'heure d'arriv├⌐e.
+-- [ ] **Story 17 : Interface PNC Cabin Intercom (MVP) & Logique "Cabin Secured" :** 
+-  - [ ] UI Grise (Dropdown & Button Send) sur le Dashboard.
+-  - [ ] Minuterie de r├⌐ponse des PNC limitant l'autorisation de Takeoff / Landing. P├⌐nalit├⌐ grave associ├⌐e si le pilote n'attend pas ses h├┤tesses.
+-
+-## ≡ƒö┤ T├óches "To Do" : T├⌐l├⌐m├⌐trie d'Arriv├⌐e (Flight Report)
+-Tickets techniques finaux permettant d'├⌐paissir les statistiques de vol et la "Note du Chef Pilote".
+-- [ ] **Story 4 - Tail Strike (Maintenance)** : D├⌐tecter un cabr├⌐ excessif (> 11┬░) alors que le train principal touche le sol (au d├⌐collage ou ├á l'atterrissage).
+-- [ ] **Story 4 - Flaps Overspeed (Maintenance)** : P├⌐naliser un maintien des volets au-del├á de 260 kts.
+-- [ ] **Story 4 - Engine Cooldown (Maintenance)** : Imposer un chronom├¿tre de 3 minutes entre l'atterrissage et la coupure r├⌐acteurs.
+-- [ ] **Story 4 - Brake Temp (Maintenance)** : R├⌐cup├⌐ration de la chauffe des freins (temp├⌐rature disque chaude ou Peak) au moment du blocage final et p├⌐naliser si un feu s'annonce.
+-- [ ] **Story 4 - Go-Around / Unstable Approach** : Analyser l'altitude 1000 AGL ; si instable et atterrissage forc├⌐ = P├⌐nalit├⌐ lourde. Si Go-Around (Remise des gaz) = Validation proc├⌐dure et annulation des fautes mineures ant├⌐rieures.
+-- [ ] **Story 25 - Chief Pilot Narrative Debrief** : Ajouter un parser (moteur d'analyse Javascript) sur la modale "Flight Report". Le syst├¿me lira le JSON des m├⌐triques et crachera un ou deux paragraphes textuels synth├⌐tisant la note (Ex: "Atterrissage brutal et mauvaise gestion des PNC, mais vol ├á l'heure : 60/100").
+-- [ ] **Story 22 - Page Flight History (Optionnel mais recommand├⌐)** : Permettre d'enregistrer le Final Report au format JSON local dans `Documents` avec un bouton depuis la modale finale, pour relire ses vols pass├⌐s dans l'appli.
+diff --git a/docs/technical_design/Extension_SimConnect_Systemes_Cabine.md b/docs/technical_design/Extension_SimConnect_Systemes_Cabine.md
+deleted file mode 100644
+index 2e18b8d..0000000
+--- a/docs/technical_design/Extension_SimConnect_Systemes_Cabine.md
++++ /dev/null
+@@ -1,56 +0,0 @@
+-# Technical Design: Extension T├⌐l├⌐metrie Avanc├⌐e (Syst├¿mes & Cabine)
+-
+-## 1. Synth├¿se du Concept
+-Ce document technique d├⌐taille l'extension de la capture de donn├⌐es (Telemetry) depuis Microsoft Flight Simulator vers l'application Flight Supervisor. L'objectif est d'aller au-del├á des simples variables de vol (vitesse, altitude) pour capturer l'├⌐tat des syst├¿mes de l'avion (APU, ├⌐clairage ext├⌐rieur sp├⌐cifique, consigne des ceintures). 
+-
+-L'int├⌐gration de ces variables dans les algorithmes de `SuperScoreManager` permet de sanctionner rigoureusement le non-respect des Proc├⌐dures Op├⌐rationnelles Standards (SOPs), augmentant consid├⌐rablement l'immersion et la rigueur exig├⌐e du joueur. De plus, ce design englobe la probl├⌐matique technique complexe de la lecture des variables locales (L:Vars) propres aux avions "Study-Level" (comme le Fenix A320).
+-
+-## 2. Architecture et M├⌐caniques Actives
+-
+-### A. Extension du `PlaneDataStruct` (SimConnect)
+-La structure C# `PlaneDataStruct` doit ├¬tre enrichie avec de nouvelles variables issues du SDK MSFS :
+-- **Syst├¿mes APU :** `APU BLEED`, `APU GENERATOR ACTIVE`, `APU SWITCH`.
+-- **├ëclairage :** S├⌐paration des lumi├¿res au lieu de l'├⌐tat binaire "Taxi/Landing", ex: `LIGHT TAXI`, `LIGHT NAV`, et si possible `EXT_LT_NOSE` / `RWY_TURNOFF` (selon les index d'├⌐clairage).
+-- **Cabine :** `CABIN SEATBELTS ALERT SWITCH` (binaire/entier).
+-
+-### B. C├óblage des P├⌐nalit├⌐s (SOP Enforcement)
+-Ces variables sont r├⌐inject├⌐es via le `FlightPhaseManager` dans le `SuperScoreManager` pour ├⌐valuer la situation contextuelle :
+-1. **APU Cruise Penalty :** 
+-   - *Condition :* `Phase == Cruise` ET (`APU_Bleed == 1` OU `APU_Master == 1`).
+-   - *M├⌐canique :* L'APU n'a rien ├á faire allum├⌐ en croisi├¿re (sauf panne moteur). P├⌐nalit├⌐ imm├⌐diate de -50 points pour "Gaspillage Carburant / Usure APU".
+-2. **Turbulence sans Ceinture (Safety Violation) :**
+-   - *Condition :* `Phase == Cruise / Climb / Descent` ET `GForce > 1.25` (ou `< 0.75`) ET `Seatbelts == 0`.
+-   - *M├⌐canique :* P├⌐nalit├⌐ s├⌐v├¿re de -100 points pour "Mise en danger des passagers", augmentant drastiquement l'anxi├⌐t├⌐ cabine.
+-3. **Lumi├¿res de Roulage et Alignement (Line-up Lights) :**
+-   - *Condition :* `Phase == TakeoffRoll` ET `Nose_Light == 0`.
+-   - *M├⌐canique :* Entrer sur la piste active sans les phares d'alignement/d├⌐collage entra├«ne une p├⌐nalit├⌐ de "Safety Violation - Runway Incursion Risk".
+-
+-### C. Recherche L:Vars et Interop├⌐rabilit├⌐ WASM (Fenix A320)
+-Les add-ons "Study-Level" (Fenix, PMDG, FlyByWire) court-circuitent les SimVars natifs (le bouton Seatbelts de MSFS ne bouge pas quand on clique sur celui du Fenix).
+-- **Strat├⌐gie :** Utiliser un module WASM (ex: MobiFlight WASM ou le Client Data Area natif de MSFS) pour exposer les L:Vars (ex: `L:S_OH_SEATBELTS` ou `L:S_OH_APU_MASTER`).
+-- **Pontage :** Mettre en place un dictionnaire d'├⌐quivalence dans `SimConnectService.cs` qui, si le code ICAO de l'avion est `A320` (Fenix), lit la L:Var au lieu de la SimVar standard.
+-
+----
+-
+-## 3. Liste des Tickets (Structure du Design)
+-
+-- [ ] **TICKET 1 : Extension du Mapping SimConnect (`PlaneDataStruct`)**
+-  - Ajout des champs (bool/int) pour `Seatbelts`, `APU_Master`, `APU_Bleed`, `Light_Nose`, `Light_Turnoff`.
+-  - Enregistrement des Data Definitions dans `SimConnectService.cs`.
+-
+-- [ ] **TICKET 2 : Impl├⌐mentation P├⌐nalit├⌐s APU**
+-  - Ajout de la r├¿gle de v├⌐rification dans `SuperScoreManager.EvaluatePhaseRules()`.
+-  - Condition : D├⌐clenchement d'une p├⌐nalit├⌐ unique par vol si APU allum├⌐ au-dessus de 10 000ft (hors urgence).
+-
+-- [ ] **TICKET 3 : Impl├⌐mentation Constantes de Turbulences & Ceintures**
+-  - Couplage des variations de G-Force avec l'├⌐tat `Seatbelts`.
+-  - Cr├⌐ation de la p├⌐nalit├⌐ "Safety Violation: Unsecured Cabin in Turbulence".
+-
+-- [ ] **TICKET 4 : Logique ├ëclairage Sol (Nose & Turnoff)**
+-  - Ajout de la v├⌐rification "Nose Light On" obligatoire lors du passage en `TakeoffRoll`.
+-  - V├⌐rification de l'extinction des Runway Turnoff lights en croisi├¿re.
+-
+-- [ ] **TICKET 5 : R&D et Impl├⌐mentation WASM pour L:Vars (Fenix)**
+-  - ├ëtude de l'API WASM de MSFS ou installation du module MobiFlight WASM en pr├⌐-requis.
+-  - Test de lecture de la variable L:Var `S_OH_SEATBELTS` via SimConnect Client Data.
+-  - D├⌐ploiement d'une structure conditionnelle dans `UpdateTelemetry` pour ├⌐craser les valeurs standards par les L:Vars si l'avion d├⌐tect├⌐ est "FNX320".
+diff --git a/docs/technical_design/Extraction_WASM_LVars_Fenix.md b/docs/technical_design/Extraction_WASM_LVars_Fenix.md
+deleted file mode 100644
+index e6f12cc..0000000
+--- a/docs/technical_design/Extraction_WASM_LVars_Fenix.md
++++ /dev/null
+@@ -1,51 +0,0 @@
+-# Technical Design: Extraction des L:Vars sp├⌐cifiques (WASM / Fenix A320)
+-
+-## 1. Synth├¿se du Concept
+-Ce document technique cadre exclusivement la solution pour r├⌐soudre la probl├⌐matique d'extraction des variables locales (L:Vars) inaccessibles nativement depuis l'ext├⌐rieur de Microsoft Flight Simulator (C#). 
+-
+-Des avions "Study-Level" comme le Fenix A320 ou le PMDG contournent les variables standard (ex: `CABIN SEATBELTS ALERT SWITCH`) pour coder leur propre logique sous forme de **L:Vars** (ex: `L:S_OH_SEATBELTS`). Pour que la t├⌐l├⌐metrie de Flight Supervisor puisse "voir" l'├⌐tat r├⌐el de ces interrupteurs et appliquer les p├⌐nalit├⌐s correctement, l'architecture C# classique via SimConnect est insuffisante. Il faut obligatoirement injecter un pont d'ex├⌐cution dans la m├⌐moire m├¬me du simulateur via la technologie WebAssembly (WASM).
+-
+-## 2. Architecture et M├⌐caniques Actives
+-
+-La lecture externe des L:Vars n├⌐cessite une architecture scind├⌐e en deux : un agent interne (WASM) et un agent externe (C#).
+-
+-### A. L'Agent Interne (Module WASM en C++)
+-Un module WASM est programm├⌐ en C++ et compil├⌐ avec le SDK MSFS. Il est ensuite pouss├⌐ dans le dossier `Community` sous forme de package (ex: `flightsupervisor-wasm-bridge`).
+-- **├ëvaluation :** ├Ç chaque frame de simulation, le module utilise la fonction de bas niveau `execute_calculator_code` pour lire l'├⌐tat en direct de `(L:S_OH_SEATBELTS, Bool)`.
+-- **Exposition :** Le module ├⌐crit cette valeur binaire dans une zone m├⌐moire partag├⌐e et nomm├⌐e, appel├⌐e **Client Data Area (CDA)** (exemple: `FSUPERVISOR_LVAR_AREA`).
+-
+-### B. L'Agent Externe (Pont SimConnect en C#)
+-C├┤t├⌐ Flight Supervisor (`SimConnectService.cs`) :
+-- Au lieu de s'abonner uniquement au flux de t├⌐l├⌐m├⌐trie classique (`RequestDataOnSimObject`), l'application cartographie la m├⌐moire externe via la fonction `MapClientDataNameToID("FSUPERVISOR_LVAR_AREA")`.
+-- Elle s'abonne ensuite via `RequestClientData` pour recevoir des notifications "OnRecvClientData" uniquement lorsque la zone m├⌐moire est alt├⌐r├⌐e par l'agent interne WASM.
+-
+-### C. L'├ëcraseur de Donn├⌐es (Data Override Logic)
+-Pour garantir une compatibilit├⌐ universelle, l'application Flight Supervisor fonctionne en mode "Hybrid" :
+-- Par d├⌐faut, la structure `PlaneDataStruct` se remplit avec les SimVars officiels.
+-- Un Middleware C# lit en temps r├⌐el l'ICAO de l'avion cible (ex: `FNX320`). Si la condition est vraie, il ├⌐crase silencieusement la propri├⌐t├⌐ native `Seatbelts` avec celle extraite de l'├⌐v├⌐nement asynchrone `OnRecvClientData`. Les `Managers` ├⌐valuant les p├⌐nalit├⌐s n'y voient que du feu.
+-
+----
+-
+-## 3. Liste des Tickets (Structure du Design)
+-
+-Ce scope ultra-focus requiert des tickets techniques pointus couvrant ├á la fois du C++ embarqu├⌐ et du C# applicatif.
+-
+-- [ ] **TICKET 1 : R&D et Choix d'Architecture WASM**
+-  - **D├⌐cision :** Cr├⌐er un C++ WASM "maison" Flight Supervisor ou, alternativement, exiger l'installation du **WASM Module gratuit de MobiFlight** (un pont communautaire robuste) et impl├⌐menter son API `MobiFlight.LVars` en C#. La deuxi├¿me option ├⌐conomise 90% du temps de d├⌐veloppement R&D.
+-
+-*(Si l'option WASM Maison est choisie pour l'ind├⌐pendance) :*
+-- [ ] **TICKET 2 : Cr├⌐ation de la jauge WASM (C++)**
+-  - Configuration du projet Visual Studio pour la compilation WASM avec le SDK MSFS 2020.
+-  - Impl├⌐mentation du `SimConnect_Open` c├┤t├⌐ Gauge et cr├⌐ation de la zone m├⌐moire partag├⌐e (`Client Data Area`).
+-
+-- [ ] **TICKET 3 : ├ëvaluation P├⌐riodique C++**
+-  - D├⌐claration d'un array de L:Vars d'int├⌐r├¬t (Seatbelts, APU Master, APU Bleed propres au Fenix).
+-  - Programmation de la boucle d'interrogation et ├⌐criture du struct s├⌐rialis├⌐ vers la Client Data Area.
+-
+-- [ ] **TICKET 4 : ├ëcoute du Client Data Area (C#)**
+-  - Impl├⌐mentation des appels `MapClientDataNameToID` et de l'event handler `OnRecvClientData` dans le `SimConnectService.cs` principal.
+-  - V├⌐rification de l'int├⌐grit├⌐ de la struct binaire re├ºue (marshalling de bytes vers une struct C# locale).
+-
+-- [ ] **TICKET 5 : Le Data Source Overrider (C#)**
+-  - Ajout d'une condition d'identification "FNX320 / A32NX" ├á la reconnexion du vol.
+-  - ├ëcrasement logique des propri├⌐t├⌐s standard avant la soumission du payload `phaseUpdate` vers l'application JS.
+diff --git a/docs/technical_design/Implementation_Crisis_Generator.md b/docs/technical_design/Implementation_Crisis_Generator.md
+deleted file mode 100644
+index 03fbfc0..0000000
+--- a/docs/technical_design/Implementation_Crisis_Generator.md
++++ /dev/null
+@@ -1,42 +0,0 @@
+-# Implementation Plan: Crisis Generator
+-
+-## Problem Description
+-To break the monotony of long cruise phases and to test the player's responsiveness, the application needs a dynamic event generation engine known as the **Crisis Generator**. This engine will simulate medical emergencies, unruly passengers, and other critical alerts (e.g. depressurization) based on contextual triggers and probabilities.
+-
+-## Proposed Changes
+-
+-### Core Architecture
+-#### [NEW] [CrisisManager.cs](file:///d:/FlightSupervisor/FlightSupervisor.UI/Services/CrisisManager.cs)
+-- Introduce a new service responsible for hosting the crisis lifecycle.
+-- **Tick Engine:** Evaluate probabilities every minute while the aircraft is airborne and above 10,000 ft. Contextual modifiers (e.g. severe turbulence, massive delays) will exponentially increase these odds.
+-- **Crisis State:** Maintain an active enum (e.g., `None`, `MedicalEmergency`, `UnrulyPassenger`, `Depressurization`).
+-- **Resolution Tracking:** Track time-to-respond. Fast responses grant SuperScore bonuses (+150 pts), while ignored crises drain passenger comfort and trigger exponential penalties.
+-- Expose unified C# events to notify the UI: `OnCrisisTriggered`, `OnCrisisResolved`, `OnCrisisCritical`.
+-
+-### Frontend / UI Layer
+-#### [MODIFY] [app.js](file:///d:/FlightSupervisor/FlightSupervisor.UI/wwwroot/js/app.js)
+-- Attach socket listeners / C# bridge calls for `crisisTriggered`.
+-- Display a flashing red Critical Alert Banner pushing down the main interface.
+-- Play a triple-chime emergency audio sound (`<audio>` tag implementation).
+-- Display a dynamic countdown/progress bar representing passenger anxiety.
+-
+-#### [MODIFY] [index.html](file:///d:/FlightSupervisor/FlightSupervisor.UI/wwwroot/index.html)
+-- Add the hidden DOM elements for the Crisis Alert Banner and the audio tags.
+-
+-### Scenarios & Integration
+-#### [MODIFY] [SimConnectService.cs](file:///d:/FlightSupervisor/FlightSupervisor.UI/Services/SimConnectService.cs)
+-- Monitor telemetry for sudden altitude drops to trigger/validate the `Depressurization` crisis.
+-
+-#### [MODIFY] [SuperScoreManager.cs](file:///d:/FlightSupervisor/FlightSupervisor.UI/Services/SuperScoreManager.cs)
+-- Subscribe to `CrisisManager` events to calculate the massive bonus / penalty payouts upon resolution or failure.
+-
+-#### [MODIFY] [Settings UI / Backend]
+-- Add a "Crisis Frequency" setting (Off, Realistic, Frequent, Chaos) in both the HTML modal and the backend `AppSettings.cs`.
+-
+-## Verification Plan
+-### Automated / UI Tests
+-- Use a temporary debug button in the UI (or a `/crisis` developer shortcut in the backend) to instantly force a crisis to trigger without waiting hours.
+-### Manual Verification
+-- Verify the alarm triggers both the banner and the audio file.
+-- Confirm resolution buttons on Intercom and PA panel correctly clear the banner.
+-- Validate the SuperScore increment in the Flight Log.
+diff --git a/docs/technical_design/Restructuration_WebView2.md b/docs/technical_design/Restructuration_WebView2.md
+deleted file mode 100644
+index ab16f67..0000000
+--- a/docs/technical_design/Restructuration_WebView2.md
++++ /dev/null
+@@ -1,52 +0,0 @@
+-# Technical Design: Restructuration totale en WebView2
+-
+-## 1. Synth├¿se du Concept
+-La **Restructuration totale en WebView2** est une refonte architecturale majeure visant ├á s├⌐parer la logique m├⌐tier agressive (le backend) de la pr├⌐sentation visuelle (le frontend). Au lieu de compter sur les contr├┤les WPF natifs, difficiles ├á styliser modernement et sujets aux pertes de performance lors d'un rafra├«chissement intensif, l'interface enti├¿re repose d├⌐sormais sur un moteur de rendu web embarqu├⌐ (Microsoft Edge WebView2).
+-
+-Cette approche hybride permet de combiner deux mondes avec leurs forces respectives : 
+-- **C# / .NET** g├¿re parfaitement la communication bas niveau tr├¿s gourmande avec Microsoft Flight Simulator (SimConnect), les algorithmes complexes, le multi-threading et l'acc├¿s au syst├¿me de fichiers.
+-- **HTML / CSS (Tailwind) / Javascript** g├¿re la fluidit├⌐ des animations, la haute densit├⌐ des informations, le responsive design et l'esth├⌐tique "Glassmorphism" premium requise pour une immersion totale.
+-
+-## 2. Architecture et M├⌐caniques Actives
+-
+-### A. Le Pont de Communication (The Bridge)
+-La pi├¿ce ma├«tresse de cette restructuration est l'├⌐change de donn├⌐es asynchrone bidirectionnel en JSON, qui garantit que l'UI ne g├¿lera jamais le jeu, et que le jeu ne g├¿lera jamais l'UI.
+-- **C# vers Javascript (`CoreWebView2.PostWebMessageAsJson`) :** Le backend pousse des "Charges Utiles" (Payloads) cat├⌐goris├⌐es (`phaseUpdate`, `scoreUpdate`, `flightData`, `groundOpsProgress`). Le frontend Javascript agit comme un simple r├⌐cepteur passif qui met ├á jour le DOM de mani├¿re chirurgicale.
+-- **Javascript vers C# (`window.chrome.webview.postMessage`) :** Les interactions utilisateur (cliquer sur "Fetch", demander l'accord d'un PNC) renvoient des appels l├⌐gers intercept├⌐s par un `try...catch` asynchrone (`WebMessageReceived`) c├┤t├⌐ WPF.
+-
+-### B. Scalabilit├⌐ et Performance
+-- D├⌐charger le pipeline UI du Thread WPF principal permet au `FlightPhaseManager` et au `SuperScoreManager` de tourner ├á 10-20 Hz (rafra├«chissements par seconde) sans perturber l'exp├⌐rience utilisateur. 
+-- L'utilisation de TailwindCSS permet de designer des tableaux de bord extr├¬mement denses tr├¿s rapidement par classe utilitaire, impossible ├á faire avec du XAML standard.
+-
+-### C. Gestion d'Erreurs
+-Puisque le pont JSON est invisible, il requiert une rigueur absolue :
+-- **Global Error Hooks :** Mise en place d'un `window.onerror` c├┤t├⌐ JS pour capturer silencieusement (ou alerter en Debug) toute propri├⌐t├⌐ ind├⌐finie (`TypeError`) lors du parsing de payloads profonds (ex: SimBrief API).
+-- C├┤t├⌐ C#, les s├⌐rialisations JSON sont blind├⌐es avec les param├¿tres locaux et l'utilisation rigoureuse des balises `[JsonPropertyName]`.
+-
+----
+-
+-## 3. Liste des Tickets (Structure du Design)
+-
+-Bien que cette restructuration soit en grande partie le socle actuel du projet, voici la structure th├⌐orique des tickets de cette architecture :
+-
+-- [ ] **TICKET 1 : Int├⌐gration du composant WebView2**
+-  - Ajout du package NuGet `Microsoft.Web.WebView2`.
+-  - Remplacement de l'arborescence UI WPF de `MainWindow.xaml` par un tag `<wv2:WebView2>` asynchrone unique.
+-  - Configuration du `EnsureCoreWebView2Async()` de l'environnement virtuel.
+-
+-- [ ] **TICKET 2 : Cr├⌐ation de l'arborescence Frontend (`wwwroot`)**
+-  - Cr├⌐ation du dossier local embarqu├⌐, de l'`index.html` de base et des liaisons de fichiers statiques (CSS/JS/Fonts/Icons).
+-  - Injection du CDN TailwindCSS (ou bundle compil├⌐) pour activer les utilitaires de style de l'application.
+-
+-- [ ] **TICKET 3 : Le Routeur de Messages (Message Router)**
+-  - Impl├⌐mentation du routeur `switch(payload.type)` global dans `app.js` pour dispatcher l'update DOM.
+-  - Mappage de la fonction `webView_WebMessageReceived` en C# pour interpr├⌐ter le JSON entrant depuis les boutons du HTML.
+-
+-- [ ] **TICKET 4 : Migration de la T├⌐l├⌐m├⌐trie en temps r├⌐el**
+-  - Adaptation de la boucle principale `Telemetry_Tick` vers l'envoi exclusif d'un objet anonyme JSON `{ altitude, speed, vs, phase ... }`.
+-  - Rafra├«chissement cibl├⌐ des ├⌐l├⌐ments HTML (`document.getElementById().innerText`) pour limiter le reflow/repaint du navigateur.
+-
+-- [ ] **TICKET 5 : S├⌐curisation Globale (Fool-proofing)**
+-  - Traitement natif des attributs JSON (gestion du Casse/CamelCase entre dotnet et JS).
+-  - Gestion experte du chargement (`DOMContentLoaded` vs d├⌐marrage du SimConnect) pour ├⌐viter d'envoyer des ├⌐v├⌐nements ├á une WebView blanche.
+-  - Ajout d'une balise d'alerte `window.onerror` JS pour ├⌐viter le syndrome de "l'application qui ne r├⌐pond plus".

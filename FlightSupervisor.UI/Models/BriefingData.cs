@@ -12,6 +12,13 @@ namespace FlightSupervisor.UI.Models
         public List<BriefingStation> Stations { get; set; } = new List<BriefingStation>();
     }
 
+    public enum WeatherSeverity
+    {
+        Normal,
+        Warning,
+        Danger
+    }
+
     public class BriefingStation
     {
         public string Id { get; set; } = ""; // origin, destination, alternate
@@ -22,8 +29,14 @@ namespace FlightSupervisor.UI.Models
         
         // Highlight Variables
         public string Wind { get; set; } = "";
+        public WeatherSeverity WindSeverity { get; set; } = WeatherSeverity.Normal;
+
         public string Visibility { get; set; } = "";
+        public WeatherSeverity VisibilitySeverity { get; set; } = WeatherSeverity.Normal;
+
         public string CloudBase { get; set; } = "";
+        public WeatherSeverity CloudSeverity { get; set; } = WeatherSeverity.Normal;
+
         public string TempDew { get; set; } = "";
         public string Qnh { get; set; } = "";
         

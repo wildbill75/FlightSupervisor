@@ -1,6 +1,106 @@
 document.addEventListener('DOMContentLoaded', () => {
     window.isFlightActive = false;
 
+    // --- AUDIO STRINGING ENGINE ---
+    class AudioQueue {
+        constructor() {
+            this.queue = [];
+            this.isPlaying = false;
+            
+            // Single Audio Element
+            this.audioElement = new Audio();
+            
+            // Web Audio API Context
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.audioCtx = new AudioContext();
+            
+            // Nodes
+            this.sourceNode = this.audioCtx.createMediaElementSource(this.audioElement);
+            
+            // Filter 1: Bandpass for Intercom effect (Phone/PA EQ)
+            this.bandpass = this.audioCtx.createBiquadFilter();
+            this.bandpass.type = 'bandpass';
+            this.bandpass.frequency.value = 1200; // Center frequency
+            this.bandpass.Q.value = 0.8; // Width
+            
+            // Filter 2: Highshelf to cut harsh high frequencies and simulate cheap speakers
+            this.highshelf = this.audioCtx.createBiquadFilter();
+            this.highshelf.type = 'highshelf';
+            this.highshelf.frequency.value = 3500;
+            this.highshelf.gain.value = -12;
+            
+            // Distortion (WaveShaper)
+            this.distorter = this.audioCtx.createWaveShaper();
+            this.distorter.curve = this.makeDistortionCurve(15); // Slight saturation / Crackle
+            this.distorter.oversample = '4x';
+            
+            // Connections
+            this.sourceNode.connect(this.bandpass);
+            this.bandpass.connect(this.highshelf);
+            this.highshelf.connect(this.distorter);
+            this.distorter.connect(this.audioCtx.destination);
+            
+            this.audioElement.onended = () => {
+                this.playNext();
+            };
+        }
+
+        makeDistortionCurve(amount) {
+            let k = typeof amount === 'number' ? amount : 50;
+            let n_samples = 44100;
+            let curve = new Float32Array(n_samples);
+            let deg = Math.PI / 180;
+            for (let i = 0 ; i < n_samples; ++i ) {
+                let x = i * 2 / n_samples - 1;
+                curve[i] = ( 3 + k ) * x * 20 * deg / ( Math.PI + k * Math.abs(x) );
+            }
+            return curve;
+        }
+
+        playSequence(sequence) {
+            if (this.audioCtx.state === 'suspended') {
+                this.audioCtx.resume();
+            }
+            if (!sequence || !Array.isArray(sequence) || sequence.length === 0) return;
+            this.queue.push(...sequence);
+            if (!this.isPlaying) {
+                this.playNext();
+            }
+        }
+
+        playNext() {
+            if (this.queue.length === 0) {
+                this.isPlaying = false;
+                return;
+            }
+            this.isPlaying = true;
+            const filename = this.queue.shift();
+            
+            if (!filename) {
+                this.playNext();
+                return;
+            }
+
+            // Fallback intelligence : si le MP3 échoue, on tente la suite.
+            this.audioElement.onerror = (e) => {
+                console.warn(`[AudioEngine] Fichier introuvable ou erreur de lecture - ${filename}.mp3`);
+                this.playNext(); // Failsafe
+            };
+
+            this.audioElement.src = `assets/sounds/${filename}.mp3`;
+            this.audioElement.load();
+            
+            const playPromise = this.audioElement.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.warn(`[AudioEngine] autoplay empêché ou erreur sur ${filename}.mp3`, error);
+                    this.playNext();
+                });
+            }
+        }
+    }
+    window.audioEngine = new AudioQueue();
+    // ------------------------------
     // Top Bar Dragging Interop
     const topBar = document.getElementById('top-bar');
     if (topBar) {
@@ -178,17 +278,31 @@ document.addEventListener('DOMContentLoaded', () => {
         const colorsAlert = 'bg-orange-900/40 border border-orange-500/30 text-orange-400';
 
         // Cabin Passenger Announcements (PA)
-        if (phase === 'AtGate' || phase === 'Boarding') {
+        if (phase === 'TaxiOut' || phase === 'Pushback') {
             if (!used.includes('PA_Welcome')) {
                 buttonsHtml += makeBtn('announceCabin', 'Welcome', 'PA: Welcome Aboard', colorsPa, 'campaign');
             }
-            if (payload.isDelayed && !used.includes('PA_Delay')) {
-                buttonsHtml += makeBtn('announceCabin', 'Delay', 'PA: Apology for Delay', colorsAlert, 'warning');
-            }
-        } else if (phase === 'Descent') {
+        } else if (phase === 'Descent' && payload.altitude < 10000) {
             if (!used.includes('PA_Descent')) {
                 buttonsHtml += makeBtn('announceCabin', 'Descent', 'PA: Initial Descent', colorsPa, 'campaign');
             }
+        }
+
+        // Crisis PAs (High Priority)
+        if (payload.isGoAroundActive) {
+            const silenceClass = payload.isSilencePenaltyActive ? 'bg-red-600 border-red-400 animate-pulse' : colorsAlert;
+            buttonsHtml += makeBtn('announceCabin', 'GoAround', 'PA: Go-Around', silenceClass, 'replay');
+        }
+        
+        if (payload.isSevereTurbulenceActive) {
+            const silenceClass = payload.isSilencePenaltyActive ? 'bg-red-600 border-red-400 animate-pulse' : colorsAlert;
+            buttonsHtml += makeBtn('announceCabin', 'Turbulence', 'PA: Severe Turbulence', silenceClass, 'warning');
+        } else if (payload.seatbeltsOn && (phase === 'Cruise' || phase === 'Climb' || phase === 'Descent')) {
+             buttonsHtml += makeBtn('announceCabin', 'Turbulence', 'PA: Turbulence Warning', colorsAlert, 'campaign');
+        }
+
+        if (payload.isDelayed && !used.includes('PA_Delay') && (phase === 'AtGate' || phase === 'Boarding')) {
+            buttonsHtml += makeBtn('announceCabin', 'Delay', 'PA: Apology for Delay', colorsAlert, 'warning');
         }
 
         // PNC Crew Commands (Intercom)
@@ -199,7 +313,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (phase === 'TaxiOut' || phase === 'Takeoff' || phase === 'InitialClimb') {
             if (!used.includes('SEATS_TAKEOFF')) {
-                buttonsHtml += makeBtn('pncCommand', 'SEATS_TAKEOFF', 'PNC: Seats for Takeoff', colorsPnc, 'airline_seat_recline_extra');
+                const isReady = payload.securingProgress >= 100;
+                const btnText = isReady ? 'PNC: Seats for Takeoff' : 'PNC: Force Seats (Caution)';
+                const btnClass = isReady ? colorsPnc : 'bg-red-900/40 border border-red-500/30 text-red-500';
+                buttonsHtml += makeBtn('pncCommand', 'SEATS_TAKEOFF', btnText, btnClass, 'airline_seat_recline_extra');
             }
         }
         if (phase === 'Climb' || phase === 'Cruise') {
@@ -214,7 +331,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (phase === 'Approach' || phase === 'FinalApproach') {
             if (!used.includes('SEATS_LANDING')) {
-                buttonsHtml += makeBtn('pncCommand', 'SEATS_LANDING', 'PNC: Seats for Landing', colorsPnc, 'airline_seat_recline_extra');
+                const isReady = payload.securingProgress >= 100;
+                const btnText = isReady ? 'PNC: Seats for Landing' : 'PNC: Force Seats (Caution)';
+                const btnClass = isReady ? colorsPnc : 'bg-red-900/40 border border-red-500/30 text-red-500';
+                buttonsHtml += makeBtn('pncCommand', 'SEATS_LANDING', btnText, btnClass, 'airline_seat_recline_extra');
             }
         }
 
@@ -232,14 +352,60 @@ document.addEventListener('DOMContentLoaded', () => {
             buttonsHtml += makeBtn('resolveCrisis', 'UnrulyPassenger', 'PNC: Restrain Passenger', 'bg-red-900/60 border border-red-500 text-red-400 animate-pulse', 'security');
         }
 
-        // Always Available
-        buttonsHtml += makeBtn('pncCommand', 'REQUEST_STATUS', 'PNC: Request Cabin Report', 'bg-slate-800/80 border border-slate-600/50 text-slate-300', 'assignment');
+        // Intercom Reporting (Always available in flight)
+        const diffSec = payload.cabinReportCooldownElapsed || 999;
+        const isCd = diffSec < 120; // 2 minutes cooldown
+        const cdLeft = Math.ceil(120 - diffSec);
+        
+        const reportText = isCd ? `Report CD (${Math.floor(cdLeft/60)}m ${cdLeft%60}s)` : 'PNC: Request Cabin Report';
+        const reportClass = isCd ? 'bg-slate-800/40 border border-slate-700/30 text-slate-500 cursor-not-allowed opacity-70' : 'bg-slate-800/80 border border-slate-600/50 text-slate-300';
+        
+        buttonsHtml += `<button ${isCd ? 'disabled' : ''} onclick="requestCabinReport()" class="w-full py-2 ${reportClass} rounded-lg font-bold text-[10px] uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow hover:brightness-110 mb-2">
+                        <span class="material-symbols-outlined text-[14px]">assignment</span> ${reportText}
+                    </button>`;
+
+        // Service Interruption Button (Only if serving)
+        if (payload.cabinState === 'ServingMeals') {
+            const svcText = payload.isServiceHalted ? 'PNC: Resume Service' : 'PNC: Pause Service';
+            const svcClass = payload.isServiceHalted ? 'bg-emerald-900/40 border border-emerald-500/50 text-emerald-400' : 'bg-red-900/40 border border-red-500/50 text-red-400';
+            const svcIcon = payload.isServiceHalted ? 'play_arrow' : 'pause';
+            
+            buttonsHtml += `<button onclick="toggleServiceInterruption()" class="w-full py-2 ${svcClass} rounded-lg font-bold text-[10px] uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow hover:brightness-110">
+                            <span class="material-symbols-outlined text-[14px]">${svcIcon}</span> ${svcText}
+                        </button>`;
+        }
 
         // Prevent redundant DOM updates
         if (container.innerHTML !== buttonsHtml) {
             container.innerHTML = buttonsHtml;
         }
     }
+
+    window.requestCabinReport = function() {
+        window.chrome.webview.postMessage({ action: 'intercomQuery' });
+    };
+
+    window.toggleServiceInterruption = function() {
+        window.chrome.webview.postMessage({ action: 'toggleService' });
+    };
+
+    window.requestAcarsUpdate = function() {
+        const btn = event.currentTarget || event.target;
+        if (!btn) return;
+        const originalText = btn.innerHTML;
+        
+        btn.innerHTML = `<span class="material-symbols-outlined text-[14px] animate-spin">sync</span> REQ SENT...`;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        btn.disabled = true;
+
+        window.chrome.webview.postMessage({ action: 'acarsWeatherRequest' });
+
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            btn.disabled = false;
+        }, 3000);
+    };
     const selLanguage = document.getElementById('selLanguage');
     if (selLanguage) {
         selLanguage.addEventListener('change', (e) => {
@@ -627,6 +793,46 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'telemetry':
                 updateIntercomButtons(payload);
                 document.getElementById('flightPhase').innerText = `${payload.phase}`;
+
+                // Turbulence Severity Update (Story 25)
+                if (payload.turbulenceSeverity !== undefined) {
+                    const turbValue = document.getElementById('turbSeverityValue');
+                    const turbBar = document.getElementById('turbSeverityBar');
+                    const severities = ['NONE', 'LIGHT', 'MODERATE', 'SEVERE', 'EXTREME'];
+                    const colors = ['#64748b', '#38bdf8', '#fb923c', '#ef4444', '#a855f7'];
+                    const percentages = [0, 25, 50, 75, 100];
+                    
+                    const index = payload.turbulenceSeverity;
+                    if (turbValue) {
+                        turbValue.innerText = severities[index] || 'UNKNOWN';
+                        turbValue.style.color = colors[index] || '#64748b';
+                    }
+                    if (turbBar) {
+                        turbBar.style.width = percentages[index] + '%';
+                        turbBar.style.backgroundColor = colors[index] || '#64748b';
+                        turbBar.style.boxShadow = `0 0 8px ${colors[index] || '#64748b'}80`;
+                    }
+                }
+
+                // Passenger Manifest Refresh (Story 25)
+                if (payload.passengers && Array.isArray(payload.passengers)) {
+                    if (window.manifest && window.manifest.Passengers) {
+                        window.manifest.Passengers.forEach(p => {
+                            const state = payload.passengers.find(s => s.seat === p.Seat || s.Seat === p.Seat);
+                            if (state) {
+                                p.IsBoarded = (state.IsBoarded !== undefined) ? state.IsBoarded : state.isBoarded;
+                                p.IsSeatbeltFastened = (state.IsSeatbeltFastened !== undefined) ? state.IsSeatbeltFastened : state.isSeatbeltFastened;
+                                p.IsInjured = (state.IsInjured !== undefined) ? state.IsInjured : state.isInjured;
+                                p.IndividualAnxiety = (state.IndividualAnxiety !== undefined) ? state.IndividualAnxiety : state.individualAnxiety;
+                            }
+                        });
+                    }
+                    const cabinTab = document.getElementById('cabin');
+                    if (cabinTab && cabinTab.classList.contains('active')) {
+                        window.renderManifest(window.manifest);
+                    }
+                }
+
                 if (payload.anxiety !== undefined) {
                     const anxEl = document.getElementById('paxAnxietyValue');
                     const anxBar = document.getElementById('paxAnxietyBar');
@@ -679,9 +885,42 @@ document.addEventListener('DOMContentLoaded', () => {
                             cBox.classList.add('opacity-100', 'h-10');
                             cBar.style.width = `${payload.serviceProgress}%`;
                             cVal.innerHTML = `${Math.round(payload.serviceProgress)}<span class="text-[10px] text-slate-500 font-light ml-1">%</span>`;
+                            
+                            if (payload.isServiceHalted) {
+                                cBar.classList.add('bg-red-500', 'animate-pulse');
+                                cBar.classList.remove('bg-sky-500');
+                                cVal.classList.add('text-red-500');
+                            } else {
+                                cBar.classList.remove('bg-red-500', 'animate-pulse');
+                                cBar.classList.add('bg-sky-500');
+                                cVal.classList.remove('text-red-500');
+                            }
                         } else {
                             cBox.classList.remove('opacity-100', 'h-10');
                             cBox.classList.add('opacity-0', 'h-0');
+                        }
+                    }
+                }
+
+                if (payload.securingProgress !== undefined) {
+                    const pBox = document.getElementById('pncProgressBox');
+                    const pBar = document.getElementById('pncProgressBar');
+                    if (pBox && pBar) {
+                        if (payload.securingProgress > 0 && payload.securingProgress < 100) {
+                            pBox.classList.remove('opacity-0', 'h-0', 'mb-0');
+                            pBox.classList.add('opacity-100', 'h-2', 'mb-4');
+                            pBar.style.width = `${payload.securingProgress}%`;
+                            
+                            if (payload.isSecuringHalted) {
+                                pBar.classList.add('bg-red-500', 'animate-pulse');
+                                pBar.classList.remove('bg-orange-500');
+                            } else {
+                                pBar.classList.remove('bg-red-500', 'animate-pulse');
+                                pBar.classList.add('bg-orange-500');
+                            }
+                        } else {
+                            pBox.classList.remove('opacity-100', 'h-2', 'mb-4');
+                            pBox.classList.add('opacity-0', 'h-0', 'mb-0');
                         }
                     }
                 }
@@ -1146,6 +1385,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     clog.prepend(cli);
                     if (clog.children.length > 3) clog.removeChild(clog.lastChild);
                 }
+                if (payload.audioSequence && payload.audioSequence.length > 0) {
+                    if (window.audioEngine) window.audioEngine.playSequence(payload.audioSequence);
+                }
                 break;
             case 'InitProfile':
                 const profile = payload;
@@ -1596,21 +1838,32 @@ document.addEventListener('DOMContentLoaded', () => {
                             else if (station.Id.toLowerCase() === "alternate") icon = "🔄";
                             
                             let variablesHtml = '';
-                            const addPill = (label, value, colorClass) => {
+                            const getSeverityStyle = (severity) => {
+                                if (severity === 2) return { text: 'text-red-100 font-bold', bg: 'bg-red-900/60 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-pulse' }; // Danger
+                                if (severity === 1) return { text: 'text-orange-100 font-bold', bg: 'bg-orange-900/50 border-orange-500/80 shadow-[0_0_10px_rgba(249,115,22,0.3)]' }; // Warning
+                                return null; // Normal
+                            };
+
+                            const addPill = (label, value, defaultColorClass, severity) => {
                                 if(value && value.trim() !== '') {
+                                    const sevStyle = getSeverityStyle(severity);
+                                    const finalTextColor = sevStyle ? sevStyle.text : defaultColorClass;
+                                    const finalBgColor = sevStyle ? sevStyle.bg : 'bg-black/40 border-white/5';
+                                    
                                     variablesHtml += `
-                                        <div class="flex flex-col bg-black/40 rounded border border-white/5 p-2 justify-center items-center text-center">
-                                            <span class="text-[9px] uppercase tracking-wider text-slate-500 mb-1">${label}</span>
-                                            <span class="font-bold text-xs ${colorClass}">${value}</span>
+                                        <div class="flex flex-col rounded p-2 justify-center items-center text-center transition-all border ${finalBgColor}">
+                                            <span class="text-[9px] uppercase tracking-wider text-slate-400/90 mb-1">${label}</span>
+                                            <span class="font-bold text-[13px] ${finalTextColor}">${value}</span>
                                         </div>
                                     `;
                                 }
                             };
 
-                            addPill('QNH', station.Qnh, 'text-purple-400');
-                            addPill('Wind', station.Wind, 'text-emerald-400');
-                            addPill('Temp/Dew', station.TempDew, 'text-amber-400');
-                            addPill('Visibility', station.Visibility, 'text-sky-400');
+                            addPill('QNH', station.Qnh, 'text-purple-400', 0);
+                            addPill('Wind', station.Wind, 'text-emerald-400', station.WindSeverity);
+                            addPill('Temp/Dew', station.TempDew, 'text-amber-400', 0);
+                            addPill('Visibility', station.Visibility, 'text-sky-400', station.VisibilitySeverity);
+                            addPill('Clouds', station.CloudBase, 'text-sky-200', station.CloudSeverity);
 
                             html += `
                             <div class="bg-[#12141A] p-5 rounded-xl border border-white/5 flex flex-col gap-4 shadow-xl">
@@ -1671,7 +1924,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     briefingElem.innerHTML = window.parseBriefing(payload.briefing);
                 }
                 
-                if (window.renderManifest && payload.manifest) window.renderManifest(payload.manifest);
+                if (payload.manifest) {
+                    window.manifest = payload.manifest;
+                    if (window.renderManifest) window.renderManifest(payload.manifest);
+                }
 
                 if (d.weather) {
                     let wTxt = `Origin METAR: ${d.weather.orig_metar || ''}\nOrigin TAF: ${d.weather.orig_taf || ''}\n\n`;
@@ -1685,12 +1941,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (weatherElem) weatherElem.innerText = wTxt.trim();
                 }
                 break;
+            case 'briefingUpdate':
+                const updBriefingElem = document.getElementById('briefingContent');
+                if (updBriefingElem) {
+                    updBriefingElem.style.whiteSpace = 'normal';
+                    updBriefingElem.innerHTML = window.parseBriefing(payload.briefing);
+                }
+                break;
             case 'groundOps':
                 renderGroundOps(payload.services);
                 updateMetaBar(payload.services);
                 break;
             case 'groundOpsComplete':
-                document.getElementById('groundOpsContainer').innerHTML = '<p style="color:#34D399; font-weight:bold;">All ground operations are complete. Aircraft is secure.</p>';
+                const gOC = document.getElementById('groundOpsContainer');
+                let existingBanner = document.getElementById('groundOpsCompleteBanner');
+                if (!existingBanner && gOC) {
+                     gOC.insertAdjacentHTML('afterbegin', '<div id="groundOpsCompleteBanner" style="color:#34D399; font-weight:bold; margin-bottom:10px;">All ground operations are complete. Aircraft is secure.</div>');
+                }
                 break;
             case 'groundOpsProgress':
                 const globalC = document.getElementById('globalProgressContainer');
@@ -1727,6 +1994,7 @@ const GO_ICONS = {
     'Cargo': '<span class="material-symbols-outlined text-[18px] text-amber-500">luggage</span>',
     'Catering': '<span class="material-symbols-outlined text-[18px] text-pink-400">restaurant</span>',
     'Cleaning': '<span class="material-symbols-outlined text-[18px] text-fuchsia-400">cleaning_services</span>',
+    'PNC Chores': '<span class="material-symbols-outlined text-[18px] text-indigo-400">dry_cleaning</span>',
     'Water/Waste': '<span class="material-symbols-outlined text-[18px] text-emerald-400">water_drop</span>'
 };
 
@@ -1736,6 +2004,7 @@ const GO_NARRATIVES = {
     'Cargo': 'gops_desc_cargo',
     'Catering': 'gops_desc_catering',
     'Cleaning': 'gops_desc_cleaning',
+    'PNC Chores': 'gops_desc_cleaning',
     'Water/Waste': 'gops_desc_water'
 };
 
@@ -1974,15 +2243,55 @@ window.renderManifest = function(manifest) {
     const container = document.getElementById('manifestContainer');
     if (!container) return;
 
-    if (!manifest || (!manifest.FlightCrew && !manifest.Passengers)) {
+    let flightCrew = manifest?.FlightCrew || manifest?.flightCrew;
+    let passengers = manifest?.Passengers || manifest?.passengers;
+
+    if (!manifest || (!flightCrew && !passengers)) {
         container.innerHTML = '<p style="color:#64748b;">Waiting for final manifest processing...</p>';
         return;
     }
 
-    if (manifest.Passengers.length === 0) {
+    if (passengers && passengers.length === 0) {
         container.innerHTML = '<p style="color:#64748b;">No passengers listed on this flight plan.</p>';
         return;
     }
+
+    // IN-PLACE DOM UPDATE TO PREVENT FLICKERING ON HOVER
+    const existingMap = document.getElementById('seatMapContent');
+    const expectedPaxCount = container.dataset.flightPaxCount ? parseInt(container.dataset.flightPaxCount) : -1;
+    
+    if (existingMap && expectedPaxCount === manifest.Passengers.length) {
+        let boardedCount = 0;
+        manifest.Passengers.forEach(p => {
+            if (p.IsBoarded !== false) boardedCount++;
+            let seatEl = document.getElementById('seat-' + p.Seat);
+            if (seatEl) {
+                if (p.IsBoarded !== false) {
+                    const seatClass = p.IsSeatbeltFastened ? 'fastened' : 'unfastened';
+                    seatEl.className = `seat ${seatClass} relative`;
+                    const injuryHtml = p.IsInjured ? '<span class="material-symbols-outlined text-[10px] text-red-500 absolute -top-1 -left-1 animate-pulse" style="z-index:10;">medical_services</span>' : '';
+                    if (!seatEl.dataset.initialized) {
+                        seatEl.innerHTML = `${injuryHtml}<span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span>`;
+                        seatEl.dataset.initialized = 'true';
+                    } else if (p.IsInjured && seatEl.innerHTML.indexOf('medical_services') === -1) {
+                        seatEl.innerHTML = `${injuryHtml}<span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span>`;
+                    }
+                } else {
+                    seatEl.className = 'seat';
+                    seatEl.innerHTML = '';
+                    seatEl.dataset.initialized = '';
+                }
+            }
+        });
+        
+        let headerLabel = document.getElementById('paxListHeader');
+        if (headerLabel) {
+            headerLabel.innerText = `LIST (${boardedCount} / ${manifest.Passengers.length} PAX)`;
+        }
+        return; // Fast update complete!
+    }
+
+    container.dataset.flightPaxCount = manifest.Passengers.length;
 
     let maxRow = 0;
     let hasLettersGHK = false; // check if widebody
@@ -2057,24 +2366,34 @@ window.renderManifest = function(manifest) {
                 cursor: default;
                 transition: all 0.2s;
             }
-            .seat.occupied {
-                background: #059669;
-                border-color: #34d399;
+            .seat.fastened {
+                background: #0ea5e9;
+                border-color: #38bdf8;
                 box-shadow: inset 0 -4px 0 rgba(0,0,0,0.3);
             }
-            .seat.occupied:hover {
-                background: #10b981;
+            .seat.fastened:hover, .seat.unfastened:hover {
                 transform: translateY(-2px);
             }
-            .seat.occupied .tooltip {
+            .seat.fastened:hover {
+                background: #38bdf8;
+            }
+            .seat.unfastened {
+                background: #ef4444;
+                border-color: #f87171;
+                box-shadow: inset 0 -4px 0 rgba(0,0,0,0.3);
+            }
+            .seat.unfastened:hover {
+                background: #f87171;
+            }
+            .seat .tooltip {
                 visibility: hidden;
                 background-color: #f8fafc;
                 color: #0f172a;
                 text-align: center;
                 border-radius: 4px;
-                padding: 4px 6px;
                 position: absolute;
-                z-index: 10;
+                z-index: 50;
+                pointer-events: none;
                 bottom: 130%;
                 left: 50%;
                 transform: translateX(-50%);
@@ -2086,7 +2405,7 @@ window.renderManifest = function(manifest) {
                 font-weight: bold;
                 box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             }
-            .seat.occupied:hover .tooltip {
+            .seat:hover .tooltip {
                 visibility: visible;
                 opacity: 1;
             }
@@ -2107,7 +2426,16 @@ window.renderManifest = function(manifest) {
             let sId = r + l;
             let p = manifest.Passengers.find(x => x.Seat === sId);
             if (p) {
-                seatMapHtml += `<div class="seat occupied"><span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span></div>`;
+                if (p.IsBoarded !== false) {
+                    const seatClass = p.IsSeatbeltFastened ? 'fastened' : 'unfastened';
+                    const injuryIcon = p.IsInjured ? '<span class="material-symbols-outlined text-[10px] text-red-500 absolute -top-1 -left-1 animate-pulse" style="z-index:10;">medical_services</span>' : '';
+                    seatMapHtml += `<div id="seat-${sId}" class="seat ${seatClass} relative" data-initialized="true">
+                        ${injuryIcon}
+                        <span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span>
+                    </div>`;
+                } else {
+                    seatMapHtml += `<div id="seat-${sId}" class="seat"></div>`;
+                }
             } else {
                 seatMapHtml += `<div class="seat"></div>`;
             }
@@ -2121,7 +2449,16 @@ window.renderManifest = function(manifest) {
                 let sId = r + l;
                 let p = manifest.Passengers.find(x => x.Seat === sId);
                 if (p) {
-                    seatMapHtml += `<div class="seat occupied"><span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span></div>`;
+                    if (p.IsBoarded !== false) {
+                        const seatClass = p.IsSeatbeltFastened ? 'fastened' : 'unfastened';
+                        const injuryIcon = p.IsInjured ? '<span class="material-symbols-outlined text-[10px] text-red-500 absolute -top-1 -left-1 animate-pulse" style="z-index:10;">medical_services</span>' : '';
+                        seatMapHtml += `<div id="seat-${sId}" class="seat ${seatClass} relative" data-initialized="true">
+                            ${injuryIcon}
+                            <span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span>
+                        </div>`;
+                    } else {
+                        seatMapHtml += `<div id="seat-${sId}" class="seat"></div>`;
+                    }
                 } else {
                     seatMapHtml += `<div class="seat"></div>`;
                 }
@@ -2135,7 +2472,16 @@ window.renderManifest = function(manifest) {
             let sId = r + l;
             let p = manifest.Passengers.find(x => x.Seat === sId);
             if (p) {
-                seatMapHtml += `<div class="seat occupied"><span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span></div>`;
+                if (p.IsBoarded !== false) {
+                    const seatClass = p.IsSeatbeltFastened ? 'fastened' : 'unfastened';
+                    const injuryIcon = p.IsInjured ? '<span class="material-symbols-outlined text-[10px] text-red-500 absolute -top-1 -left-1 animate-pulse" style="z-index:10;">medical_services</span>' : '';
+                    seatMapHtml += `<div id="seat-${sId}" class="seat ${seatClass} relative" data-initialized="true">
+                        ${injuryIcon}
+                        <span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span>
+                    </div>`;
+                } else {
+                    seatMapHtml += `<div id="seat-${sId}" class="seat"></div>`;
+                }
             } else {
                 seatMapHtml += `<div class="seat"></div>`;
             }
@@ -2151,6 +2497,8 @@ window.renderManifest = function(manifest) {
     const flightCrewLabel = mDict.crew_flight || "FLIGHT CREW";
     const cabinCrewLabel = mDict.crew_cabin || "CABIN CREW";
     const mapLabel = mDict.seat_map_title || "SEAT MAP";
+
+    let boardedInitialCount = manifest.Passengers.filter(p => p.IsBoarded !== false).length;
 
     let html = `
         <div style="display:flex; gap: 40px; justify-content: space-between; height: 100%;">
@@ -2181,7 +2529,7 @@ window.renderManifest = function(manifest) {
     const thAge = mDict.man_th_age || "Age";
 
     html += `       </ul>
-                    <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 border-b border-white/5 pb-3 mb-4">${paxListLabel} (${manifest.Passengers.length} PAX)</h3>
+                    <h3 id="paxListHeader" class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 border-b border-white/5 pb-3 mb-4">${paxListLabel} (${boardedInitialCount} / ${manifest.Passengers.length} PAX)</h3>
                 </div>
                 <div style="flex: 1; overflow-y: auto; padding-right: 15px; border-right: 1px solid #1e293b; color:#94A3B8; font-size:13px;">
                     <table style="width:100%; text-align:left; border-collapse: collapse;">
@@ -2213,7 +2561,14 @@ window.renderManifest = function(manifest) {
             </div>
             
             <div style="flex: 1.5; min-width: 380px; display: flex; flex-direction: column; text-align: center; height: 100%;">
-                <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 border-b border-white/5 pb-3 mb-4 flex-shrink-0">${mapLabel}</h3>
+                <div class="flex justify-between items-center border-b border-white/5 pb-3 mb-4 flex-shrink-0">
+                    <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-0">${mapLabel}</h3>
+                    <div class="flex gap-4 text-[9px] font-label tracking-widest text-slate-400 uppercase">
+                        <div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded bg-[#0ea5e9]"></div> Fastened</div>
+                        <div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded bg-[#ef4444]"></div> Unfastened</div>
+                        <div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded bg-[#334155]"></div> Empty</div>
+                    </div>
+                </div>
                 <div id="seatMapViewport" style="flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; padding-top: 10px; cursor: grab; position: relative;">
                     <div id="seatMapContent" style="transform: scale(0.98); transform-origin: center; transition: transform 0.1s ease-out;">
                         ${seatMapHtml}
@@ -2242,26 +2597,28 @@ window.renderManifest = function(manifest) {
     const viewport = document.getElementById('seatMapViewport');
     const content = document.getElementById('seatMapContent');
     if (viewport && content) {
-        let scale = 0.98;
+        window.manifestPanZoom = window.manifestPanZoom || { scale: 0.98, currentX: 0, currentY: 0 };
         let isDown = false;
         let startX, startY;
-        let currentX = 0, currentY = 0;
+
+        // Restore global Pan/Zoom variables
+        content.style.transform = `translate(${window.manifestPanZoom.currentX}px, ${window.manifestPanZoom.currentY}px) scale(${window.manifestPanZoom.scale})`;
 
         viewport.addEventListener('wheel', (e) => {
             e.preventDefault();
             content.style.transition = 'transform 0.1s ease-out';
             const zoomSensitivity = 0.001;
-            scale -= e.deltaY * zoomSensitivity;
-            scale = Math.max(0.3, Math.min(3, scale)); // Limits zoom
-            content.style.transform = `translate(${currentX}px, ${currentY}px) scale(${scale})`;
+            window.manifestPanZoom.scale -= e.deltaY * zoomSensitivity;
+            window.manifestPanZoom.scale = Math.max(0.3, Math.min(3, window.manifestPanZoom.scale));
+            content.style.transform = `translate(${window.manifestPanZoom.currentX}px, ${window.manifestPanZoom.currentY}px) scale(${window.manifestPanZoom.scale})`;
         });
 
         viewport.addEventListener('mousedown', (e) => {
             if (e.button === 1 || e.button === 2 || e.button === 0) { // Middle or Right or Left
                 isDown = true;
                 viewport.style.cursor = 'grabbing';
-                startX = e.clientX - currentX;
-                startY = e.clientY - currentY;
+                startX = e.clientX - window.manifestPanZoom.currentX;
+                startY = e.clientY - window.manifestPanZoom.currentY;
             }
         });
 
@@ -2274,9 +2631,9 @@ window.renderManifest = function(manifest) {
             if (!isDown) return;
             e.preventDefault();
             content.style.transition = 'none'; // remove transition for smooth drag
-            currentX = e.clientX - startX;
-            currentY = e.clientY - startY;
-            content.style.transform = `translate(${currentX}px, ${currentY}px) scale(${scale})`;
+            window.manifestPanZoom.currentX = e.clientX - startX;
+            window.manifestPanZoom.currentY = e.clientY - startY;
+            content.style.transform = `translate(${window.manifestPanZoom.currentX}px, ${window.manifestPanZoom.currentY}px) scale(${window.manifestPanZoom.scale})`;
         });
         
         // Prevent context menu on right click inside viewport

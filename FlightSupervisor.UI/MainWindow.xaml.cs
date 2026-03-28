@@ -24,6 +24,7 @@ namespace FlightSupervisor.UI
         private bool _isParkingBrakeSet = false;
         private double _lastKnownThrottle = 0;
         private double _lastKnownPitch = 0;
+        private double _lastKnownVerticalSpeed = 0;
         private double _lastKnownBank = 0;
         private bool _isGearDown = true;
         private DateTime _currentSimTime = DateTime.MinValue;
@@ -90,12 +91,22 @@ namespace FlightSupervisor.UI
             _eventEngine.OnEventTriggered += OnGroundEventTriggered;
 
             _cabinManager = new CabinManager();
-            _cabinManager.OnCrewMessage += (level, msg) => SendToWeb(new { type = "cabinLog", level = level, message = msg });
+            _cabinManager.OnCrewMessage += (level, msg, audioSeq) => SendToWeb(new { type = "cabinLog", level = level, message = msg, audioSequence = audioSeq });
             _cabinManager.OnPenaltyTriggered += (points, reason) => {
                 if (_scoreManager != null) _scoreManager.AddScore(points, reason, ScoreCategory.Comfort);
             };
             _cabinManager.OnPncStatusChanged += (status, state) => {
                 Dispatcher.Invoke(() => SendToWeb(new { type = "pncStatus", status = status, state = state.ToString() }));
+            };
+            _cabinManager.OnOperationBonusTriggered += (bonus, reason) => {
+                if (reason == "pnc_ready_chime") {
+                    SendToWeb(new { type = "playSound", sound = "chime_emergency" });
+                }
+            };
+            _cabinManager.OnMedicalEmergencyRequested += () => {
+                if (_crisisManager != null && _crisisManager.ActiveCrisis == CrisisType.None) {
+                    _crisisManager.TriggerSpecificCrisis(CrisisType.MedicalEmergency);
+                }
             };
 
             // Tray Icon Setup
@@ -162,7 +173,10 @@ namespace FlightSupervisor.UI
                 {
                     sobtDate = DateTimeOffset.FromUnixTimeSeconds(sobtUnix).DateTime;
                 }
-                _cabinManager.Tick(_phaseManager.GForce, _lastKnownBank, isBoardingComplete, _currentSimTime, sobtDate, _phaseManager.CurrentPhase);
+                _cabinManager.Tick(_phaseManager.GForce, _lastKnownBank, isBoardingComplete, 
+                                   _currentSimTime, sobtDate, _phaseManager.CurrentPhase, _lastKnownGroundSpeed,
+                                   _lastKnownAltitude, _lastKnownVerticalSpeed,
+                                   _phaseManager.IsGoAroundActive || _phaseManager.IsSevereTurbulenceActive || _phaseManager.HasEngineFailure);
                 
                 SendTelemetryToWeb();
                 
@@ -439,6 +453,9 @@ namespace FlightSupervisor.UI
                 _lastKnownAltitude = alt;
                 _phaseManager.UpdateTelemetry(_lastKnownGroundSpeed, _lastKnownAirspeed, alt, _lastKnownRadioHeight, _isParkingBrakeSet, _isGearDown, _lastKnownThrottle, _lastKnownPitch, _lastKnownBank);
             };
+            _simConnectService.OnVerticalSpeedReceived += vs => {
+                _lastKnownVerticalSpeed = vs;
+            };
             _simConnectService.OnGearDownReceived += gd => { 
                 _isGearDown = gd; 
                 if (_lastLogGearDown != null && _lastLogGearDown != gd) SendToWeb(new { type = "log", message = gd ? "Landing Gear DOWN" : "Landing Gear UP" });
@@ -622,6 +639,22 @@ namespace FlightSupervisor.UI
                         ReleaseCapture();
                         SendMessage(helper.Handle, 0xA1, 2, 0);
                     });
+                }
+                else if (action == "intercomQuery")
+                {
+                    bool canReport = _cabinManager.RequestCabinReport(_phaseManager.CurrentPhase, _crisisManager?.ActiveCrisis != CrisisType.None);
+                    if (!canReport) 
+                    {
+                        SendToWeb(new { type = "playSound", sound = "intercom_busy" });
+                    }
+                    else 
+                    {
+                        SendToWeb(new { type = "playSound", sound = "intercom_ding" });
+                    }
+                }
+                else if (action == "toggleService")
+                {
+                    _cabinManager.ToggleServiceInterruption();
                 }
                 else if (action == "updateAvatar")
                 {
@@ -847,6 +880,12 @@ namespace FlightSupervisor.UI
                         _simConnectService.SendTimeWarpCommand(target);
                     }
                 }
+                else if (action == "acarsWeatherRequest")
+                {
+                    Dispatcher.InvokeAsync(async () => {
+                        await RefreshLiveWeatherAsync();
+                    });
+                }
                 else if (action == "startGroundOps")
                 {
                     Dispatcher.Invoke(() => {
@@ -916,6 +955,10 @@ namespace FlightSupervisor.UI
                     _aibt = null;
                     SendToWeb(new { type = "flightReset" });
                 }
+                else if (action == "acarsWeatherRequest")
+                {
+                    _ = RefreshLiveWeatherAsync();
+                }
                 else if (action == "changeLanguage")
                 {
                     var lang = doc.RootElement.GetProperty("language").GetString() ?? "en";
@@ -962,12 +1005,21 @@ namespace FlightSupervisor.UI
                 anxiety = Math.Round(_cabinManager.PassengerAnxiety, 1),
                 comfort = Math.Round(_cabinManager.ComfortLevel, 1),
                 serviceProgress = Math.Round(_cabinManager.InFlightServiceProgress, 1),
+                securingProgress = Math.Round(_cabinManager.SecuringProgress, 1),
+                isSecuringHalted = _cabinManager.IsSecuringHalted,
                 satietyActive = _cabinManager.IsSatietyActive,
                 cabinState = _cabinManager.State.ToString(),
+                isServiceHalted = _cabinManager.IsServiceHalted,
+                cabinReportCooldownElapsed = _cabinManager.SecondsSinceLastReport,
                 airline = CurrentAirline,
                 issuedCommands = _cabinManager.IssuedCommands.ToList(),
                 activeCrisis = _crisisManager.ActiveCrisis.ToString(),
-                crisisElapsed = _crisisManager.CrisisStartTimeSeconds > 0 ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _crisisManager.CrisisStartTimeSeconds : 0
+                isGoAroundActive = _phaseManager.IsGoAroundActive,
+                isSevereTurbulenceActive = _phaseManager.IsSevereTurbulenceActive,
+                isSilencePenaltyActive = _cabinManager.IsSilencePenaltyActive,
+                crisisElapsed = _crisisManager.CrisisStartTimeSeconds > 0 ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _crisisManager.CrisisStartTimeSeconds : 0,
+                passengers = _cabinManager.PassengerManifest,
+                turbulenceSeverity = (int)_phaseManager.TurbulenceSeverity
             });
             
             if (_groundOpsManager.Services.Count > 0)
@@ -999,6 +1051,15 @@ namespace FlightSupervisor.UI
 
                 if (response != null && response.Fetch?.Status == "Success")
                 {
+                    _currentResponse = response;
+                    _cabinManager.CurrentFlight = _currentResponse;
+                    
+                    // Dispatcher 
+                    Dispatcher.Invoke(() => {
+                        // Any UI updates that depend on _currentResponse or _cabinManager.CurrentFlight can go here if needed.
+                        // The original code for weather fetching and other logic will follow.
+                    });
+
                     if (response.Weather != null)
                     {
                         if (weatherSource == "activesky")
@@ -1063,7 +1124,11 @@ namespace FlightSupervisor.UI
                     _eventEngine.Reset();
                     _currentResponse = response;
                     CurrentAirline = _airlineDb.GetProfileFor(response.General?.Airline ?? "");
-                    _cabinManager.InitializeFlightDemographics(CurrentAirline);
+                    
+                    var passengerService = new FlightSupervisor.UI.Services.PassengerManifestService();
+                    var manifestData = passengerService.GenerateManifest(response);
+                    
+                    _cabinManager.InitializeFlightDemographics(CurrentAirline, manifestData);
                     _groundOpsManager.InitializeFromSimBrief(response);
                     
                     // Trigger an immediate background fetch to populate initial live data without blocking the UI rendering if needed
@@ -1091,9 +1156,6 @@ namespace FlightSupervisor.UI
                     
                     var weatherService = new WeatherBriefingService(units);
                     var briefingData = weatherService.GenerateBriefing(response);
-
-                    var passengerService = new FlightSupervisor.UI.Services.PassengerManifestService();
-                    var manifestData = passengerService.GenerateManifest(response);
 
                     // Convert complex response to a simpler format for JS to avoid serialization deep nesting loops if any
                     SendToWeb(new { 

@@ -397,6 +397,17 @@
                                 </div>
                             </div>
                             
+                            <!-- Turbulence Gauge -->
+                            <div id="turbProgressBox" class="mt-2 transition-all duration-500">
+                                <div class="flex items-end justify-between mb-2">
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Turbulence Level</span>
+                                    <span class="text-sm font-black font-headline text-slate-300 leading-none uppercase tracking-widest" id="turbSeverityValue">NONE</span>
+                                </div>
+                                <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5">
+                                    <div id="turbSeverityBar" class="h-full bg-slate-500 w-0 transition-all duration-700 shadow-[0_0_8px_rgba(148,163,184,0.5)]"></div>
+                                </div>
+                            </div>
+
                             <!-- Catering Service Progress -->
                             <div id="cateringProgressBox" class="mt-2 transition-all duration-500 opacity-0 h-0 overflow-hidden">
                                 <div class="flex items-end justify-between mb-2">
@@ -420,11 +431,18 @@
                         </h3>
 
                         <!-- Status Indicator -->
-                        <div class="flex items-center justify-between mb-4 pb-4 border-b border-white/5">
+                        <div class="flex items-center justify-between mb-2">
                             <span class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Status</span>
                             <div class="flex items-center gap-2">
                                 <div id="pncStatusDot" class="w-2 h-2 rounded-full bg-slate-500 animate-pulse"></div>
                                 <span id="pncStatusLabel" class="text-xs font-semibold text-white tracking-wide">Standing By</span>
+                            </div>
+                        </div>
+
+                        <!-- Securing Progress Bar -->
+                        <div id="pncProgressBox" class="mb-0 transition-all duration-500 opacity-0 h-0 overflow-hidden">
+                            <div class="h-1 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5">
+                                <div id="pncProgressBar" class="h-full bg-orange-500 w-0 transition-all duration-300 shadow-[0_0_8px_rgba(249,115,22,0.5)]"></div>
                             </div>
                         </div>
 
@@ -457,10 +475,16 @@
                             <span id="bdDest" class="drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">---</span>
                         </h2>
                         <div class="text-right">
-                            <div class="inline-flex items-center gap-2 px-4 py-2 bg-[#2D313A] rounded-lg border border-white/5 mb-3">
-                                <span class="material-symbols-outlined text-sky-400">flight</span>
-                                <span id="bdAirline" class="text-white font-bold tracking-widest uppercase">---</span>
-                                <span id="bdFlightNum" class="text-white font-bold tracking-widest uppercase">---</span>
+                            <div class="flex items-center justify-end gap-3 mb-3">
+                                <button onclick="requestAcarsUpdate()" class="px-3 py-2 bg-slate-800/80 hover:bg-slate-700 text-sky-400 font-bold rounded-lg border border-slate-600/50 flex items-center gap-2 transition-colors text-[10px] tracking-widest uppercase shadow-[0_0_10px_rgba(56,189,248,0.1)]">
+                                    <span class="material-symbols-outlined text-[14px]">satellite_alt</span>
+                                    ACARS WX REQ
+                                </button>
+                                <div class="inline-flex items-center gap-2 px-4 py-2 bg-[#2D313A] rounded-lg border border-white/5">
+                                    <span class="material-symbols-outlined text-sky-400">flight</span>
+                                    <span id="bdAirline" class="text-white font-bold tracking-widest uppercase">---</span>
+                                    <span id="bdFlightNum" class="text-white font-bold tracking-widest uppercase">---</span>
+                                </div>
                             </div>
                             <div class="text-xs text-slate-500 font-body">
                                 <span id="bdAircraft">Boeing 787-10 Dreamliner</span> &bull; 
@@ -1127,6 +1151,7 @@
     </div>
 
     <!-- Hidden audio element -->
+    <audio id="chimeEmergency" src="assets/sounds/chime_emergency.wav" preload="auto"></audio>
     <audio id="notifSound" src="notification.mp3" preload="auto"></audio>
 
     <script src="locales.js?v=3"></script>

@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Windows.Interop;
 using Microsoft.FlightSimulator.SimConnect;
 
 namespace FlightSupervisor.UI.Services
@@ -13,7 +12,7 @@ namespace FlightSupervisor.UI.Services
         private IntPtr _windowHandle;
         private bool _isNativelyConnected = false;
         private WasmLVarClient? _wasmClient = null;
-        public bool IsWasmOverriding { get; set; } = true; // Actif par defaut pour la story Fenix
+        public bool IsWasmOverriding { get; set; } = true;
 
         public event Action<string>? OnConnectionStateChanged;
         public event Action<double>? OnAltitudeReceived;
@@ -43,20 +42,19 @@ namespace FlightSupervisor.UI.Services
         public event Action<double, double>? OnWindReceived;
         public event Action<double, double, bool>? OnNavigationReceived;
 
-        // Unified Telemetry Events (Native vs WASM overrided)
         public event Action<bool>? OnCabinSeatbeltsChanged;
         public event Action<bool>? OnNoSmokingChanged;
-        public event Action<bool, bool, bool>? OnApuStateChanged; // Master, Start, Bleed
-        public event Action<bool, bool>? OnEngineBleedsChanged; // Eng1, Eng2
-        public event Action<bool, bool>? OnPacksChanged; // Pack1, Pack2
-        public event Action<bool, bool, bool>? OnAntiIceChanged;  // Wing, Eng1, Eng2
-        public event Action<int, bool, bool>? OnEngineSwitchesChanged; // Mode, Master1, Master2
-        public event Action<float, float, float>? OnCabinTemperatureTargetsChanged; // Cockpit, Fwd, Aft
-        public event Action<int>? OnNoseLightChanged; // 0=Off, 1=Taxi, 2=Takeoff
+        public event Action<bool, bool, bool>? OnApuStateChanged;
+        public event Action<bool, bool>? OnEngineBleedsChanged;
+        public event Action<bool, bool>? OnPacksChanged;
+        public event Action<bool, bool, bool>? OnAntiIceChanged;
+        public event Action<int, bool, bool>? OnEngineSwitchesChanged;
+        public event Action<float, float, float>? OnCabinTemperatureTargetsChanged;
+        public event Action<int>? OnNoseLightChanged;
         public event Action<bool>? OnRunwayTurnoffChanged;
 
-        enum DEFINITIONS { PlaneData }
-        enum REQUESTS { PlaneDataReq }
+        enum DEFINITIONS { PlaneData, GForceData }
+        enum REQUESTS { PlaneDataReq, GForceReq }
         enum EVENTS { SetZuluHours, SetZuluMinutes }
         enum GROUP { Group0 }
 
@@ -96,6 +94,12 @@ namespace FlightSupervisor.UI.Services
             public double CabinSeatbelts;
         }
 
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
+        struct GForceDataStruct
+        {
+            public double GForce;
+        }
+
         public SimConnectService() { }
 
         public void Connect(IntPtr windowHandle)
@@ -120,7 +124,6 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "INDICATED ALTITUDE", "Feet", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GROUND VELOCITY", "Knots", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AIRSPEED INDICATED", "Knots", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "ZULU TIME", "Seconds", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "BRAKE PARKING INDICATOR", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "RADIO HEIGHT", "Feet", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
@@ -150,37 +153,28 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "NAV HAS LOCALIZER:1", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "CABIN SEATBELTS ALERT SWITCH", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
 
+                _simconnect.AddToDataDefinition(DEFINITIONS.GForceData, "G FORCE", "GForce", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+
                 _simconnect.MapClientEventToSimEvent(EVENTS.SetZuluHours, "ZULU_HOURS_SET");
                 _simconnect.MapClientEventToSimEvent(EVENTS.SetZuluMinutes, "ZULU_MINUTES_SET");
 
                 _simconnect.RegisterDataDefineStruct<PlaneDataStruct>(DEFINITIONS.PlaneData);
-                
+                _simconnect.RegisterDataDefineStruct<GForceDataStruct>(DEFINITIONS.GForceData);
+
                 _simconnect.RequestDataOnSimObject(REQUESTS.PlaneDataReq, DEFINITIONS.PlaneData, SimConnect.SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD.SECOND, SIMCONNECT_DATA_REQUEST_FLAG.CHANGED, 0, 0, 0);
+                _simconnect.RequestDataOnSimObject(REQUESTS.GForceReq, DEFINITIONS.GForceData, SimConnect.SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD.VISUAL_FRAME, SIMCONNECT_DATA_REQUEST_FLAG.CHANGED, 0, 0, 0);
             }
-            catch (COMException ex)
-            {
-                OnConnectionStateChanged?.Invoke($"MSFS not found ({ex.ErrorCode})");
-            }
-            catch (Exception ex)
-            {
-                OnConnectionStateChanged?.Invoke($"Connection error: {ex.Message}");
-            }
+            catch (COMException ex) { OnConnectionStateChanged?.Invoke($"MSFS not found ({ex.ErrorCode})"); }
+            catch (Exception ex) { OnConnectionStateChanged?.Invoke($"Connection error: {ex.Message}"); }
         }
 
         public void Disconnect()
         {
             if (_simconnect != null)
             {
-                if (_wasmClient != null) 
-                {
-                    _wasmClient.OnFenixLVarsReceived -= WasmClient_OnFenixLVarsReceived;
-                    _wasmClient = null;
-                }
-                
-                _simconnect.Dispose();
-                _simconnect = null;
-                _isNativelyConnected = false;
-                OnConnectionStateChanged?.Invoke("Disconnected.");
+                if (_wasmClient != null) { _wasmClient.OnFenixLVarsReceived -= WasmClient_OnFenixLVarsReceived; _wasmClient = null; }
+                _simconnect.Dispose(); _simconnect = null;
+                _isNativelyConnected = false; OnConnectionStateChanged?.Invoke("Disconnected.");
             }
         }
 
@@ -195,11 +189,7 @@ namespace FlightSupervisor.UI.Services
 
         public void ReceiveMessage()
         {
-            if (_simconnect != null)
-            {
-                try { _simconnect.ReceiveMessage(); }
-                catch (COMException) { Disconnect(); }
-            }
+            if (_simconnect != null) { try { _simconnect.ReceiveMessage(); } catch (COMException) { Disconnect(); } }
         }
 
         private void SimConnect_OnRecvOpen(SimConnect sender, SIMCONNECT_RECV_OPEN data)
@@ -209,48 +199,40 @@ namespace FlightSupervisor.UI.Services
             OnConnectionStateChanged?.Invoke("Linked to " + appName);
         }
 
-        private void SimConnect_OnRecvQuit(SimConnect sender, SIMCONNECT_RECV data)
-        {
-            Disconnect();
-        }
-
-        private void SimConnect_OnRecvException(SimConnect sender, SIMCONNECT_RECV_EXCEPTION data)
-        {
-            Debug.WriteLine("SimConnect Exception: " + data.dwException);
-        }
+        private void SimConnect_OnRecvQuit(SimConnect sender, SIMCONNECT_RECV data) => Disconnect();
+        private void SimConnect_OnRecvException(SimConnect sender, SIMCONNECT_RECV_EXCEPTION data) => Debug.WriteLine("SimConnect Exception: " + data.dwException);
 
         private void SimConnect_OnRecvSimobjectData(SimConnect sender, SIMCONNECT_RECV_SIMOBJECT_DATA data)
         {
             if (data.dwRequestID == (uint)REQUESTS.PlaneDataReq)
             {
-                if (!_isNativelyConnected)
-                {
-                    _isNativelyConnected = true;
-                    OnConnectionStateChanged?.Invoke("Linked to MSFS (Telemetry)");
-                }
+                if (!_isNativelyConnected) { _isNativelyConnected = true; OnConnectionStateChanged?.Invoke("Linked to MSFS (Telemetry)"); }
                 var planeData = (PlaneDataStruct)data.dwData[0];
                 OnAltitudeReceived?.Invoke(planeData.Altitude);
                 OnGroundSpeedReceived?.Invoke(planeData.GroundSpeed);
                 OnAirspeedReceived?.Invoke(planeData.IndicatedAirspeed);
                 OnRadioHeightReceived?.Invoke(planeData.RadioHeight);
+                
+                var timeSpan = TimeSpan.FromSeconds(planeData.ZuluTime);
+                try {
+                    OnSimTimeReceived?.Invoke(new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds, DateTimeKind.Utc));
+                } catch { }
+
                 OnGearDownReceived?.Invoke(planeData.GearHandle > 0.5);
                 OnFlapsReceived?.Invoke(planeData.FlapsHandleIndex);
                 OnAutopilotReceived?.Invoke(planeData.AutopilotMaster > 0.5);
                 OnAutothrustReceived?.Invoke(planeData.AutothrustMaster > 0.5);
                 OnThrottleReceived?.Invoke(planeData.ThrottleLever);
                 OnSpoilersReceived?.Invoke(planeData.SpoilersHandle);
-                // Note: values are in degrees, invert pitch because MSFS logic (nose up is negative)
                 OnPitchReceived?.Invoke(-planeData.Pitch);
                 OnBankReceived?.Invoke(-planeData.Bank);
                 OnSimOnGroundReceived?.Invoke(planeData.SimOnGround != 0);
                 OnVerticalSpeedReceived?.Invoke(planeData.VerticalSpeed);
-                OnGForceReceived?.Invoke(planeData.GForce);
                 OnEngineCombustionReceived?.Invoke(planeData.Eng1Combustion > 0.5, planeData.Eng2Combustion > 0.5);
                 OnHeadingReceived?.Invoke(planeData.Heading);
                 OnWindReceived?.Invoke(planeData.WindDirection, planeData.WindVelocity);
                 OnNavigationReceived?.Invoke(planeData.NavLocalizerError, planeData.GpsCrossTrackError, planeData.HasLocalizer > 0.5);
 
-                // Default Native Overrides (Only trigger if WASM is inactive or standard aircraft)
                 if (!IsWasmOverriding)
                 {
                     OnCabinSeatbeltsChanged?.Invoke(planeData.CabinSeatbelts > 0.5);
@@ -259,49 +241,38 @@ namespace FlightSupervisor.UI.Services
                     OnLightStrobeReceived?.Invoke(planeData.LightStrobe > 0.5);
                     OnLightNavReceived?.Invoke(planeData.LightNav > 0.5);
                     OnLightTaxiReceived?.Invoke(planeData.LightTaxi > 0.5);
-                    OnLightLandingReceived?.Invoke(planeData.LightLanding != 0);
-                    // Standard avions Asobo don't have native API mapped here, add Asobo APU later if needed
+                    OnLightLandingReceived?.Invoke(planeData.LightLanding > 0.5);
                 }
-
-                // Build Sim Time
-                try
-                {
-                    var timeSpan = TimeSpan.FromSeconds(planeData.ZuluTime);
-                    var simTime = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds, DateTimeKind.Utc);
-                    OnSimTimeReceived?.Invoke(simTime);
-                }
-                catch { }
+            }
+            else if (data.dwRequestID == (uint)REQUESTS.GForceReq)
+            {
+                var gData = (GForceDataStruct)data.dwData[0];
+                OnGForceReceived?.Invoke(gData.GForce);
             }
         }
 
-        private void SimConnect_OnRecvClientData(SimConnect sender, SIMCONNECT_RECV_CLIENT_DATA data)
-        {
-            _wasmClient?.ProcessClientData(data);
-        }
+        private void SimConnect_OnRecvClientData(SimConnect sender, SIMCONNECT_RECV_CLIENT_DATA data) { }
 
-        private void WasmClient_OnFenixLVarsReceived(WasmLVarClient.FenixLVarPayload fenixPayload)
+        private void WasmClient_OnFenixLVarsReceived(WasmLVarClient.FenixLVarPayload data)
         {
             if (IsWasmOverriding)
             {
-                OnCabinSeatbeltsChanged?.Invoke(fenixPayload.Seatbelts > 0.5f);
-                OnNoSmokingChanged?.Invoke(fenixPayload.NoSmoking > 0.5f);
-                OnApuStateChanged?.Invoke(fenixPayload.ApuMaster > 0.5f, fenixPayload.ApuStart > 0.5f, fenixPayload.ApuBleed > 0.5f);
-                OnEngineBleedsChanged?.Invoke(fenixPayload.Eng1Bleed > 0.5f, fenixPayload.Eng2Bleed > 0.5f);
-                OnPacksChanged?.Invoke(fenixPayload.Pack1 > 0.5f, fenixPayload.Pack2 > 0.5f);
-                OnAntiIceChanged?.Invoke(fenixPayload.WingAntiIce > 0.5f, fenixPayload.Eng1AntiIce > 0.5f, fenixPayload.Eng2AntiIce > 0.5f);
-                OnEngineSwitchesChanged?.Invoke((int)Math.Round(fenixPayload.EngMode), fenixPayload.EngMaster1 > 0.5f, fenixPayload.EngMaster2 > 0.5f);
-                OnCabinTemperatureTargetsChanged?.Invoke(fenixPayload.CabinTempCockpit, fenixPayload.CabinTempFwd, fenixPayload.CabinTempAft);
-                
-                OnNoseLightChanged?.Invoke((int)Math.Round(fenixPayload.NoseLight));
-                OnRunwayTurnoffChanged?.Invoke(fenixPayload.TurnoffLight > 0.5f);
-                
-                OnLightBeaconReceived?.Invoke(fenixPayload.BeaconLight > 0.5f);
-                OnLightStrobeReceived?.Invoke(fenixPayload.StrobeLight > 0.5f);
-                OnLightNavReceived?.Invoke(fenixPayload.NavLight > 0.5f);
-                OnLightTaxiReceived?.Invoke(fenixPayload.NoseLight > 0.5f);
-                OnLightLandingReceived?.Invoke(fenixPayload.LandingLightL > 0.5f || fenixPayload.LandingLightR > 0.5f);
-                
-                OnParkingBrakeReceived?.Invoke(fenixPayload.ParkingBrake > 0.5f);
+                OnCabinSeatbeltsChanged?.Invoke(data.Seatbelts > 0.5);
+                OnNoSmokingChanged?.Invoke(data.NoSmoking > 0.5);
+                OnParkingBrakeReceived?.Invoke(data.ParkingBrake > 0.5);
+                OnApuStateChanged?.Invoke(data.ApuMaster > 0.5, data.ApuStart > 0.5, data.ApuBleed > 0.5);
+                OnPacksChanged?.Invoke(data.Pack1 > 0.5, data.Pack2 > 0.5);
+                OnAntiIceChanged?.Invoke(data.WingAntiIce > 0.5, data.Eng1AntiIce > 0.5, data.Eng2AntiIce > 0.5);
+                OnEngineBleedsChanged?.Invoke(data.Eng1Bleed > 0.5, data.Eng2Bleed > 0.5);
+                OnEngineSwitchesChanged?.Invoke((int)data.EngMode, data.EngMaster1 > 0.5, data.EngMaster2 > 0.5);
+                OnCabinTemperatureTargetsChanged?.Invoke(data.CabinTempCockpit, data.CabinTempFwd, data.CabinTempAft);
+                OnNoseLightChanged?.Invoke((int)data.NoseLight);
+                OnRunwayTurnoffChanged?.Invoke(data.TurnoffLight > 0.5);
+                OnLightBeaconReceived?.Invoke(data.BeaconLight > 0.5);
+                OnLightStrobeReceived?.Invoke(data.StrobeLight > 0.5);
+                OnLightNavReceived?.Invoke(data.NavLight > 0.5);
+                OnLightTaxiReceived?.Invoke(data.NoseLight == 1); // 1 = Taxi, 2 = TO
+                OnLightLandingReceived?.Invoke(data.LandingLightL > 0.5 || data.LandingLightR > 0.5);
             }
         }
     }

@@ -1,0 +1,9 @@
+﻿D:\FlightSupervisor\FlightSupervisor.UI\Services\CabinManager.cs(845,81): error CS1061: 'PassengerState' does not contain a definition for 'SeatId' and no accessible extension method 'SeatId' accepting a first argument of type 'PassengerState' could be found (are you missing a using directive or an assembly reference?) [D:\FlightSupervisor\FlightSupervisor.UI\FlightSupervisor.UI.csproj]
+D:\FlightSupervisor\FlightSupervisor.UI\Services\CabinManager.cs(846,135): error CS1061: 'PassengerState' does not contain a definition for 'SeatId' and no accessible extension method 'SeatId' accepting a first argument of type 'PassengerState' could be found (are you missing a using directive or an assembly reference?) [D:\FlightSupervisor\FlightSupervisor.UI\FlightSupervisor.UI.csproj]
+D:\FlightSupervisor\FlightSupervisor.UI\Services\CabinManager.cs(846,238): error CS1061: 'PassengerState' does not contain a definition for 'SeatId' and no accessible extension method 'SeatId' accepting a first argument of type 'PassengerState' could be found (are you missing a using directive or an assembly reference?) [D:\FlightSupervisor\FlightSupervisor.UI\FlightSupervisor.UI.csproj]
+
+Build FAILED.
+    59 Warning(s)
+    3 Error(s)
+
+Time Elapsed 00:00:01.73

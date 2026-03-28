@@ -117,7 +117,7 @@ namespace FlightSupervisor.UI.Services
             }
         }
 
-        private void TriggerSpecificCrisis(CrisisType type)
+        public void TriggerSpecificCrisis(CrisisType type)
         {
             if (ActiveCrisis != CrisisType.None) return;
             
