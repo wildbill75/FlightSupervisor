@@ -43,6 +43,8 @@ namespace FlightSupervisor.UI.Services
         public List<GroundService> Services { get; private set; } = new();
         public GroundOpsSpeed SpeedSetting { get; set; } = GroundOpsSpeed.Realistic;
         public int EventProbabilityPercent { get; set; } = 20;
+        public string CurrentAirportTier { get; private set; } = "Tier A";
+        public string CurrentAirportTierDescription { get; private set; } = "Most of the time, this airport has excellent infrastructure and operations are quick.";
         private Random _rnd = new Random();
         private bool _isStarted = false;
         private DateTime _lastTick;
@@ -121,11 +123,7 @@ namespace FlightSupervisor.UI.Services
                 _ => 1.0
             };
 
-            int applyTime(double baseSec)
-            {
-                double variation = 1.0 + (_rnd.NextDouble() * 0.30 - 0.15); // +/- 15%
-                return (int)Math.Max(2.0, baseSec * variation * multiplier);
-            }
+
 
             int boardOffset = isHeavy ? -50 : -40;
             int cargoOffset = isHeavy ? -60 : -45;
@@ -134,6 +132,8 @@ namespace FlightSupervisor.UI.Services
             int waterOffset = isHeavy ? -65 : -50;
 
             string cleanName = "Cleaning";
+            bool isLowCost = false;
+            
             if (sb != null)
             {
                 string airline = sb.General?.Airline?.ToUpper() ?? "";
@@ -144,15 +144,61 @@ namespace FlightSupervisor.UI.Services
                 if (lowCosts.Contains(airline) || lowCostIata.Contains(iata))
                 {
                     cleanName = "PNC Chores";
+                    isLowCost = true;
                 }
             }
 
-            Services.Add(new GroundService { Name = "Refueling", TotalDurationSec = applyTime(Math.Max(60, fuel / 50)), IsOptional = false, RequiresManualStart = true, StartOffsetMinutes = 0 });
-            Services.Add(new GroundService { Name = "Boarding", TotalDurationSec = applyTime(Math.Max(120, pax * 6)), IsOptional = false, StartOffsetMinutes = boardOffset });
-            Services.Add(new GroundService { Name = "Cargo", TotalDurationSec = applyTime(Math.Max(120, pax * 5)), IsOptional = false, StartOffsetMinutes = cargoOffset });
-            Services.Add(new GroundService { Name = "Catering", TotalDurationSec = applyTime(180), IsOptional = true, StartOffsetMinutes = caterOffset });
-            Services.Add(new GroundService { Name = cleanName, TotalDurationSec = applyTime(300), IsOptional = true, StartOffsetMinutes = cleanOffset });
-            Services.Add(new GroundService { Name = "Water/Waste", TotalDurationSec = applyTime(150), IsOptional = true, StartOffsetMinutes = waterOffset });
+            // --- TICKET 35 : AIRPORT EFFICIENCY TIER ---
+            double tierTimeMultiplier = 1.0;
+            CurrentAirportTier = "Tier A"; // Default
+            string originIcao = sb?.Origin?.IcaoCode?.ToUpper() ?? "";
+
+            string[] tierS = { "EGSS", "EIDW", "EGKK", "KATL", "EGGW", "LOWW" };
+            string[] tierB = { "EGLL", "LFPG", "EDDF", "KORD", "KDFW", "LEBL" };
+            string[] tierF = { "EHAM", "KEWR", "LIRF", "LFML" };
+
+            if (tierS.Contains(originIcao)) 
+            { 
+                CurrentAirportTier = "Tier S"; 
+                tierTimeMultiplier = 0.85; 
+                CurrentAirportTierDescription = "Most of the time, this airport provides excellent infrastructure and operations are smooth & quick."; 
+            }
+            else if (tierB.Contains(originIcao)) 
+            { 
+                CurrentAirportTier = "Tier B"; 
+                tierTimeMultiplier = 1.15; 
+                CurrentAirportTierDescription = "This airport relies on average infrastructure. Ground operations may take slightly longer."; 
+            }
+            else if (tierF.Contains(originIcao)) 
+            { 
+                CurrentAirportTier = "Tier F"; 
+                tierTimeMultiplier = 1.30; 
+                CurrentAirportTierDescription = "This airport has extremely poor infrastructure or congestion. Expect chaotic and long ground operations."; 
+            }
+
+            int applyTime(double baseSec)
+            {
+                double variation = 1.0 + (_rnd.NextDouble() * 0.30 - 0.15); // +/- 15%
+                return (int)Math.Max(2.0, baseSec * variation * multiplier * tierTimeMultiplier);
+            }
+
+            // --- TICKET 34 : REALISTIC DURATIONS (Base A320/B737) ---
+            // Realistic Narrowbody turnaround:
+            // LCC: Deboarding(600s), Clean(300s), Cater(300s/Optional), Fuel(600s), Boarding(900s) = ~30m min
+            // Legacy: Deboarding(900s), Clean(900s), Cater(900s), Fuel(600s), Boarding(1200s) = ~45m min
+            
+            int deboardingBase = isLowCost ? 600 : 900;
+            int boardingBase = isLowCost ? 900 : 1200;
+            int cleaningBase = isLowCost ? 300 : 900;
+            int cateringBase = isLowCost ? 300 : 900;
+            int fuelBase = Math.Max(600, fuel / 50); // Minimum 10 minutes ou 50kg/sec
+
+            Services.Add(new GroundService { Name = "Refueling", TotalDurationSec = applyTime(fuelBase), IsOptional = false, RequiresManualStart = true, StartOffsetMinutes = 0 });
+            Services.Add(new GroundService { Name = "Boarding", TotalDurationSec = applyTime(boardingBase), IsOptional = false, StartOffsetMinutes = boardOffset });
+            Services.Add(new GroundService { Name = "Cargo/Luggage", TotalDurationSec = applyTime(Math.Max(600, pax * 6)), IsOptional = false, StartOffsetMinutes = cargoOffset });
+            Services.Add(new GroundService { Name = "Catering", TotalDurationSec = applyTime(cateringBase), IsOptional = true, StartOffsetMinutes = caterOffset });
+            Services.Add(new GroundService { Name = cleanName, TotalDurationSec = applyTime(cleaningBase), IsOptional = true, StartOffsetMinutes = cleanOffset });
+            Services.Add(new GroundService { Name = "Water/Waste", TotalDurationSec = applyTime(450), IsOptional = true, StartOffsetMinutes = waterOffset });
             
             _isStarted = false;
             IsPaused = false;
@@ -260,23 +306,41 @@ namespace FlightSupervisor.UI.Services
                     {
                         var boarding = Services.FirstOrDefault(x => x.Name == "Boarding");
                         var catering = Services.FirstOrDefault(x => x.Name == "Catering");
+                        var cleaning = Services.FirstOrDefault(x => x.Name == "Cleaning" || x.Name == "PNC Chores");
 
-                        if (s.Name == "Boarding" && catering != null && (catering.State == GroundServiceState.InProgress || catering.State == GroundServiceState.Delayed))
+                        if (s.Name == "Boarding")
                         {
-                            shouldStart = false;
-                            s.StatusMessage = LocalizationService.Translate("Waiting for Catering", "Attente Catering");
+                            bool cateringPending = catering != null && catering.State != GroundServiceState.Completed && catering.State != GroundServiceState.Skipped;
+                            bool cleaningPending = cleaning != null && cleaning.State != GroundServiceState.Completed && cleaning.State != GroundServiceState.Skipped;
+                            bool isLcc = cleaning != null && cleaning.Name == "PNC Chores";
+
+                            if (!isLcc && (cateringPending || cleaningPending))
+                            {
+                                shouldStart = false;
+                                if (cateringPending && cleaningPending)
+                                    s.StatusMessage = LocalizationService.Translate("Wait Clean/Cater", "Attt Nettoy/Cater.");
+                                else if (cleaningPending)
+                                    s.StatusMessage = LocalizationService.Translate("Wait Cleaning", "Attente Nettoyage");
+                                else
+                                    s.StatusMessage = LocalizationService.Translate("Wait Catering", "Attente Catering");
+                            }
                         }
                         else if ((s.Name == "Cleaning" || s.Name == "PNC Chores" || s.Name == "Catering") && boarding != null && boarding.State != GroundServiceState.NotStarted && boarding.State != GroundServiceState.Skipped)
                         {
-                            // If boarding has started or finished, cleaning and catering can't happen anymore.
-                            s.State = GroundServiceState.Skipped;
-                            s.StatusMessage = LocalizationService.Translate("Skipped (Pax on board)", "Annulé (Pax à bord)");
-                            changed = true;
-                            string actor = GetActorForService(s.Name);
-                            OnOpsLog?.Invoke(LocalizationService.Translate(
-                                $"[{actor}] {s.Name} skipped because passengers are already boarding or onboard.", 
-                                $"[{actor}] {s.Name} annulé car les passagers embarquent ou sont à bord."));
-                            continue;
+                            bool isLcc = s.Name == "PNC Chores" || (cleaning != null && cleaning.Name == "PNC Chores");
+                            
+                            if (!isLcc)
+                            {
+                                // If boarding has started or finished, cleaning and catering can't happen anymore (for Legacy carriers only).
+                                s.State = GroundServiceState.Skipped;
+                                s.StatusMessage = LocalizationService.Translate("Skipped (Pax on board)", "Annulé (Pax à bord)");
+                                changed = true;
+                                string actor = GetActorForService(s.Name);
+                                OnOpsLog?.Invoke(LocalizationService.Translate(
+                                    $"[{actor}] {s.Name} skipped because passengers are already boarding or onboard.", 
+                                    $"[{actor}] {s.Name} annulé car les passagers embarquent ou sont à bord."));
+                                continue;
+                            }
                         }
                     }
 

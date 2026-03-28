@@ -83,11 +83,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Fallback intelligence : si le MP3 échoue, on tente la suite.
             this.audioElement.onerror = (e) => {
-                console.warn(`[AudioEngine] Fichier introuvable ou erreur de lecture - ${filename}.mp3`);
+                console.warn(`[AudioEngine] Fichier introuvable ou erreur de lecture - ${filename}`);
                 this.playNext(); // Failsafe
             };
 
-            this.audioElement.src = `assets/sounds/${filename}.mp3`;
+            this.audioElement.src = `assets/sounds/${filename}`;
             this.audioElement.load();
             
             const playPromise = this.audioElement.play();
@@ -376,8 +376,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Prevent redundant DOM updates
-        if (container.innerHTML !== buttonsHtml) {
+        if (container.dataset.lastHtml !== buttonsHtml) {
             container.innerHTML = buttonsHtml;
+            container.dataset.lastHtml = buttonsHtml;
         }
     }
 
@@ -1951,6 +1952,26 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'groundOps':
                 renderGroundOps(payload.services);
                 updateMetaBar(payload.services);
+                if (payload.airportTier) {
+                    const topTier = document.getElementById('topAirportTier');
+                    const letterBox = document.getElementById('aptTierLetterBox');
+                    const descBox = document.getElementById('aptTierDesc');
+                    const tierPanel = document.getElementById('airportTierPanel');
+
+                    if (topTier) topTier.innerText = payload.airportTier;
+                    if (letterBox && descBox && tierPanel) {
+                        tierPanel.classList.remove('hidden');
+                        let letter = payload.airportTier.replace('Tier ', '');
+                        letterBox.innerText = letter;
+                        descBox.innerText = payload.airportTierDesc || '';
+                        
+                        if (letter === 'S') letterBox.className = "w-14 h-14 rounded-lg flex items-center justify-center font-black text-2xl border drop-shadow-[0_0_15px_rgba(250,204,21,0.5)] bg-yellow-500/10 text-yellow-400 border-yellow-500/30";
+                        else if (letter === 'A') letterBox.className = "w-14 h-14 rounded-lg flex items-center justify-center font-black text-2xl border drop-shadow-[0_0_15px_rgba(52,211,153,0.5)] bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
+                        else if (letter === 'B') letterBox.className = "w-14 h-14 rounded-lg flex items-center justify-center font-black text-2xl border drop-shadow-[0_0_15px_rgba(56,189,248,0.5)] bg-sky-500/10 text-sky-400 border-sky-500/30";
+                        else if (letter === 'F') letterBox.className = "w-14 h-14 rounded-lg flex items-center justify-center font-black text-2xl border drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] bg-red-500/10 text-red-500 border-red-500/30";
+                        else letterBox.className = "w-14 h-14 rounded-lg flex items-center justify-center font-black text-2xl border drop-shadow-[0_0_15px_rgba(251,146,60,0.5)] bg-orange-500/10 text-orange-400 border-orange-500/30";
+                    }
+                }
                 break;
             case 'groundOpsComplete':
                 const gOC = document.getElementById('groundOpsContainer');
@@ -2497,6 +2518,10 @@ window.renderManifest = function(manifest) {
     const flightCrewLabel = mDict.crew_flight || "FLIGHT CREW";
     const cabinCrewLabel = mDict.crew_cabin || "CABIN CREW";
     const mapLabel = mDict.seat_map_title || "SEAT MAP";
+    const legFastened = mDict.man_leg_fastened || "Fastened";
+    const legUnfastened = mDict.man_leg_unfastened || "Unfastened";
+    const legEmpty = mDict.man_leg_empty || "Empty";
+    const legInjured = mDict.man_leg_injured || "Injured";
 
     let boardedInitialCount = manifest.Passengers.filter(p => p.IsBoarded !== false).length;
 
@@ -2564,9 +2589,10 @@ window.renderManifest = function(manifest) {
                 <div class="flex justify-between items-center border-b border-white/5 pb-3 mb-4 flex-shrink-0">
                     <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-0">${mapLabel}</h3>
                     <div class="flex gap-4 text-[9px] font-label tracking-widest text-slate-400 uppercase">
-                        <div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded bg-[#0ea5e9]"></div> Fastened</div>
-                        <div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded bg-[#ef4444]"></div> Unfastened</div>
-                        <div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded bg-[#334155]"></div> Empty</div>
+                        <div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded bg-[#0ea5e9]"></div> ${legFastened}</div>
+                        <div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded bg-[#ef4444]"></div> ${legUnfastened}</div>
+                        <div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded bg-[#334155]"></div> ${legEmpty}</div>
+                        <div class="flex items-center gap-1"><span class="material-symbols-outlined text-[10px] text-red-500">medical_services</span> ${legInjured}</div>
                     </div>
                 </div>
                 <div id="seatMapViewport" style="flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; padding-top: 10px; cursor: grab; position: relative;">

@@ -145,6 +145,10 @@ const locales = {
         man_th_name: "Name",
         man_th_nat: "Nat.",
         man_th_age: "Age",
+        man_leg_fastened: "Fastened",
+        man_leg_unfastened: "Unfastened",
+        man_leg_empty: "Empty",
+        man_leg_injured: "Injured",
         
         gops_desc_refuel: "The fuel truck is connected and transferring fuel to the main tanks.",
         gops_desc_boarding: "Passenger boarding is currently in progress via the main gate.",
@@ -300,6 +304,10 @@ const locales = {
         man_th_name: "Nom",
         man_th_nat: "Nat.",
         man_th_age: "Âge",
+        man_leg_fastened: "Attaché",
+        man_leg_unfastened: "Détaché",
+        man_leg_empty: "Vide",
+        man_leg_injured: "Blessé",
 
         gops_desc_refuel: "Le camion-citerne est connecté et transfère le carburant vers les réservoirs principaux.",
         gops_desc_boarding: "L'embarquement des passagers est en cours via la porte principale.",

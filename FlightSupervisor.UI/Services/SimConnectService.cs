@@ -251,7 +251,10 @@ namespace FlightSupervisor.UI.Services
             }
         }
 
-        private void SimConnect_OnRecvClientData(SimConnect sender, SIMCONNECT_RECV_CLIENT_DATA data) { }
+        private void SimConnect_OnRecvClientData(SimConnect sender, SIMCONNECT_RECV_CLIENT_DATA data)
+        {
+            _wasmClient?.ProcessClientData(data);
+        }
 
         private void WasmClient_OnFenixLVarsReceived(WasmLVarClient.FenixLVarPayload data)
         {
