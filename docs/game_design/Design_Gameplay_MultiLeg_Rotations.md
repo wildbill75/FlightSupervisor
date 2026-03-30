@@ -7,10 +7,11 @@ Le défi ne réside plus uniquement dans le pilotage d'un vol, mais dans la gest
 ## 2. Global Mechanics & Flow
 
 ### 🔄 La Période de "Turnaround" (L'Entre-Deux Vols)
-- **Nouvelle Phase (Arrived -> Turnaround) :** À la fin d'un vol (frein de parc serré à la porte, moteurs coupés), le logiciel **ne s'arrête pas**.
-- **L'Auto-Ingestion SimBrief (100% Immersif) :** L'UI bascule en attente de Route. Le joueur **n'a pas besoin de quitter le simulateur** (pas de Alt-Tab). Il ouvre simplement sa tablette in-game (EFB Fenix, Tablette MSFS de base ou add-on SimBrief) et génère son prochain vol. 
-  - *Mécanique Technique :* Le backend C# de Flight Supervisor "écoute" silencieusement les serveurs SimBrief en tâche de fond (polling). Dès qu'un nouveau plan de vol avec un Timestamp récent est détecté pour l'utilisateur, paf ! Flight Supervisor l'absorbe automatiquement avec un son de notification ("Nouveau plan de vol reçu : LFPO-LEMD"). 
-- **Continuité des Systèmes :** L'avion reste connecté. Les portes s'ouvrent, le *Deboarding* commence, puis le nouveau cycle *Ground Ops* s'enchaîne avec le nouveau délai (SOBT) dicté par le nouveau plan de vol.
+- **Lecture du Flight Report :** À la fin du premier vol (frein de parc serré à la porte), le joueur accède à son compte-rendu de vol (Flight Report). Une fois la lecture du vol terminée, le joueur **revient sur l'application principale (Main Dashboard)**. Le logiciel ne s'arrête pas, et Flight Supervisor a pleinement conscience de l'état "usé" de la cabine.
+- **La Phase de Deboarding (Débarquement) :** Le Commandant de Bord (Flight Deck) doit donner l'ordre explicite au PNC de commencer le débarquement. Le débarquement fonctionne exactement de la même manière que l'embarquement, mais à l'envers.
+  - **Règles de Sécurité Strictes :** Pour que le débarquement se déroule correctement et légalement, il est impératif que les **consignes lumineuses de ceintures (Seatbelts) soient sur OFF** et que les **moteurs (Engines) soient arrêtés**. Le non-respect de ces règles entraînera de très lourdes pénalités de sécurité.
+- **L'Auto-Ingestion SimBrief (100% Immersif) :** L'UI bascule en attente de Route. Le joueur génère son prochain vol via sa tablette et Flight Supervisor absorbe automatiquement le plan de vol en tâche de fond. 
+- **Continuité des Systèmes :** L'avion reste connecté. Une fois la cabine vidée, le nouveau cycle *Ground Ops* s'enchaîne avec le nouveau délai (SOBT) dicté par le nouveau plan de vol.
 
 ### ⏱️ Gestion du Temps & Effet Domino (Domino Delay Effect)
 - **Le problème du retard :** Si le Vol 1 ("Leg 1") arrive avec 25 minutes de retard, le *Scheduled Time of Departure* (STD) du Vol 2 est menacé. Le joueur va devoir prendre des décisions pour "rattraper" le temps perdu (accélérer le nettoyage, demander au dispatch d'augmenter le Cost Index pour voler plus vite, etc.).
@@ -59,8 +60,8 @@ Une escale (Turnaround) en multi-leg diffère grandement du dispatch initial (Ai
 Pour rendre cette gestion stratégique, **Flight Supervisor persiste l'état matériel de l'avion et de la cabine** entre chaque "Leg" :
 
 ### 🛢️ Refueling (Lecture Simulateur en temps réel)
-- Contrairement au premier vol (où l'avion peut apparaître vide), l'escale conserve le carburant de l'arrivée.
-- **Logique :** Flight Supervisor lit la donnée exacte du Fuel in-game via SimConnect. Si le plan de vol SimBrief du Leg 2 exige 6,500 kg de fuel et qu'il reste 6,000 kg du Leg précédent (cas fréquent de "Tankering" ou carburant aller-retour), le **Refuel Service** ne charge que 500 kg. Le temps de passage du camion-citerne est alors presque instantané (raccourcissant massivement l'escale).
+- Contrairement au dispatch initial, l'escale conserve tout le carburant du vol précédent. Il est vital que le système **lise l'état immédiat du fuel à bord** (Fuel Weight) pour le donner au séquenceur.
+- **Logique :** Flight Supervisor s'actualise via SimConnect lors de la transition. Si le plan SimBrief du Leg 2 exige 6,500 kg de fuel et qu'il reste 6,000 kg du Leg précédent (cas fréquent de "Tankering"), le **Refuel Service** ne charge dynamiquement que le delta manquant (500 kg). Le temps d'attente du camion-citerne s'en trouve massivement réduit.
 
 ### 🧹 État de la Cabine (Cabin Cleanliness)
 - L'état de saleté de la cabine s'accumule d'un vol à l'autre en fonction de la durée du vol, de la jauge passager et des crises éventuelles.

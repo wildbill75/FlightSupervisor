@@ -95,7 +95,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<int, string>? OnOperationBonusTriggered;
         public event Action<int, string>? OnPenaltyTriggered;
 
-        public void InitializeFromSimBrief(SimBriefResponse? sb, bool firstFlightClean = false)
+        public void InitializeFromSimBrief(SimBriefResponse? sb, bool firstFlightClean = false, double currentFobKg = 0)
         {
             Services.Clear();
             TargetSobt = null;
@@ -196,7 +196,11 @@ namespace FlightSupervisor.UI.Services
             int boardingBase = (int)((isLowCost ? 900 : 1200) / boardingEfficiencyRatio);
             int cleaningBase = isLowCost ? 300 : 900;
             int cateringBase = isLowCost ? 300 : 900;
-            int fuelBase = Math.Max(600, fuel / 50); // Minimum 10 minutes ou 50kg/sec
+            
+            // Calculate fuel difference. 1 kg/L roughly. PlanRamp is kg. 
+            // We assume refueling is 50kg/sec.
+            double fuelNeededKg = Math.Max(0, fuel - currentFobKg);
+            int fuelBase = Math.Max(600, (int)(fuelNeededKg / 50.0)); // Minimum 10 minutes ou 50kg/sec
 
             Services.Add(new GroundService { Name = "Refueling", TotalDurationSec = applyTime(fuelBase), IsOptional = false, RequiresManualStart = true, StartOffsetMinutes = 0 });
             Services.Add(new GroundService { Name = "Boarding", TotalDurationSec = applyTime(boardingBase), IsOptional = false, StartOffsetMinutes = boardOffset });
@@ -219,6 +223,16 @@ namespace FlightSupervisor.UI.Services
 
             _isStarted = false;
             IsPaused = false;
+        }
+
+        public void PrepareNextLeg(double currentFobKg)
+        {
+            // Reset state to allow importing a new flight plan seamlessly
+            _isStarted = false;
+            IsPaused = false;
+            TargetSobt = null;
+            Services.Clear();
+            OnOpsUpdated?.Invoke();
         }
 
         public bool IsPaused { get; set; } = false;

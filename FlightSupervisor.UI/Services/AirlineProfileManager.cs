@@ -7,19 +7,10 @@ using System.Text.Json.Serialization;
 
 namespace FlightSupervisor.UI.Services
 {
-    public class AirlineObjectives
+    public class AirlineDatabaseRoot
     {
-        [JsonPropertyName("maxDelaySec")]
-        public int MaxDelaySec { get; set; } = 900;
-
-        [JsonPropertyName("minComfort")]
-        public int MinComfort { get; set; } = 50;
-
-        [JsonPropertyName("maxTouchdownFpm")]
-        public int MaxTouchdownFpm { get; set; } = -500;
-
-        [JsonPropertyName("mustPerformCatering")]
-        public bool MustPerformCatering { get; set; } = false;
+        [JsonPropertyName("airlines")]
+        public List<AirlineProfile> Airlines { get; set; } = new List<AirlineProfile>();
     }
 
     /// <summary>
@@ -34,26 +25,27 @@ namespace FlightSupervisor.UI.Services
         [JsonPropertyName("name")]
         public string Name { get; set; } = "Unknown Airlines";
 
-        [JsonPropertyName("globalScore")]
+        [JsonPropertyName("global_score")]
         public int GlobalScore { get; set; } = 50; // Note globale sur 100
 
-        [JsonPropertyName("hardProductScore")]
+        [JsonPropertyName("hard_product")]
         public int HardProductScore { get; set; } = 5; // Qualité cabine, espace (1-10)
 
-        [JsonPropertyName("softProductScore")]
+        [JsonPropertyName("soft_product")]
         public int SoftProductScore { get; set; } = 5; // Service, catering (1-10)
 
-        [JsonPropertyName("safetyRecord")]
+        [JsonPropertyName("safety_rec")]
         public int SafetyRecord { get; set; } = 5; // Historique de fiabilité (1-10)
         
-        [JsonPropertyName("punctualityPriority")]
+        [JsonPropertyName("punctuality")]
         public int PunctualityPriority { get; set; } = 5; // 1 = Confort d'abord, 10 = A l'heure coûte que coûte
+
+        [JsonPropertyName("tier")]
+        public string Tier { get; set; } = "Standard"; // Elite, Standard, LowCost, Struggling, Danger
 
         [JsonPropertyName("directives")]
         public List<string> Directives { get; set; } = new List<string>();
 
-        [JsonPropertyName("objectives")]
-        public AirlineObjectives Objectives { get; set; } = new AirlineObjectives();
     }
 
     /// <summary>
@@ -75,8 +67,7 @@ namespace FlightSupervisor.UI.Services
             SoftProductScore = 5,
             SafetyRecord = 5,
             PunctualityPriority = 5,
-            Directives = new List<string> { "La sécurité avant tout.", "Respectez les horaires raisonnables." },
-            Objectives = new AirlineObjectives()
+            Directives = new List<string> { "La sécurité avant tout.", "Respectez les horaires raisonnables." }
         };
 
         /// <summary>
@@ -103,12 +94,12 @@ namespace FlightSupervisor.UI.Services
                 }
 
                 string jsonString = File.ReadAllText(_databasePath);
-                var loadedList = JsonSerializer.Deserialize<List<AirlineProfile>>(jsonString);
+                var rootData = JsonSerializer.Deserialize<AirlineDatabaseRoot>(jsonString);
                 
-                if (loadedList != null)
+                if (rootData != null && rootData.Airlines != null)
                 {
-                    _profiles = loadedList.ToDictionary(p => p.Icao, StringComparer.OrdinalIgnoreCase);
-                    Console.WriteLine($"[AirlineProfileManager] Succès: {loadedList.Count} profils de compagnies chargés depuis {_databasePath}.");
+                    _profiles = rootData.Airlines.ToDictionary(p => p.Icao, StringComparer.OrdinalIgnoreCase);
+                    Console.WriteLine($"[AirlineProfileManager] Succès: {rootData.Airlines.Count} profils de compagnies chargés depuis {_databasePath}.");
                 }
             }
             catch (Exception ex)
@@ -120,34 +111,43 @@ namespace FlightSupervisor.UI.Services
 
         /// <summary>
         /// Génère un fichier de base si la base de données JSON n'existe pas encore.
+        /// Construit avec la liste officielle requise par le Flight Supervisor.
         /// </summary>
         private void GenerateDefaultDatabase()
         {
             try
             {
-                var defaults = new List<AirlineProfile>
-                {
-                    new AirlineProfile {
-                        Icao = "AFR", Name = "Air France", GlobalScore = 82, HardProductScore = 7, SoftProductScore = 8, SafetyRecord = 9, PunctualityPriority = 6,
-                        Directives = new List<string> { "Maintenir l'élégance du service client", "Eviter les grèves passagers" }
-                    },
-                    new AirlineProfile {
-                        Icao = "RYR", Name = "Ryanair", GlobalScore = 45, HardProductScore = 2, SoftProductScore = 2, SafetyRecord = 8, PunctualityPriority = 10,
-                        Directives = new List<string> { "Le turnaround en 25 minutes est ABSOLU", "Le confort n'est pas contractuel" }
-                    },
-                    new AirlineProfile {
-                        Icao = "UAE", Name = "Emirates", GlobalScore = 95, HardProductScore = 9, SoftProductScore = 9, SafetyRecord = 9, PunctualityPriority = 7,
-                        Directives = new List<string> { "Garantir une expérience Premium 5-Étoiles", "Priorité absolue aux passagers Première" }
-                    }
-                };
-
                 string directory = Path.GetDirectoryName(_databasePath);
                 if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
                 }
 
-                string jsonTemplate = JsonSerializer.Serialize(defaults, new JsonSerializerOptions { WriteIndented = true });
+                string jsonTemplate = @"{
+  ""airlines"": [
+    { ""name"": ""Singapore Airlines"", ""icao"": ""SIA"", ""hard_product"": 10, ""soft_product"": 10, ""safety_rec"": 10, ""punctuality"": 9, ""global_score"": 98, ""tier"": ""Elite"" },
+    { ""name"": ""Qatar Airways"", ""icao"": ""QTR"", ""hard_product"": 10, ""soft_product"": 10, ""safety_rec"": 10, ""punctuality"": 8, ""global_score"": 96, ""tier"": ""Elite"" },
+    { ""name"": ""ANA (All Nippon)"", ""icao"": ""ANA"", ""hard_product"": 9, ""soft_product"": 9, ""safety_rec"": 10, ""punctuality"": 10, ""global_score"": 95, ""tier"": ""Elite"" },
+    { ""name"": ""Emirates"", ""icao"": ""UAE"", ""hard_product"": 10, ""soft_product"": 9, ""safety_rec"": 9, ""punctuality"": 8, ""global_score"": 92, ""tier"": ""Elite"" },
+    { ""name"": ""Air France"", ""icao"": ""AFR"", ""hard_product"": 9, ""soft_product"": 10, ""safety_rec"": 9, ""punctuality"": 8, ""global_score"": 91, ""tier"": ""Elite"" },
+    { ""name"": ""Delta Air Lines"", ""icao"": ""DAL"", ""hard_product"": 7, ""soft_product"": 7, ""safety_rec"": 9, ""punctuality"": 9, ""global_score"": 82, ""tier"": ""Standard"" },
+    { ""name"": ""Lufthansa"", ""icao"": ""DLH"", ""hard_product"": 7, ""soft_product"": 6, ""safety_rec"": 10, ""punctuality"": 7, ""global_score"": 78, ""tier"": ""Standard"" },
+    { ""name"": ""Iberia"", ""icao"": ""IBE"", ""hard_product"": 6, ""soft_product"": 6, ""safety_rec"": 9, ""punctuality"": 10, ""global_score"": 77, ""tier"": ""Standard"" },
+    { ""name"": ""Corsair"", ""icao"": ""CRL"", ""hard_product"": 7, ""soft_product"": 7, ""safety_rec"": 9, ""punctuality"": 7, ""global_score"": 75, ""tier"": ""Standard"" },
+    { ""name"": ""Transavia"", ""icao"": ""TVF"", ""hard_product"": 6, ""soft_product"": 6, ""safety_rec"": 9, ""punctuality"": 8, ""global_score"": 72, ""tier"": ""Standard"" },
+    { ""name"": ""British Airways"", ""icao"": ""BAW"", ""hard_product"": 7, ""soft_product"": 6, ""safety_rec"": 9, ""punctuality"": 5, ""global_score"": 70, ""tier"": ""Standard"" },
+    { ""name"": ""Southwest Airlines"", ""icao"": ""SWA"", ""hard_product"": 5, ""soft_product"": 5, ""safety_rec"": 9, ""punctuality"": 8, ""global_score"": 68, ""tier"": ""LowCost"" },
+    { ""name"": ""Volotea"", ""icao"": ""VOE"", ""hard_product"": 5, ""soft_product"": 5, ""safety_rec"": 8, ""punctuality"": 7, ""global_score"": 62, ""tier"": ""LowCost"" },
+    { ""name"": ""Ryanair"", ""icao"": ""RYR"", ""hard_product"": 2, ""soft_product"": 2, ""safety_rec"": 9, ""punctuality"": 9, ""global_score"": 58, ""tier"": ""LowCost"" },
+    { ""name"": ""Royal Air Maroc"", ""icao"": ""RAM"", ""hard_product"": 5, ""soft_product"": 5, ""safety_rec"": 7, ""punctuality"": 4, ""global_score"": 53, ""tier"": ""Standard"" },
+    { ""name"": ""Spirit Airlines"", ""icao"": ""NKS"", ""hard_product"": 2, ""soft_product"": 2, ""safety_rec"": 8, ""punctuality"": 6, ""global_score"": 48, ""tier"": ""LowCost"" },
+    { ""name"": ""Egyptair"", ""icao"": ""MSR"", ""hard_product"": 4, ""soft_product"": 4, ""safety_rec"": 5, ""punctuality"": 4, ""global_score"": 43, ""tier"": ""Standard"" },
+    { ""name"": ""Tunisair"", ""icao"": ""TAR"", ""hard_product"": 3, ""soft_product"": 3, ""safety_rec"": 6, ""punctuality"": 1, ""global_score"": 33, ""tier"": ""Struggling"" },
+    { ""name"": ""Air Algérie"", ""icao"": ""DAH"", ""hard_product"": 3, ""soft_product"": 3, ""safety_rec"": 5, ""punctuality"": 2, ""global_score"": 32, ""tier"": ""Struggling"" },
+    { ""name"": ""Pakistan International"", ""icao"": ""PIA"", ""hard_product"": 3, ""soft_product"": 2, ""safety_rec"": 2, ""punctuality"": 2, ""global_score"": 22, ""tier"": ""Danger"" },
+    { ""name"": ""Air Koryo"", ""icao"": ""KOR"", ""hard_product"": 1, ""soft_product"": 1, ""safety_rec"": 1, ""punctuality"": 3, ""global_score"": 15, ""tier"": ""Danger"" }
+  ]
+}";
                 File.WriteAllText(_databasePath, jsonTemplate);
             }
             catch (Exception ex)

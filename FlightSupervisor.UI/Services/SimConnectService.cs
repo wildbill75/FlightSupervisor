@@ -43,6 +43,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<double, double>? OnWindReceived;
         public event Action<double, double, bool>? OnNavigationReceived;
         public event Action<double, double>? OnAirframeDynamicsReceived;
+        public event Action<double>? OnAmbientTemperatureReceived;
 
         public event Action<bool>? OnCabinSeatbeltsChanged;
         public event Action<bool>? OnNoSmokingChanged;
@@ -54,6 +55,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<float, float, float>? OnCabinTemperatureTargetsChanged;
         public event Action<int>? OnNoseLightChanged;
         public event Action<bool>? OnRunwayTurnoffChanged;
+        public event Action<double>? OnFuelTotalReceived;
 
         enum DEFINITIONS { PlaneData, GForceData }
         enum REQUESTS { PlaneDataReq, GForceReq }
@@ -96,7 +98,9 @@ namespace FlightSupervisor.UI.Services
             public double CabinSeatbelts;
             public double AccelerationBodyZ;
             public double VelocityBodyZ;
-            public double LocalTime;
+            public double TimeZoneDeviation;
+            public double AmbientTemperature;
+            public double FuelTotalMass;
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
@@ -159,7 +163,9 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "CABIN SEATBELTS ALERT SWITCH", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "ACCELERATION BODY Z", "Feet per second squared", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "VELOCITY BODY Z", "Feet per second", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "LOCAL TIME", "Seconds", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "TIME ZONE DEVIATION", "Seconds", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AMBIENT TEMPERATURE", "Celsius", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "FUEL TOTAL QUANTITY WEIGHT", "Kilograms", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
 
                 _simconnect.AddToDataDefinition(DEFINITIONS.GForceData, "G FORCE", "GForce", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
 
@@ -222,14 +228,21 @@ namespace FlightSupervisor.UI.Services
                 OnRadioHeightReceived?.Invoke(planeData.RadioHeight);
                 
                 var timeSpan = TimeSpan.FromSeconds(planeData.ZuluTime);
+                DateTime currentUtc = DateTime.UtcNow;
                 try {
-                    OnSimTimeReceived?.Invoke(new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds, DateTimeKind.Utc));
+                    currentUtc = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds, DateTimeKind.Utc);
+                    OnSimTimeReceived?.Invoke(currentUtc);
                 } catch { }
 
-                var localTimeSpan = TimeSpan.FromSeconds(planeData.LocalTime);
                 try {
-                    OnSimLocalTimeReceived?.Invoke(new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, localTimeSpan.Hours, localTimeSpan.Minutes, localTimeSpan.Seconds, DateTimeKind.Local));
+                    // TIME ZONE DEVIATION is Zulu - Local (so positive if standard time is before UTC, e.g. USA)
+                    // Therefore, Local = Zulu - TimeZoneDeviation
+                    DateTime localDt = currentUtc.AddSeconds(-planeData.TimeZoneDeviation);
+                    OnSimLocalTimeReceived?.Invoke(localDt);
                 } catch { }
+                
+                OnAmbientTemperatureReceived?.Invoke(planeData.AmbientTemperature);
+                OnFuelTotalReceived?.Invoke(planeData.FuelTotalMass);
 
                 OnGearDownReceived?.Invoke(planeData.GearHandle > 0.5);
                 OnFlapsReceived?.Invoke(planeData.FlapsHandleIndex);

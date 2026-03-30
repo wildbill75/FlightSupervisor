@@ -1,7 +1,7 @@
 # Design_Technical_GSX_Integration
 
-> **Note de Conformité (Design vs Implementation) :**
-> Conformément à la règle globale du projet, le terme "Implementation" (comme suggéré verbalement par *GSX Implementation*) a été proscrit et remplacé par **Design_Technical_GSX_Integration** afin de respecter la nomenclature stricte des documents de conception.
+> **Note de Conformité (Design vs Design) :**
+> Conformément à la règle globale du projet, le terme "Design" (comme suggéré verbalement par *GSX Design*) a été proscrit et remplacé par **Design_Technical_GSX_Integration** afin de respecter la nomenclature stricte des documents de conception.
 
 ---
 

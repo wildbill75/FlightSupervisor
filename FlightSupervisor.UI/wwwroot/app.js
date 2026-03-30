@@ -112,26 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Menu Tab Navigation
-    const btnAcceptContract = document.getElementById('btnAcceptContract');
-    if (btnAcceptContract) {
-        btnAcceptContract.addEventListener('click', () => {
-            btnAcceptContract.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[16px]">check_circle</span>
-                    <span>CONTRACT ACTIVE</span>
-                </div>
-            `;
-            btnAcceptContract.style.pointerEvents = 'none';
-            btnAcceptContract.classList.remove('from-emerald-500', 'to-emerald-400', 'text-[#0B0C10]', 'hover:brightness-110');
-            btnAcceptContract.classList.add('bg-emerald-900/40', 'text-emerald-400', 'border', 'border-emerald-500/30');
-            btnAcceptContract.style.background = 'transparent';
-            btnAcceptContract.style.boxShadow = 'none';
-            
-            window.chrome.webview.postMessage({ action: 'acceptContract' });
-        });
-    }
-    
+
     const menuItems = document.querySelectorAll('.menu li, li[data-target="profile"]');
     const sections = document.querySelectorAll('section');
 
@@ -709,6 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnDismissReport = document.getElementById('btnDismissReport');
     if (btnDismissReport) btnDismissReport.addEventListener('click', () => {
         document.getElementById('flightReportModal').style.display = 'none';
+        window.chrome.webview.postMessage({ action: 'acknowledgeDebrief' });
     });
 
     btnFetchPlan.addEventListener('click', () => {
@@ -966,6 +948,36 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
+                // --- CABIN RESOURCES MULTI-LEG ---
+                if (payload.cabinCleanliness !== undefined) {
+                    const cleanEl = document.getElementById('cleanlinessVal');
+                    if (cleanEl) {
+                        cleanEl.innerText = `${Math.round(payload.cabinCleanliness)}%`;
+                        cleanEl.style.color = payload.cabinCleanliness < 50 ? '#EF4444' : (payload.cabinCleanliness < 75 ? '#F59E0B' : '#34D399');
+                    }
+                }
+                if (payload.cateringRations !== undefined) {
+                    const catEl = document.getElementById('cateringRationsVal');
+                    if (catEl) {
+                        catEl.innerText = payload.cateringRations;
+                        catEl.style.color = payload.cateringRations <= 10 ? '#EF4444' : (payload.cateringRations <= 25 ? '#F59E0B' : '#34D399');
+                    }
+                }
+                if (payload.waterLevel !== undefined) {
+                    const waterEl = document.getElementById('waterLevelVal');
+                    if (waterEl) {
+                        waterEl.innerText = `${Math.round(payload.waterLevel)}%`;
+                        waterEl.style.color = payload.waterLevel < 20 ? '#EF4444' : (payload.waterLevel < 50 ? '#F59E0B' : '#60A5FA'); // blue-400
+                    }
+                }
+                if (payload.wasteLevel !== undefined) {
+                    const wasteEl = document.getElementById('wasteLevelVal');
+                    if (wasteEl) {
+                        wasteEl.innerText = `${Math.round(payload.wasteLevel)}%`;
+                        wasteEl.style.color = payload.wasteLevel > 90 ? '#EF4444' : (payload.wasteLevel > 70 ? '#F59E0B' : '#60A5FA'); // blue-400
+                    }
+                }
+
                 if (payload.crewProactivity !== undefined) {
                     const formatColor = (val, el) => {
                         if (el && val !== undefined) {
@@ -1019,6 +1031,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
+                // Cabin Temperature
+                if (payload.cabinTemp !== undefined) {
+                    const tVal = document.getElementById('thermalValue');
+                    const tNeedle = document.getElementById('thermalNeedle');
+                    
+                    if (tVal && tNeedle) {
+                        tVal.innerHTML = `${payload.cabinTemp.toFixed(1)}<span class="text-[10px] text-slate-500 font-light ml-1">°C</span>`;
+                        
+                        // Map 18-30°C to 0-100% position
+                        let mappedPercent = ((payload.cabinTemp - 18.0) / 12.0) * 100.0;
+                        if (mappedPercent < 0) mappedPercent = 0;
+                        if (mappedPercent > 100) mappedPercent = 100;
+                        
+                        tNeedle.style.left = `${mappedPercent}%`;
+                        
+                        // Dynamically color the value text based on ranges
+                        tVal.classList.remove('text-slate-200', 'text-blue-400', 'text-red-400', 'text-emerald-400');
+                        if (payload.cabinTemp < 20.0) tVal.classList.add('text-blue-400');
+                        else if (payload.cabinTemp > 25.0) tVal.classList.add('text-red-400');
+                        else if (payload.cabinTemp >= 21.0 && payload.cabinTemp <= 24.0) tVal.classList.add('text-emerald-400');
+                        else tVal.classList.add('text-slate-200');
+                    }
+                }
+
                 if (payload.securingProgress !== undefined) {
                     const pBox = document.getElementById('pncProgressBox');
                     const pBar = document.getElementById('pncProgressBar');
@@ -1049,10 +1085,49 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (aName && aName.innerText !== payload.airline.name) {
                         aName.innerText = payload.airline.name;
                         aName.title = payload.airline.name;
-                        document.getElementById('aiGlobalScore').innerText = payload.airline.globalScore;
-                        document.getElementById('aiHard').innerText = payload.airline.hardProductScore + "/10";
-                        document.getElementById('aiSoft').innerText = payload.airline.softProductScore + "/10";
-                        document.getElementById('aiSafety').innerText = payload.airline.safetyRecord + "/10";
+                        document.getElementById('aiGlobalScore').innerText = payload.airline.global_score !== undefined ? payload.airline.global_score : 50;
+                        document.getElementById('aiHard').innerText = (payload.airline.hard_product !== undefined ? payload.airline.hard_product : 5) + "/10";
+                        const hBar = document.getElementById('aiHardBar');
+                        if (hBar) hBar.style.width = ((payload.airline.hard_product !== undefined ? payload.airline.hard_product : 5) * 10) + "%";
+
+                        document.getElementById('aiSoft').innerText = (payload.airline.soft_product !== undefined ? payload.airline.soft_product : 5) + "/10";
+                        const sBar = document.getElementById('aiSoftBar');
+                        if (sBar) sBar.style.width = ((payload.airline.soft_product !== undefined ? payload.airline.soft_product : 5) * 10) + "%";
+
+                        document.getElementById('aiSafety').innerText = (payload.airline.safety_rec !== undefined ? payload.airline.safety_rec : 5) + "/10";
+                        const safBar = document.getElementById('aiSafetyBar');
+                        if (safBar) safBar.style.width = ((payload.airline.safety_rec !== undefined ? payload.airline.safety_rec : 5) * 10) + "%";
+                        
+                        document.getElementById('aiPunc').innerText = (payload.airline.punctuality || 5) + "/10";
+                        const pBar = document.getElementById('aiPuncBar');
+                        if (pBar) pBar.style.width = ((payload.airline.punctuality || 5) * 10) + "%";
+                        
+                        // Dynamically update Top Airline Tier badge
+                        const tierBadge = document.getElementById('topAirlineTier');
+                        if (tierBadge && payload.airline.tier) {
+                            tierBadge.innerText = payload.airline.tier.toUpperCase();
+                            tierBadge.className = 'font-bold px-2 py-0.5 rounded border';
+                            switch(payload.airline.tier.toLowerCase()) {
+                                case 'elite':
+                                    tierBadge.classList.add('text-indigo-400', 'bg-indigo-500/10', 'border-indigo-500/20');
+                                    break;
+                                case 'standard':
+                                    tierBadge.classList.add('text-emerald-400', 'bg-emerald-500/10', 'border-emerald-500/20');
+                                    break;
+                                case 'lowcost':
+                                    tierBadge.classList.add('text-amber-400', 'bg-amber-500/10', 'border-amber-500/20');
+                                    break;
+                                case 'struggling':
+                                    tierBadge.classList.add('text-orange-400', 'bg-orange-500/10', 'border-orange-500/20');
+                                    break;
+                                case 'danger':
+                                    tierBadge.classList.add('text-red-400', 'bg-red-500/10', 'border-red-500/20', 'animate-pulse');
+                                    break;
+                                default:
+                                    tierBadge.classList.add('text-slate-400', 'bg-slate-500/10', 'border-slate-500/20');
+                                    break;
+                            }
+                        }
                         
                         const dList = document.getElementById('aiDirectives');
                         if (dList && payload.airline.directives) {
@@ -1063,31 +1138,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                 li.innerText = `• ${dir}`;
                                 dList.appendChild(li);
                             });
-                        }
-
-                        const oList = document.getElementById('aiObjectivesList');
-                        const cSec = document.getElementById('aiContractSection');
-                        const btnAcc = document.getElementById('btnAcceptContract');
-                        if (oList && payload.airline.objectives) {
-                            const obs = payload.airline.objectives;
-                            if (obs.maxDelaySec > 0 || obs.mustPerformCatering || obs.minComfort > 0) {
-                                cSec.style.display = 'flex';
-                                btnAcc.style.display = 'block';
-                                oList.innerHTML = `
-                                    <span>⏳ Max Delay: <b class="text-white">${Math.floor(obs.maxDelaySec / 60)}m</b></span>
-                                    <span class="text-white/20">|</span>
-                                    <span>💺 Min Comfort: <b class="text-white">${obs.minComfort}%</b></span>
-                                    <span class="text-white/20">|</span>
-                                    <span>🛬 Max FPM: <b class="text-white">${obs.maxTouchdownFpm}</b></span>
-                                `;
-                                if (obs.mustPerformCatering) {
-                                    oList.innerHTML += `<span class="text-white/20">|</span><span>🍱 <b class="text-emerald-400">Catering</b></span>`;
-                                }
-                            } else {
-                                cSec.style.display = 'none';
-                            }
-                        } else if (cSec) {
-                            cSec.style.display = 'none';
                         }
                     }
                 }
@@ -1416,6 +1466,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 document.getElementById('flightReportModal').style.display = 'flex';
+                break;
+            case 'switchTab':
+                const targetTab = payload.target;
+                const menuItems = document.querySelectorAll('.menu li, li[data-target="profile"]');
+                const sections = document.querySelectorAll('section');
+                
+                menuItems.forEach(m => {
+                    if (m.getAttribute('data-target') === targetTab) {
+                        m.classList.add('active');
+                    } else {
+                        m.classList.remove('active');
+                    }
+                });
+                sections.forEach(sec => {
+                    if (sec.id === targetTab) {
+                        sec.classList.add('active');
+                    } else {
+                        sec.classList.remove('active');
+                    }
+                });
                 break;
             case 'showGroundEvent':
                 const geModal = document.getElementById('groundEventModal');

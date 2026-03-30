@@ -18,13 +18,6 @@ namespace FlightSupervisor.UI.Services
         public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 
-    public class ObjectiveResult
-    {
-        public string Description { get; set; } = string.Empty;
-        public bool Passed { get; set; }
-        public int Points { get; set; }
-    }
-
     public class SuperScoreManager
     {
         public List<ScoreEvent> FlightEvents { get; private set; } = new List<ScoreEvent>();
@@ -36,8 +29,6 @@ namespace FlightSupervisor.UI.Services
         public int MaintenancePoints { get; private set; } = 0;
         public int OperationsPoints { get; private set; } = 0;
         public event Action<int, int, string>? OnScoreChanged; // NewScore, Delta, Reason
-
-        public bool IsContractAccepted { get; set; } = false;
 
         private bool _bonusApEngaged = false;
         private FlightPhaseManager _phaseManager;
@@ -121,41 +112,6 @@ namespace FlightSupervisor.UI.Services
             FlightEvents.Add(new ScoreEvent { Amount = amount, Reason = reason, Category = category });
 
             OnScoreChanged?.Invoke(CurrentScore, amount, reason);
-        }
-
-        public List<ObjectiveResult> EvaluateObjectives(AirlineProfile airline, long delaySec, int comfort, double touchdownFpm, bool performedCatering)
-        {
-            var results = new List<ObjectiveResult>();
-            if (!IsContractAccepted || airline.Objectives == null) return results;
-
-            // 1. Max Delay
-            bool delayPassed = delaySec <= airline.Objectives.MaxDelaySec;
-            int delayPts = delayPassed ? 100 : -150;
-            results.Add(new ObjectiveResult { Description = $"Retard Max Toléré: {airline.Objectives.MaxDelaySec / 60} min", Passed = delayPassed, Points = delayPts });
-            AddScore(delayPts, delayPassed ? "Contrat Rempli : Ponctualité" : "Contrat Échoué : Retard hors limite", ScoreCategory.Operations);
-
-            // 2. Min Comfort
-            bool comfortPassed = comfort >= airline.Objectives.MinComfort;
-            int comfortPts = comfortPassed ? 100 : -150;
-            results.Add(new ObjectiveResult { Description = $"Confort Passager >= {airline.Objectives.MinComfort}%", Passed = comfortPassed, Points = comfortPts });
-            AddScore(comfortPts, comfortPassed ? "Contrat Rempli : Objectif Confort" : "Contrat Échoué : Plaintes liées au confort", ScoreCategory.Comfort);
-
-            // 3. Max FPM (Vertical Speed at Touchdown is usually negative)
-            bool fpmPassed = touchdownFpm >= airline.Objectives.MaxTouchdownFpm;
-            int fpmPts = fpmPassed ? 100 : -150;
-            results.Add(new ObjectiveResult { Description = $"Tolérance Impact (Fpm): > {airline.Objectives.MaxTouchdownFpm}", Passed = fpmPassed, Points = fpmPts });
-            AddScore(fpmPts, fpmPassed ? "Contrat Rempli : Atterrissage" : "Contrat Échoué : Atterrissage trop rude", ScoreCategory.Safety);
-
-            // 4. Catering
-            if (airline.Objectives.MustPerformCatering)
-            {
-                bool cateringPassed = performedCatering;
-                int catPts = cateringPassed ? 50 : -200;
-                results.Add(new ObjectiveResult { Description = $"Service Catering Obligatoire", Passed = cateringPassed, Points = catPts });
-                AddScore(catPts, cateringPassed ? "Contrat Rempli : Catering" : "Contrat Échoué : Catering Oublié!", ScoreCategory.Operations);
-            }
-
-            return results;
         }
 
         public void CancelFlight(string reason)

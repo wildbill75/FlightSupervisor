@@ -98,3 +98,31 @@ Ce document recense les problèmes fonctionnels et régressions actuellement non
 
 ---
 *(Ce document pourra être mis à jour à chaque vol de validation pour suivre la complétion de ces tickets de façon ordonnée.)*
+# Suivi des Bugs et Améliorations - Vol Test du 30 Mars 2026
+
+## Notes du vol en cours :
+
+### 1. Ravitaillement (Refueling) et Sécurité
+- **Règle à appliquer :** Pénaliser l'activation des consignes "Seat Belts ON" pendant l'embarquement si le camion de ravitaillement en carburant (Refueling) n'a pas terminé.
+- **Pénalité :** -100 points sur le score.
+
+### 2. Refoulement (Pushback) sans Seat Belts
+- **Règle à appliquer :** Si le repoussage (Pushback) commence mais que le signal "Seat Belts" est sur OFF.
+- **Impact Cabine :** 
+  - Montée de l'Anxiété.
+  - Baisse de la Satisfaction (de l'ordre de 20 % à 25 %).
+- **Réaction Équipage :** Déclencher un message automatique du Chef de Cabine (PNC) : *"Captain, the seat belts sign is still off and the plane is moving."*
+- **Pénalité :** -100 points sur le score.
+
+### 3. Anomalies Moteurs (Pushback / Taxi)
+- **Constat :** Les passagers s'attendent à ce qu'en phase de roulage ou pushback, l'avion soit en mouvement régulier. Entendre un moteur s'éteindre soudainement après son démarrage pendant cette phase génère de l'inquiétude.
+- **Règle à appliquer :** Si un ou les moteurs s'arrêtent anormalement pendant le pushback ou le roulage :
+  - Augmentation de l'Anxiété en cabine.
+  - Le PNC (Chef de Cabine) informe le cockpit avec une question type : *"Captain, what's going on, an engine just stopped?"* (s'applique également à toute autre situation totalement anormale perçue par les passagers).
+
+### 4. Attente Prolongée inexpliquée sur the Taxiway
+- **Constat :** L'attente statique sur le taxiway (départ ou arrivée) sans mouvement ni information stresse les passagers.
+- **Règle à appliquer :** 
+  - Détecter si l'avion est immobilisé sur le taxiway (Ground Speed ~0) pendant trop longtemps.
+  - Enclencher une baisse de satisfaction et une montée d'anxiété au bout de ce temps anormal.
+  - Pousser le CPT à faire une annonce micro (PA) listant les raisons de l'attente (Autorisation ATC refusée, fort trafic, piste occupée, etc.) pour rassurer la cabine et stopper la monter de l'anxiété.

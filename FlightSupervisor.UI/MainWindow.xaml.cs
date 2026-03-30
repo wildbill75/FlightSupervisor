@@ -51,6 +51,7 @@ namespace FlightSupervisor.UI
         private float? _lastLogTempCkpt = null;
         private float? _lastLogTempFwd = null;
         private float? _lastLogTempAft = null;
+        private bool _hasReceivedFenixLvars = false;
         
         private GroundOpsManager _groundOpsManager;
         private System.Windows.Threading.DispatcherTimer _uiTimer;
@@ -58,6 +59,9 @@ namespace FlightSupervisor.UI
         private PanelServerService? _panelServer;
         private AudioEngineService _audioEngine;
         private SuperScoreManager _scoreManager;
+        
+        private double _currentFobKg = 0;
+
         private CabinManager _cabinManager;
         private AirlineProfileManager _airlineDb;
         private FlightSupervisor.UI.Services.GroundEventEngine _eventEngine;
@@ -110,6 +114,12 @@ namespace FlightSupervisor.UI
                     _crisisManager.TriggerSpecificCrisis(CrisisType.MedicalEmergency);
                 }
             };
+            
+            _cabinManager.OnDeboardingComplete += () => {
+                _groundOpsManager.PrepareNextLeg(_currentFobKg);
+                SendToWeb(new { type = "log", message = "[SYSTEM] Cabin secured, initiating turnaround operations." });
+                Dispatcher.Invoke(() => SendToWeb(new { type = "groundOps", services = _groundOpsManager.Services }));
+            };
 
             // Tray Icon Setup
             _notifyIcon = new System.Windows.Forms.NotifyIcon();
@@ -134,6 +144,37 @@ namespace FlightSupervisor.UI
             _uiTimer.Interval = TimeSpan.FromSeconds(1);
             _uiTimer.Tick += (s, e) => {
                 _groundOpsManager.Tick(_currentSimTime);
+
+                // --- MULTI-LEG PROGRESSIVE GROUND OP REFILLS ---
+                var caterSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Catering");
+                if (caterSvc != null && caterSvc.State == GroundServiceState.InProgress)
+                {
+                    double rate = 100.0 / Math.Max(1, caterSvc.TotalDurationSec);
+                    _cabinManager.CateringCompletion = Math.Min(100.0, _cabinManager.CateringCompletion + rate);
+                }
+
+                var cleanSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Cleaning" || s.Name == "PNC Chores");
+                if (cleanSvc != null && cleanSvc.State == GroundServiceState.InProgress)
+                {
+                    double rate = 100.0 / Math.Max(1, cleanSvc.TotalDurationSec);
+                    _cabinManager.CabinCleanliness = Math.Min(100.0, _cabinManager.CabinCleanliness + rate);
+                }
+
+                var waterSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Water/Waste");
+                if (waterSvc != null && waterSvc.State == GroundServiceState.InProgress)
+                {
+                    double rate = 100.0 / Math.Max(1, waterSvc.TotalDurationSec);
+                    _cabinManager.WaterLevel = Math.Min(100.0, _cabinManager.WaterLevel + rate);
+                    _cabinManager.WasteLevel = Math.Max(0.0, _cabinManager.WasteLevel - rate);
+                }
+                
+                var cargoSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Cargo/Luggage" || s.Name == "Cargo");
+                if (cargoSvc != null && cargoSvc.State == GroundServiceState.InProgress)
+                {
+                    double rate = 100.0 / Math.Max(1, cargoSvc.TotalDurationSec);
+                    _cabinManager.BaggageCompletion = Math.Min(100.0, _cabinManager.BaggageCompletion + rate);
+                }
+                // ------------------------------------------------
 
                 int totalSvc = _groundOpsManager.Services.Count;
                 if (totalSvc > 0)
@@ -179,11 +220,32 @@ namespace FlightSupervisor.UI
                 var boardingService = _groundOpsManager?.Services?.FirstOrDefault(s => s.Name == "Boarding");
                 double boardingProg = boardingService != null ? (boardingService.ProgressPercent / 100.0) : -1.0;
 
+                double currentCabinTemp = 22.0;
+
+                // Fenix Cabin Temp Fwd/Aft expose the rotary knob position from 0.0 (Cold) to 1.0 (Hot). 
+                // We map this into an empirical A320 range of 18°C to 30°C. If Lvar sends actual temp, we use it directly.
+                double mappedTempFwd = _phaseManager.FenixCabinTempFwd > 2.0 ? _phaseManager.FenixCabinTempFwd : 18.0 + (_phaseManager.FenixCabinTempFwd * 12.0);
+                double mappedTempAft = _phaseManager.FenixCabinTempAft > 2.0 ? _phaseManager.FenixCabinTempAft : 18.0 + (_phaseManager.FenixCabinTempAft * 12.0);
+
+                if (_phaseManager.FenixCabinTempFwd > 0.01 || _phaseManager.FenixCabinTempAft > 0.01) 
+                {
+                    _hasReceivedFenixLvars = true; // Latch so we know the data link is active!
+                }
+
+                if (_hasReceivedFenixLvars) 
+                {
+                    currentCabinTemp = (mappedTempFwd + mappedTempAft) / 2.0;
+                }
+                else if (Math.Abs(_cabinManager.CurrentAmbientTemperature - 15.0) > 0.1)
+                {
+                    currentCabinTemp = _cabinManager.CurrentAmbientTemperature;
+                }
+
                 _cabinManager.Tick(_phaseManager.GForce, _lastKnownBank, isBoardingComplete,
                                    _currentSimTime, sobtDate, _phaseManager.CurrentPhase, _lastKnownGroundSpeed,
                                    _lastKnownAltitude, _lastKnownVerticalSpeed,
                                    _phaseManager.IsGoAroundActive || _phaseManager.IsSevereTurbulenceActive || _phaseManager.HasEngineFailure,
-                                   22.0, boardingProg);
+                                   currentCabinTemp, boardingProg);
                 
                 SendTelemetryToWeb();
                 
@@ -238,20 +300,25 @@ namespace FlightSupervisor.UI
                             int groundOpsDelaySec = _groundOpsManager.Services.Sum(s => s.DelayAddedSec);
                             effectiveDelaySec = rawDelaySec - groundOpsDelaySec;
 
-                            if (effectiveDelaySec > 300) // 5 minutes late blaming the pilot
+                            // Dynamic delay tolerance based on airline punctuality (1=30m, 10=3m)
+                            int targetPunctuality = (CurrentAirline != null) ? CurrentAirline.PunctualityPriority : 5;
+                            int delayToleranceSec = Math.Max(180, (11 - targetPunctuality) * 180); // e.g. 10 -> 1*180 = 180s = 3m, 1 -> 10*180 = 1800s = 30m
+
+                            if (effectiveDelaySec > delayToleranceSec) // Pilot delay exceeds airline specific tolerance
                             {
-                                int penalty = effectiveDelaySec > 900 ? -100 : -50;
+                                int excess = (int)(effectiveDelaySec - delayToleranceSec);
+                                int penalty = excess > 600 ? -100 : -50; // -100 if more than 10 mins beyond tolerance
                                 string timeStr = $"{(rawDelaySec / 60)} min";
                                 string groundOpsPardon = groundOpsDelaySec > 0 ? $" (Amnistie Sol: -{groundOpsDelaySec / 60}m)" : "";
-                                _scoreManager.AddScore(penalty, $"Retard à l'arrivée: {timeStr}{groundOpsPardon}", ScoreCategory.Operations);
+                                _scoreManager.AddScore(penalty, $"Retard à l'arrivée (Tolérance dépassée): {timeStr}{groundOpsPardon}", ScoreCategory.Operations);
                             }
-                            else if (effectiveDelaySec <= 300 && rawDelaySec > 300)
+                            else if (effectiveDelaySec <= delayToleranceSec && rawDelaySec > delayToleranceSec)
                             {
                                 _scoreManager.AddScore(50, $"Amnistie Retard : {rawDelaySec / 60}m justifiés par les Ops Sol !", ScoreCategory.Operations);
                             }
-                            else if (rawDelaySec <= 300)
+                            else if (rawDelaySec <= delayToleranceSec)
                             {
-                                _scoreManager.AddScore(100, $"Ponctualité : Arrivée à l'heure !", ScoreCategory.Operations);
+                                _scoreManager.AddScore(100, $"Ponctualité : Arrivée dans les temps (Tolérance de {delayToleranceSec / 60}m respectée) !", ScoreCategory.Operations);
                             }
                         }
 
@@ -271,7 +338,19 @@ namespace FlightSupervisor.UI
 
                         bool cateringPerformed = _groundOpsManager.Services.Any(s => s.Name.Equals("Catering", StringComparison.OrdinalIgnoreCase) && s.State == GroundServiceState.Completed);
                         bool anySkipped = _groundOpsManager.Services.Any(s => s.State == GroundServiceState.Skipped);
-                        var objectiveResults = _scoreManager.EvaluateObjectives(CurrentAirline, effectiveDelaySec, (int)Math.Round(_cabinManager.AverageComfort), _phaseManager.TouchdownFpm, cateringPerformed);
+                        
+                        // Apply Prestige Modifier
+                        if (CurrentAirline != null)
+                        {
+                            double prestigeMod = CurrentAirline.GlobalScore / 100.0;
+                            int finalScore = (int)(_scoreManager.CurrentScore * prestigeMod);
+                            int prestigeDiff = finalScore - _scoreManager.CurrentScore;
+                            if (prestigeDiff != 0)
+                            {
+                                string msg = prestigeDiff > 0 ? $"Bonus Prestige Compagnie ({CurrentAirline.GlobalScore}%)" : $"Malus Expérience Compagnie ({CurrentAirline.GlobalScore}%)";
+                                _scoreManager.AddScore(prestigeDiff, msg, ScoreCategory.Operations);
+                            }
+                        }
 
                         int blockMins = _aobt.HasValue && _aibt.HasValue ? (int)(_aibt.Value - _aobt.Value).TotalMinutes : 0;
                         
@@ -326,7 +405,7 @@ namespace FlightSupervisor.UI
                                 isNight && landingLightsOff, 
                                 false, // go around
                                 blockMins, 
-                                objectiveResults.All(o => o.Passed));
+                                true);
 
                             p.LastFlightDate = DateTime.Now;
                             _profileManager.SaveProfile();
@@ -339,7 +418,7 @@ namespace FlightSupervisor.UI
                                 MaintenancePoints = _scoreManager.MaintenancePoints,
                                 OperationsPoints = _scoreManager.OperationsPoints,
                                 FlightEvents = _scoreManager.FlightEvents.Cast<object>().ToList(),
-                                Objectives = objectiveResults.Cast<object>().ToList(),
+                                Objectives = new List<object>(), // Retired Legacy Contract System
                                 NewAchievements = newBadges,
                                 Dep = _currentResponse?.Origin?.IcaoCode ?? "N/A",
                                 Arr = _currentResponse?.Destination?.IcaoCode ?? "N/A",
@@ -372,7 +451,7 @@ namespace FlightSupervisor.UI
                                 MaintenancePoints = _scoreManager.MaintenancePoints,
                                 OperationsPoints = _scoreManager.OperationsPoints,
                                 FlightEvents = _scoreManager.FlightEvents.Cast<object>().ToList(),
-                                Objectives = objectiveResults.Cast<object>().ToList(),
+                                Objectives = new List<object>(),
                                 NewAchievements = new List<FlightSupervisor.UI.Services.BadgeDefinition>(),
                                 Dep = _currentResponse?.Origin?.IcaoCode ?? "N/A",
                                 Arr = _currentResponse?.Destination?.IcaoCode ?? "N/A",
@@ -531,6 +610,16 @@ namespace FlightSupervisor.UI
             _simConnectService.OnCabinSeatbeltsChanged += sb => { 
                 _cabinManager.UpdateSeatbelts(sb, _phaseManager.CurrentPhase); 
                 _phaseManager.IsSeatbeltsOn = sb;
+
+                if (sb && _groundOpsManager != null)
+                {
+                    var refSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Refueling");
+                    if (refSvc != null && refSvc.State == GroundServiceState.InProgress && !_cabinManager.HasPenalizedRefuelingSeatbelts)
+                    {
+                        _cabinManager.TriggerRefuelingSeatbeltPenalty();
+                    }
+                }
+
                 if (_lastLogSeatbelts != null && _lastLogSeatbelts != sb) SendToWeb(new { type = "log", message = sb ? "Fasten Seatbelts ON" : "Fasten Seatbelts OFF" });
                 _lastLogSeatbelts = sb;
             };
@@ -594,6 +683,14 @@ namespace FlightSupervisor.UI
 
             _simConnectService.OnSimLocalTimeReceived += localTime => {
                 _cabinManager.CurrentSimLocalTime = localTime;
+            };
+
+            _simConnectService.OnAmbientTemperatureReceived += temp => {
+                _cabinManager.CurrentAmbientTemperature = temp;
+            };
+
+            _simConnectService.OnFuelTotalReceived += fuel => {
+                _currentFobKg = fuel;
             };
 
             Loaded += MainWindow_Loaded;
@@ -698,11 +795,7 @@ namespace FlightSupervisor.UI
                         _profileManager.SaveProfile();
                     }
                 }
-                else if (action == "acceptContract")
-                {
-                    _scoreManager.IsContractAccepted = true;
-                    SendToWeb(new { type = "log", message = "[Tycoon] Airline Objective Contract Accepted." });
-                }
+
                 else if (action == "fetchLogbook")
                 {
                     var history = FlightSupervisor.UI.Services.FlightLogger.GetLogbook();
@@ -834,6 +927,13 @@ namespace FlightSupervisor.UI
                     
                     await FetchFlightPlan(username, remember, units, weatherSource);
                 }
+                else if (action == "acknowledgeDebrief")
+                {
+                    _cabinManager.StartDeboarding();
+                    Dispatcher.Invoke(() => {
+                        SendToWeb(new { type = "switchTab", target = "groundops" });
+                    });
+                }
                 else if (action == "connectSim")
                 {
                     Dispatcher.Invoke(() => {
@@ -876,13 +976,6 @@ namespace FlightSupervisor.UI
                     if (!string.IsNullOrEmpty(srvName))
                     {
                         _groundOpsManager.SkipService(srvName);
-                        
-                        var srv = _groundOpsManager.Services.FirstOrDefault(s => s.Name == srvName);
-                    if (srv != null)
-                    {
-                        if (srvName == "Catering") _cabinManager.CateringCompletion = srv.ProgressPercent;
-                        if (srvName == "Cargo") _cabinManager.BaggageCompletion = srv.ProgressPercent;
-                    }
                     }
                 }
                 else if (action == "startService")
@@ -1040,7 +1133,7 @@ namespace FlightSupervisor.UI
                 radioHeight = _lastKnownRadioHeight,
                 isGearDown = _isGearDown,
                 seatbeltsOn = _cabinManager.IsSeatbeltsOn,
-                isDelayed = _groundOpsManager.TargetSobt != null && _currentSimTime > _groundOpsManager.TargetSobt.Value.AddMinutes(5),
+                isDelayed = _groundOpsManager.TargetSobt != null && (_aobt != null ? _aobt.Value > _groundOpsManager.TargetSobt.Value.AddMinutes(5) : _currentSimTime > _groundOpsManager.TargetSobt.Value.AddMinutes(5)),
                 isBoardingComplete = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Boarding")?.State == GroundServiceState.Completed,
                 anxiety = Math.Round(_cabinManager.PassengerAnxiety, 1),
                 comfort = Math.Round(_cabinManager.ComfortLevel, 1),
@@ -1060,6 +1153,14 @@ namespace FlightSupervisor.UI
                 activeCrisis = _crisisManager.ActiveCrisis.ToString(),
                 isGoAroundActive = _phaseManager.IsGoAroundActive,
                 isSevereTurbulenceActive = _phaseManager.IsSevereTurbulenceActive,
+                cateringCompletion = Math.Round(_cabinManager.CateringCompletion, 1),
+                cateringRations = _cabinManager.CateringRations,
+                thermalDissatisfaction = Math.Round(_cabinManager.ThermalDissatisfaction, 1),
+                cabinTemp = Math.Round(_cabinManager.LastKnownCabinTemp, 1),
+                cabinCleanliness = Math.Round(_cabinManager.CabinCleanliness, 1),
+                waterLevel = Math.Round(_cabinManager.WaterLevel, 1),
+                wasteLevel = Math.Round(_cabinManager.WasteLevel, 1),
+                baggageCompletion = Math.Round(_cabinManager.BaggageCompletion, 1),
                 isSilencePenaltyActive = _cabinManager.IsSilencePenaltyActive,
                 crisisElapsed = _crisisManager.CrisisStartTimeSeconds > 0 ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _crisisManager.CrisisStartTimeSeconds : 0,
                 passengers = _cabinManager.PassengerManifest,
@@ -1173,7 +1274,16 @@ namespace FlightSupervisor.UI
                     var manifestData = passengerService.GenerateManifest(response);
                     
                     _cabinManager.InitializeFlightDemographics(CurrentAirline, manifestData);
-                    _groundOpsManager.InitializeFromSimBrief(response, _cabinManager.SessionFlightsCompleted == 0 && _cabinManager.FirstFlightClean);
+                    
+                    if (CurrentAirline != null)
+                    {
+                        if (CurrentAirline.SafetyRecord >= 9) _crisisManager.Frequency = FlightSupervisor.UI.Services.CrisisFrequency.Realistic;
+                        else if (CurrentAirline.SafetyRecord >= 6) _crisisManager.Frequency = FlightSupervisor.UI.Services.CrisisFrequency.Frequent;
+                        else _crisisManager.Frequency = FlightSupervisor.UI.Services.CrisisFrequency.Chaos;
+                        System.Diagnostics.Debug.WriteLine($"[CRISIS] Safety Score: {CurrentAirline.SafetyRecord} -> Frequency set to: {_crisisManager.Frequency}");
+                    }
+                    
+                    _groundOpsManager.InitializeFromSimBrief(response, _cabinManager.SessionFlightsCompleted == 0 && _cabinManager.FirstFlightClean, _currentFobKg);
                     
                     // Trigger an immediate background fetch to populate initial live data without blocking the UI rendering if needed
                     _ = RefreshLiveWeatherAsync();

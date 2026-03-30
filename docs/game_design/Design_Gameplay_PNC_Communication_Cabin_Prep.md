@@ -60,3 +60,20 @@ The generated response must dynamically reflect the **current state of Passenger
 
 ### [FRONTEND] app.js / index.html
 - Le Dashboard doit simplement afficher la string générée par `CabinManager` dans la console des messages d'équipage. Rien à coder côté JS, le C# s'occupe de la logique conditionnelle.
+
+---
+
+## 5. Fonctionnalités Différées (En attente d'implémentation future)
+
+### 🚫 Anomalies Moteurs (Pushback / Taxi)
+- **Constat :** Les passagers s'attendent à ce qu'en phase de roulage ou pushback, l'avion soit en mouvement régulier. Entendre un moteur s'éteindre soudainement après son démarrage pendant cette phase génère de l'inquiétude.
+- **Règle à appliquer :** Si un ou les moteurs s'arrêtent anormalement pendant le pushback ou le roulage :
+  - L'Anxiété en cabine augmente.
+  - Le PNC (Chef de Cabine) informe le cockpit avec une question type : *"Captain, what's going on, an engine just stopped?"*
+
+### ⏳ Attente Prolongée inexpliquée sur le Taxiway
+- **Constat :** L'attente statique sur le taxiway sans mouvement ni information stresse les passagers au bout de 3 à 5 minutes.
+- **Règle à appliquer :** 
+  - Détecter l'immobilisation sur le taxiway (`GroundSpeed` ~0) pendant trop longtemps.
+  - Enclencher une baisse de satisfaction et montée d'anxiété.
+  - Exiger du CPT une annonce micro (PA ATC Delay / Congestion) pour stopper l'anxiété.
