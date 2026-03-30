@@ -257,137 +257,171 @@ document.addEventListener('DOMContentLoaded', () => {
         sysMenu.classList.remove('opacity-100');
     }
 
-    function updateIntercomButtons(payload) {
-        const container = document.getElementById('dynamicIntercomContainer');
-        if (!container) return;
-
-        let buttonsHtml = '';
-        const phase = payload.phaseEnum; // Provided via backend: "AtGate", "TaxiOut", "Cruise", etc.
-        const used = payload.issuedCommands || [];
-
-        // Button Generator Helper
-        const makeBtn = (action, val, text, colorClass, iconHtml) => {
-            const propName = action === 'pncCommand' ? 'command' : (action === 'resolveCrisis' ? 'crisisType' : 'annType');
-            return `<button onclick="window.chrome.webview.postMessage({action:'${action}', ${propName}:'${val}'})" class="w-full py-2 ${colorClass} rounded-lg text-white font-bold text-[10px] uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow hover:brightness-110">
-                        <span class="material-symbols-outlined text-[14px]">${iconHtml}</span> ${text}
-                    </button>`;
-        };
-
-        const colorsPnc = 'bg-sky-900/40 border border-sky-500/30 text-sky-400';
-        const colorsPa = 'bg-emerald-900/40 border border-emerald-500/30 text-emerald-400';
-        const colorsAlert = 'bg-orange-900/40 border border-orange-500/30 text-orange-400';
-
-        // Cabin Passenger Announcements (PA)
-        if (phase === 'TaxiOut' || phase === 'Pushback') {
-            if (!used.includes('PA_Welcome')) {
-                buttonsHtml += makeBtn('announceCabin', 'Welcome', 'PA: Welcome Aboard', colorsPa, 'campaign');
-            }
-        } else if (phase === 'Descent' && payload.altitude < 10000) {
-            if (!used.includes('PA_Descent')) {
-                buttonsHtml += makeBtn('announceCabin', 'Descent', 'PA: Initial Descent', colorsPa, 'campaign');
-            }
-        }
-
-        // Crisis PAs (High Priority)
-        if (payload.isGoAroundActive) {
-            const silenceClass = payload.isSilencePenaltyActive ? 'bg-red-600 border-red-400 animate-pulse' : colorsAlert;
-            buttonsHtml += makeBtn('announceCabin', 'GoAround', 'PA: Go-Around', silenceClass, 'replay');
-        }
+    const buildSelectOptions = (options) => {
+        if (options.length === 0) return `<option data-disabled="true" style="background-color: #1E2433; color: inherit;">STANDING BY...</option>`;
         
-        if (payload.isSevereTurbulenceActive) {
-            const silenceClass = payload.isSilencePenaltyActive ? 'bg-red-600 border-red-400 animate-pulse' : colorsAlert;
-            buttonsHtml += makeBtn('announceCabin', 'Turbulence', 'PA: Severe Turbulence', silenceClass, 'warning');
-        } else if (payload.seatbeltsOn && (phase === 'Cruise' || phase === 'Climb' || phase === 'Descent')) {
-             buttonsHtml += makeBtn('announceCabin', 'Turbulence', 'PA: Turbulence Warning', colorsAlert, 'campaign');
-        }
-
-        if (payload.isDelayed && !used.includes('PA_Delay') && (phase === 'AtGate' || phase === 'Boarding')) {
-            buttonsHtml += makeBtn('announceCabin', 'Delay', 'PA: Apology for Delay', colorsAlert, 'warning');
-        }
-
-        // PNC Crew Commands (Intercom)
-        if (phase === 'TaxiOut') {
-            if (!used.includes('PREPARE_TAKEOFF')) {
-                buttonsHtml += makeBtn('pncCommand', 'PREPARE_TAKEOFF', 'PNC: Prepare for Takeoff', colorsPnc, 'airline_seat_recline_normal');
-            }
-        }
-        if (phase === 'TaxiOut' || phase === 'Takeoff' || phase === 'InitialClimb') {
-            if (!used.includes('SEATS_TAKEOFF')) {
-                const isReady = payload.securingProgress >= 100;
-                const btnText = isReady ? 'PNC: Seats for Takeoff' : 'PNC: Force Seats (Caution)';
-                const btnClass = isReady ? colorsPnc : 'bg-red-900/40 border border-red-500/30 text-red-500';
-                buttonsHtml += makeBtn('pncCommand', 'SEATS_TAKEOFF', btnText, btnClass, 'airline_seat_recline_extra');
-            }
-        }
-        if (phase === 'Climb' || phase === 'Cruise') {
-            if (!used.includes('START_SERVICE') && payload.cabinState !== 'ServingMeals') {
-                buttonsHtml += makeBtn('pncCommand', 'START_SERVICE', 'PNC: Start Service', colorsPnc, 'room_service');
-            }
-        }
-        if (phase === 'Descent') {
-            if (!used.includes('PREPARE_LANDING')) {
-                buttonsHtml += makeBtn('pncCommand', 'PREPARE_LANDING', 'PNC: Prepare for Landing', colorsPnc, 'flight_land');
-            }
-        }
-        if (phase === 'Approach' || phase === 'FinalApproach') {
-            if (!used.includes('SEATS_LANDING')) {
-                const isReady = payload.securingProgress >= 100;
-                const btnText = isReady ? 'PNC: Seats for Landing' : 'PNC: Force Seats (Caution)';
-                const btnClass = isReady ? colorsPnc : 'bg-red-900/40 border border-red-500/30 text-red-500';
-                buttonsHtml += makeBtn('pncCommand', 'SEATS_LANDING', btnText, btnClass, 'airline_seat_recline_extra');
-            }
-        }
-
-        // Turbulence / Seatbelt Warnings (Available Airborne)
-        if (phase !== 'AtGate' && phase !== 'TaxiOut' && phase !== 'TaxiIn') {
-            if (payload.seatbeltsOn) {
-                buttonsHtml += makeBtn('announceCabin', 'Turbulence', 'PA: Turbulence Warning', colorsAlert, 'campaign');
-            }
-        }
-
-        // Active Crisis Resolutions
-        if (payload.activeCrisis === 'MedicalEmergency') {
-            buttonsHtml += makeBtn('resolveCrisis', 'MedicalEmergency', 'PA: Page Doctor On Board', 'bg-red-900/60 border border-red-500 text-red-400 animate-pulse', 'medical_services');
-        } else if (payload.activeCrisis === 'UnrulyPassenger') {
-            buttonsHtml += makeBtn('resolveCrisis', 'UnrulyPassenger', 'PNC: Restrain Passenger', 'bg-red-900/60 border border-red-500 text-red-400 animate-pulse', 'security');
-        }
-
-        // Intercom Reporting (Always available in flight)
-        const diffSec = payload.cabinReportCooldownElapsed || 999;
-        const isCd = diffSec < 120; // 2 minutes cooldown
-        const cdLeft = Math.ceil(120 - diffSec);
+        // Sort options so that enabled ones appear first
+        const sorted = [...options].sort((a, b) => (a.disabled === b.disabled) ? 0 : a.disabled ? 1 : -1);
         
-        const reportText = isCd ? `Report CD (${Math.floor(cdLeft/60)}m ${cdLeft%60}s)` : 'PNC: Request Cabin Report';
-        const reportClass = isCd ? 'bg-slate-800/40 border border-slate-700/30 text-slate-500 cursor-not-allowed opacity-70' : 'bg-slate-800/80 border border-slate-600/50 text-slate-300';
-        
-        buttonsHtml += `<button ${isCd ? 'disabled' : ''} onclick="requestCabinReport()" class="w-full py-2 ${reportClass} rounded-lg font-bold text-[10px] uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow hover:brightness-110 mb-2">
-                        <span class="material-symbols-outlined text-[14px]">assignment</span> ${reportText}
-                    </button>`;
-
-        // Service Interruption Button (Only if serving)
-        if (payload.cabinState === 'ServingMeals') {
-            const svcText = payload.isServiceHalted ? 'PNC: Resume Service' : 'PNC: Pause Service';
-            const svcClass = payload.isServiceHalted ? 'bg-emerald-900/40 border border-emerald-500/50 text-emerald-400' : 'bg-red-900/40 border border-red-500/50 text-red-400';
-            const svcIcon = payload.isServiceHalted ? 'play_arrow' : 'pause';
-            
-            buttonsHtml += `<button onclick="toggleServiceInterruption()" class="w-full py-2 ${svcClass} rounded-lg font-bold text-[10px] uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow hover:brightness-110">
-                            <span class="material-symbols-outlined text-[14px]">${svcIcon}</span> ${svcText}
-                        </button>`;
-        }
-
-        // Prevent redundant DOM updates
-        if (container.dataset.lastHtml !== buttonsHtml) {
-            container.innerHTML = buttonsHtml;
-            container.dataset.lastHtml = buttonsHtml;
-        }
-    }
-
-    window.requestCabinReport = function() {
-        window.chrome.webview.postMessage({ action: 'intercomQuery' });
+        return sorted.map(o => {
+            const text = o.disabled && o.reason ? `${o.text} (${o.reason})` : o.text;
+            return `<option value="${o.val}" data-action="${o.action || 'announceCabin'}" data-disabled="${o.disabled ? 'true' : 'false'}" style="background-color: #1E2433; color: inherit;">${text}</option>`;
+        }).join('');
     };
 
-    window.toggleServiceInterruption = function() {
-        window.chrome.webview.postMessage({ action: 'toggleService' });
+    const updateDropdown = (selectId, btnId, options, baseColorClass) => {
+        const select = document.getElementById(selectId);
+        const btn = document.getElementById(btnId);
+        if (!select || !btn) return;
+        
+        const html = buildSelectOptions(options);
+        // Avoid DOM reset if no changes (prevents flickering)
+        if (select.dataset.lastHtml !== html) {
+            const prevVal = select.value;
+            select.innerHTML = html;
+            select.dataset.lastHtml = html;
+            
+            if (options.length > 0 && !options.every(o => o.disabled)) {
+                // Try to keep previously selected if it's still enabled, else select the first enabled
+                const newMatch = Array.from(select.options).find(o => o.value === prevVal);
+                if (newMatch && newMatch.getAttribute('data-disabled') !== "true") select.value = prevVal;
+                else select.selectedIndex = 0;
+            } else if (options.length > 0) {
+                 select.selectedIndex = 0; // Select the first disabled item as fallback
+            }
+        }
+
+        const isCompletelyDisabled = select.options.length === 0 || select.options[select.selectedIndex]?.getAttribute('data-disabled') === "true";
+        
+        if (isCompletelyDisabled) {
+            select.classList.add('opacity-50');
+            
+            btn.disabled = true;
+            btn.classList.add('opacity-50'); /* REMOVED cursor-not-allowed */
+            btn.classList.remove(baseColorClass);
+            btn.title = 'Aucune action disponible en ce moment';
+        } else {
+            select.classList.remove('opacity-50');
+            
+            btn.disabled = false;
+            btn.classList.remove('opacity-50'); /* REMOVED cursor-not-allowed */
+            btn.classList.add(baseColorClass);
+            btn.title = 'Broadcast on Intercom';
+        }
+    };
+
+    function updateIntercomButtons(payload) {
+        // We no longer build a dynamic layout block, we push everything into the two dropdowns!
+        const phase = payload.phaseEnum; 
+        const used = payload.issuedCommands || [];
+
+        // 1. FLIGHT DECK PA ACTIONS
+        const paOptions = [];
+        
+        if (!used.includes('PA_Welcome')) {
+            const ok = ['AtGate', 'Pushback', 'TaxiOut'].includes(phase) && payload.isBoardingComplete;
+            paOptions.push({ val: 'Welcome', text: 'PA: Welcome Aboard', disabled: !ok, reason: 'Embarquement requis' });
+        } 
+        if (!used.includes('PA_Approach') && ['Approach', 'FinalApproach'].includes(phase)) {
+            const ok = phase === 'Approach';
+            paOptions.push({ val: 'Approach', text: 'PA: Approach Info', disabled: !ok, reason: 'Approche requise' });
+        }
+        
+        paOptions.push({ val: 'CruiseStatus', text: 'PA: Cruise Status', disabled: phase !== 'Cruise', reason: 'Croisière requise' });
+        paOptions.push({ val: 'ArrivalWeather', text: 'PA: Arrival Weather', disabled: !['Descent', 'Approach'].includes(phase), reason: 'Descente/Approche requise' });
+        
+        if (flightHasExperiencedDelay) {
+            paOptions.push({ val: 'DelayApology', text: 'PA: Delay Apology', disabled: false, reason: '' });
+        }
+        
+        if (flightHasExperiencedTurbulence) {
+            const isInAir = ['Takeoff', 'Climb', 'Cruise', 'Descent', 'Approach', 'FinalApproach'].includes(phase);
+            paOptions.push({ val: 'TurbulenceApology', text: 'PA: Turbulence Apology', disabled: !isInAir, reason: 'En vol uniquement' });
+        }
+
+        if (payload.isGoAroundActive) {
+            paOptions.push({ val: 'GoAround', text: '*** PA: Go-Around ***', disabled: false, reason: '' });
+        }
+        if (payload.isSevereTurbulenceActive && phase === 'Cruise') {
+            paOptions.push({ val: 'Turbulence', text: '*** PA: Severe Turbulence ***', disabled: false, reason: '' });
+        }
+        if (payload.activeCrisis === 'MedicalEmergency') {
+            paOptions.push({ val: 'MedicalEmergency', text: '*** PA: Doctor On Board ***', disabled: false, reason: '', action: 'resolveCrisis' });
+        }
+
+        // 2. FLIGHT DECK TO PNC ACTIONS
+        const pncOptions = [];
+        
+        const diffSec = payload.cabinReportCooldownElapsed || 999;
+        const isCd = diffSec < 120;
+        const cdLeft = Math.ceil(120 - diffSec);
+        pncOptions.push({ 
+            val: 'intercomQuery', 
+            text: 'INT: Request Cabin Report', 
+            disabled: isCd, 
+            reason: isCd ? `Report Cooldown (${Math.floor(cdLeft/60)}m ${cdLeft%60}s)` : '',
+            action: 'intercomQuery'
+        });
+
+        if (!used.includes('ARM_DOORS') && ['AtGate', 'Pushback'].includes(phase)) {
+            const ok = payload.isBoardingComplete;
+            pncOptions.push({ val: 'ARM_DOORS', text: 'INT: Arm Doors', disabled: !ok, reason: 'Embarquement requis', action: 'pncCommand' });
+        }
+        if (!used.includes('PREPARE_TAKEOFF') && phase === 'TaxiOut') {
+            pncOptions.push({ val: 'PREPARE_TAKEOFF', text: 'INT: Prepare Cabin for Takeoff', disabled: false, reason: '', action: 'pncCommand' });
+        }
+        if (!used.includes('SEATS_TAKEOFF') && phase === 'TaxiOut') {
+            const isReady = payload.securingProgress >= 100;
+            pncOptions.push({ val: 'SEATS_TAKEOFF', text: isReady ? 'INT: Seats for Takeoff' : 'INT: Force Seats (Caution)', disabled: false, reason: '', action: 'pncCommand' });
+        }
+        if (!used.includes('TOP_DESCENT') && ['Cruise', 'Descent'].includes(phase)) {
+            pncOptions.push({ val: 'TOP_DESCENT', text: 'INT: Inform Top of Descent', disabled: false, reason: '', action: 'pncCommand' });
+        }
+        if (!used.includes('PREPARE_LANDING') && ['Cruise', 'Descent', 'Approach', 'FinalApproach'].includes(phase)) {
+            const ok = payload.altitude <= 10000 && phase !== 'Cruise';
+            pncOptions.push({ val: 'PREPARE_LANDING', text: 'INT: Prepare Cabin for Landing', disabled: !ok, reason: 'Passage sous 10 000 ft requis', action: 'pncCommand' });
+        }
+        if (!used.includes('SEATS_LANDING') && ['Descent', 'Approach'].includes(phase)) {
+            const ok = phase === 'Approach' || payload.altitude <= 5000;
+            const isReady = payload.securingProgress >= 100;
+            pncOptions.push({ val: 'SEATS_LANDING', text: isReady ? 'INT: Seats for Landing' : 'INT: Force Seats (Caution)', disabled: !ok, reason: "Approche requise", action: 'pncCommand' });
+        }
+        if (payload.cabinState === 'ServingMeals') {
+            const svcText = payload.isServiceHalted ? 'PNC: Resume Service' : 'PNC: Pause Service';
+            pncOptions.push({ val: 'toggleService', text: svcText, disabled: false, reason: '', action: 'toggleService' });
+        }
+        if (payload.activeCrisis === 'UnrulyPassenger') {
+            pncOptions.push({ val: 'UnrulyPassenger', text: '*** INT: Restrain Passenger ***', disabled: false, reason: '', action: 'resolveCrisis' });
+        }
+
+        updateDropdown('dropdownPA', 'btnStaticPA', paOptions, 'hover:bg-sky-800/60');
+        updateDropdown('dropdownPNC', 'btnStaticPNC', pncOptions, 'hover:bg-amber-800/60');
+    }
+
+    window.triggerPA = function() {
+        const select = document.getElementById('dropdownPA');
+        if (!select || !select.value) return;
+        const opt = select.options[select.selectedIndex];
+        if (opt.getAttribute('data-disabled') === "true") return;
+
+        const action = opt.getAttribute('data-action') || 'announceCabin';
+        const propName = action === 'resolveCrisis' ? 'crisisType' : 'annType';
+        window.chrome.webview.postMessage({action: action, [propName]: select.value});
+    };
+
+    window.triggerPNC = function() {
+        const select = document.getElementById('dropdownPNC');
+        if (!select || !select.value) return;
+        const opt = select.options[select.selectedIndex];
+        if (opt.getAttribute('data-disabled') === "true") return;
+
+        const action = opt.getAttribute('data-action') || 'pncCommand';
+        
+        let msg = { action: action };
+        if (action === 'pncCommand') msg.command = select.value;
+        else if (action === 'resolveCrisis') msg.crisisType = select.value;
+        
+        window.chrome.webview.postMessage(msg);
     };
 
     window.requestAcarsUpdate = function() {
@@ -396,14 +430,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const originalText = btn.innerHTML;
         
         btn.innerHTML = `<span class="material-symbols-outlined text-[14px] animate-spin">sync</span> REQ SENT...`;
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        btn.classList.add('opacity-50');
         btn.disabled = true;
 
         window.chrome.webview.postMessage({ action: 'acarsWeatherRequest' });
 
         setTimeout(() => {
             btn.innerHTML = originalText;
-            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            btn.classList.remove('opacity-50');
             btn.disabled = false;
         }, 3000);
     };
@@ -420,6 +454,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedHardcore = localStorage.getItem('chkHardcore');
     if (savedHardcore !== null && document.getElementById('chkHardcore')) {
         document.getElementById('chkHardcore').checked = (savedHardcore === 'true');
+    }
+
+    const savedFFClean = localStorage.getItem('firstFlightClean');
+    if (savedFFClean !== null && document.getElementById('chkFirstFlightClean')) {
+        document.getElementById('chkFirstFlightClean').checked = (savedFFClean === 'true');
     }
 
     const savedTop = localStorage.getItem('chkAlwaysOnTop');
@@ -469,6 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const groundProb = document.getElementById('rngProb') ? document.getElementById('rngProb').value : '25';
             const weatherSrc = document.getElementById('selWeatherSource') ? document.getElementById('selWeatherSource').value : 'SimBrief';
             const gsxSync = document.getElementById('chkGsxSync') ? document.getElementById('chkGsxSync').checked : false;
+            const ffClean = document.getElementById('chkFirstFlightClean') ? document.getElementById('chkFirstFlightClean').checked : true;
             
             const selItems = ['selLanguage', 'selTimeFormat', 'selUnitSpeed', 'selUnitAlt', 'selUnitWeight', 'selUnitTemp', 'selUnitPress', 'selCrisisFreq'];
             selItems.forEach(id => {
@@ -482,6 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const hardcore = document.getElementById('chkHardcore') ? document.getElementById('chkHardcore').checked : false;
             localStorage.setItem('chkHardcore', hardcore);
+            localStorage.setItem('firstFlightClean', ffClean);
             
             const isTop = document.getElementById('chkAlwaysOnTop') ? document.getElementById('chkAlwaysOnTop').checked : false;
             localStorage.setItem('chkAlwaysOnTop', isTop);
@@ -680,6 +721,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const remember = document.getElementById('sbRemember').checked;
         const groundSpeed = document.getElementById('selGroundOpsSpeed') ? document.getElementById('selGroundOpsSpeed').value : 'Realistic';
         const groundProb = rngProb ? rngProb.value : '25';
+        const ffClean = document.getElementById('chkFirstFlightClean') ? document.getElementById('chkFirstFlightClean').checked : true;
         
         if (username.trim() === '') {
             document.getElementById('fetchStatus').innerText = 'Username required.';
@@ -688,6 +730,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         localStorage.setItem('groundSpeed', groundSpeed);
         localStorage.setItem('groundProb', groundProb);
+        localStorage.setItem('firstFlightClean', ffClean);
         
         window.chrome.webview.postMessage({
             action: 'fetch',
@@ -696,6 +739,7 @@ document.addEventListener('DOMContentLoaded', () => {
             weatherSource: localStorage.getItem('weatherSource') || 'simbrief',
             groundSpeed: groundSpeed,
             groundProb: groundProb,
+            firstFlightClean: ffClean,
             units: {
                 weight: localStorage.getItem('selUnitWeight') || 'LBS',
                 temp: localStorage.getItem('selUnitTemp') || 'C',
@@ -754,6 +798,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentSobtUnix = 0;
     let isFlightCancelled = false;
+    let flightHasExperiencedDelay = false;
+    let flightHasExperiencedTurbulence = false;
 
     // WebView2 Global Message Receiver
     window.chrome.webview.addEventListener('message', event => {
@@ -763,13 +809,20 @@ document.addEventListener('DOMContentLoaded', () => {
         switch (payload.type) {
             case 'briefingUpdate':
                 if (typeof window.parseBriefing === 'function') {
-                    const html = window.parseBriefing(payload.briefing);
+                    const parsedHtml = window.parseBriefing(payload.briefing);
                     const briefingElem = document.getElementById('briefingContent');
-                    if (briefingElem) briefingElem.innerHTML = html;
+                    if (briefingElem && briefingElem.dataset.lastBriefingHtml !== parsedHtml) {
+                        briefingElem.innerHTML = parsedHtml;
+                        briefingElem.dataset.lastBriefingHtml = parsedHtml;
+                    }
                 }
                 break;
             case 'savedUsername':
                 document.getElementById('sbUsername').value = payload.username;
+                break;
+            case 'appVersion':
+                const el = document.getElementById('appBuildString');
+                if (el) el.innerText = payload.version;
                 break;
             case 'simConnectStatus':
                 isSimConnected = payload.status.includes('Connected') || payload.status.includes('Linked');
@@ -792,6 +845,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 break;
             case 'telemetry':
+                if (payload.isDelayed === true) flightHasExperiencedDelay = true;
+                if (payload.turbulenceSeverity > 1) flightHasExperiencedTurbulence = true; // Moderate, Severe or Extreme
+                
                 updateIntercomButtons(payload);
                 document.getElementById('flightPhase').innerText = `${payload.phase}`;
 
@@ -834,39 +890,99 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
+                const isAtGate = payload.phaseEnum === 'AtGate';
+                const boardingFinished = payload.passengers && payload.passengers.length > 0 ? payload.passengers.every(p => (p.IsBoarded !== undefined ? p.IsBoarded : p.isBoarded)) : false;
+                const hideCabinStats = isAtGate && !boardingFinished;
+
                 if (payload.anxiety !== undefined) {
                     const anxEl = document.getElementById('paxAnxietyValue');
                     const anxBar = document.getElementById('paxAnxietyBar');
                     if (anxEl && anxBar) {
-                        anxEl.innerHTML = `${Math.round(payload.anxiety)}<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
-                        anxBar.style.width = `${Math.round(payload.anxiety)}%`;
-                        let color = '#34D399';
-                        if (payload.anxiety >= 60) color = '#EF4444';
-                        else if (payload.anxiety >= 30) color = '#F59E0B';
-                        
-                        anxEl.style.color = color;
-                        anxEl.style.textShadow = `0 0 20px ${color}4A`;
-                        anxBar.style.backgroundColor = color;
-                        anxBar.style.boxShadow = `0 0 8px ${color}80`;
+                        if (hideCabinStats) {
+                            anxEl.innerHTML = `--<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
+                            anxEl.style.color = '#64748b'; // slate-500
+                            anxEl.style.textShadow = 'none';
+                            anxBar.style.width = '0%';
+                        } else {
+                            anxEl.innerHTML = `${Math.round(payload.anxiety)}<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
+                            anxBar.style.width = `${Math.round(payload.anxiety)}%`;
+                            let color = '#34D399';
+                            if (payload.anxiety >= 60) color = '#EF4444';
+                            else if (payload.anxiety >= 30) color = '#F59E0B';
+                            
+                            anxEl.style.color = color;
+                            anxEl.style.textShadow = `0 0 20px ${color}4A`;
+                            anxBar.style.backgroundColor = color;
+                            anxBar.style.boxShadow = `0 0 8px ${color}80`;
+                        }
                     }
                 }
                 if (payload.comfort !== undefined) {
                     const comfEl = document.getElementById('paxComfortValue');
                     const comfBar = document.getElementById('paxComfortBar');
                     if (comfEl && comfBar) {
-                        comfEl.innerHTML = `${Math.round(payload.comfort)}<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
-                        comfBar.style.width = `${Math.round(payload.comfort)}%`;
-                        let color = '#38bdf8';
-                        if (payload.comfort <= 30) color = '#EF4444';
-                        else if (payload.comfort <= 60) color = '#F59E0B';
-                        else if (payload.comfort <= 80) color = '#34D399';
-                        
-                        comfEl.style.color = color;
-                        comfEl.style.textShadow = `0 0 20px ${color}4A`;
-                        comfBar.style.backgroundColor = color;
-                        comfBar.style.boxShadow = `0 0 8px ${color}80`;
+                        if (hideCabinStats) {
+                            comfEl.innerHTML = `--<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
+                            comfEl.style.color = '#64748b';
+                            comfEl.style.textShadow = 'none';
+                            comfBar.style.width = '0%';
+                        } else {
+                            comfEl.innerHTML = `${Math.round(payload.comfort)}<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
+                            comfBar.style.width = `${Math.round(payload.comfort)}%`;
+                            let color = '#38bdf8';
+                            if (payload.comfort <= 30) color = '#EF4444';
+                            else if (payload.comfort <= 60) color = '#F59E0B';
+                            else if (payload.comfort <= 80) color = '#34D399';
+                            
+                            comfEl.style.color = color;
+                            comfEl.style.textShadow = `0 0 20px ${color}4A`;
+                            comfBar.style.backgroundColor = color;
+                            comfBar.style.boxShadow = `0 0 8px ${color}80`;
+                        }
                     }
                 }
+
+                if (payload.satisfaction !== undefined) {
+                    const satEl = document.getElementById('paxSatisfactionValue');
+                    const satBar = document.getElementById('paxSatisfactionBar');
+                    if (satEl && satBar) {
+                        if (hideCabinStats) {
+                            satEl.innerHTML = `--<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
+                            satEl.style.color = '#64748b';
+                            satEl.style.textShadow = 'none';
+                            satBar.style.width = '0%';
+                        } else {
+                            satEl.innerHTML = `${Math.round(payload.satisfaction)}<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
+                            satBar.style.width = `${Math.round(payload.satisfaction)}%`;
+                            let color = '#34D399'; // Emerald
+                            if (payload.satisfaction < 50) color = '#EF4444'; // Red
+                            else if (payload.satisfaction < 80) color = '#F59E0B'; // Amber
+                            
+                            satEl.style.color = color;
+                            satEl.style.textShadow = `0 0 20px ${color}4A`;
+                            satBar.style.backgroundColor = color;
+                            satBar.style.boxShadow = `0 0 8px ${color}80`;
+                        }
+                    }
+                }
+
+                if (payload.crewProactivity !== undefined) {
+                    const formatColor = (val, el) => {
+                        if (el && val !== undefined) {
+                            el.innerText = Math.round(val);
+                            let color = '#34D399'; // Emerald
+                            if (val < 40) color = '#EF4444'; // Red
+                            else if (val < 75) color = '#F59E0B'; // Amber
+                            el.style.color = color;
+                            el.style.textShadow = `0 0 10px ${color}60`;
+                        }
+                    };
+                    
+                    formatColor(payload.crewProactivity, document.getElementById('crewProactivityLabel'));
+                    formatColor(payload.crewEfficiency, document.getElementById('crewEfficiencyLabel'));
+                    formatColor(payload.crewMorale, document.getElementById('crewMoraleLabel'));
+                }
+
 
                 // Satiety and Catering Progression
                 const sIcon = document.getElementById('satietyIcon');
@@ -1376,15 +1492,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (clog) {
                     if (clog.children.length === 1 && clog.children[0].innerText.includes('Standing by')) clog.innerHTML = '';
                     const cli = document.createElement('li');
-                    cli.innerText = `[${window.getLocalFormattedTime()}] ${payload.message}`;
-                    if (payload.level === 'red') cli.style.color = '#EF4444';
-                    else if (payload.level === 'orange') cli.style.color = '#F59E0B';
-                    else cli.style.color = '#38BDF8';
+                    let msg = payload.message || '';
+                    let prefixMatch = msg.match(/^\[(.*?)\]/);
+                    let prefixHtml = "";
+                    let colorHash = payload.level === 'red' ? '#EF4444' : (payload.level === 'orange' ? '#F59E0B' : '#38BDF8');
+                    
+                    if (prefixMatch) {
+                        const tag = prefixMatch[1];
+                        msg = msg.substring(prefixMatch[0].length).trim();
+                        let tagColor = '#e2e8f0'; // default
+                        if (tag === 'CPT PA') tagColor = '#10b981'; // emerald-500
+                        else if (tag === 'PNC PA') tagColor = '#38bdf8'; // sky-400
+                        else if (tag === 'CPT INT') tagColor = '#f59e0b'; // amber-500
+                        else if (tag === 'PNC INT') tagColor = '#22d3ee'; // cyan-400
+                        
+                        prefixHtml = `<span style="color:${tagColor}; font-weight:bold; font-size:10px; margin-right:4px;">[${tag}]</span>`;
+                        if (payload.level !== 'red' && payload.level !== 'orange') colorHash = '#e2e8f0';
+                    } else if (msg.startsWith("PA:")) {
+                        msg = msg.substring(3).trim();
+                        prefixHtml = `<span style="color:#10b981; font-weight:bold; font-size:10px; margin-right:4px;">[CPT PA]</span>`;
+                        if (payload.level !== 'red' && payload.level !== 'orange') colorHash = '#e2e8f0';
+                    } else if (msg.startsWith("Captain,") || msg.startsWith("Commandant,") || payload.level === 'info') {
+                        prefixHtml = `<span style="color:#22d3ee; font-weight:bold; font-size:10px; margin-right:4px;">[PNC INT]</span>`;
+                        if (payload.level !== 'red' && payload.level !== 'orange') colorHash = '#e2e8f0';
+                    } else {
+                        // Uncategorized
+                        prefixHtml = `<span style="color:#slate-500; font-weight:bold; font-size:10px; margin-right:4px;">[SYS]</span>`;
+                    }
+                    
+                    cli.innerHTML = `<span style="color:#64748b; margin-right:4px; font-size: 9px;">${window.getLocalFormattedTime()}</span>${prefixHtml}<span style="color:${colorHash}">${msg}</span>`;
                     cli.style.marginBottom = '5px';
                     cli.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
                     cli.style.paddingBottom = '3px';
                     clog.prepend(cli);
-                    if (clog.children.length > 3) clog.removeChild(clog.lastChild);
+                    if (clog.children.length > 5) clog.removeChild(clog.lastChild);
                 }
                 if (payload.audioSequence && payload.audioSequence.length > 0) {
                     if (window.audioEngine) window.audioEngine.playSequence(payload.audioSequence);
@@ -1921,8 +2062,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const briefingElem = document.getElementById('briefingContent');
                 if (briefingElem) {
-                    briefingElem.style.whiteSpace = 'normal'; // Reset from pre-wrap
-                    briefingElem.innerHTML = window.parseBriefing(payload.briefing);
+                    const parsedHtml = window.parseBriefing(payload.briefing);
+                    if (briefingElem.dataset.lastBriefingHtml !== parsedHtml) {
+                        briefingElem.style.whiteSpace = 'normal'; // Reset from pre-wrap
+                        briefingElem.innerHTML = parsedHtml;
+                        briefingElem.dataset.lastBriefingHtml = parsedHtml;
+                    }
                 }
                 
                 if (payload.manifest) {
@@ -1945,8 +2090,12 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'briefingUpdate':
                 const updBriefingElem = document.getElementById('briefingContent');
                 if (updBriefingElem) {
-                    updBriefingElem.style.whiteSpace = 'normal';
-                    updBriefingElem.innerHTML = window.parseBriefing(payload.briefing);
+                    const parsedHtml = window.parseBriefing(payload.briefing);
+                    if (updBriefingElem.dataset.lastBriefingHtml !== parsedHtml) {
+                        updBriefingElem.style.whiteSpace = 'normal';
+                        updBriefingElem.innerHTML = parsedHtml;
+                        updBriefingElem.dataset.lastBriefingHtml = parsedHtml;
+                    }
                 }
                 break;
             case 'groundOps':
@@ -2140,7 +2289,8 @@ function renderGroundOps(services) {
         else if (locName === "Water/Waste") locName = mDict.gops_water || locName;
 
         let locStatus = s.StatusMessage;
-        if (locStatus === "In Progress") locStatus = mDict.gops_stat_prog || locStatus;
+        if (s.IsPreServiced) locStatus = mDict.gops_pre_serviced || "ALREADY SERVICED";
+        else if (locStatus === "In Progress") locStatus = mDict.gops_stat_prog || locStatus;
         else if (locStatus === "Completed") locStatus = mDict.gops_stat_comp || locStatus;
         else if (locStatus === "Skipped by Capt.") locStatus = mDict.gops_stat_skip || locStatus;
 
@@ -2163,12 +2313,23 @@ function renderGroundOps(services) {
 
         let statusColor = '#94A3B8';
         let barColor = '#4A90E2';
+        let titleColor = s.State === 3 ? (s.IsPreServiced ? '#64748B' : '#34D399') : '#F8FAFC';
+        let opacityClass = s.IsPreServiced ? 'opacity-50' : '';
+
         if (s.State === 2 /* Delayed */) { 
             let c = getSeverityColor(s.DelayAddedSec);
             statusColor = c; 
             barColor = c; 
         }
-        else if (s.State === 3 /* Completed */) { statusColor = '#34D399'; barColor = '#34D399'; }
+        else if (s.State === 3 /* Completed */) { 
+            if (s.IsPreServiced) {
+                statusColor = '#64748B'; 
+                barColor = '#475569'; 
+            } else {
+                statusColor = '#34D399'; 
+                barColor = '#34D399'; 
+            }
+        }
         else if (s.State === 4 /* Skipped */) { statusColor = '#F87171'; barColor = '#F87171'; }
         else if (s.State === 0 /* WaitingForAction */) { statusColor = '#FACC15'; barColor = '#334155'; }
 
@@ -2199,12 +2360,12 @@ function renderGroundOps(services) {
         else if (s.State === 0) statusStateLabel = 'WAITING FOR ACTION';
 
         html += `
-            <div class="go-accordion bg-[#12141A] rounded-xl border border-white/5 overflow-hidden flex flex-col h-full">
+            <div class="go-accordion bg-[#12141A] rounded-xl border border-white/5 overflow-hidden flex flex-col h-full ${opacityClass}">
                 <div class="go-acc-header p-4 cursor-pointer hover:bg-white/[0.02] flex justify-between items-center transition-colors border-b border-transparent" onclick="toggleAccordion('${s.Name}')">
                     <div class="go-acc-title flex flex-col gap-1">
                         <div class="flex items-center gap-2">
                             <span class="go-icon text-lg flex items-center">${icon}</span>
-                            <strong style="color: ${s.State === 3 ? '#34D399' : '#F8FAFC'};" class="font-label tracking-[0.4em] uppercase text-xs">${locName}</strong>
+                            <strong style="color: ${titleColor};" class="font-label tracking-[0.4em] uppercase text-xs">${locName}</strong>
                         </div>
                     </div>
                     <div class="go-acc-summary flex items-center gap-3">
@@ -2283,8 +2444,15 @@ window.renderManifest = function(manifest) {
     
     if (existingMap && expectedPaxCount === manifest.Passengers.length) {
         let boardedCount = 0;
+        let fastenedCount = 0;
+        let injuredCount = 0;
+        
         manifest.Passengers.forEach(p => {
-            if (p.IsBoarded !== false) boardedCount++;
+            if (p.IsBoarded !== false) {
+                boardedCount++;
+                if (p.IsSeatbeltFastened) fastenedCount++;
+                if (p.IsInjured) injuredCount++;
+            }
             let seatEl = document.getElementById('seat-' + p.Seat);
             if (seatEl) {
                 if (p.IsBoarded !== false) {
@@ -2309,6 +2477,20 @@ window.renderManifest = function(manifest) {
         if (headerLabel) {
             headerLabel.innerText = `LIST (${boardedCount} / ${manifest.Passengers.length} PAX)`;
         }
+
+        let totalSeats = container.dataset.totalSeats ? parseInt(container.dataset.totalSeats) : expectedPaxCount;
+        let unfastenedCount = boardedCount - fastenedCount;
+        let emptyCount = totalSeats - boardedCount;
+
+        let elFast = document.getElementById('legFastenedVal');
+        if (elFast) elFast.innerText = fastenedCount;
+        let elUnfast = document.getElementById('legUnfastenedVal');
+        if (elUnfast) elUnfast.innerText = unfastenedCount;
+        let elEmpty = document.getElementById('legEmptyVal');
+        if (elEmpty) elEmpty.innerText = emptyCount;
+        let elInj = document.getElementById('legInjuredVal');
+        if (elInj) elInj.innerText = injuredCount;
+
         return; // Fast update complete!
     }
 
@@ -2333,6 +2515,9 @@ window.renderManifest = function(manifest) {
         lettersCenter = ['D', 'E', 'F', 'G'];
         lettersRight = ['H', 'J', 'K']; 
     }
+
+    let totalAircraftSeats = maxRow * (lettersLeft.length + lettersCenter.length + lettersRight.length);
+    container.dataset.totalSeats = totalAircraftSeats;
 
     let seatMapHtml = `
         <style>
@@ -2552,9 +2737,17 @@ window.renderManifest = function(manifest) {
     const thName = mDict.man_th_name || "Name";
     const thNat = mDict.man_th_nat || "Nat.";
     const thAge = mDict.man_th_age || "Age";
+    
+    let fastenedCount = manifest.Passengers.filter(p => p.IsBoarded !== false && p.IsSeatbeltFastened).length;
+    let unfastenedCount = boardedInitialCount - fastenedCount;
+    let injuredCount = manifest.Passengers.filter(p => p.IsBoarded !== false && p.IsInjured).length;
+    let fallbackAircraftSeats = container.dataset.totalSeats ? parseInt(container.dataset.totalSeats) : manifest.Passengers.length;
+    let emptyCount = fallbackAircraftSeats - boardedInitialCount;
 
     html += `       </ul>
-                    <h3 id="paxListHeader" class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 border-b border-white/5 pb-3 mb-4">${paxListLabel} (${boardedInitialCount} / ${manifest.Passengers.length} PAX)</h3>
+                    <div class="border-b border-white/5 pb-3 mb-4" style="display:flex; justify-content:space-between; align-items:flex-end;">
+                        <h3 id="paxListHeader" class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80" style="margin:0;">${paxListLabel} (${boardedInitialCount} / ${manifest.Passengers.length} PAX)</h3>
+                    </div>
                 </div>
                 <div style="flex: 1; overflow-y: auto; padding-right: 15px; border-right: 1px solid #1e293b; color:#94A3B8; font-size:13px;">
                     <table style="width:100%; text-align:left; border-collapse: collapse;">
@@ -2570,14 +2763,16 @@ window.renderManifest = function(manifest) {
     `;
 
     manifest.Passengers.forEach(p => {
-        html += `
-            <tr style="border-bottom: 1px solid rgba(51, 65, 85, 0.4);">
-                <td style="padding: 3px 4px; color: #38BDF8; font-weight: bold;">${p.Seat}</td>
-                <td style="padding: 3px 4px;">${p.Name}</td>
-                <td style="padding: 3px 4px;">${p.Nationality}</td>
-                <td style="padding: 3px 4px; text-align: center;">${p.Age}</td>
-            </tr>
-        `;
+        if (p.IsBoarded !== false) {
+            html += `
+                <tr style="border-bottom: 1px solid rgba(51, 65, 85, 0.4);">
+                    <td style="padding: 3px 4px; color: #38BDF8; font-weight: bold;">${p.Seat}</td>
+                    <td style="padding: 3px 4px;">${p.Name}</td>
+                    <td style="padding: 3px 4px;">${p.Nationality}</td>
+                    <td style="padding: 3px 4px; text-align: center;">${p.Age}</td>
+                </tr>
+            `;
+        }
     });
 
     html += `           </tbody>
@@ -2589,10 +2784,10 @@ window.renderManifest = function(manifest) {
                 <div class="flex justify-between items-center border-b border-white/5 pb-3 mb-4 flex-shrink-0">
                     <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-0">${mapLabel}</h3>
                     <div class="flex gap-4 text-[9px] font-label tracking-widest text-slate-400 uppercase">
-                        <div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded bg-[#0ea5e9]"></div> ${legFastened}</div>
-                        <div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded bg-[#ef4444]"></div> ${legUnfastened}</div>
-                        <div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded bg-[#334155]"></div> ${legEmpty}</div>
-                        <div class="flex items-center gap-1"><span class="material-symbols-outlined text-[10px] text-red-500">medical_services</span> ${legInjured}</div>
+                        <div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded bg-[#0ea5e9]"></div> <span id="legFastenedVal">${fastenedCount}</span> ${legFastened}</div>
+                        <div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded bg-[#ef4444]"></div> <span id="legUnfastenedVal">${unfastenedCount}</span> ${legUnfastened}</div>
+                        <div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded bg-[#334155]"></div> <span id="legEmptyVal">${emptyCount}</span> ${legEmpty}</div>
+                        <div class="flex items-center gap-1"><span class="material-symbols-outlined text-[10px] text-red-500">medical_services</span> <span id="legInjuredVal">${injuredCount}</span> ${legInjured}</div>
                     </div>
                 </div>
                 <div id="seatMapViewport" style="flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; padding-top: 10px; cursor: grab; position: relative;">

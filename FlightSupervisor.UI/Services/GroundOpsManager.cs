@@ -20,6 +20,7 @@ namespace FlightSupervisor.UI.Services
         public string ActiveDelayEvent { get; set; } = "";
         public bool IsOptional { get; set; }
         public bool HasBeenDelayed { get; set; } = false;
+        public bool IsPreServiced { get; set; } = false;
         
         // Story 29: Scheduled Ground Services
         public int StartOffsetMinutes { get; set; }
@@ -42,6 +43,7 @@ namespace FlightSupervisor.UI.Services
     {
         public List<GroundService> Services { get; private set; } = new();
         public GroundOpsSpeed SpeedSetting { get; set; } = GroundOpsSpeed.Realistic;
+        public double CurrentCrewEfficiency { get; set; } = 100.0;
         public int EventProbabilityPercent { get; set; } = 20;
         public string CurrentAirportTier { get; private set; } = "Tier A";
         public string CurrentAirportTierDescription { get; private set; } = "Most of the time, this airport has excellent infrastructure and operations are quick.";
@@ -54,44 +56,46 @@ namespace FlightSupervisor.UI.Services
         private static readonly Dictionary<string, List<DelayEvent>> _delayEvents = new(StringComparer.OrdinalIgnoreCase)
         {
             { "Refueling", new List<DelayEvent> {
-                new() { DescriptionEn = "Gauge malfunction", DescriptionFr = "Problème de jauge", MinDelaySec = 120, MaxDelaySec = 300 },
-                new() { DescriptionEn = "Fuel truck delayed", DescriptionFr = "Camion en retard", MinDelaySec = 180, MaxDelaySec = 480 },
-                new() { DescriptionEn = "Spill safety procedure", DescriptionFr = "Procédure anti-déversement", MinDelaySec = 300, MaxDelaySec = 600 }
+                new() { DescriptionEn = "Gauge malfunction", DescriptionFr = "Problème de jauge", MinDelaySec = 60, MaxDelaySec = 120 },
+                new() { DescriptionEn = "Fuel truck delayed", DescriptionFr = "Camion en retard", MinDelaySec = 90, MaxDelaySec = 180 },
+                new() { DescriptionEn = "Spill safety procedure", DescriptionFr = "Procédure anti-déversement", MinDelaySec = 120, MaxDelaySec = 240 }
             }},
             { "Boarding", new List<DelayEvent> {
-                new() { DescriptionEn = "Missing passenger", DescriptionFr = "Passager manquant", MinDelaySec = 300, MaxDelaySec = 900 },
-                new() { DescriptionEn = "Waiting for PRM assistance", DescriptionFr = "Attente assistance PMR", MinDelaySec = 180, MaxDelaySec = 420 },
-                new() { DescriptionEn = "Jetbridge fault", DescriptionFr = "Problème passerelle", MinDelaySec = 240, MaxDelaySec = 600 },
-                new() { DescriptionEn = "Offloading baggage", DescriptionFr = "Débarquement bagage", MinDelaySec = 300, MaxDelaySec = 480 }
+                new() { DescriptionEn = "Missing passenger", DescriptionFr = "Passager manquant", MinDelaySec = 120, MaxDelaySec = 300 },
+                new() { DescriptionEn = "Waiting for PRM assistance", DescriptionFr = "Attente assistance PMR", MinDelaySec = 60, MaxDelaySec = 180 },
+                new() { DescriptionEn = "Jetbridge fault", DescriptionFr = "Problème passerelle", MinDelaySec = 90, MaxDelaySec = 240 },
+                new() { DescriptionEn = "Offloading baggage", DescriptionFr = "Débarquement bagage", MinDelaySec = 120, MaxDelaySec = 240 }
             }},
             { "Cargo", new List<DelayEvent> {
-                new() { DescriptionEn = "Oversized freight", DescriptionFr = "Fret hors dimension", MinDelaySec = 300, MaxDelaySec = 720 },
-                new() { DescriptionEn = "Loader breakdown", DescriptionFr = "Panne du chargeur", MinDelaySec = 300, MaxDelaySec = 600 },
-                new() { DescriptionEn = "Late connecting bags", DescriptionFr = "Retard bagages correspondance", MinDelaySec = 180, MaxDelaySec = 480 }
+                new() { DescriptionEn = "Oversized freight", DescriptionFr = "Fret hors dimension", MinDelaySec = 120, MaxDelaySec = 300 },
+                new() { DescriptionEn = "Loader breakdown", DescriptionFr = "Panne du chargeur", MinDelaySec = 120, MaxDelaySec = 240 },
+                new() { DescriptionEn = "Late connecting bags", DescriptionFr = "Retard bagages correspondance", MinDelaySec = 90, MaxDelaySec = 180 }
             }},
             { "Catering", new List<DelayEvent> {
-                new() { DescriptionEn = "Missing meal carts", DescriptionFr = "Chariots repas manquants", MinDelaySec = 300, MaxDelaySec = 600 },
-                new() { DescriptionEn = "Security check", DescriptionFr = "Contrôle sûreté chariot", MinDelaySec = 180, MaxDelaySec = 360 }
+                new() { DescriptionEn = "Missing meal carts", DescriptionFr = "Chariots repas manquants", MinDelaySec = 120, MaxDelaySec = 240 },
+                new() { DescriptionEn = "Security check", DescriptionFr = "Contrôle sûreté chariot", MinDelaySec = 60, MaxDelaySec = 120 }
             }},
             { "Cleaning", new List<DelayEvent> {
-                new() { DescriptionEn = "Deep cleaning required", DescriptionFr = "Nettoyage approfondi", MinDelaySec = 180, MaxDelaySec = 420 },
-                new() { DescriptionEn = "Staff shortage", DescriptionFr = "Manque de personnel", MinDelaySec = 240, MaxDelaySec = 480 }
+                new() { DescriptionEn = "Deep cleaning required", DescriptionFr = "Nettoyage approfondi", MinDelaySec = 60, MaxDelaySec = 180 },
+                new() { DescriptionEn = "Staff shortage", DescriptionFr = "Manque de personnel", MinDelaySec = 90, MaxDelaySec = 180 }
             }},
             { "PNC Chores", new List<DelayEvent> {
-                new() { DescriptionEn = "Messy cabin", DescriptionFr = "Cabine très sale", MinDelaySec = 120, MaxDelaySec = 300 },
-                new() { DescriptionEn = "Missing supplies", DescriptionFr = "Manque de matériel", MinDelaySec = 180, MaxDelaySec = 360 }
+                new() { DescriptionEn = "Messy cabin", DescriptionFr = "Cabine très sale", MinDelaySec = 60, MaxDelaySec = 120 },
+                new() { DescriptionEn = "Missing supplies", DescriptionFr = "Manque de matériel", MinDelaySec = 60, MaxDelaySec = 120 }
             }},
             { "Water/Waste", new List<DelayEvent> {
-                new() { DescriptionEn = "Hose connection leak", DescriptionFr = "Fuite tuyau raccordement", MinDelaySec = 120, MaxDelaySec = 360 },
-                new() { DescriptionEn = "Vehicle unavailable", DescriptionFr = "Véhicule indisponible", MinDelaySec = 300, MaxDelaySec = 720 }
+                new() { DescriptionEn = "Hose connection leak", DescriptionFr = "Fuite tuyau raccordement", MinDelaySec = 60, MaxDelaySec = 120 },
+                new() { DescriptionEn = "Vehicle unavailable", DescriptionFr = "Véhicule indisponible", MinDelaySec = 120, MaxDelaySec = 240 }
             }}
         };
 
         public event Action? OnOpsCompleted;
         public event Action? OnOpsUpdated;
         public event Action<string>? OnOpsLog;
+        public event Action<int, string>? OnOperationBonusTriggered;
+        public event Action<int, string>? OnPenaltyTriggered;
 
-        public void InitializeFromSimBrief(SimBriefResponse? sb)
+        public void InitializeFromSimBrief(SimBriefResponse? sb, bool firstFlightClean = false)
         {
             Services.Clear();
             TargetSobt = null;
@@ -188,7 +192,8 @@ namespace FlightSupervisor.UI.Services
             // Legacy: Deboarding(900s), Clean(900s), Cater(900s), Fuel(600s), Boarding(1200s) = ~45m min
             
             int deboardingBase = isLowCost ? 600 : 900;
-            int boardingBase = isLowCost ? 900 : 1200;
+            double boardingEfficiencyRatio = Math.Max(50.0, CurrentCrewEfficiency) / 100.0;
+            int boardingBase = (int)((isLowCost ? 900 : 1200) / boardingEfficiencyRatio);
             int cleaningBase = isLowCost ? 300 : 900;
             int cateringBase = isLowCost ? 300 : 900;
             int fuelBase = Math.Max(600, fuel / 50); // Minimum 10 minutes ou 50kg/sec
@@ -200,6 +205,18 @@ namespace FlightSupervisor.UI.Services
             Services.Add(new GroundService { Name = cleanName, TotalDurationSec = applyTime(cleaningBase), IsOptional = true, StartOffsetMinutes = cleanOffset });
             Services.Add(new GroundService { Name = "Water/Waste", TotalDurationSec = applyTime(450), IsOptional = true, StartOffsetMinutes = waterOffset });
             
+            if (firstFlightClean)
+            {
+                var cleanNames = new[] { "Catering", cleanName, "Water/Waste" };
+                foreach (var s in Services.Where(x => cleanNames.Contains(x.Name)))
+                {
+                    s.State = GroundServiceState.Completed;
+                    s.IsPreServiced = true;
+                    s.ElapsedSec = s.TotalDurationSec;
+                    s.StatusMessage = "Already Serviced";
+                }
+            }
+
             _isStarted = false;
             IsPaused = false;
         }
@@ -378,29 +395,48 @@ namespace FlightSupervisor.UI.Services
                 }
                 else
                 {
-                    double chance = EventProbabilityPercent * 0.000015;
+                    double chance = EventProbabilityPercent * 0.000005 * delta;
                     if (!s.HasBeenDelayed && s.State != GroundServiceState.Delayed && chance > 0 && _rnd.NextDouble() < chance) 
                     {
                         s.State = GroundServiceState.Delayed;
                         s.HasBeenDelayed = true;
                         
                         string eventDesc = "Perturbation inopinée";
-                        int additionalDelay = _rnd.Next(60, 180);
+                        int additionalDelay = _rnd.Next(30, 90);
                         
                         if (_delayEvents.TryGetValue(s.Name, out var eventsList) && eventsList.Count > 0)
                         {
                             var evt = eventsList[_rnd.Next(eventsList.Count)];
                             eventDesc = evt.Description;
                             additionalDelay = _rnd.Next(evt.MinDelaySec, evt.MaxDelaySec);
+
+                            if (s.Name == "Boarding" && evt.DescriptionEn == "Missing passenger")
+                            {
+                                double efficRatio = Math.Max(50.0, CurrentCrewEfficiency) / 100.0;
+                                additionalDelay = (int)(additionalDelay / efficRatio); // Un bon crew résout ça plus vite
+                                
+                                if (CurrentCrewEfficiency >= 85)
+                                    OnOperationBonusTriggered?.Invoke(15, LocalizationService.Translate("Crew Efficiency: Swiftly found missing passenger", "Efficacité Équipage: Passager manquant géré rapidement"));
+                                else if (CurrentCrewEfficiency < 65)
+                                    OnPenaltyTriggered?.Invoke(-10, LocalizationService.Translate("Crew Inefficiency: Failed to quickly find passenger", "Inefficacité Équipage: Passager manquant géré lentement"));
+                            }
+                            else if (s.Name == "PNC Chores" || s.Name == "Cleaning")
+                            {
+                                double efficRatio = Math.Max(50.0, CurrentCrewEfficiency) / 100.0;
+                                additionalDelay = (int)(additionalDelay / efficRatio);
+                                
+                                if (CurrentCrewEfficiency >= 85)
+                                    OnOperationBonusTriggered?.Invoke(10, LocalizationService.Translate("Crew Efficiency: Swiftly resolved cabin delay", "Efficacité Équipage: Incident cabine géré rapidement"));
+                            }
                         }
 
                         s.ActiveDelayEvent = eventDesc;
                         s.DelayAddedSec += additionalDelay;
-                        s.StatusMessage = LocalizationService.Translate($"Delay: {eventDesc} (+{(additionalDelay/60)}m)", $"Retard: {eventDesc} (+{(additionalDelay/60)}m)");
+                        s.StatusMessage = LocalizationService.Translate($"Delay: {eventDesc} (+{(int)Math.Ceiling(additionalDelay/60.0)}m)", $"Retard: {eventDesc} (+{(int)Math.Ceiling(additionalDelay/60.0)}m)");
                         changed = true;
                         
                         string actor = GetActorForService(s.Name);
-                        OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] Ground Op issue: {eventDesc} (+{(additionalDelay/60)} min)", $"[{actor}] Problème sur l'escale : {eventDesc} (+{(additionalDelay/60)} min)"));
+                        OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] Ground Op issue: {eventDesc} (+{(int)Math.Ceiling(additionalDelay/60.0)} min)", $"[{actor}] Problème sur l'escale : {eventDesc} (+{(int)Math.Ceiling(additionalDelay/60.0)} min)"));
                     }
                     // Recover from delay if progressing normally again
                     else if (s.State == GroundServiceState.Delayed && _rnd.NextDouble() < 0.05)

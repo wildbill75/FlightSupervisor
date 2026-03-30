@@ -20,6 +20,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<double>? OnAirspeedReceived;
         public event Action<double>? OnRadioHeightReceived;
         public event Action<DateTime>? OnSimTimeReceived;
+        public event Action<DateTime>? OnSimLocalTimeReceived;
         public event Action<bool>? OnParkingBrakeReceived;
         public event Action<bool>? OnGearDownReceived;
         public event Action<double>? OnFlapsReceived;
@@ -41,6 +42,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<double>? OnHeadingReceived;
         public event Action<double, double>? OnWindReceived;
         public event Action<double, double, bool>? OnNavigationReceived;
+        public event Action<double, double>? OnAirframeDynamicsReceived;
 
         public event Action<bool>? OnCabinSeatbeltsChanged;
         public event Action<bool>? OnNoSmokingChanged;
@@ -92,6 +94,9 @@ namespace FlightSupervisor.UI.Services
             public double GpsCrossTrackError;
             public double HasLocalizer;
             public double CabinSeatbelts;
+            public double AccelerationBodyZ;
+            public double VelocityBodyZ;
+            public double LocalTime;
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
@@ -152,6 +157,9 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GPS WP CROSS TRK", "Meters", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "NAV HAS LOCALIZER:1", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "CABIN SEATBELTS ALERT SWITCH", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "ACCELERATION BODY Z", "Feet per second squared", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "VELOCITY BODY Z", "Feet per second", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "LOCAL TIME", "Seconds", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
 
                 _simconnect.AddToDataDefinition(DEFINITIONS.GForceData, "G FORCE", "GForce", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
 
@@ -218,6 +226,11 @@ namespace FlightSupervisor.UI.Services
                     OnSimTimeReceived?.Invoke(new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds, DateTimeKind.Utc));
                 } catch { }
 
+                var localTimeSpan = TimeSpan.FromSeconds(planeData.LocalTime);
+                try {
+                    OnSimLocalTimeReceived?.Invoke(new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, localTimeSpan.Hours, localTimeSpan.Minutes, localTimeSpan.Seconds, DateTimeKind.Local));
+                } catch { }
+
                 OnGearDownReceived?.Invoke(planeData.GearHandle > 0.5);
                 OnFlapsReceived?.Invoke(planeData.FlapsHandleIndex);
                 OnAutopilotReceived?.Invoke(planeData.AutopilotMaster > 0.5);
@@ -232,6 +245,7 @@ namespace FlightSupervisor.UI.Services
                 OnHeadingReceived?.Invoke(planeData.Heading);
                 OnWindReceived?.Invoke(planeData.WindDirection, planeData.WindVelocity);
                 OnNavigationReceived?.Invoke(planeData.NavLocalizerError, planeData.GpsCrossTrackError, planeData.HasLocalizer > 0.5);
+                OnAirframeDynamicsReceived?.Invoke(planeData.VelocityBodyZ, planeData.AccelerationBodyZ);
 
                 if (!IsWasmOverriding)
                 {

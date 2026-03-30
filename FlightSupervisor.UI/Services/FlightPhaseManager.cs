@@ -137,6 +137,10 @@ namespace FlightSupervisor.UI.Services
         private DateTime _lastBrakingPenalty = DateTime.MinValue;
         private DateTime? _taxiInStartTime = null;
         private System.Collections.Generic.Queue<double> _vsHistory = new System.Collections.Generic.Queue<double>();
+        private double? _lastPitch = null;
+        private double? _lastBank = null;
+        public double PitchRate { get; private set; } = 0.0;
+        public double BankRate { get; private set; } = 0.0;
 
         public void UpdateHeading(double heading)
         {
@@ -192,7 +196,7 @@ namespace FlightSupervisor.UI.Services
                 if (_vsHistory.Count > 5) _vsHistory.Dequeue();
             }
 
-            // Calculate Deceleration
+            // Calculate Deceleration and Rates
             double decelerationKnotsPerSec = 0;
             if (_lastGroundSpeed.HasValue && _lastGroundSpeedTime.HasValue)
             {
@@ -200,10 +204,18 @@ namespace FlightSupervisor.UI.Services
                 if (dt >= 0.05)
                 {
                     decelerationKnotsPerSec = (_lastGroundSpeed.Value - groundSpeed) / dt;
+                    if (_lastPitch.HasValue && _lastBank.HasValue)
+                    {
+                        PitchRate = Math.Abs(pitch - _lastPitch.Value) / dt;
+                        BankRate = Math.Abs(bank - _lastBank.Value) / dt;
+                    }
                 }
             }
             _lastGroundSpeed = groundSpeed;
             _lastGroundSpeedTime = DateTime.Now;
+            _lastPitch = pitch;
+            _lastBank = bank;
+
             // Track highest cruise altitude to detect Descent accurately
             if (altitude > _highestAltitudeReached && 
                 (CurrentPhase == FlightPhase.Takeoff || CurrentPhase == FlightPhase.InitialClimb || CurrentPhase == FlightPhase.Climb || CurrentPhase == FlightPhase.Cruise))
@@ -412,12 +424,7 @@ namespace FlightSupervisor.UI.Services
                     OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Comfort Violation: Harsh braking ({decelerationKnotsPerSec:F1} kts/sec)", $"Violation Confort: Freinage brusque ({decelerationKnotsPerSec:F1} kts/sec)"));
                 }
 
-                // Taxi Lights Rule
-                if (groundSpeed > 5.0 && !IsTaxiLightOn && FenixNoseLight == 0 && (DateTime.Now - _lastLightPenalty).TotalMinutes > 0.5)
-                {
-                    _lastLightPenalty = DateTime.Now;
-                    OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Safety Violation: Taxiing without Taxi Lights ON", "Violation Sécurité: Roulage sans Phares de Taxi ALLUMÉS"));
-                }
+
             }
 
             // Engine Failure Detection (between Takeoff and Landing)
@@ -751,11 +758,12 @@ namespace FlightSupervisor.UI.Services
             // If Autopilot is ON, any deviation is environmental.
             // If Autopilot is OFF, we require jitter to classify as "Weather Turbulence" vs "Pilot Input".
             bool isJitter = crossings >= 2; 
+            bool isPilotInput = PitchRate > 5.0 || BankRate > 10.0; // Rapid manual control changes
 
-            if (_isAutopilotActive || isJitter)
+            if (!isPilotInput && (_isAutopilotActive || isJitter))
             {
-                if (maxDev < 0.1) TurbulenceSeverity = TurbulenceSeverityLevel.None;
-                else if (maxDev < 0.25) TurbulenceSeverity = TurbulenceSeverityLevel.Light;
+                if (maxDev < 0.15) TurbulenceSeverity = TurbulenceSeverityLevel.None;
+                else if (maxDev < 0.30) TurbulenceSeverity = TurbulenceSeverityLevel.Light;
                 else if (maxDev < 0.45) TurbulenceSeverity = TurbulenceSeverityLevel.Moderate;
                 else if (maxDev < 0.7) TurbulenceSeverity = TurbulenceSeverityLevel.Severe;
                 else TurbulenceSeverity = TurbulenceSeverityLevel.Extreme;

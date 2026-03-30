@@ -10,6 +10,7 @@ namespace FlightSupervisor.UI.Models
         public string Id { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
+        public string RequiredActivePhase { get; set; } = string.Empty;
         public List<EventChoice> Choices { get; set; } = new List<EventChoice>();
     }
 

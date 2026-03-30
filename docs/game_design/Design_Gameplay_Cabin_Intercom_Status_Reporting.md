@@ -62,3 +62,25 @@ Le Commandant peut désormais gérer directement le flux du service en vol.
 2. **Arrêt Auto** : Descendre sous 10k ft. Vérifier la suspension automatique et le message de l'équipage.
 3. **Alertes Météo** : Confirmer que des turbulences sévères déclenchent l'arrêt immédiat du service.
 4. **Boucle Narrative** : Demander un rapport. Vérifier qu'il mentionne l'anxiété/le confort avec précision.
+
+---
+
+## 6. L'Évolution : La Trinité de l'Expérience Cabine (WIP)
+
+### 📊 La Séparation des Émotions (Confort, Anxiété, Satisfaction)
+Jusqu'à présent, la métrique d'Anxiété mélangeait la *Peur véritable* et la *Contrariété*. Afin que le SuperScore et l'immersion soient parfaits, l'humeur des passagers est désormais divisée en un Triptyque :
+1. **Confort (Physique) :** G-Forces, rudesse de l'atterrissage, et surtout le climat de la cabine. 
+   - *TICKET A VERIFIER :* S'assurer que le C# pénalise efficacement le Confort si la climatisation (Packs / APU Bleed) est éteinte pendant de longues minutes au sol avec les portes fermées.
+2. **Anxiété (Peur / Sécurité) :** Turbulences sévères, remises des gaz, Roulis > 30°. Cette jauge doit rester très basse lors d'une attente au sol.
+3. **Satisfaction / Humeur (Mental) :** La nouvelle métrique de mécontentement. Affectée quasi exclusivement par : les retards par rapport au SOBT, les files d'attentes trop longues debout, un catering affreux.
+
+### 🎙️ La Mécanique d'Excuse (Apology Mitigation)
+Pour lutter contre la chute de Satisfaction lors d'un retard, le pilote dispose du bouton PA "Excusé le retard".
+- **Comportement Héroïque :** Faire une annonce dès les premières minutes d'un retard compense ou fige la perte de satisfaction.
+- **Rendements Décroissants (No Button Spamming) :** Si le retard s'éternise (ex: 15 minutes) et que le joueur se contente de "spammer" le même bouton d'excuse en boucle, l'effet devient nul, puis carrément toxique. La satisfaction chutera encore plus vite car les passagers se sentent pris en otage par des promesses vides.
+
+### 🔊 Audios Dynamiques de Retard
+Les annonces cabines ne peuvent plus se contenter d'un audio générique "Désolé pour le retard". Il faudra mapper techniquement plusieurs fichiers audio à des "Delay Reasons" :
+- Retard lié à l'ATC (Congestion).
+- Retard lié à un Passager Manquant (Missing Pax).
+- Raison technique (Technical fault / Carry-over).

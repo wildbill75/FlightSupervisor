@@ -29,6 +29,11 @@ This document defines the Flight Telemetry engine, the SuperScore system (positi
 - [ ] **TICKET 42 : Chief Pilot Narrative Debrief**
   - Parser engine to generate human-readable feedback in the final report.
 
+- [ ] **TICKET 43 : Safety Violation - Seatbelts during Refueling**
+  - **Règle stricte :** La consigne *Fasten Seatbelts* DOIT être sur OFF pendant l'avitaillement (Refueling) pour permettre une évacuation rapide en cas d'incendie.
+  - Si le pilote passe la consigne sur ON pendant que le Refueling est actif, déclencher un malus sévère (-50 à -100 points) au SuperScore.
+  - Feedback à afficher : "Vous avez allumé la consigne de sécurité pendant l'avitaillement".
+
 ---
 
 ## 4. Spécifications de Design Technique

@@ -39,6 +39,8 @@ namespace FlightSupervisor.UI.Services
     public class CabinManager
     {
                 public CabinState State { get; private set; } = CabinState.Idle;
+        public DateTime CurrentSimLocalTime { get; set; } = DateTime.MinValue;
+        public DateTime CurrentSimZuluTime { get; set; } = DateTime.MinValue;
 
         private Random _renderRnd = new Random();
 
@@ -162,16 +164,27 @@ namespace FlightSupervisor.UI.Services
         private bool _hasAppliedArrivalWeatherAnxiety = false;
         private bool _hasTriggeredThrustReductionAnxiety = false;
         private DateTime _lastCabinBankPenalty = DateTime.MinValue;
-
+        
+        // Flight Progression & Hold Mechanics
+        private DateTime? _actualTakeoffTime = null;
+        private DateTime _lastHoldDecay = DateTime.MinValue;
+        private double _cumulativeHoldSeconds = 0;
+        private bool _isHolding = false;
+        
         private Random _rnd = new Random();
         private DateTime _lastRandomEvent = DateTime.Now;
         private DateTime _lastReportRequest = DateTime.MinValue;
         private DateTime? _strategicPenaltyEndTime = null;
 
         private bool _hasPlayedSeatbeltOffPA = false;
+        private bool _hasPlayedDescentPA = false;
         private bool _isPreparingService = false;
         private DateTime? _servicePrepTimerStart = null;
         private double _rngServiceBufferSeconds = 0;
+
+        private DateTime _lastTickTime = DateTime.MinValue;
+        private double _holdTurnAccumulator = 0.0;
+        private DateTime _lastHoldPenaltyTime = DateTime.MinValue;
 
         private bool _isSeatingForTakeoffOrLanding = false;
         private DateTime? _seatingTimerStart = null;
@@ -458,6 +471,10 @@ namespace FlightSupervisor.UI.Services
         
         public void Tick(double gForce, double bankAngle, bool isBoarded, DateTime currentZulu, DateTime? sobt, FlightPhase phase, double groundSpeed, double altitude, double verticalSpeed, bool isCrisisActive, double cabinTemperature = 22.0, double boardingProgress = -1.0)
         {
+            double deltaTimeSeconds = _lastTickTime == DateTime.MinValue ? 1.0 : (DateTime.Now - _lastTickTime).TotalSeconds;
+            _lastTickTime = DateTime.Now;
+            if (deltaTimeSeconds <= 0 || deltaTimeSeconds > 10) deltaTimeSeconds = 1.0;
+
             if (phase == FlightPhase.AtGate && !HasBoardingStarted) return;
 
             // Progressive Boarding Logic (Phase 3)
@@ -625,6 +642,8 @@ namespace FlightSupervisor.UI.Services
                 }
                 else if (phase == FlightPhase.Takeoff)
                 {
+                    if (_actualTakeoffTime == null) _actualTakeoffTime = DateTime.Now;
+                    
                     IncreaseAnxiety(10.0, phase, isCrisisActive);
                     OnCrewMessage?.Invoke("orange", LocalizationService.Translate("Passengers feel the pressure of takeoff acceleration.", "Les passagers ressentent la pression et le bruit de l'accélération."), null);
                 }
@@ -639,19 +658,93 @@ namespace FlightSupervisor.UI.Services
                     DecreaseAnxiety(20.0);
                     OnCrewMessage?.Invoke("green", LocalizationService.Translate("Passengers are relieved to reach cruise altitude.", "Les passagers sont soulagés d'avoir atteint l'altitude de croisière."), null);
                 }
+                else if (phase == FlightPhase.Descent && (_lastPhase == FlightPhase.Cruise || _lastPhase == FlightPhase.Climb))
+                {
+                    if (!_hasPlayedDescentPA)
+                    {
+                        _hasPlayedDescentPA = true;
+                        DecreaseAnxiety(15.0);
+                        string destName = CurrentFlight?.Destination?.Name ?? CurrentFlight?.Destination?.IcaoCode ?? "our destination";
+                        string spokenText = $"Ladies and gentlemen, we have begun our initial descent into {destName}. Please return to your seats, fasten your seatbelts, and make sure your large electronic devices are stowed away.";
+                        _audio?.SpeakAsPurser(spokenText);
+
+                        OnCrewMessage?.Invoke("sky", LocalizationService.Translate(
+                            $"PA: We are beginning our descent into {destName}. Please return to your seats and fasten your seatbelts.", 
+                            $"PA: Nous débutons notre descente vers {destName}. Veuillez regagner vos sièges et attacher vos ceintures."
+                        ), null);
+                        
+                        OnOperationBonusTriggered?.Invoke(25, LocalizationService.Translate("Passenger Announcement: Descent", "Annonce Passagers : Descente"));
+                    }
+                }
                 else if (phase == FlightPhase.TaxiIn)
                 {
                     DecreaseAnxiety(40.0);
                     OnCrewMessage?.Invoke("green", LocalizationService.Translate("Passengers are very relieved to be back on the ground safely.", "Les passagers sont très soulagés d'être à nouveau au sol en sécurité."), null);
                     
                     string destName = CurrentFlight?.Destination?.Name ?? CurrentFlight?.Destination?.IcaoCode ?? "your destination";
-                    string arrTime = DateTime.Now.ToString("HH:mm");
+                    string arrTime = CurrentSimLocalTime != DateTime.MinValue ? CurrentSimLocalTime.ToString("HH:mm") : DateTime.Now.ToString("HH:mm");
                     string arrivalPA = $"Welcome to {destName}. The local time is {arrTime}. For your safety and the safety of those around you, please remain seated with your seatbelt fastened until the captain has turned off the seatbelt sign at the gate. As you leave the aircraft, please check around your seat for any personal items. On behalf of the entire crew, thank you for flying with us today.";
                     _audio?.SpeakAsPurser(arrivalPA);
                     OnCrewMessage?.Invoke("sky", LocalizationService.Translate($"PA: Welcome to {destName}.", $"PA: Bienvenue à {destName}."), null);
                 }
                 _lastPhase = phase;
                 _lastPhaseChangeTime = DateTime.Now;
+            }
+
+            // --- Flight Duration Fatigue (C.1) ---
+            if (_actualTakeoffTime.HasValue && (phase == FlightPhase.Takeoff || phase == FlightPhase.InitialClimb || phase == FlightPhase.Climb || phase == FlightPhase.Cruise || phase == FlightPhase.Descent || phase == FlightPhase.Approach))
+            {
+                double elapsedSeconds = (currentZulu - _actualTakeoffTime.Value).TotalSeconds;
+                
+                // Base slow degradation
+                DecreaseComfort(0.0005 * deltaTimeSeconds); 
+                
+                if (CurrentFlight?.Times?.EstTimeEnroute != null)
+                {
+                    if (double.TryParse(CurrentFlight.Times.EstTimeEnroute, out double eteSeconds))
+                    {
+                        if (elapsedSeconds > eteSeconds)
+                        {
+                            // Surpassed ETE ! Comfort drops significantly over time
+                            DecreaseComfort(0.005 * deltaTimeSeconds);
+                            // Also slight anxiety increase because they feel it takes too long
+                            IncreaseAnxiety(0.001 * deltaTimeSeconds, phase, isCrisisActive);
+                        }
+                    }
+                }
+            }
+
+            // --- Holding Pattern Detection (C.2) ---
+            if (phase == FlightPhase.Cruise || phase == FlightPhase.Descent || phase == FlightPhase.Approach)
+            {
+                if (Math.Abs(bankAngle) > 12.0)
+                {
+                    _holdTurnAccumulator += deltaTimeSeconds;
+                }
+                else
+                {
+                    _holdTurnAccumulator -= (deltaTimeSeconds * 0.2); // Slow decay when flying straight
+                    if (_holdTurnAccumulator < 0) _holdTurnAccumulator = 0;
+                }
+
+                if (_holdTurnAccumulator > 150) // Approx 2.5 minutes of pure turning (more than one standard hold)
+                {
+                    if ((DateTime.Now - _timeOfLastDelayPA).TotalMinutes > 15 && (DateTime.Now - _lastHoldPenaltyTime).TotalMinutes > 5)
+                    {
+                        _lastHoldPenaltyTime = DateTime.Now;
+                        _holdTurnAccumulator = 60; // Reset partially so it doesn't spam, but keeps them close if they keep holding
+                        
+                        ModifySatisfaction(-15.0);
+                        IncreaseAnxiety(15.0, phase, false);
+
+                        OnCrewMessage?.Invoke("orange", LocalizationService.Translate(
+                            "Captain, passengers are noticing we're flying in circles and getting anxious. An announcement would help.",
+                            "Commandant, les passagers remarquent qu'on tourne en rond et s'angoissent. Une annonce aiderait."
+                        ), null);
+                        
+                        OnPenaltyTriggered?.Invoke(-50, LocalizationService.Translate("Poor CRM: Unexplained Holding Pattern", "Mauvais CRM : Attente en vol inexpliquée"));
+                    }
+                }
             }
 
             // --- Service Start Auto Sequence ---
@@ -1004,6 +1097,7 @@ namespace FlightSupervisor.UI.Services
             }
             else if (announcementType == "CruiseStatus")
             {
+                _timeOfLastDelayPA = DateTime.Now;
                 DecreaseAnxiety(5.0);
                 ModifySatisfaction(10.0);
                 string destName = CurrentFlight?.Destination?.Name ?? CurrentFlight?.Destination?.IcaoCode ?? "our destination";
@@ -1013,6 +1107,7 @@ namespace FlightSupervisor.UI.Services
             }
             else if (announcementType == "DelayApology")
             {
+                _timeOfLastDelayPA = DateTime.Now;
                 DecreaseAnxiety(15.0);
                 ModifySatisfaction(5.0);
                 string spokenText = "Ladies and gentlemen, this is the captain speaking. I'd like to extend another apology for our earlier delay. We are doing everything we can to make up some time in the air. Thank you for your continued patience.";
@@ -1037,6 +1132,8 @@ namespace FlightSupervisor.UI.Services
             }
             
             _manualApologyCount++;
+            _timeOfLastDelayPA = DateTime.Now;
+            
             if (_manualApologyCount <= 2)
             {
                 DecreaseAnxiety(40.0);
@@ -1090,21 +1187,58 @@ namespace FlightSupervisor.UI.Services
             ), null);
         }
 
-        public void AnnounceDescent(string destName)
+        public void AnnounceApproach(string destName, string wxcText)
         {
-            if (!_issuedCommands.Contains("PA_Descent"))
+            if (!_issuedCommands.Contains("PA_Approach"))
             {
-                _issuedCommands.Add("PA_Descent");
-                OnOperationBonusTriggered?.Invoke(25, "Passenger Announcement: Descent");
+                _issuedCommands.Add("PA_Approach");
+                OnOperationBonusTriggered?.Invoke(25, "Passenger Announcement: Approach");
+            }
+
+            int approachTimeMinutes = 15;
+            string delayText = "on schedule";
+
+            if (_actualTakeoffTime.HasValue && CurrentFlight?.Times?.EstTimeEnroute != null)
+            {
+                if (int.TryParse(CurrentFlight.Times.EstTimeEnroute, out int estSec))
+                {
+                    var remainingMins = (int)(estSec - (_lastPhaseChangeTime - _actualTakeoffTime.Value).TotalSeconds) / 60;
+                    if (remainingMins > 5 && remainingMins <= 45)
+                        approachTimeMinutes = remainingMins;
+                }
+            }
+
+            if (CurrentFlight?.Times?.SchedIn != null && long.TryParse(CurrentFlight.Times.SchedIn, out long schedInUnixUTC))
+            {
+                DateTime schedInUtc = DateTimeOffset.FromUnixTimeSeconds(schedInUnixUTC).UtcDateTime;
+                DateTime currentUtc = CurrentSimZuluTime != DateTime.MinValue ? CurrentSimZuluTime : DateTime.UtcNow;
+                DateTime expectedArrivalUtc = currentUtc.AddMinutes(approachTimeMinutes);
+                
+                int differenceMinutes = (int)(expectedArrivalUtc - schedInUtc).TotalMinutes;
+                
+                if (differenceMinutes > 15)
+                {
+                    delayText = $"with a delay of {differenceMinutes} minutes";
+                }
+                else if (differenceMinutes < -15)
+                {
+                    delayText = $"ahead of schedule by {Math.Abs(differenceMinutes)} minutes";
+                }
             }
 
             DecreaseAnxiety(15.0);
-            string spokenText = $"Ladies and gentlemen, we have begun our initial descent into {destName}. Please return to your seats, fasten your seatbelts, and make sure your large electronic devices are stowed away.";
-            _audio?.SpeakAsPurser(spokenText);
+            
+            string greeting = "good morning";
+            int hour = CurrentSimLocalTime != DateTime.MinValue ? CurrentSimLocalTime.Hour : DateTime.Now.Hour;
+            if (hour >= 18) greeting = "good evening";
+            else if (hour >= 12) greeting = "good afternoon";
+
+            string spokenText = $"Ladies and gentlemen, {greeting}, this is your Captain speaking. We have been cleared to land at {destName} and we expect to be on the ground in approximately {approachTimeMinutes} minutes {delayText}. The weather is {wxcText}. Please ensure your seatbelts are securely fastened and your tray tables are stowed. Bye.";
+            _audio?.SpeakAsCaptain(spokenText);
 
             OnCrewMessage?.Invoke("green", LocalizationService.Translate(
-                $"PA: We are beginning our descent into {destName}. Please return to your seats and fasten your seatbelts.", 
-                $"PA: Nous débutons notre descente vers {destName}. Veuillez regagner vos sièges et attacher vos ceintures."
+                $"PA: We have been cleared to land. ETA {approachTimeMinutes} min {delayText}.", 
+                $"PA: Autorisation d'atterrir reçue. Arrivée d'ici {approachTimeMinutes} min {delayText}."
             ), null);
         }
         
@@ -1179,6 +1313,7 @@ namespace FlightSupervisor.UI.Services
             _hasTriggeredCateringComplaint = false;
             _hasAppliedDepartureWeatherAnxiety = false;
             _hasAppliedArrivalWeatherAnxiety = false;
+            _hasPlayedDescentPA = false;
             if (SessionFlightsCompleted == 0 && FirstFlightClean)
             {
                 CateringCompletion = 100.0;

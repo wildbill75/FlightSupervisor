@@ -21,6 +21,7 @@ namespace FlightSupervisor.UI.Services
                     Id = "EVT_MISSING_PAX",
                     Title = "Missing Passenger",
                     Description = "A checked-in passenger is missing at the gate.",
+                    RequiredActivePhase = "Boarding",
                     Choices = new List<EventChoice>
                     {
                         new EventChoice { Id = "C1", Text = "Wait and search for passenger", DelayImpactSec = 900, ComfortImpact = 0, SafetyImpact = 0, ResponseLog = "Copie Commandant, on envoie le personnel au sol à la recherche du passager. En attente..." },
@@ -32,6 +33,7 @@ namespace FlightSupervisor.UI.Services
                     Id = "EVT_CATERING_BROKEN",
                     Title = "Catering Truck Issue",
                     Description = "The catering truck won't start. Departure will be delayed to get a replacement.",
+                    RequiredActivePhase = "Catering",
                     Choices = new List<EventChoice>
                     {
                         new EventChoice { Id = "C1", Text = "Wait for replacement truck", DelayImpactSec = 1200, ComfortImpact = 0, SafetyImpact = 0, ResponseLog = "On appelle un autre camion de restauration immédiatement. Désolé pour le retard occasionné." },

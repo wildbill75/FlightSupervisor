@@ -235,7 +235,7 @@ button {
     transition: background 0.2s;
 }
 
-button:hover {
+button:hover:not(:disabled) {
     background-color: #357ABD;
 }
 

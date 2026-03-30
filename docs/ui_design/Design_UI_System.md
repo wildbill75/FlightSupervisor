@@ -46,8 +46,21 @@ We rely on three core typefaces to build hierarchy and a "chic" dashboard feel.
     *   *Rule:* All action buttons must be explicitly uppercase in the HTML and JS logic (e.g. `START OPS`, `FETCH PLAN`, `CANCEL FLIGHT`, `CONTINUE`).
 
 ### Cards & Containers
-*   **Standard Card:** `bg-[#1C1F26] rounded-xl border border-white/5 p-6 shadow-xl`.
-*   Layout grids should prefer CSS Flexbox in columns for aligning components vertically perfectly (e.g., Settings screen uses two distinct flex columns to avoid vertical gaps between differently sized cards).
+*   **Standard Layout Grid:** Layout grids should prefer CSS Flexbox in columns for aligning components vertically perfectly (e.g., Settings screen uses two distinct flex columns to avoid vertical gaps).
+
+#### Anatomie d'une "Dashboard Card" Stratifiée (Standard Master Layout)
+Pour garantir la cohérence visuelle entre les différents widgets (ex: *Flight Timetable* vs *Cabin Experience*), toutes les cartes complexes doivent adopter une structure bicolore séparant l'en-tête du contenu :
+
+1.  **Main Container (Wrapper) :** 
+    *   Classes : `rounded-xl border border-white/5 shadow-xl overflow-hidden flex flex-col`
+2.  **Card Header (Titre & Actions) :** 
+    *   Background plus clair pour faire ressortir le titre.
+    *   Classes : `bg-[#1C1F26] p-4 border-b border-white/5 flex items-center justify-between`
+    *   Typographie du titre : `text-sky-400 font-label tracking-wide uppercase text-xs font-semibold`
+3.  **Card Body (Listes & Contenu) :** 
+    *   Background légèrement plus sombre/creusé pour accueillir les données.
+    *   Classes : `bg-[#12141A] p-4 flex-1` (ou `bg-slate-900/50` selon le contraste souhaité).
+    *   *Règle :* Ne pas utiliser de fonds unis plats (`bg-[#1C1F26]`) pour l'intégralité d'un widget Data lourd. Toujours utiliser cette dichotomie Header/Body.
 
 ### Icons
 *   Library: **Google Material Symbols Outlined**.

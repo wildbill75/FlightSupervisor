@@ -56,6 +56,7 @@ namespace FlightSupervisor.UI
         private System.Windows.Threading.DispatcherTimer _uiTimer;
         private System.Windows.Forms.NotifyIcon _notifyIcon;
         private PanelServerService? _panelServer;
+        private AudioEngineService _audioEngine;
         private SuperScoreManager _scoreManager;
         private CabinManager _cabinManager;
         private AirlineProfileManager _airlineDb;
@@ -70,6 +71,7 @@ namespace FlightSupervisor.UI
         public MainWindow()
         {
             InitializeComponent();
+            _audioEngine = new AudioEngineService();
             _simBriefService = new SimBriefService();
             _activeSkyService = new ActiveSkyService();
             _noaaWeatherService = new NoaaWeatherService();
@@ -90,7 +92,7 @@ namespace FlightSupervisor.UI
             _eventEngine = new FlightSupervisor.UI.Services.GroundEventEngine();
             _eventEngine.OnEventTriggered += OnGroundEventTriggered;
 
-            _cabinManager = new CabinManager();
+            _cabinManager = new CabinManager(_audioEngine);
             _cabinManager.OnCrewMessage += (level, msg, audioSeq) => SendToWeb(new { type = "cabinLog", level = level, message = msg, audioSequence = audioSeq });
             _cabinManager.OnPenaltyTriggered += (points, reason) => {
                 if (_scoreManager != null) _scoreManager.AddScore(points, reason, ScoreCategory.Comfort);
@@ -136,10 +138,11 @@ namespace FlightSupervisor.UI
                 int totalSvc = _groundOpsManager.Services.Count;
                 if (totalSvc > 0)
                 {
-                    int doneSvc = _groundOpsManager.Services.Count(s => s.State == GroundServiceState.Completed);
-                    int inProgSvc = _groundOpsManager.Services.Count(s => s.State == GroundServiceState.InProgress);
-                    double pct = (doneSvc * 100.0) / totalSvc;
-                    if (inProgSvc > 0) pct += (50.0 / totalSvc);
+                    var activeSvc = _groundOpsManager.Services.Where(s => !s.IsPreServiced && s.State != GroundServiceState.Skipped).ToList();
+                    int currentElapsed = activeSvc.Sum(s => s.ElapsedSec);
+                    int totExpected = activeSvc.Sum(s => s.TotalDurationSec + s.DelayAddedSec);
+                    double pct = totExpected > 0 ? ((double)currentElapsed / totExpected * 100) : 100;
+                    int doneSvc = _groundOpsManager.Services.Count(s => s.State == GroundServiceState.Completed || s.State == GroundServiceState.Skipped);
 
                     string timeStr = "";
                     if (_groundOpsManager.TargetSobt.HasValue && _groundOpsManager.IsAnyOperationInProgress())
@@ -173,10 +176,14 @@ namespace FlightSupervisor.UI
                 {
                     sobtDate = DateTimeOffset.FromUnixTimeSeconds(sobtUnix).DateTime;
                 }
-                _cabinManager.Tick(_phaseManager.GForce, _lastKnownBank, isBoardingComplete, 
+                var boardingService = _groundOpsManager?.Services?.FirstOrDefault(s => s.Name == "Boarding");
+                double boardingProg = boardingService != null ? (boardingService.ProgressPercent / 100.0) : -1.0;
+
+                _cabinManager.Tick(_phaseManager.GForce, _lastKnownBank, isBoardingComplete,
                                    _currentSimTime, sobtDate, _phaseManager.CurrentPhase, _lastKnownGroundSpeed,
                                    _lastKnownAltitude, _lastKnownVerticalSpeed,
-                                   _phaseManager.IsGoAroundActive || _phaseManager.IsSevereTurbulenceActive || _phaseManager.HasEngineFailure);
+                                   _phaseManager.IsGoAroundActive || _phaseManager.IsSevereTurbulenceActive || _phaseManager.HasEngineFailure,
+                                   22.0, boardingProg);
                 
                 SendTelemetryToWeb();
                 
@@ -215,6 +222,7 @@ namespace FlightSupervisor.UI
                     }
                     else if (phase == FlightPhase.Arrived)
                     {
+                        _cabinManager.SessionFlightsCompleted++;
                         if (_aibt == null && _currentSimTime != DateTime.MinValue) 
                             _aibt = _currentSimTime;
 
@@ -580,7 +588,12 @@ namespace FlightSupervisor.UI
 
             _simConnectService.OnSimTimeReceived += time => { 
                 _currentSimTime = time;
+                _cabinManager.CurrentSimZuluTime = time;
                 Dispatcher.Invoke(() => SendToWeb(new { type = "simTime", time = time.ToString("HH:mm") + "z", rawUnix = ((DateTimeOffset)time).ToUnixTimeSeconds() }));
+            };
+
+            _simConnectService.OnSimLocalTimeReceived += localTime => {
+                _cabinManager.CurrentSimLocalTime = localTime;
             };
 
             Loaded += MainWindow_Loaded;
@@ -607,6 +620,9 @@ namespace FlightSupervisor.UI
                 if (!string.IsNullOrEmpty(username))
                     SendToWeb(new { type = "savedUsername", username = username });
                 
+                var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+                SendToWeb(new { type = "appVersion", version = $"BUILD {version?.ToString(3)}" });
+
                 // Initialize the Pilot Profile in the UI
                 if (_profileManager != null && _profileManager.CurrentProfile != null)
                 {
@@ -797,6 +813,13 @@ namespace FlightSupervisor.UI
                         if (int.TryParse(gpProp.GetString(), out var prob))
                             _groundOpsManager.EventProbabilityPercent = prob;
                     }
+                    if (doc.RootElement.TryGetProperty("firstFlightClean", out var ffcProp))
+                    {
+                        if (ffcProp.ValueKind == System.Text.Json.JsonValueKind.True)
+                            _cabinManager.FirstFlightClean = true;
+                        else if (ffcProp.ValueKind == System.Text.Json.JsonValueKind.False)
+                            _cabinManager.FirstFlightClean = false;
+                    }
                     
                     var units = new FlightSupervisor.UI.Models.UnitPreferences();
                     if (doc.RootElement.TryGetProperty("units", out var unitsProp))
@@ -927,10 +950,26 @@ namespace FlightSupervisor.UI
 
                             _cabinManager.AnnounceWelcome(destName, timeStr, badWeather);
                         }
-                        else if (annType == "Descent")
+                        else if (annType == "Approach")
                         {
                             string destName = _currentResponse?.Destination?.Name ?? _currentResponse?.Destination?.IcaoCode ?? "our destination";
-                            _cabinManager.AnnounceDescent(destName);
+                            string metar = _currentResponse?.Weather?.DestMetar?.ToUpper() ?? "";
+                            string wxc = "good";
+                            if (metar.Contains(" TS") || metar.Contains(" CB")) wxc = "stormy";
+                            else if (metar.Contains(" RA") || metar.Contains(" SH")) wxc = "rainy";
+                            else if (metar.Contains(" SN")) wxc = "snowy";
+                            else if (metar.Contains(" FG") || metar.Contains(" BKN") || metar.Contains(" OVC")) wxc = "cloudy";
+                            _cabinManager.AnnounceApproach(destName, wxc);
+                        }
+                        else if (annType == "Delay")
+                        {
+                            string reason = "ATC";
+                            if (doc.RootElement.TryGetProperty("reason", out var reasonProperty))
+                            {
+                                reason = reasonProperty.GetString() ?? "ATC";
+                            }
+                            string destName = _currentResponse?.Destination?.Name ?? _currentResponse?.Destination?.IcaoCode ?? "our destination";
+                            _cabinManager.AnnounceDelay(reason, destName);
                         }
                         else
                         {
@@ -1002,8 +1041,13 @@ namespace FlightSupervisor.UI
                 isGearDown = _isGearDown,
                 seatbeltsOn = _cabinManager.IsSeatbeltsOn,
                 isDelayed = _groundOpsManager.TargetSobt != null && _currentSimTime > _groundOpsManager.TargetSobt.Value.AddMinutes(5),
+                isBoardingComplete = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Boarding")?.State == GroundServiceState.Completed,
                 anxiety = Math.Round(_cabinManager.PassengerAnxiety, 1),
                 comfort = Math.Round(_cabinManager.ComfortLevel, 1),
+                satisfaction = Math.Round(_cabinManager.Satisfaction, 1),
+                crewProactivity = Math.Round(_cabinManager.CrewProactivity, 1),
+                crewEfficiency = Math.Round(_cabinManager.CrewEfficiency, 1),
+                crewMorale = Math.Round(_cabinManager.CrewMorale, 1),
                 serviceProgress = Math.Round(_cabinManager.InFlightServiceProgress, 1),
                 securingProgress = Math.Round(_cabinManager.SecuringProgress, 1),
                 isSecuringHalted = _cabinManager.IsSecuringHalted,
@@ -1129,7 +1173,7 @@ namespace FlightSupervisor.UI
                     var manifestData = passengerService.GenerateManifest(response);
                     
                     _cabinManager.InitializeFlightDemographics(CurrentAirline, manifestData);
-                    _groundOpsManager.InitializeFromSimBrief(response);
+                    _groundOpsManager.InitializeFromSimBrief(response, _cabinManager.SessionFlightsCompleted == 0 && _cabinManager.FirstFlightClean);
                     
                     // Trigger an immediate background fetch to populate initial live data without blocking the UI rendering if needed
                     _ = RefreshLiveWeatherAsync();

@@ -60,9 +60,7 @@ namespace FlightSupervisor.UI.Services
                 else if (msg.Contains("Excessive Bank") || msg.Contains("Inclinaison")) { penalty = -100; category = ScoreCategory.Safety; }
                 else if (msg.Contains("Excessive Pitch") || msg.Contains("Assiette")) { penalty = -100; category = ScoreCategory.Safety; }
                 else if (msg.Contains("Landing Lights")) { penalty = -50; category = ScoreCategory.Safety; }
-                else if (msg.Contains("Taxi Lights") || msg.Contains("Phares de Taxi")) { penalty = -50; category = ScoreCategory.Safety; }
                 else if (msg.Contains("Strobes or Landing Lights ON during ground ops") || msg.Contains("Strobes/Landing au sol")) { penalty = -20; category = ScoreCategory.Safety; }
-                else if (msg.Contains("Taxiing without Taxi Lights ON") || msg.Contains("sans Phares de Taxi")) { penalty = -50; category = ScoreCategory.Safety; }
                 else if (msg.Contains("Severe Hard Landing") || msg.Contains("Impact TRÈS violent")) { penalty = -300; category = ScoreCategory.Maintenance; }
                 else if (msg.Contains("Hard Landing") || msg.Contains("Impact rude")) { penalty = -150; category = ScoreCategory.Comfort; }
                 else if (msg.Contains("Butter Landing") || msg.Contains("Atterrissage Parfait")) { penalty = 150; category = ScoreCategory.Comfort; }
