@@ -2,7 +2,10 @@
 description: Comment compiler et relancer l'application Flight Supervisor
 ---
 
+Toujours demander à l'utilisateur la permission de lancer ce workflow
+
 Lorsque tu dois compiler le projet C# (FlightSupervisor.UI) après avoir fait des modifications, suis toujours ces étapes :
+
 
 1. Arrête d'abord l'instance actuellement en cours d'exécution.
 // turbo-all

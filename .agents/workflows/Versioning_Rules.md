@@ -1,6 +1,7 @@
 ---
 description: Règles de Gestion des Versions (Git Workflow)
 ---
+
 # Workflow de Sauvegarde et Versioning (Git)
 
 Suite aux problèmes rencontrés (perte temporaire du pont WASM et de la détection lors de refactorings), ce workflow dicte les règles strictes de sauvegarde que chaque agent doit respecter pour protéger le code de Flight Supervisor.
@@ -24,3 +25,6 @@ Si l'utilisateur signale qu'un système "qui marchait très bien hier" ne marche
 
 > [!IMPORTANT]
 > Ne laissez pas le travail non commité s'accumuler sur plusieurs sessions. L'utilisateur se repose sur ce filet de sécurité.
+
+## 4. Affichage du numéro de la build
+- Achaque nouvelle compilation, afficher le numéro de la build dans le footer de l'application
