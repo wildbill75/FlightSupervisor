@@ -684,6 +684,11 @@ namespace FlightSupervisor.UI.Services
             }
         }
 
+        public void ForcePhase(FlightPhase newPhase)
+        {
+            ChangePhase(newPhase);
+        }
+
         private void ChangePhase(FlightPhase newPhase)
         {
             if (CurrentPhase != newPhase)

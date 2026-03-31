@@ -1,51 +1,33 @@
-# Bilan de Session & Handover (30 Mars 2026)
+# Design_Technical_Handover_NextSession
 
-*Ce document est destiné au prochain Agent IA qui reprendra le développement du projet Flight Supervisor. Il résume les accomplissements récents et dresse la feuille de route immédiate.*
+## Ce qui a été accompli (Multi-Leg & Debug Tools)
 
----
+### 1. Persistance Multi-Leg (Turnaround)
+- **`ShiftStateManager.cs`** : Création d'un système de sérialisation léger écrivant l'état de l'équipage et des consommables dans `ShiftState.json` à chaque fin de vol (`FlightPhase.Arrived`).
+- **Variables Persistantes** : `SessionFlightsCompleted`, propreté de la cabine (`CabinCleanliness`), Ration de Repas (`CateringRations`), niveaux d'eau et déchets (`WaterLevel`, `WasteLevel`) ainsi que le Moral et la Réputation.
+- **Interface Utilisateur ("Continue Shift")** : À l'initialisation de l'application, l'événement IPC `uiReady` lit le JSON. Si une sauvegarde existe, une pop-up modale demande au joueur de "Continuer son shift" ou "Sign-off" (Réinitialiser).
 
-## 🏗️ 1. Ce qui a été accompli (Dernières 24 Heures)
-
-L'architecture s'est considérablement enrichie, tout en stabilisant les fondations existantes. Le code a été nettoyé et compile sans erreur.
-
-### A. Refonte de la Météo et du Briefing (ACARS)
-* **Backend :** La classe `WeatherBriefingService` ne génère plus de textes bruts. Elle crée un objet typé `BriefingData` segmentant les données (Départ, Arrivée, Dégagement) en isolant QNH, Températures, Vents, et METARs bruts.
-* **Frontend :** Refonte totale de `parseBriefing(data)` dans `app.js` pour afficher des cartes Tailwind CSS propres (style "Dashboard") avec des badges météorologiques.
-* **Synchronisation :** Le rafraîchissement en arrière-plan (NOAA/ActiveSky) envoie systématiquement un événement IPC (`briefingUpdate`) pour mettre à jour l'UI en plein vol toutes les 15 minutes.
-
-### B. Dynamique de la Cabine & Jauges ("The Trinity")
-* **Système de Humeur :** La trinité *Comfort*, *Anxiety*, et *Satisfaction* n'est plus figée. Elle subit des micro-variations temporelles selon l'environnement (température extrême = chute du confort) et le profil des passagers.
-* **Mécanismes Avancés :** Implémentation du système de pénalité de "Holding Pattern" (attente prolongée sans annonce du commandant) et de la Fatigue du voyage (qui s'indexe sur l'ETE).
-* **Affichage UI :** Le bug du panneau de Manifest qui se remplissait d'un coup a été identifié (à corriger). Le système de ceintures (Seatbelts) a été corrigé pour ne disparaître qu'aux bons moments (plus de disparition inopinée à 10 000 pieds en descente).
-
-### C. Moteur d'Annonces Vocales (PA & Intercom)
-* **Scripting :** Création et validation des textes dans `Design_Audio_Scripts_PNC_Pax_EN.md`.
-* **Contexte Temporel :** Le backend (ex: `CabinManager.AnnounceApproach`) lit dorénavant l'heure locale du MSFS (`CurrentSimLocalTime`) pour saluer dynamiquement ("Good morning", "Good afternoon").
-* **Matrice de Comms :** Création de `Design_Gameplay_Announcements_Matrix.md` clarifiant qui parle à qui avec des couleurs spécifiques (CPT PA en vert, PNC PA en bleu, etc.).
-
-### D. Assainissement Documentaire
-* Tous les anciens "Bug Trackers" et "Backlogs" aux noms génériques ont été purgés et consolidés dans deux fichiers respectant la règle d'or du projet (`Design_` préfixe) :
-  1. `Design_Gameplay_Product_Backlog.md`
-  2. `Design_Technical_Bug_Tracker.md`
+### 2. Outils de Débogage Hors Ligne (Developer Phase Sim)
+- **UI Dédiée** : Un panneau rouge "Dev Tools" a été inséré dans l'onglet `Settings` du frontend (`index.html`).
+- **Sauts Temporels Artificiels** : Des boutons permettent de forcer le passage aux phases clés du vol sans être lié à MSFS.
+- **Accélération Logique (`FastForward`)** : Dans `CabinManager.cs`, la fonction `FastForward(deltaSeconds, phase)` draine instantanément et de façon mathématiquement proportionnelle les consommables (eau, propreté, toilettes) en simulant des sauts dans le temps (ex: +30 minutes de croisière, durée du blocktime SimBrief, etc.). Les repas sont déduits au passage de la croisière.
+- **Stabilité** : Compilation vérifiée avec succès. Application 100% testable hors ligne.
 
 ---
 
-## 🚀 2. Feuille de Route Initiale pour le Prochain Agent
+## Prochaines Étapes pour le prochain Agent (Turnaround Re-Stocking)
 
-Voici ce sur quoi tu devras te concentrer dès ta prise de fonction, par ordre de priorité :
+1. **Intégration Ground Ops <-> Cabin Manager** :
+   - Maintenant que l'avion "s'abime" et se "vide" d'un leg à l'autre, les services au sol (Catering, Cleaning, Lavatory, Water) doivent restaurer ces variables lorsque démarrés via l'UI Ground Ops.
+   - Par exemple : Compléter le service de "Cleaning" doit remonter `CabinCleanliness` à 100.0. "Catering" doit assigner `CateringRations` au maximum prévu par SimBrief, etc.
+   
+2. **Tuning Financier & Pénalités** :
+   - Régler la vitesse de consommation des ressources en vol (`baseDrainRate`). Si la saleté de la cabine descend sous les 40%, déclencher des plaintes passagers et réduire le taux global de Satisfaction.
+   - Ajouter potentiellement des alarmes visuelles dans l'interface UI (badge orange/rouge) si l'eau ou la nourriture est critique.
 
-### 🎯 Priorité 1 : Le Moteur Microsoft TTS (Text-To-Speech)
-La décision a été prise d'utiliser le TTS natif de Windows (`System.Speech`) comme moteur Audio.
-* **Objectif :** Brancher les scripts fraîchement écrits dans `Design_Audio_Scripts_PNC_Pax_EN.md` au moteur vocal C#.
-* **Tâches :** Assigner une voix masculine (CPT) et féminine (PNC), remplacer les variables `{xx}` par les vraies données de vol au format texte (ex: "we will land in 20 minutes"), et implémenter une file d'attente (Audio Queue) pour que les annonces ne se superposent pas.
+3. **Validation & Test de Flow Complète** :
+   - Réaliser un vol multi-leg via l'interface de "Debug Tools" : "Boarding" -> "Takeoff" -> "Cruise" -> "Arrived".
+   - Observer les jauges au bas, engager les Ground Services pour nettoyer, et enchaîner manuellement un 2ème vol pour confirmer que le JSON persist globalise bien la suite des événements.
 
-### 🎯 Priorité 2 : Autonomie de l'Équipage (Virtual Crew)
-* **Objectif :** Le PNC ne doit plus attendre passivement que le commandant clique sur tous les boutons pour réagir.
-* **Tâches :** Si la valeur de `Proactivity` du chef de cabine est élevée, il doit lancer les services de repas de lui-même ou faire des annonces de retard aux passagers sans attendre d'ordre.
-
-### 🎯 Priorité 3 : Résolution de Bugs Visuels ("Bug Squashing")
-Consulte `Design_Technical_Bug_Tracker.md` pour éliminer les accrocs actuels :
-* L'animation des portes ou du remplissage SVG des sièges qui ne suit pas le vrai timer mathématique du *Ground Ops*.
-* Le *Flicker* (clignotement) de l'UI lors de la boucle de polling télémétrique, qui écrase le DOM.
-
-> **Règle absolue pour toi, prochain agent :** Ne jamais utiliser de noms génériques pour les documents (Ex: Pas de `test.md` ou `notes.txt`). Tout document architectural DOIT commencer par `Design_Technical_`, `Design_Gameplay_` ou `Design_Walkthrough_`. Bon développement et bon vol !
+> [!NOTE] 
+> Rappel de Règle de Conception : Ne pas utiliser le terme "Implementation" dans les documentations formelles. Privilégier le terme "Design_..." comme vu dans les dossiers actuels. Appliquez assidûment la Nomenclature Globale en rigueur !

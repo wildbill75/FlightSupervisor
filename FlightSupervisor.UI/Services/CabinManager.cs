@@ -434,6 +434,18 @@ namespace FlightSupervisor.UI.Services
             }
         }
 
+        public void LoadShiftState(ShiftState state)
+        {
+            SessionFlightsCompleted = state.SessionFlightsCompleted;
+            CabinCleanliness = state.CabinCleanliness;
+            WaterLevel = state.WaterLevel;
+            WasteLevel = state.WasteLevel;
+            CateringRations = state.CateringRations;
+            CrewProactivity = state.CrewProactivity;
+            CrewEfficiency = state.CrewEfficiency;
+            CrewMorale = state.CrewMorale;
+        }
+
         public void UpdateSeatbelts(bool on, FlightPhase phase)
         {
             _seatbeltsOn = on;
@@ -566,6 +578,26 @@ namespace FlightSupervisor.UI.Services
             // French: PNC aux portes, désarmement des toboggans et vérification de la porte opposée
             // English: Cabin Crew, disarm doors and cross check
             OnCrewMessage?.Invoke("cyan", LocalizationService.Translate("Cabin Crew, disarm doors and cross check.", "PNC aux portes, désarmement des toboggans et vérification de la porte opposée."), new List<string> { "intercom_ding", "pa_chime" });
+        }
+
+        public void FastForward(double deltaSeconds, FlightPhase phase)
+        {
+            if (deltaSeconds <= 0) return;
+            
+            // Artificial consumption of cabin resources for the test panel
+            if (PassengerManifest.Count > 0)
+            {
+                double baseDrainRate = PassengerManifest.Count * 0.0001; // Example scale
+                WaterLevel = Math.Max(0, WaterLevel - (baseDrainRate * deltaSeconds));
+                WasteLevel = Math.Min(100, WasteLevel + (baseDrainRate * deltaSeconds * 1.5));
+                CabinCleanliness = Math.Max(0, CabinCleanliness - (baseDrainRate * deltaSeconds * 0.5));
+                
+                // Adjust rations if we served during this jump
+                if (phase == FlightPhase.Cruise && CateringRations > 0)
+                {
+                    CateringRations = Math.Max(0, CateringRations - PassengerManifest.Count);
+                }
+            }
         }
 
         public void Tick(double gForce, double bankAngle, bool isBoarded, DateTime currentZulu, DateTime? sobt, FlightPhase phase, double groundSpeed, double altitude, double verticalSpeed, bool isCrisisActive, double cabinTemperature = 22.0, double boardingProgress = -1.0)

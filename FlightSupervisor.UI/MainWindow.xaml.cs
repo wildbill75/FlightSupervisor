@@ -471,6 +471,11 @@ namespace FlightSupervisor.UI
                             FlightSupervisor.UI.Services.FlightLogger.ArchiveFlight(fallbackReport);
                             SendToWeb(new { type = "flightReport", report = fallbackReport });
                         }
+
+                        // Persist multi-leg session state
+                        string arrIcao = _currentResponse?.Destination?.IcaoCode ?? "UNK";
+                        string arrAirline = _currentResponse?.General?.Airline ?? "UNK";
+                        ShiftStateManager.SaveState(_cabinManager, arrIcao, arrAirline);
                     }
                     SendToWeb(new { type = "phaseUpdate", phase = phase.ToString(), 
                                     aobt = _aobt != null ? _aobt.Value.ToString("HH:mm") + "z" : null, 
@@ -882,6 +887,70 @@ namespace FlightSupervisor.UI
                         SendToWeb(new { type = "cabinLog", level = "orange", message = $"[SYSTEM] Time Warp engaged. MSFS Clock synchronized to SOBT." });
                     }
                     _scoreManager.AddScore(-50, "Time Warp Convenience Used", ScoreCategory.Operations);
+                }
+                else if (action == "debugForcePhase")
+                {
+                    var targetStr = doc.RootElement.GetProperty("phase").GetString();
+                    if (Enum.TryParse<FlightPhase>(targetStr, out var targetPhase))
+                    {
+                        int simAdvanceSec = 0;
+                        if (targetPhase == FlightPhase.Takeoff) simAdvanceSec = 900; // 15 mins for taxi
+                        else if (targetPhase == FlightPhase.Cruise) simAdvanceSec = 1800; // 30 mins climb
+                        else if (targetPhase == FlightPhase.Descent) 
+                        {
+                            if (_currentResponse?.Times?.SchedBlock != null)
+                            {
+                                int.TryParse(_currentResponse.Times.SchedBlock, out int blockSec);
+                                simAdvanceSec = blockSec - 2700; // block time minus taxi & arrival
+                                if (simAdvanceSec < 0) simAdvanceSec = 1800;
+                            }
+                            else simAdvanceSec = 3600; // Default 1 hour
+                        }
+                        else if (targetPhase == FlightPhase.Arrived) simAdvanceSec = 900; // 15 taxi in
+
+                        if (simAdvanceSec > 0)
+                        {
+                            _currentSimTime = _currentSimTime.AddSeconds(simAdvanceSec);
+                            if (_cabinManager.CurrentSimLocalTime != DateTime.MinValue)
+                                _cabinManager.CurrentSimLocalTime = _cabinManager.CurrentSimLocalTime.AddSeconds(simAdvanceSec);
+                            
+                            // Let the CabinManager consume resources
+                            _cabinManager.FastForward(simAdvanceSec, targetPhase);
+                            
+                            SendToWeb(new { type = "cabinLog", level = "orange", message = $"[DEBUG] Simulated Time Jump: +{simAdvanceSec/60}m." });
+                        }
+
+                        _phaseManager.ForcePhase(targetPhase);
+                        SendToWeb(new { type = "cabinLog", level = "cyan", message = $"[DEBUG] Force transitioned phase to: {targetPhase}" });
+                    }
+                }
+                else if (action == "uiReady")
+                {
+                    var savedState = ShiftStateManager.LoadState();
+                    if (savedState != null)
+                    {
+                        SendToWeb(new { 
+                            type = "shiftResumeAvailable", 
+                            icao = savedState.LastArrivalIcao, 
+                            airline = savedState.LastAirlineName, 
+                            morale = savedState.CrewMorale, 
+                            date = savedState.SavedAtLocal.ToString("g") 
+                        });
+                    }
+                }
+                else if (action == "resumeShift")
+                {
+                    var state = ShiftStateManager.LoadState();
+                    if (state != null)
+                    {
+                        _cabinManager.LoadShiftState(state);
+                        SendToWeb(new { type = "shiftResumed" });
+                    }
+                }
+                else if (action == "clearShift")
+                {
+                    ShiftStateManager.ClearState();
+                    SendToWeb(new { type = "shiftCleared" });
                 }
                 else if (action == "fetch") 
                 {

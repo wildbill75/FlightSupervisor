@@ -693,45 +693,85 @@ document.addEventListener('DOMContentLoaded', () => {
         window.chrome.webview.postMessage({ action: 'acknowledgeDebrief' });
     });
 
+    let currentDutyState = null;
+    
+    window.selectDutyState = function(state) {
+        currentDutyState = state;
+        const pristine = document.getElementById('cardPristine');
+        const turnaround = document.getElementById('cardTurnaround');
+        if (!pristine || !turnaround) return;
+        
+        pristine.classList.remove('border-sky-500', 'bg-sky-900/10');
+        pristine.classList.add('border-white/5', 'bg-[#12141A]', 'opacity-50');
+        turnaround.classList.remove('border-orange-500', 'bg-orange-500/10', 'hover:border-orange-500/50');
+        turnaround.classList.add('border-white/5', 'bg-[#12141A]', 'opacity-50');
+        
+        if (state === 'pristine') {
+            pristine.classList.add('border-sky-500', 'bg-sky-900/10');
+            pristine.classList.remove('border-white/5', 'bg-[#12141A]', 'opacity-50');
+        } else {
+            turnaround.classList.add('border-orange-500', 'bg-orange-500/10', 'hover:border-orange-500/50');
+            turnaround.classList.remove('border-white/5', 'bg-[#12141A]', 'opacity-50');
+        }
+    };
+
     btnFetchPlan.addEventListener('click', () => {
         if (window.isFlightActive) {
             if (cancelModal) cancelModal.style.display = 'flex';
             return;
         }
-
-        const username = document.getElementById('sbUsername').value;
-        const remember = document.getElementById('sbRemember').checked;
-        const groundSpeed = document.getElementById('selGroundOpsSpeed') ? document.getElementById('selGroundOpsSpeed').value : 'Realistic';
-        const groundProb = rngProb ? rngProb.value : '25';
-        const ffClean = document.getElementById('chkFirstFlightClean') ? document.getElementById('chkFirstFlightClean').checked : true;
         
-        if (username.trim() === '') {
-            document.getElementById('fetchStatus').innerText = 'Username required.';
-            return;
+        const dutyModal = document.getElementById('dutySetupModal');
+        if (dutyModal) {
+            const sbUser = localStorage.getItem('sbUsername') || '';
+            const unInput = document.getElementById('dutySbUsername');
+            if (unInput) unInput.value = sbUser;
+            
+            if (!currentDutyState) selectDutyState('pristine');
+            
+            dutyModal.style.display = 'flex';
         }
-        
-        localStorage.setItem('groundSpeed', groundSpeed);
-        localStorage.setItem('groundProb', groundProb);
-        localStorage.setItem('firstFlightClean', ffClean);
-        
-        window.chrome.webview.postMessage({
-            action: 'fetch',
-            username: username,
-            remember: remember,
-            weatherSource: localStorage.getItem('weatherSource') || 'simbrief',
-            groundSpeed: groundSpeed,
-            groundProb: groundProb,
-            firstFlightClean: ffClean,
-            units: {
-                weight: localStorage.getItem('selUnitWeight') || 'LBS',
-                temp: localStorage.getItem('selUnitTemp') || 'C',
-                alt: localStorage.getItem('selUnitAlt') || 'FT',
-                speed: localStorage.getItem('selUnitSpeed') || 'KTS',
-                press: localStorage.getItem('selUnitPress') || 'HPA',
-                time: localStorage.getItem('selTimeFormat') || '24H'
-            }
-        });
     });
+
+    const btnDispatchDuty = document.getElementById('btnDispatchDuty');
+    if (btnDispatchDuty) {
+        btnDispatchDuty.addEventListener('click', () => {
+            const username = document.getElementById('dutySbUsername') ? document.getElementById('dutySbUsername').value : '';
+            if (!username || username.trim() === '') {
+                const ipt = document.getElementById('dutySbUsername');
+                if (ipt) { ipt.classList.add('border-red-500'); setTimeout(() => ipt.classList.remove('border-red-500'), 1000); }
+                return;
+            }
+            
+            const ffClean = currentDutyState === 'pristine';
+            localStorage.setItem('firstFlightClean', ffClean);
+            localStorage.setItem('sbUsername', username);
+            
+            const groundSpeed = localStorage.getItem('groundSpeed') || 'Realistic';
+            const groundProb = localStorage.getItem('groundProb') || '25';
+            const weatherSrc = document.getElementById('dutyWeatherSource') ? document.getElementById('dutyWeatherSource').value : 'simbrief';
+            
+            document.getElementById('dutySetupModal').style.display = 'none';
+            
+            window.chrome.webview.postMessage({
+                action: 'fetch',
+                username: username,
+                remember: true,
+                weatherSource: weatherSrc,
+                groundSpeed: groundSpeed,
+                groundProb: groundProb,
+                firstFlightClean: ffClean,
+                units: {
+                    weight: localStorage.getItem('selUnitWeight') || 'LBS',
+                    temp: localStorage.getItem('selUnitTemp') || 'C',
+                    alt: localStorage.getItem('selUnitAlt') || 'FT',
+                    speed: localStorage.getItem('selUnitSpeed') || 'KTS',
+                    press: localStorage.getItem('selUnitPress') || 'HPA',
+                    time: localStorage.getItem('selTimeFormat') || '24H'
+                }
+            });
+        });
+    }
 
     const btnStartGroundOps = document.getElementById('btnStartGroundOps');
     if (btnStartGroundOps) {
@@ -789,6 +829,41 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!payload || !payload.type) return;
 
         switch (payload.type) {
+            case 'shiftResumeAvailable':
+                const resumeModal = document.getElementById('shiftResumeModal');
+                if (resumeModal) {
+                    const srIcao = document.getElementById('srIcao');
+                    const srAirline = document.getElementById('srAirline');
+                    const srDate = document.getElementById('srDate');
+                    if (srIcao) srIcao.innerText = payload.icao;
+                    if (srAirline) srAirline.innerText = payload.airline;
+                    if (srDate) srDate.innerText = payload.date;
+                    resumeModal.style.display = 'flex';
+                }
+                break;
+            case 'shiftResumed':
+                const resMod = document.getElementById('shiftResumeModal');
+                if (resMod) resMod.style.display = 'none';
+                
+                // Allow interactions
+                const startOverlay = document.getElementById('dashStartOverlay');
+                if (startOverlay) {
+                    startOverlay.style.opacity = '0';
+                    startOverlay.style.pointerEvents = 'none';
+                }
+                break;
+            case 'shiftCleared':
+                const clrMod = document.getElementById('shiftResumeModal');
+                if (clrMod) clrMod.style.display = 'none';
+                
+                const sbUser = localStorage.getItem('sbUsername') || '';
+                const unInput = document.getElementById('dutySbUsername');
+                if (unInput) unInput.value = sbUser;
+                if (!currentDutyState) selectDutyState('pristine');
+                
+                const dutyModal = document.getElementById('dutySetupModal');
+                if (dutyModal) dutyModal.style.display = 'flex';
+                break;
             case 'briefingUpdate':
                 if (typeof window.parseBriefing === 'function') {
                     const parsedHtml = window.parseBriefing(payload.briefing);
@@ -1780,6 +1855,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (payload.status === 'success') {
                     isFlightCancelled = false;
                     window.isFlightActive = true;
+                    
+                    const dso = document.getElementById('dashStartOverlay');
+                    if (dso) dso.classList.add('opacity-0', 'pointer-events-none');
+                    
                     const langFetch = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
                     const dictFetch = window.locales ? window.locales[langFetch] : null;
 
@@ -1824,6 +1903,10 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'flightCancelled':
                 isFlightCancelled = true;
                 window.isFlightActive = false;
+                
+                const dso2 = document.getElementById('dashStartOverlay');
+                if (dso2) dso2.classList.remove('opacity-0', 'pointer-events-none');
+                
                 const langCancel = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
                 const dictCancel = window.locales ? window.locales[langCancel] : null;
 
@@ -2987,13 +3070,15 @@ function replayFlightLog(encodedPayload) {
             data: { type: 'flightReport', report: report } 
         });
         
-        // As we haven't detached the anonymous listener, we can dispatch it on the window.chrome.webview directly if it inherits EventTarget
-        // Otherwise, manually call the logic by dispatching on `window` and let the listener catch it if we rebind it, 
-        // OR better yet, let's just mutate the event listeners.
-        // Easiest is to dispatch a regular window event if we rename the listener, but for now we'll try dispatching on the webview:
         window.chrome.webview.dispatchEvent(spoofedEvent);
         document.getElementById('flightReportModal').style.display = 'flex';
     } catch(e) {
         console.error("Failed to parse historical log payload", e);
     }
 }
+
+setTimeout(() => {
+    if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.postMessage({ action: 'uiReady' });
+    }
+}, 500);
