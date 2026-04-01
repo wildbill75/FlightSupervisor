@@ -1037,29 +1037,40 @@ namespace FlightSupervisor.UI
                     prof.WeatherSource = weatherSource;
                     _profileManager.SaveProfile();
                     
-                    if (doc.RootElement.TryGetProperty("groundSpeed", out var gsProp))
+                    if (doc.RootElement.TryGetProperty("options", out var opts))
                     {
-                        if (Enum.TryParse<GroundOpsSpeed>(gsProp.GetString(), true, out var speed))
-                            _groundOpsManager.SpeedSetting = speed;
-                    }
-                    if (doc.RootElement.TryGetProperty("groundProb", out var gpProp))
-                    {
-                        if (int.TryParse(gpProp.GetString(), out var prob))
-                            _groundOpsManager.EventProbabilityPercent = prob;
-                    }
-                    if (doc.RootElement.TryGetProperty("firstFlightClean", out var ffcProp))
-                    {
-                        if (ffcProp.ValueKind == System.Text.Json.JsonValueKind.True)
+                        if (opts.TryGetProperty("groundSpeed", out var gsProp))
                         {
-                            _cabinManager.FirstFlightClean = true;
-                            _cabinManager.SessionFlightsCompleted = 0;
+                            if (Enum.TryParse<GroundOpsSpeed>(gsProp.GetString(), true, out var speed))
+                                _groundOpsManager.SpeedSetting = speed;
                         }
-                        else if (ffcProp.ValueKind == System.Text.Json.JsonValueKind.False)
-                            _cabinManager.FirstFlightClean = false;
+                        if (opts.TryGetProperty("groundProb", out var gpProp))
+                        {
+                            if (int.TryParse(gpProp.GetString(), out var prob))
+                                _groundOpsManager.EventProbabilityPercent = prob;
+                        }
+                        if (opts.TryGetProperty("firstFlightClean", out var ffcProp))
+                        {
+                            bool isClean = true;
+                            if (ffcProp.ValueKind == System.Text.Json.JsonValueKind.True) isClean = true;
+                            else if (ffcProp.ValueKind == System.Text.Json.JsonValueKind.False) isClean = false;
+                            else if (ffcProp.ValueKind == System.Text.Json.JsonValueKind.String)
+                            {
+                                if (bool.TryParse(ffcProp.GetString(), out bool bClean)) isClean = bClean;
+                                else if (ffcProp.GetString() == "true") isClean = true;
+                                else isClean = false;
+                            }
+                            
+                            _cabinManager.FirstFlightClean = isClean;
+                            if (isClean)
+                            {
+                                _cabinManager.SessionFlightsCompleted = 0;
+                            }
+                        }
                     }
                     
                     var units = new FlightSupervisor.UI.Models.UnitPreferences();
-                    if (doc.RootElement.TryGetProperty("units", out var unitsProp))
+                    if (opts.ValueKind != System.Text.Json.JsonValueKind.Undefined && opts.TryGetProperty("units", out var unitsProp))
                     {
                         units.Weight = unitsProp.GetProperty("weight").GetString() ?? "LBS";
                         units.Temp = unitsProp.GetProperty("temp").GetString() ?? "C";

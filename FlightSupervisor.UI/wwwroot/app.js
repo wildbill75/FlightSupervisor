@@ -3371,14 +3371,22 @@ function renderGroundOps(services) {
                 barColor = '#34D399';
             }
         }
-        else if (s.State === 4 /* Skipped */) { statusColor = '#F87171'; barColor = '#F87171'; }
-        else if (s.State === 0 /* WaitingForAction */) { statusColor = '#FACC15'; barColor = '#334155'; }
-
+        else if (stateVal === 4 /* Skipped */) { statusColor = '#F87171'; barColor = '#F87171'; }
+        else if (stateVal === 5 /* WaitingForAction */) { statusColor = '#FACC15'; barColor = '#334155'; }
+        else if (stateVal === 0 /* NotStarted */) { statusColor = '#64748B'; barColor = '#334155'; }
         let timeDisplay = '';
-        if (s.RemainingSec > 0) {
-            const m = Math.floor(s.RemainingSec / 60).toString().padStart(2, '0');
-            const sec = (s.RemainingSec % 60).toString().padStart(2, '0');
-            timeDisplay = `(-${m}:${sec})`;
+        let remainingSec = s.RemainingSec !== undefined ? s.RemainingSec : s.remainingSec;
+        if (stateVal === 0) {
+            let offset = s.StartOffsetMinutes !== undefined ? s.StartOffsetMinutes : s.startOffsetMinutes;
+            if (offset < 0) {
+                // Negative offset means it is scheduled to start BEFORE SOBT!
+                timeDisplay = `(T${offset})`;
+            }
+        }
+        else if (remainingSec > 0 && stateVal !== 3 && stateVal !== 4) {
+            const m = Math.floor(remainingSec / 60).toString().padStart(2, '0');
+            const sec = (remainingSec % 60).toString().padStart(2, '0');
+            timeDisplay = `(${m}:${sec})`;
         }
 
         const safeName = s.Name.replace(/\s|[^\w]/g, '');
@@ -3395,13 +3403,14 @@ function renderGroundOps(services) {
         }
 
         let statusStateLabel = 'ACTIVE';
-        if (s.State === 3) statusStateLabel = 'FINISHED';
-        else if (s.State === 4) statusStateLabel = 'ABORTED';
-        else if (s.State === 2) statusStateLabel = 'DELAYED';
-        else if (s.State === 0) statusStateLabel = 'WAITING FOR ACTION';
+        if (stateVal === 3) statusStateLabel = 'FINISHED';
+        else if (stateVal === 4) statusStateLabel = 'ABORTED';
+        else if (stateVal === 2) statusStateLabel = 'DELAYED';
+        else if (stateVal === 0) statusStateLabel = 'NOT STARTED';
+        else if (stateVal === 5) statusStateLabel = 'WAITING FOR ACTION';
 
         let extraBadgesHtml = '';
-        if (window.lastTelemetry && s.State !== 1 && (!s.IsPreServiced && !s.isPreServiced)) {
+        if (window.lastTelemetry && stateVal !== 1 && (!s.IsPreServiced && !s.isPreServiced)) {
             if (s.Name === "Catering") {
                 const cr = window.lastTelemetry.cateringRations !== undefined ? window.lastTelemetry.cateringRations : 0;
                 const cColor = cr <= 10 ? '#EF4444' : (cr <= 25 ? '#F59E0B' : '#34D399');

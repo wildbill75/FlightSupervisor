@@ -1902,5 +1902,15 @@ namespace FlightSupervisor.UI.Services
                 }
             }
         }
+
+        public void BoardPassenger(int count)
+        {
+            var unboarded = PassengerManifest.Where(p => !p.IsBoarded).Take(count).ToList();
+            foreach (var p in unboarded)
+            {
+                p.IsBoarded = true;
+                if (IsSeatbeltsOn) p.IsSeatbeltFastened = true;
+            }
+        }
     }
 }

@@ -48,6 +48,21 @@ namespace FlightSupervisor.UI.Services
                 double rate = 100.0 / Math.Max(1, cargoSvc.TotalDurationSec);
                 _cabinManager.BaggageCompletion = Math.Min(100.0, _cabinManager.BaggageCompletion + (rate * tickRatio));
             }
+
+            var boardSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Boarding");
+            if (boardSvc != null && (boardSvc.State == GroundServiceState.InProgress || boardSvc.State == GroundServiceState.Completed))
+            {
+                int expectedBoarded = boardSvc.State == GroundServiceState.Completed 
+                    ? _cabinManager.PassengerManifest.Count 
+                    : (int)(_cabinManager.PassengerManifest.Count * ((double)boardSvc.ElapsedSec / Math.Max(1, boardSvc.TotalDurationSec)));
+                
+                int currentlyBoarded = _cabinManager.PassengerManifest.Count(p => p.IsBoarded);
+                
+                if (expectedBoarded > currentlyBoarded)
+                {
+                    _cabinManager.BoardPassenger(expectedBoarded - currentlyBoarded);
+                }
+            }
         }
     }
 }

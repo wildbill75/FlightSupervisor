@@ -1,0 +1,51 @@
+{
+  "EZY": {
+    "EGGW": [
+      {
+        "id": "ezy_eggw_nl_2",
+        "title": "The Dutch Shuttle (4 Legs)",
+        "type": "Classic",
+        "aircraft": "A320",
+        "difficulty": 2,
+        "legs": ["EGGW", "EHAM", "EGGW", "EHAM", "EGGW"],
+        "description": "A classic repetitive 4-leg day. Two back-to-back round trips to Schiphol. Lots of short turnarounds and busy airspace."
+      },
+      {
+        "id": "ezy_eggw_sun_1",
+        "title": "Palma Escapade (2 Legs)",
+        "type": "Classic",
+        "aircraft": "A320",
+        "difficulty": 2,
+        "legs": ["EGGW", "LEPA", "EGGW"],
+        "description": "A standard holiday charter to Palma de Mallorca."
+      },
+      {
+        "id": "ezy_eggw_tri_1",
+        "title": "The Riviera Triangle (3 Legs)",
+        "type": "Quirky",
+        "aircraft": "A320",
+        "difficulty": 3,
+        "legs": ["EGGW", "LFMN", "EHAM", "EGGW"],
+        "description": "A less common W-pattern rotation. Drop holidaymakers in Nice, pick up a sector to Amsterdam, then head home to Luton."
+      },
+      {
+        "id": "ezy_eggw_dom_1",
+        "title": "The Capital Jumper (4 Legs)",
+        "type": "Classic",
+        "aircraft": "A320",
+        "difficulty": 3,
+        "legs": ["EGGW", "EGPH", "EGGW", "LFPG", "EGGW"],
+        "description": "A busy day hopping between capitals: Up to Edinburgh, back to Luton, then across the Channel to Paris CDG, and finally home."
+      },
+      {
+        "id": "ezy_eggw_chal_1",
+        "title": "Alpine Challenge (2 Legs)",
+        "type": "Challenging",
+        "aircraft": "A320",
+        "difficulty": 5,
+        "legs": ["EGGW", "LOWI", "EGGW"],
+        "description": "A demanding winter rotation into Innsbruck. Requires specific briefing and precision flying for the approach."
+      }
+    ]
+  }
+}
