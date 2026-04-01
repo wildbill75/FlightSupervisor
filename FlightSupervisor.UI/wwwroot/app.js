@@ -227,14 +227,20 @@ pillsContainer.style.display = 'none';
                                         </div>
                                     </div>
                                 </div>
-                                <div class="text-right flex flex-col items-end">
-                                    <div class="flex items-center gap-4 bg-black/40 px-4 py-2 rounded-lg border border-white/5 mb-2 font-mono text-[11px]">
+                                <div class="text-right flex flex-col items-end gap-2">
+                                    <div class="flex items-center gap-4 bg-black/40 px-4 py-2 rounded-lg border border-white/5 font-mono text-[11px]">
                                         <span class="text-slate-500">SOBT</span> <span class="text-slate-200">${timeStr(rd.times?.sched_out)}Z</span>
                                         <span class="text-slate-600">&bull;</span>
                                         <span class="text-slate-500">SIBT</span> <span class="text-slate-200">${timeStr(rd.times?.sched_in)}Z</span>
                                     </div>
-                                    <div class="text-[11px] text-slate-500 font-bold tracking-widest uppercase">
-                                        ETE ${rd.times?.est_time_enroute ? Math.floor(rd.times.est_time_enroute/3600).toString().padStart(2,'0') + 'H' + Math.floor((rd.times.est_time_enroute%3600)/60).toString().padStart(2,'0') : '---'}
+                                    <div class="flex items-center gap-4">
+                                        <div class="text-[11px] text-slate-500 font-bold tracking-widest uppercase mt-1 mr-2">
+                                            ETE ${rd.times?.est_time_enroute ? Math.floor(rd.times.est_time_enroute/3600).toString().padStart(2,'0') + 'H' + Math.floor((rd.times.est_time_enroute%3600)/60).toString().padStart(2,'0') : '---'}
+                                        </div>
+                                        <button onclick="event.stopPropagation(); window.chrome.webview.postMessage({action: 'fenixExport', path: localStorage.getItem('fenixExportPath'), jsonPayload: JSON.stringify(window.allRotations[${idx}].data)})"
+                                                class="flex items-center gap-2 px-3 py-1 bg-[#1C1F26] hover:bg-amber-500/20 text-slate-500 hover:text-amber-500 text-[10px] font-bold tracking-widest uppercase border border-white/5 hover:border-amber-500/30 rounded transition-colors shadow-lg group-hover:block transition-all">
+                                            <span class="material-symbols-outlined text-[14px]">save</span> EXPORT TO FENIX
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -973,6 +979,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const savedFenixPath = localStorage.getItem('fenixExportPath');
+    if (savedFenixPath !== null && document.getElementById('fenixExportPath')) {
+        document.getElementById('fenixExportPath').value = savedFenixPath;
+    }
+
     // Save Settings
     const btnSaveSettings = document.getElementById('btnSaveSettings');
     if (btnSaveSettings) {
@@ -981,6 +992,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const groundSpeed = document.getElementById('selGroundOpsSpeed') ? document.getElementById('selGroundOpsSpeed').value : 'Realistic';
             const groundProb = document.getElementById('rngProb') ? document.getElementById('rngProb').value : '25';
             const weatherSrc = document.getElementById('selWeatherSource') ? document.getElementById('selWeatherSource').value : 'SimBrief';
+            const fenixPath = document.getElementById('fenixExportPath') ? document.getElementById('fenixExportPath').value : '';
             const gsxSync = document.getElementById('chkGsxSync') ? document.getElementById('chkGsxSync').checked : false;
             const ffClean = document.getElementById('chkFirstFlightClean') ? document.getElementById('chkFirstFlightClean').checked : true;
 
@@ -1010,6 +1022,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('groundProb', groundProb);
             localStorage.setItem('weatherSource', weatherSrc);
             localStorage.setItem('gsxSync', gsxSync);
+            localStorage.setItem('fenixExportPath', fenixPath);
 
             const lang = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
             const dict = window.locales && window.locales[lang] ? window.locales[lang] : window.locales.en;
@@ -3292,13 +3305,19 @@ function updateMetaBar(services) {
 
 function renderGroundOps(services) {
     const container = document.getElementById('groundOpsContainer');
+    
+    if (!services || services.length === 0) {
+        container.innerHTML = '<p class="text-slate-500 font-mono text-center delay-fade-in" data-i18n="ground_pending">Ground operations pending SimBrief initialization...</p>';
+        return;
+    }
+    
     let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
 
     services.forEach(s => {
         const mLang = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
         const mDict = window.locales && window.locales[mLang] ? window.locales[mLang] : window.locales.en;
 
-        let locName = s.Name;
+        let locName = s.Name !== undefined ? s.Name : s.name;
         if (locName === "Refueling") locName = mDict.gops_refueling || locName;
         else if (locName === "Boarding") locName = mDict.gops_boarding || locName;
         else if (locName === "Cargo") locName = mDict.gops_cargo || locName;
@@ -3306,8 +3325,8 @@ function renderGroundOps(services) {
         else if (locName === "Cleaning") locName = mDict.gops_cleaning || locName;
         else if (locName === "Water/Waste") locName = mDict.gops_water || locName;
 
-        let locStatus = s.StatusMessage;
-        if (s.IsPreServiced) locStatus = mDict.gops_pre_serviced || "ALREADY SERVICED";
+        let locStatus = s.StatusMessage !== undefined ? s.StatusMessage : s.statusMessage;
+        if (s.IsPreServiced || s.isPreServiced) locStatus = mDict.gops_pre_serviced || "ALREADY SERVICED";
         else if (locStatus === "In Progress") locStatus = mDict.gops_stat_prog || locStatus;
         else if (locStatus === "Completed") locStatus = mDict.gops_stat_comp || locStatus;
         else if (locStatus === "Skipped by Capt.") locStatus = mDict.gops_stat_skip || locStatus;
@@ -3316,11 +3335,14 @@ function renderGroundOps(services) {
         btnSkipText = mDict.gops_skip_abort || btnSkipText;
 
         let btnHtml = '';
-        if (s.State === 5 && s.Name === "Refueling") {
+        let stateVal = s.State !== undefined ? s.State : s.state;
+        let isOpt = s.IsOptional !== undefined ? s.IsOptional : s.isOptional;
+
+        if (stateVal === 5 && locName === "Refueling") {
             btnHtml = `<button class="go-btn px-4 py-2 bg-amber-600/20 text-amber-500 hover:bg-amber-600/40 border border-amber-500/30 rounded text-xs tracking-widest uppercase font-bold transition-colors shadow-[0_0_10px_rgba(245,158,11,0.2)]" onclick="window.chrome.webview.postMessage({action: 'startService', service: '${s.Name}'})">Request Fuel Truck</button>`;
         }
-        else if (s.IsOptional && s.State !== 3 /* Completed */ && s.State !== 4 /* Skipped */ && s.State !== 0) {
-            btnHtml = `<button class="go-btn px-4 py-2 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white rounded text-xs tracking-widest uppercase transition-colors" onclick="skipService('${s.Name}')">${btnSkipText}</button>`;
+        else if (isOpt && stateVal !== 3 /* Completed */ && stateVal !== 4 /* Skipped */ && stateVal !== 0) {
+            btnHtml = `<button class="go-btn px-4 py-2 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white rounded text-xs tracking-widest uppercase transition-colors" onclick="skipService('${locName}')">${btnSkipText}</button>`;
         }
 
         let getSeverityColor = (sec) => {
@@ -3331,16 +3353,17 @@ function renderGroundOps(services) {
 
         let statusColor = '#94A3B8';
         let barColor = '#4A90E2';
-        let titleColor = s.State === 3 ? (s.IsPreServiced ? '#64748B' : '#34D399') : '#F8FAFC';
-        let opacityClass = s.IsPreServiced ? 'opacity-50' : '';
+        let titleColor = stateVal === 3 ? ((s.IsPreServiced || s.isPreServiced) ? '#64748B' : '#34D399') : '#F8FAFC';
+        let opacityClass = (s.IsPreServiced || s.isPreServiced) ? 'opacity-50' : '';
 
-        if (s.State === 2 /* Delayed */) {
-            let c = getSeverityColor(s.DelayAddedSec);
+        if (stateVal === 2 /* Delayed */) {
+            let delaySec = s.DelayAddedSec !== undefined ? s.DelayAddedSec : s.delayAddedSec;
+            let c = getSeverityColor(delaySec);
             statusColor = c;
             barColor = c;
         }
-        else if (s.State === 3 /* Completed */) {
-            if (s.IsPreServiced) {
+        else if (stateVal === 3 /* Completed */) {
+            if (s.IsPreServiced || s.isPreServiced) {
                 statusColor = '#64748B';
                 barColor = '#475569';
             } else {
@@ -3378,14 +3401,14 @@ function renderGroundOps(services) {
         else if (s.State === 0) statusStateLabel = 'WAITING FOR ACTION';
 
         let extraBadgesHtml = '';
-        if (window.lastTelemetry && s.State !== 1 && (!s.IsPreServiced)) {
+        if (window.lastTelemetry && s.State !== 1 && (!s.IsPreServiced && !s.isPreServiced)) {
             if (s.Name === "Catering") {
                 const cr = window.lastTelemetry.cateringRations !== undefined ? window.lastTelemetry.cateringRations : 0;
                 const cColor = cr <= 10 ? '#EF4444' : (cr <= 25 ? '#F59E0B' : '#34D399');
                 const cBg = cr <= 10 ? 'bg-red-500/10' : (cr <= 25 ? 'bg-amber-500/10' : 'bg-emerald-500/10');
                 extraBadgesHtml += `<div class="px-2 py-[2px] rounded ${cBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${cColor}; border-color: ${cColor}40;">🍱 ${cr} Units</div>`;
             }
-            if (s.Name === "Cleanliness" || s.Name === "Cleaning" || s.Name === "PNC Chores") {
+            if (s.Name === "Cleanliness" || s.Name === "Cleaning") {
                 const cl = window.lastTelemetry.cabinCleanliness !== undefined ? window.lastTelemetry.cabinCleanliness : 100;
                 const clColor = cl < 50 ? '#EF4444' : (cl < 75 ? '#F59E0B' : '#34D399');
                 const clBg = cl < 50 ? 'bg-red-500/10' : (cl < 75 ? 'bg-amber-500/10' : 'bg-emerald-500/10');
@@ -3426,7 +3449,7 @@ function renderGroundOps(services) {
                     let wasteLvl = s.State === 1 ? s.ProgressPercent : Math.round(window.lastTelemetry?.wasteLevel || 0);
                     let wColor = waterLvl < 20 ? '#EF4444' : (waterLvl < 50 ? '#F59E0B' : '#60A5FA');
                     let waColor = wasteLvl > 90 ? '#EF4444' : (wasteLvl > 70 ? '#F59E0B' : '#60A5FA');
-                    if (s.IsPreServiced) { wColor = '#475569'; waColor = '#475569'; }
+                    if (s.IsPreServiced || s.isPreServiced) { wColor = '#475569'; waColor = '#475569'; }
                     return `
                         <div class="w-full flex flex-col gap-[1px] bg-black/40">
                             <div class="go-acc-bar w-full h-1">
@@ -3439,11 +3462,11 @@ function renderGroundOps(services) {
                 } else {
                     let mappedProgress = s.ProgressPercent;
                     let mappedColor = barColor;
-                    if (s.State !== 1 && window.lastTelemetry && !s.IsPreServiced) {
+                    if (s.State !== 1 && window.lastTelemetry && !(s.IsPreServiced || s.isPreServiced)) {
                         if (s.Name === "Catering") {
                             mappedProgress = window.lastTelemetry.cateringCompletion !== undefined ? window.lastTelemetry.cateringCompletion : 100;
                             mappedColor = mappedProgress < 20 ? '#EF4444' : (mappedProgress < 50 ? '#F59E0B' : '#34D399');
-                        } else if (s.Name === "Cleanliness" || s.Name === "Cleaning" || s.Name === "PNC Chores") {
+                        } else if (s.Name === "Cleanliness" || s.Name === "Cleaning") {
                             mappedProgress = window.lastTelemetry.cabinCleanliness !== undefined ? window.lastTelemetry.cabinCleanliness : 100;
                             mappedColor = mappedProgress < 50 ? '#EF4444' : (mappedProgress < 75 ? '#F59E0B' : '#34D399');
                         }

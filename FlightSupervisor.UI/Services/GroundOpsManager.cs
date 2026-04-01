@@ -152,7 +152,6 @@ namespace FlightSupervisor.UI.Services
                 
                 if (lowCosts.Contains(airline) || lowCostIata.Contains(iata))
                 {
-                    cleanName = "PNC Chores";
                     isLowCost = true;
                 }
             }
@@ -305,6 +304,8 @@ namespace FlightSupervisor.UI.Services
             if (delta <= 0) return;
             _lastTick = now;
 
+            if (Services.Count == 0) return;
+
             bool allDone = true;
             bool changed = false;
 
@@ -344,13 +345,13 @@ namespace FlightSupervisor.UI.Services
                     {
                         var boarding = Services.FirstOrDefault(x => x.Name == "Boarding");
                         var catering = Services.FirstOrDefault(x => x.Name == "Catering");
-                        var cleaning = Services.FirstOrDefault(x => x.Name == "Cleaning" || x.Name == "PNC Chores");
+                        var cleaning = Services.FirstOrDefault(x => x.Name == "Cleaning");
 
                         if (s.Name == "Boarding")
                         {
                             bool cateringPending = catering != null && catering.State != GroundServiceState.Completed && catering.State != GroundServiceState.Skipped;
                             bool cleaningPending = cleaning != null && cleaning.State != GroundServiceState.Completed && cleaning.State != GroundServiceState.Skipped;
-                            bool isLcc = cleaning != null && cleaning.Name == "PNC Chores";
+                            bool isLcc = cleaning != null && isLowCost;
 
                             if (!isLcc && (cateringPending || cleaningPending))
                             {
@@ -363,9 +364,9 @@ namespace FlightSupervisor.UI.Services
                                     s.StatusMessage = LocalizationService.Translate("Wait Catering", "Attente Catering");
                             }
                         }
-                        else if ((s.Name == "Cleaning" || s.Name == "PNC Chores" || s.Name == "Catering") && boarding != null && boarding.State != GroundServiceState.NotStarted && boarding.State != GroundServiceState.Skipped)
+                        else if ((s.Name == "Cleaning" || s.Name == "Catering") && boarding != null && boarding.State != GroundServiceState.NotStarted && boarding.State != GroundServiceState.Skipped)
                         {
-                            bool isLcc = s.Name == "PNC Chores" || (cleaning != null && cleaning.Name == "PNC Chores");
+                            bool isLcc = isLowCost;
                             
                             if (!isLcc)
                             {
@@ -441,7 +442,7 @@ namespace FlightSupervisor.UI.Services
                                 else if (CurrentCrewEfficiency < 65)
                                     OnPenaltyTriggered?.Invoke(-10, LocalizationService.Translate("Crew Inefficiency: Failed to quickly find passenger", "Inefficacité Équipage: Passager manquant géré lentement"));
                             }
-                            else if (s.Name == "PNC Chores" || s.Name == "Cleaning")
+                            else if (s.Name == "Cleaning")
                             {
                                 double efficRatio = Math.Max(50.0, CurrentCrewEfficiency) / 100.0;
                                 additionalDelay = (int)(additionalDelay / efficRatio);
@@ -486,8 +487,7 @@ namespace FlightSupervisor.UI.Services
                     return "GATE AGENT";
                 case "catering":
                 case "cleaning":
-                case "pnc chores":
-                    return "PURSER";
+
                 default: // Fuel, Cargo, Water
                     return "RAMP AGENT";
             }
@@ -500,7 +500,7 @@ namespace FlightSupervisor.UI.Services
                 case "boarding": return "We are starting general boarding at the terminal.";
                 case "catering": return "Loading the galley catering carts.";
                 case "cleaning": return "Cleaning crew has entered the cabin.";
-                case "pnc chores": return "Cabin crew is preparing the cabin for the next flight.";
+
                 case "cargo": return "Starting lower deck cargo loading.";
                 case "water/waste": return "Servicing the blue water logic systems.";
                 default: return $"{name} is underway.";
@@ -514,7 +514,7 @@ namespace FlightSupervisor.UI.Services
                 case "boarding": return "Passenger count verified. Cabin is secured.";
                 case "catering": return "All trolleys are locked. Catering is completed.";
                 case "cleaning": return "Cabin interior is tidy and ready for flight.";
-                case "pnc chores": return "Cabin is secured by the crew for the next flight.";
+
                 case "cargo": return "Holds are closed and weight is verified.";
                 case "water/waste": return "Service trucks are driving away.";
                 case "refueling": return "Hoses disconnected. Slip is signed.";

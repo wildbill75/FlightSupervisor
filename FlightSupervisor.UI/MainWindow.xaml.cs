@@ -1260,6 +1260,36 @@ namespace FlightSupervisor.UI
                         SendToWeb(new { type = "briefingUpdate", briefing = briefingData });
                     }
                 }
+                else if (action == "fenixExport")
+                {
+                    try
+                    {
+                        var path = doc.RootElement.GetProperty("path").GetString();
+                        var payload = doc.RootElement.GetProperty("jsonPayload").GetString();
+
+                        if (string.IsNullOrWhiteSpace(path))
+                        {
+                            MainWebView?.CoreWebView2?.ExecuteScriptAsync("alert('Please configure the Fenix Export Path in the Settings tab first.');");
+                        }
+                        else
+                        {
+                            if (!System.IO.Directory.Exists(path))
+                            {
+                                MainWebView?.CoreWebView2?.ExecuteScriptAsync($"alert('The directory does not exist:\\n{path.Replace("\\", "\\\\")}');");
+                            }
+                            else
+                            {
+                                string fullPath = System.IO.Path.Combine(path, "simbrief.json");
+                                System.IO.File.WriteAllText(fullPath, payload);
+                                MainWebView?.CoreWebView2?.ExecuteScriptAsync($"alert('Successfully exported Leg to:\\n{fullPath.Replace("\\", "\\\\")}');");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MainWebView?.CoreWebView2?.ExecuteScriptAsync($"alert('Failed to export to Fenix:\\n{ex.Message.Replace("'", "\\'").Replace("\n", " ")}');");
+                    }
+                }
             } catch { }
         }
 
