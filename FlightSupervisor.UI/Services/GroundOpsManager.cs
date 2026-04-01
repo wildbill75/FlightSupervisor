@@ -247,7 +247,8 @@ namespace FlightSupervisor.UI.Services
             if (_isStarted) return;
             _isStarted = true;
             _lastTick = DateTime.UtcNow;
-            // No longer forcing to InProgress here. Tick() will sort them out based on time.
+            
+            OnOpsUpdated?.Invoke();
         }
         
         // Manual trigger capability for Refueling or other paused features
@@ -335,6 +336,7 @@ namespace FlightSupervisor.UI.Services
                             var waitSec = (int)(startZulu - simTime).TotalSeconds;
                             s.StatusMessage = LocalizationService.Translate($"Scheduled in {waitSec/60}m", $"Prévu dans {waitSec/60}m");
                             shouldStart = false;
+                            changed = true;
                         }
                     }
 

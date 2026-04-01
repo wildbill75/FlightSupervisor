@@ -1386,6 +1386,7 @@ namespace FlightSupervisor.UI
             _ = RefreshLiveWeatherAsync();
 
             SendToWeb(new { type = "groundOpsReady" });
+            SendToWeb(new { type = "groundOps", services = _groundOpsManager.Services });
 
             if (!string.IsNullOrEmpty(response.General?.InitialAlt))
             {
