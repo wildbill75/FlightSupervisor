@@ -184,5 +184,21 @@ namespace FlightSupervisor.UI.Services
             
             return fallback;
         }
+
+        /// <summary>
+        /// Renvoie le temps de turnaround (TAT) standard en minutes basé sur le Tier de la compagnie.
+        /// </summary>
+        public int GetStandardTurnaroundTimeMinutes(string tier)
+        {
+            switch (tier?.ToLowerInvariant())
+            {
+                case "elite": return 45; // Refueling, catering complet, nettoyage profond
+                case "standard": return 35; // Standard legacy carrier TAT
+                case "lowcost": return 25; // TAT optimisé et agressif
+                case "struggling":
+                case "danger": return 40; // Mauvaise organisation et logistique
+                default: return 35;
+            }
+        }
     }
 }

@@ -14,6 +14,9 @@ namespace FlightSupervisor.UI.Services
         private WasmLVarClient? _wasmClient = null;
         public bool IsWasmOverriding { get; set; } = true;
 
+        public bool IsConnected => _isNativelyConnected;
+        public DateTime CurrentSimZuluTime { get; private set; } = DateTime.UtcNow;
+
         public event Action<string>? OnConnectionStateChanged;
         public event Action<double>? OnAltitudeReceived;
         public event Action<double>? OnGroundSpeedReceived;
@@ -231,6 +234,7 @@ namespace FlightSupervisor.UI.Services
                 DateTime currentUtc = DateTime.UtcNow;
                 try {
                     currentUtc = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds, DateTimeKind.Utc);
+                    CurrentSimZuluTime = currentUtc;
                     OnSimTimeReceived?.Invoke(currentUtc);
                 } catch { }
 

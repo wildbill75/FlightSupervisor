@@ -7,6 +7,7 @@ namespace FlightSupervisor.UI.Services
     public enum FlightPhase
     {
         AtGate,
+        Turnaround,
         Pushback,
         TaxiOut,
         Takeoff,
@@ -38,6 +39,7 @@ namespace FlightSupervisor.UI.Services
             switch (CurrentPhase)
             {
                 case FlightPhase.AtGate: return LocalizationService.Translate("At Gate", "À la porte");
+                case FlightPhase.Turnaround: return LocalizationService.Translate("Turnaround", "Escale");
                 case FlightPhase.Pushback: return LocalizationService.Translate("Pushback", "Repoussage");
                 case FlightPhase.TaxiOut: return LocalizationService.Translate("Taxi Out", "Roulage (Départ)");
                 case FlightPhase.Takeoff: return LocalizationService.Translate("Takeoff", "Décollage");
@@ -380,8 +382,10 @@ namespace FlightSupervisor.UI.Services
 
             // Ground lighting rules (Strobe & Landing Lights OFF)
             // Removed TaxiOut & Pushback so the user can turn them on at engine start or holding point
+            // Ground lighting rules (Strobe & Landing Lights OFF)
+            // Removed TaxiOut & Pushback so the user can turn them on at engine start or holding point
             if (CurrentPhase == FlightPhase.AtGate || 
-                CurrentPhase == FlightPhase.Arrived ||
+                CurrentPhase == FlightPhase.Turnaround || 
                 CurrentPhase == FlightPhase.Arrived ||
                 (CurrentPhase == FlightPhase.TaxiIn && _taxiInStartTime.HasValue && (DateTime.Now - _taxiInStartTime.Value).TotalSeconds > 120))
             {
@@ -441,6 +445,7 @@ namespace FlightSupervisor.UI.Services
             switch (CurrentPhase)
             {
                 case FlightPhase.AtGate:
+                case FlightPhase.Turnaround:
                     if (groundSpeed >= 0.5 && !isParkingBrakeSet) ChangePhase(FlightPhase.Pushback);
                     break;
                 
@@ -700,7 +705,7 @@ namespace FlightSupervisor.UI.Services
                     _taxiInStartTime = DateTime.Now;
                 }
                 
-                if (CurrentPhase == FlightPhase.AtGate || CurrentPhase == FlightPhase.Pushback)
+                if (CurrentPhase == FlightPhase.AtGate || CurrentPhase == FlightPhase.Turnaround || CurrentPhase == FlightPhase.Pushback)
                 {
                     _hasLanded = false;
                     _hasTriggeredTaxiPenalty = false;
@@ -715,7 +720,7 @@ namespace FlightSupervisor.UI.Services
                     _hasTriggeredOverspeedPenalty = false;
                 }
 
-                if (CurrentPhase == FlightPhase.AtGate)
+                if (CurrentPhase == FlightPhase.AtGate || CurrentPhase == FlightPhase.Turnaround)
                 {
                     _hasTriggeredOverspeedPenalty = false;
                     _hasTriggeredTaxiPenalty = false;
@@ -779,9 +784,9 @@ namespace FlightSupervisor.UI.Services
             }
         }
 
-        public void Reset()
+        public void Reset(bool isTurnaround = false)
         {
-            ChangePhase(FlightPhase.AtGate);
+            ChangePhase(isTurnaround ? FlightPhase.Turnaround : FlightPhase.AtGate);
             _highestAltitudeReached = 0;
             TouchdownFpm = 0.0;
             TouchdownGForce = 1.0;

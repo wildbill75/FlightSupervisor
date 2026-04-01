@@ -2,7 +2,7 @@ const locales = {
     en: {
         nav_dashboard: "Dashboard",
         nav_briefing: "Briefing",
-        nav_groundops: "Ground Ops",
+        nav_groundops: "Ground Opérations",
         nav_manifest: "Manifest",
         nav_logs: "Logs",
         nav_settings: "Settings",
@@ -95,7 +95,7 @@ const locales = {
         set_hardcore: "Hardcore Mode",
         set_hardcore_desc: "Fines are doubled. Safety violations immediately cancel the flight.",
         set_ontop: "Always on Top",
-        set_ontop_desc: "Flight Supervisor stays visible above MSFS.",
+        set_ontop_desc: "TRUE AIRMANSHIP stays visible above MSFS.",
 
         btn_start_ops: "START OPS",
         btn_fetch_plan: "FETCH PLAN",
@@ -253,8 +253,8 @@ const locales = {
         set_real_desc: "Règles de score et comportement de fenêtre.",
         set_hardcore: "Mode Hardcore",
         set_hardcore_desc: "Pénalités doublées. Les violations de sécurité annulent immédiatement le vol.",
-        set_ontop: "Toujours au premier plan",
-        set_ontop_desc: "Flight Supervisor reste visible par-dessus MSFS.",
+        set_ontop: "Toujours au Premier Plan",
+        set_ontop_desc: "TRUE AIRMANSHIP reste visible par-dessus MSFS.",
 
         btn_start_ops: "DÉMARRER OPS",
         btn_fetch_plan: "CHARGER PLAN",

@@ -16,6 +16,7 @@ namespace FlightSupervisor.UI
         private SimConnectService _simConnectService;
         private FlightPhaseManager _phaseManager;
         private SimBriefResponse? _currentResponse = null;
+        private Queue<SimBriefResponse> _rotationQueue = new();
         
         private double _lastKnownGroundSpeed = 0;
         private double _lastKnownAirspeed = 0;
@@ -63,6 +64,7 @@ namespace FlightSupervisor.UI
         private double _currentFobKg = 0;
 
         private CabinManager _cabinManager;
+        private GroundOpsResourceService _groundOpsResourceService;
         private AirlineProfileManager _airlineDb;
         private FlightSupervisor.UI.Services.GroundEventEngine _eventEngine;
         private CrisisManager _crisisManager;
@@ -97,6 +99,7 @@ namespace FlightSupervisor.UI
             _eventEngine.OnEventTriggered += OnGroundEventTriggered;
 
             _cabinManager = new CabinManager(_audioEngine);
+            _groundOpsResourceService = new GroundOpsResourceService(_groundOpsManager, _cabinManager);
             _cabinManager.OnCrewMessage += (level, msg, audioSeq) => SendToWeb(new { type = "cabinLog", level = level, message = msg, audioSequence = audioSeq });
             _cabinManager.OnPenaltyTriggered += (points, reason) => {
                 if (_scoreManager != null) _scoreManager.AddScore(points, reason, ScoreCategory.Comfort);
@@ -116,9 +119,19 @@ namespace FlightSupervisor.UI
             };
             
             _cabinManager.OnDeboardingComplete += () => {
-                _groundOpsManager.PrepareNextLeg(_currentFobKg);
-                SendToWeb(new { type = "log", message = "[SYSTEM] Cabin secured, initiating turnaround operations." });
-                Dispatcher.Invoke(() => SendToWeb(new { type = "groundOps", services = _groundOpsManager.Services }));
+                _cabinManager.SessionFlightsCompleted++;
+
+                if (_rotationQueue.Count > 0)
+                {
+                    LoadNextLeg();
+                    SendToWeb(new { type = "log", message = $"[SYSTEM] Cabin secured, initiating turnaround operations. {_rotationQueue.Count} leg(s) remaining in rotation." });
+                }
+                else
+                {
+                    _groundOpsManager.PrepareNextLeg(_currentFobKg);
+                    SendToWeb(new { type = "log", message = "[SYSTEM] Shift completed. No further flights scheduled." });
+                    Dispatcher.Invoke(() => SendToWeb(new { type = "groundOps", services = _groundOpsManager.Services }));
+                }
             };
 
             // Tray Icon Setup
@@ -146,34 +159,7 @@ namespace FlightSupervisor.UI
                 _groundOpsManager.Tick(_currentSimTime);
 
                 // --- MULTI-LEG PROGRESSIVE GROUND OP REFILLS ---
-                var caterSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Catering");
-                if (caterSvc != null && caterSvc.State == GroundServiceState.InProgress)
-                {
-                    double rate = 100.0 / Math.Max(1, caterSvc.TotalDurationSec);
-                    _cabinManager.CateringCompletion = Math.Min(100.0, _cabinManager.CateringCompletion + rate);
-                }
-
-                var cleanSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Cleaning" || s.Name == "PNC Chores");
-                if (cleanSvc != null && cleanSvc.State == GroundServiceState.InProgress)
-                {
-                    double rate = 100.0 / Math.Max(1, cleanSvc.TotalDurationSec);
-                    _cabinManager.CabinCleanliness = Math.Min(100.0, _cabinManager.CabinCleanliness + rate);
-                }
-
-                var waterSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Water/Waste");
-                if (waterSvc != null && waterSvc.State == GroundServiceState.InProgress)
-                {
-                    double rate = 100.0 / Math.Max(1, waterSvc.TotalDurationSec);
-                    _cabinManager.WaterLevel = Math.Min(100.0, _cabinManager.WaterLevel + rate);
-                    _cabinManager.WasteLevel = Math.Max(0.0, _cabinManager.WasteLevel - rate);
-                }
-                
-                var cargoSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Cargo/Luggage" || s.Name == "Cargo");
-                if (cargoSvc != null && cargoSvc.State == GroundServiceState.InProgress)
-                {
-                    double rate = 100.0 / Math.Max(1, cargoSvc.TotalDurationSec);
-                    _cabinManager.BaggageCompletion = Math.Min(100.0, _cabinManager.BaggageCompletion + rate);
-                }
+                _groundOpsResourceService.Tick((int)_uiTimer.Interval.TotalMilliseconds);
                 // ------------------------------------------------
 
                 int totalSvc = _groundOpsManager.Services.Count;
@@ -712,29 +698,9 @@ namespace FlightSupervisor.UI
             MainWebView.CoreWebView2.SetVirtualHostNameToFolderMapping("app.local", "wwwroot", CoreWebView2HostResourceAccessKind.Allow);
             MainWebView.CoreWebView2.SetVirtualHostNameToFolderMapping("fsv.local", AppDomain.CurrentDomain.BaseDirectory, CoreWebView2HostResourceAccessKind.Allow);
             MainWebView.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
-            MainWebView.CoreWebView2.Navigate("http://app.local/index.html");
+            MainWebView.CoreWebView2.Navigate("https://app.local/index.html");
 
-            var saveFilePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FlightSupervisor_User.txt");
-            var username = System.IO.File.Exists(saveFilePath) ? System.IO.File.ReadAllText(saveFilePath) : "";
-            
-            MainWebView.CoreWebView2.NavigationCompleted += (s, e) => 
-            {
-                if (!string.IsNullOrEmpty(username))
-                    SendToWeb(new { type = "savedUsername", username = username });
-                
-                var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-                SendToWeb(new { type = "appVersion", version = $"BUILD {version?.ToString(3)}" });
-
-                // Initialize the Pilot Profile in the UI
-                if (_profileManager != null && _profileManager.CurrentProfile != null)
-                {
-                    SendToWeb(new { type = "InitProfile", payload = _profileManager.CurrentProfile });
-                }
-
-                // Lancer SimConnect SEULEMENT quand la page JS est prête à intercepter les messages !
-                var helper = new WindowInteropHelper(this);
-                _simConnectService.Connect(helper.Handle);
-            };
+            // Navigation completed is now handled securely inside uiReady IPC message
         }
 
         [DllImport("user32.dll")]
@@ -757,6 +723,58 @@ namespace FlightSupervisor.UI
                         ReleaseCapture();
                         SendMessage(helper.Handle, 0xA1, 2, 0);
                     });
+                }
+                else if (action == "openSimbriefWindow")
+                {
+                    try
+                    {
+                        var simbriefWin = new Window
+                        {
+                            Title = "SimBrief Dispatch (Navigraph)",
+                            Width = 1200,
+                            Height = 900,
+                            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                            Owner = this,
+                            Background = System.Windows.Media.Brushes.Black
+                        };
+                        simbriefWin.Closed += (s, e) => {
+                            SendToWeb(new { type = "simbriefWindowClosed" });
+                        };
+
+                        var webView = new Microsoft.Web.WebView2.Wpf.WebView2();
+                        simbriefWin.Content = webView;
+                        simbriefWin.Show();
+
+                        // Fire and forget initialization to avoid blocking the message loop
+                        _ = System.Threading.Tasks.Task.Run(async () =>
+                        {
+                            await Dispatcher.InvokeAsync(async () =>
+                            {
+                                await webView.EnsureCoreWebView2Async(MainWebView.CoreWebView2.Environment);
+                                webView.SourceChanged += (s, e) =>
+                                {
+                                    if (webView.Source != null && (webView.Source.ToString().Contains("dispatch.simbrief.com/options/briefing") || webView.Source.ToString().Contains("/briefing")))
+                                    {
+                                        simbriefWin.Close();
+                                    }
+                                };
+                                webView.Source = new System.Uri("https://dispatch.simbrief.com/options/custom");
+                            });
+                        });
+                    }
+                    catch (System.Exception ex)
+                    {
+                        System.Windows.MessageBox.Show("Error opening Simbrief: " + ex.Message);
+                    }
+                }
+                else if (action == "cancelLastLeg")
+                {
+                    if (_rotationQueue.Count > 0)
+                    {
+                        var list = _rotationQueue.ToList();
+                        list.RemoveAt(list.Count - 1);
+                        _rotationQueue = new System.Collections.Generic.Queue<SimBriefResponse>(list);
+                    }
                 }
                 else if (action == "intercomQuery")
                 {
@@ -926,6 +944,24 @@ namespace FlightSupervisor.UI
                 }
                 else if (action == "uiReady")
                 {
+                    var saveFilePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FlightSupervisor_User.txt");
+                    var username = System.IO.File.Exists(saveFilePath) ? System.IO.File.ReadAllText(saveFilePath) : "";
+
+                    if (!string.IsNullOrEmpty(username))
+                        SendToWeb(new { type = "savedUsername", username = username });
+                    
+                    var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+                    SendToWeb(new { type = "appVersion", version = $"BUILD {version?.ToString(3)}" });
+
+                    if (_profileManager != null && _profileManager.CurrentProfile != null)
+                    {
+                        SendToWeb(new { type = "InitProfile", payload = _profileManager.CurrentProfile });
+                    }
+
+                    // Lancer SimConnect SEULEMENT quand la page JS est prête à intercepter les messages !
+                    var helper = new WindowInteropHelper(this);
+                    _simConnectService.Connect(helper.Handle);
+
                     var savedState = ShiftStateManager.LoadState();
                     if (savedState != null)
                     {
@@ -936,6 +972,37 @@ namespace FlightSupervisor.UI
                             morale = savedState.CrewMorale, 
                             date = savedState.SavedAtLocal.ToString("g") 
                         });
+                    }
+                }
+                else if (action == "updateProfileField")
+                {
+                    if (_profileManager != null && _profileManager.CurrentProfile != null)
+                    {
+                        string field = doc.RootElement.GetProperty("field").GetString() ?? "";
+                        string value = doc.RootElement.GetProperty("value").GetString() ?? "";
+
+                        switch (field)
+                        {
+                            case "FullName":
+                                var parts = value.Split(new[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
+                                if (parts.Length > 0) _profileManager.CurrentProfile.FirstName = parts[0];
+                                if (parts.Length > 1) _profileManager.CurrentProfile.LastName = parts[1];
+                                else _profileManager.CurrentProfile.LastName = "";
+                                break;
+                            case "CallSign":
+                                _profileManager.CurrentProfile.CallSign = value;
+                                break;
+                            case "HomeBaseIcao":
+                                _profileManager.CurrentProfile.HomeBaseIcao = value.ToUpper();
+                                break;
+                            case "CountryCode":
+                                _profileManager.CurrentProfile.CountryCode = value.ToUpper();
+                                break;
+                            case "AvatarPosition":
+                                _profileManager.CurrentProfile.AvatarPosition = value;
+                                break;
+                        }
+                        _profileManager.SaveProfile();
                     }
                 }
                 else if (action == "resumeShift")
@@ -951,6 +1018,11 @@ namespace FlightSupervisor.UI
                 {
                     ShiftStateManager.ClearState();
                     SendToWeb(new { type = "shiftCleared" });
+                }
+                else if (action == "requestAcarsUpdate")
+                {
+                    _ = RefreshLiveWeatherAsync();
+                    SendToWeb(new { type = "cabinLog", level = "cyan", message = "[ACARS] Requested Manual Weather Update via SATCOM." });
                 }
                 else if (action == "fetch") 
                 {
@@ -978,7 +1050,10 @@ namespace FlightSupervisor.UI
                     if (doc.RootElement.TryGetProperty("firstFlightClean", out var ffcProp))
                     {
                         if (ffcProp.ValueKind == System.Text.Json.JsonValueKind.True)
+                        {
                             _cabinManager.FirstFlightClean = true;
+                            _cabinManager.SessionFlightsCompleted = 0;
+                        }
                         else if (ffcProp.ValueKind == System.Text.Json.JsonValueKind.False)
                             _cabinManager.FirstFlightClean = false;
                     }
@@ -994,7 +1069,20 @@ namespace FlightSupervisor.UI
                         units.Time = unitsProp.GetProperty("time").GetString() ?? "24H";
                     }
                     
-                    await FetchFlightPlan(username, remember, units, weatherSource);
+                    var syncMsfsTime = false;
+                    if (doc.RootElement.TryGetProperty("syncMsfsTime", out var smProp))
+                        syncMsfsTime = smProp.ValueKind == System.Text.Json.JsonValueKind.True;
+
+                    await FetchFlightPlan(username, remember, units, weatherSource, syncMsfsTime);
+                }
+                else if (action == "finishDispatch")
+                {
+                    Dispatcher.Invoke(() => {
+                        if (_currentResponse == null && _rotationQueue.Count > 0)
+                        {
+                            LoadNextLeg();
+                        }
+                    });
                 }
                 else if (action == "acknowledgeDebrief")
                 {
@@ -1044,7 +1132,7 @@ namespace FlightSupervisor.UI
                     var srvName = doc.RootElement.GetProperty("service").GetString() ?? "";
                     if (!string.IsNullOrEmpty(srvName))
                     {
-                        _groundOpsManager.SkipService(srvName);
+                        _groundOpsManager.SkipService(srvName!);
                     }
                 }
                 else if (action == "startService")
@@ -1052,7 +1140,7 @@ namespace FlightSupervisor.UI
                     var srvName = doc.RootElement.GetProperty("service").GetString();
                     if (!string.IsNullOrEmpty(srvName))
                     {
-                        _groundOpsManager.StartManualService(srvName);
+                        _groundOpsManager.StartManualService(srvName!);
                     }
                 }
                 else if (action == "warpToDeparture")
@@ -1200,6 +1288,7 @@ namespace FlightSupervisor.UI
                 altitude = _lastKnownAltitude,
                 groundSpeed = _lastKnownGroundSpeed,
                 radioHeight = _lastKnownRadioHeight,
+                sessionFlightsCompleted = _cabinManager.SessionFlightsCompleted,
                 isGearDown = _isGearDown,
                 seatbeltsOn = _cabinManager.IsSeatbeltsOn,
                 isDelayed = _groundOpsManager.TargetSobt != null && (_aobt != null ? _aobt.Value > _groundOpsManager.TargetSobt.Value.AddMinutes(5) : _currentSimTime > _groundOpsManager.TargetSobt.Value.AddMinutes(5)),
@@ -1246,7 +1335,80 @@ namespace FlightSupervisor.UI
             }
         }
 
-        private async System.Threading.Tasks.Task FetchFlightPlan(string username, bool remember, FlightSupervisor.UI.Models.UnitPreferences? units = null, string weatherSource = "simbrief")
+        private void LoadNextLeg()
+        {
+            if (_rotationQueue.Count == 0) return;
+
+            var response = _rotationQueue.Dequeue();
+            _currentResponse = response;
+            _cabinManager.CurrentFlight = _currentResponse;
+
+            _phaseManager.Reset(true); // true = Turnaround state
+            _scoreManager.Reset();
+            _cabinManager.Reset();
+            _eventEngine.Reset();
+            CurrentAirline = _airlineDb.GetProfileFor(response.General?.Airline ?? "");
+
+            var passengerService = new FlightSupervisor.UI.Services.PassengerManifestService();
+            var manifestData = passengerService.GenerateManifest(response);
+
+            _cabinManager.InitializeFlightDemographics(CurrentAirline, manifestData);
+
+            if (CurrentAirline != null)
+            {
+                if (CurrentAirline.SafetyRecord >= 9) _crisisManager.Frequency = FlightSupervisor.UI.Services.CrisisFrequency.Realistic;
+                else if (CurrentAirline.SafetyRecord >= 6) _crisisManager.Frequency = FlightSupervisor.UI.Services.CrisisFrequency.Frequent;
+                else _crisisManager.Frequency = FlightSupervisor.UI.Services.CrisisFrequency.Chaos;
+                System.Diagnostics.Debug.WriteLine($"[CRISIS] Safety Score: {CurrentAirline.SafetyRecord} -> Frequency set to: {_crisisManager.Frequency}");
+            }
+
+            DateTime? nextSobt = null;
+            if (_aibt.HasValue)
+            {
+                int tatMinutes = _airlineDb.GetStandardTurnaroundTimeMinutes(CurrentAirline?.Tier);
+                DateTime minimumSobt = _aibt.Value.AddMinutes(tatMinutes);
+                
+                DateTime scheduledSobt = DateTime.MinValue;
+                if (response.Times?.SchedOut != null && long.TryParse(response.Times.SchedOut, out long unixSobt))
+                {
+                    scheduledSobt = DateTimeOffset.FromUnixTimeSeconds(unixSobt).UtcDateTime;
+                }
+                
+                if (scheduledSobt > DateTime.MinValue && minimumSobt > scheduledSobt)
+                {
+                    nextSobt = minimumSobt;
+                    SendToWeb(new { type = "log", message = $"[DISPATCH] Late Arrival Detected. Turnaround Time ({tatMinutes} min) enforces new SOBT: {nextSobt.Value:HH:mm}Z" });
+                }
+            }
+
+            _groundOpsManager.InitializeFromSimBrief(response, _cabinManager.SessionFlightsCompleted == 0 && _cabinManager.FirstFlightClean, _currentFobKg, nextSobt);
+
+            _ = RefreshLiveWeatherAsync();
+
+            SendToWeb(new { type = "groundOpsReady" });
+
+            if (!string.IsNullOrEmpty(response.General?.InitialAlt))
+            {
+                var digits = new string(response.General.InitialAlt.Where(char.IsDigit).ToArray());
+                if (double.TryParse(digits, out double alt))
+                {
+                    _phaseManager.TargetCruiseAltitude = alt < 1000 ? alt * 100 : alt;
+                }
+            }
+
+            string acType = response.Aircraft?.BaseType ?? response.Aircraft?.IcaoCode ?? "";
+            if (acType.StartsWith("A33") || acType.StartsWith("A34") || acType.StartsWith("A35") || acType.StartsWith("A38") || 
+                acType.StartsWith("B74") || acType.StartsWith("B76") || acType.StartsWith("B77") || acType.StartsWith("B78") || acType.StartsWith("MD1"))
+                _phaseManager.AircraftCategory = "Heavy";
+            else if (acType.StartsWith("C1") || acType.StartsWith("SR") || acType.StartsWith("DA") || acType.StartsWith("PA") || acType.StartsWith("P28"))
+                _phaseManager.AircraftCategory = "Light";
+            else
+                _phaseManager.AircraftCategory = "Medium";
+
+            SendToWeb(new { type = "simulationState", msg = $"Leg Loaded: {response.Origin?.IcaoCode} to {response.Destination?.IcaoCode}. {(_rotationQueue.Count)} leg(s) remaining." });
+        }
+
+        private async System.Threading.Tasks.Task FetchFlightPlan(string username, bool remember, FlightSupervisor.UI.Models.UnitPreferences? units = null, string weatherSource = "simbrief", bool syncMsfsTime = false)
         {
             if (units == null) units = new FlightSupervisor.UI.Models.UnitPreferences();
             if (string.IsNullOrEmpty(username)) return;
@@ -1265,15 +1427,6 @@ namespace FlightSupervisor.UI
 
                 if (response != null && response.Fetch?.Status == "Success")
                 {
-                    _currentResponse = response;
-                    _cabinManager.CurrentFlight = _currentResponse;
-                    
-                    // Dispatcher 
-                    Dispatcher.Invoke(() => {
-                        // Any UI updates that depend on _currentResponse or _cabinManager.CurrentFlight can go here if needed.
-                        // The original code for weather fetching and other logic will follow.
-                    });
-
                     if (response.Weather != null)
                     {
                         if (weatherSource == "activesky")
@@ -1332,55 +1485,56 @@ namespace FlightSupervisor.UI
                         }
                     }
 
-                    _phaseManager.Reset();
-                    _scoreManager.Reset();
-                    _cabinManager.Reset();
-                    _eventEngine.Reset();
-                    _currentResponse = response;
-                    CurrentAirline = _airlineDb.GetProfileFor(response.General?.Airline ?? "");
-                    
-                    var passengerService = new FlightSupervisor.UI.Services.PassengerManifestService();
-                    var manifestData = passengerService.GenerateManifest(response);
-                    
-                    _cabinManager.InitializeFlightDemographics(CurrentAirline, manifestData);
-                    
-                    if (CurrentAirline != null)
+                    if (_rotationQueue.Count == 0 && syncMsfsTime && _simConnectService != null && _simConnectService.IsConnected && response.Times != null)
                     {
-                        if (CurrentAirline.SafetyRecord >= 9) _crisisManager.Frequency = FlightSupervisor.UI.Services.CrisisFrequency.Realistic;
-                        else if (CurrentAirline.SafetyRecord >= 6) _crisisManager.Frequency = FlightSupervisor.UI.Services.CrisisFrequency.Frequent;
-                        else _crisisManager.Frequency = FlightSupervisor.UI.Services.CrisisFrequency.Chaos;
-                        System.Diagnostics.Debug.WriteLine($"[CRISIS] Safety Score: {CurrentAirline.SafetyRecord} -> Frequency set to: {_crisisManager.Frequency}");
-                    }
-                    
-                    _groundOpsManager.InitializeFromSimBrief(response, _cabinManager.SessionFlightsCompleted == 0 && _cabinManager.FirstFlightClean, _currentFobKg);
-                    
-                    // Trigger an immediate background fetch to populate initial live data without blocking the UI rendering if needed
-                    _ = RefreshLiveWeatherAsync();
-
-                    SendToWeb(new { type = "groundOpsReady" });
-
-                    if (!string.IsNullOrEmpty(response.General?.InitialAlt))
-                    {
-                        var digits = new string(response.General.InitialAlt.Where(char.IsDigit).ToArray());
-                        if (double.TryParse(digits, out double alt))
+                        if (long.TryParse(response.Times.SchedOut, out long originalOut) && long.TryParse(response.Times.SchedIn, out long originalIn))
                         {
-                            _phaseManager.TargetCruiseAltitude = alt < 1000 ? alt * 100 : alt;
+                            long blockSecs = originalIn - originalOut;
+                            if (blockSecs <= 0) blockSecs = 3600; // fallback 1h
+
+                            long simNowUnix = ((DateTimeOffset)_simConnectService.CurrentSimZuluTime).ToUnixTimeSeconds();
+                            
+                            long newOut = simNowUnix + (30 * 60); 
+                            long newIn = newOut + blockSecs;
+                            
+                            response.Times.SchedOut = newOut.ToString();
+                            response.Times.SchedIn = newIn.ToString();
+                        }
+                    }
+                    else if (_rotationQueue.Count > 0 && response.Times != null)
+                    {
+                        var lastLeg = _rotationQueue.Last();
+                        if (lastLeg.Times != null && long.TryParse(lastLeg.Times.SchedIn, out long lastIn) && 
+                            long.TryParse(response.Times.SchedOut, out long currentOut) && 
+                            long.TryParse(response.Times.SchedIn, out long currentIn))
+                        {
+                            long blockSecs = currentIn - currentOut;
+                            if (blockSecs <= 0) blockSecs = 3600; // fallback 1h
+
+                            long turnaroundSecs = 45 * 60; // default medium 45 min
+                            string acType = response.Aircraft?.BaseType ?? response.Aircraft?.IcaoCode ?? "";
+                            if (acType.StartsWith("A33") || acType.StartsWith("A34") || acType.StartsWith("A35") || acType.StartsWith("A38") || 
+                                acType.StartsWith("B74") || acType.StartsWith("B76") || acType.StartsWith("B77") || acType.StartsWith("B78") || acType.StartsWith("MD1"))
+                                turnaroundSecs = 70 * 60;
+                            else if (acType.StartsWith("C1") || acType.StartsWith("SR") || acType.StartsWith("DA") || acType.StartsWith("PA") || acType.StartsWith("P28"))
+                                turnaroundSecs = 25 * 60;
+
+                            long newOut = lastIn + turnaroundSecs;
+                            long newIn = newOut + blockSecs;
+
+                            response.Times.SchedOut = newOut.ToString();
+                            response.Times.SchedIn = newIn.ToString();
                         }
                     }
 
-                    string acType = response.Aircraft?.BaseType ?? response.Aircraft?.IcaoCode ?? "";
-                    if (acType.StartsWith("A33") || acType.StartsWith("A34") || acType.StartsWith("A35") || acType.StartsWith("A38") || 
-                        acType.StartsWith("B74") || acType.StartsWith("B76") || acType.StartsWith("B77") || acType.StartsWith("B78") || acType.StartsWith("MD1"))
-                        _phaseManager.AircraftCategory = "Heavy";
-                    else if (acType.StartsWith("C1") || acType.StartsWith("SR") || acType.StartsWith("DA") || acType.StartsWith("PA") || acType.StartsWith("P28"))
-                        _phaseManager.AircraftCategory = "Light";
-                    else
-                        _phaseManager.AircraftCategory = "Medium";
+                    _rotationQueue.Enqueue(response);
                     
                     var weatherService = new WeatherBriefingService(units);
                     var briefingData = weatherService.GenerateBriefing(response);
 
-                    // Convert complex response to a simpler format for JS to avoid serialization deep nesting loops if any
+                    var passengerService = new FlightSupervisor.UI.Services.PassengerManifestService();
+                    var manifestData = passengerService.GenerateManifest(response);
+
                     SendToWeb(new { 
                         type = "flightData", 
                         data = response,
@@ -1388,7 +1542,7 @@ namespace FlightSupervisor.UI
                         manifest = manifestData
                     });
                     
-                    SendToWeb(new { type = "fetchStatus", status = "success", message = "Flight plan loaded !" });
+                    SendToWeb(new { type = "fetchStatus", status = "success", message = "Flight plan parsed and added to rotation." });
                 }
                 else
                 {

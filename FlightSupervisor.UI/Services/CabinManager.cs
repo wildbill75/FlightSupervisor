@@ -876,9 +876,9 @@ namespace FlightSupervisor.UI.Services
                     double dirtyFactor = (50.0 - CabinCleanliness) / 50.0;
                     DecreaseComfort(0.01 * dirtyFactor * deltaTimeSeconds);
                     
-                    if (CabinCleanliness < 20.0 && _rnd.NextDouble() < (0.001 * deltaTimeSeconds))
+                    if (CabinCleanliness < 40.0 && _rnd.NextDouble() < (0.001 * deltaTimeSeconds))
                     {
-                        OnCrewMessage?.Invoke("orange", LocalizationService.Translate("Captain, passengers are complaining about the disgusting state of the cabin...", "Commandant, les passagers se plaignent de l'état asbolument dégoûtant de la cabine..."), null);
+                        OnCrewMessage?.Invoke("orange", LocalizationService.Translate("Captain, passengers are complaining about the disgusting state of the cabin...", "Commandant, les passagers se plaignent de l'état absolument dégoûtant de la cabine..."), null);
                         ModifySatisfaction(-2.0);
                     }
                 }
@@ -1658,6 +1658,8 @@ namespace FlightSupervisor.UI.Services
             _comfortSum = 0;
             _comfortSamples = 0;
             _issuedCommands.Clear();
+            HasBoardingStarted = false;
+            _lastBoardingTick = DateTime.MaxValue;
         }
         
         private void UpdatePassengerStates(FlightPhase phase, bool isSevere)

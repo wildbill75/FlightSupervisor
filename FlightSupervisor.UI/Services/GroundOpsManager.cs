@@ -95,7 +95,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<int, string>? OnOperationBonusTriggered;
         public event Action<int, string>? OnPenaltyTriggered;
 
-        public void InitializeFromSimBrief(SimBriefResponse? sb, bool firstFlightClean = false, double currentFobKg = 0)
+        public void InitializeFromSimBrief(SimBriefResponse? sb, bool firstFlightClean = false, double currentFobKg = 0, DateTime? overrideSobt = null)
         {
             Services.Clear();
             TargetSobt = null;
@@ -106,12 +106,17 @@ namespace FlightSupervisor.UI.Services
             int.TryParse(sb?.Fuel?.PlanRamp, out fuel);
 
             bool isHeavy = false;
+            if (overrideSobt.HasValue)
+            {
+                TargetSobt = overrideSobt.Value;
+            }
+            else if (sb != null && sb.Times?.SchedOut != null && long.TryParse(sb.Times.SchedOut, out long unixSobt))
+            {
+                TargetSobt = DateTimeOffset.FromUnixTimeSeconds(unixSobt).UtcDateTime;
+            }
+
             if (sb != null)
             {
-                if (sb.Times?.SchedOut != null && long.TryParse(sb.Times.SchedOut, out long unixSobt))
-                {
-                    TargetSobt = DateTimeOffset.FromUnixTimeSeconds(unixSobt).UtcDateTime;
-                }
 
                 string acType = sb.Aircraft?.BaseType ?? sb.Aircraft?.IcaoCode ?? "";
                 if (acType.StartsWith("A33") || acType.StartsWith("A34") || acType.StartsWith("A35") || acType.StartsWith("A38") || 

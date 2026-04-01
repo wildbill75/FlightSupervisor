@@ -142,6 +142,10 @@ namespace FlightSupervisor.UI.Services
 
             // Destination Station
             var destStation = new BriefingStation { Id = "destination", Label = LocalizationService.Translate("DESTINATION:", "DESTINATION :"), RawMetar = destMetar, RawTaf = destTaf };
+            
+            // Pre-parse the METAR to guarantee Temp/Dew and QNH are populated (TAFs usually lack them)
+            if (!string.IsNullOrWhiteSpace(destMetar)) AnalyzeMetar(destMetar, "", destStation);
+
             if (etaUnix > 0 && !string.IsNullOrWhiteSpace(destTaf))
                 destStation.Commentary = AnalyzeTafAtEta(destTaf, etaUnix, destStation);
             else
@@ -180,6 +184,9 @@ namespace FlightSupervisor.UI.Services
                 string altnIcao = response.Alternate?.IcaoCode ?? LocalizationService.Translate("our alternate", "notre aéroport de dégagement");
                 
                 var altnStation = new BriefingStation { Id = "alternate", Label = LocalizationService.Translate("ALTERNATE PLAN:", "PLAN DE DÉGAGEMENT :"), RawMetar = altnMetarStr, RawTaf = altnTafStr, Icao = altnIcao };
+
+                // Pre-parse the METAR to guarantee Temp/Dew and QNH are populated
+                if (!string.IsNullOrWhiteSpace(altnMetarStr)) AnalyzeMetar(altnMetarStr, "", altnStation);
                 
                 var altComm = new StringBuilder();
                 altComm.AppendLine(LocalizationService.Translate($"Regarding our primary destination alternate, {altnIcao}:", $"Concernant notre dégagement principal, {altnIcao} :"));
