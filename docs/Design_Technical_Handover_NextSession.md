@@ -1,25 +1,20 @@
-# Bilan de la Session - Refonte de l'App Lifecycle & ACARS Weather
+# Bilan de la Session - Stabilisation Pristine, Embarquement & Fenix OFP
 
 ## Ce qui a été accompli
-1. **Refonte App Lifecycle & IPC Handshake (`MainWindow.xaml.cs` & `app.js`)** :
-   - Correction critique de la "Race Condition" au démarrage de l'application. Les envois de données (données du profil, infos SimBrief) et la connexion à SimConnect ne sont plus déclenchés via l'événement instable `NavigationCompleted` du WebView2.
-   - Ils sont désormais sécurisés et déclenchés via la réception du signal IPC explicite `uiReady`, garantissant que le Frontend est prêt à traiter les messages.
-   - Ajout d'un écouteur IPC `updateProfileField` côté C#. Les modifications du Profil Joueur (CallSign, Nom, Base d'affectation) tapées dans l'interface UI sont désormais correctement capturées et sauvegardées de manière persistante dans `Profile.json` via le `ProfileManager`.
+1. **Refonte de la Désérialisation IPC & Protection "Pristine" (`MainWindow.xaml.cs`)** :
+   - Le système perdait l'état "FirstFlightClean" lors des relances de Ground Ops car la valeur booléenne arrivait sous forme de string depuis le JS local storage. 
+   - La méthode de parsing `TryGetProperty` a été complètement blindée pour traiter `ValueKind.String` (`"true"`, `"false"`) et ainsi sécuriser l'état initial de la cabine. 
 
-2. **Automatisme et Mécaniques Multi-Leg (`app.js` & `CabinManager.cs`)** :
-   - Validation de la persistance de l'état Cabine à travers de multiples vols (Catering, Cleanliness, Waste, Water).
-   - Les pénalités de nettoyage ont été ajustées (plaintes si propreté < 40%).
+2. **Restauration du Moteur d'Embarquement Passagers (`GroundOpsResourceService.cs` & `CabinManager.cs`)** :
+   - Découverte majeure : La méthode `BoardPassenger()` qui transforme les objets passagers en état "Embarqué" avait disparu dans une précédente session.
+   - Refonte totale du synchroniseur `BoardSvc` : le rythme d'embarquement (0 - 121) est désormais mathématiquement interpolé et couplé à la durée en secondes du timer du `GroundOpsManager`. L'affichage Javascript reçoit cette télémétrie en temps réel et remplit sa jauge fluidement.
 
-3. **Indicateurs UI Météo (Bugs & Améliorations)** :
-   - Vérification du code de `parseBriefing` concernant les badges des variables météorologiques dans le rapport de Dispatch.
-   - L'interface utilise déjà les variables `Severity` envoyées par le Backend pour appliquer les couleurs Tailwind `EF4444` (Rouge critique) et `F59E0B` (Orange prudence) aux badges Visibilité, Vent et Nuages. Le design est propre et lisible.
-
-4. **UI ACARS Manuelle (Style MCDU)** :
-   - Ajout d'un bouton dédié `ACARS REQ` dans l'encart "Flight Briefing" du Frontend.
-   - Ce bouton déclenche de manière asynchrone la fausse interface MCDU de requête de données.
-   - Après l'animation, un message IPC `acarsWeatherRequest` est transmis au backend, lequel force un rafraîchissement météo global (ActiveSky/NOAA) via `RefreshLiveWeatherAsync()`. L'UI est alors reconstruite à la volée avec les nouvelles variables.
+3. **Injection Fenix A320 Simbrief** :
+   - Revue complète du circuit JSON Export (depuis `index.html` > IPC Javascript > `File.WriteAllText` C#). La feature marchait parfaitement.
+   - Le problème venait du placeholder de la page Paramètres ("Settings") qui indiquait par mégarde un répertoire fantôme dans *Mes Documents*.
+   - Le texte d'aide HTML a été corrigé pour pointer clairement vers `C:\ProgramData\Fenix\FenixSim A320`.
 
 ## Prochaines Étapes pour le prochain agent
-1. **Validation En-Jeu (Test Flight)** : Le code est prêt. L'utilisateur doit vérifier le comportement général in-game pour confirmer le déclenchement des requêtes ACARS, la fluidité de chargement du profil au démarrage, et l'accumulation des ressources de la cabine lors d'une rotation Multi-Leg (ex: Orly -> Nice -> Orly).
-2. **Affinage Sonore** : Vérifier que les annonces de descente et de changement de paliers ne se superposent pas si le joueur utilise la fonctionnalité d'avance rapide (Time Jump / Warp).
-3. **Poursuite du Design** : Continuer l'implémentation de toute autre mécanique inscrite au "Product Backlog" suite à ce test utilisateur.
+1. **Validation En-Jeu (Test Rotatif)** : Tester un vol complet sur simulateur avec le Fenix A320. Générer d'abord un vol avec SimBrief, initier l'embarquement via Flight Supervisor, vérifier au MCDU que le plan spécifique injecté est bien chargé, et évaluer la synchronisation des passagers.
+2. **Poursuite du Design UX/UI** : Implémenter et perfectionner toute nouvelle interface requise par le "Product Backlog" de l'utilisateur.
+3. **Météo En-Vol** : S'assurer que les rapports météo (ACARS / TAF) via ActiveSky pendant une phase de croisière ultra-long courrier ne crash pas le WebView2 en cas de changement brutal de zones d'informations de vol (FIR).
