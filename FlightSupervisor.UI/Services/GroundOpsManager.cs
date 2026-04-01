@@ -51,7 +51,9 @@ namespace FlightSupervisor.UI.Services
         private bool _isStarted = false;
         private DateTime _lastTick;
         // Story 29
+        // Story 29
         public DateTime? TargetSobt { get; private set; }
+        public bool IsLowCost { get; private set; } = false;
 
         private static readonly Dictionary<string, List<DelayEvent>> _delayEvents = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -141,7 +143,7 @@ namespace FlightSupervisor.UI.Services
             int waterOffset = isHeavy ? -65 : -50;
 
             string cleanName = "Cleaning";
-            bool isLowCost = false;
+            IsLowCost = false;
             
             if (sb != null)
             {
@@ -152,7 +154,7 @@ namespace FlightSupervisor.UI.Services
                 
                 if (lowCosts.Contains(airline) || lowCostIata.Contains(iata))
                 {
-                    isLowCost = true;
+                    IsLowCost = true;
                 }
             }
 
@@ -195,11 +197,11 @@ namespace FlightSupervisor.UI.Services
             // LCC: Deboarding(600s), Clean(300s), Cater(300s/Optional), Fuel(600s), Boarding(900s) = ~30m min
             // Legacy: Deboarding(900s), Clean(900s), Cater(900s), Fuel(600s), Boarding(1200s) = ~45m min
             
-            int deboardingBase = isLowCost ? 600 : 900;
+            int deboardingBase = IsLowCost ? 600 : 900;
             double boardingEfficiencyRatio = Math.Max(50.0, CurrentCrewEfficiency) / 100.0;
-            int boardingBase = (int)((isLowCost ? 900 : 1200) / boardingEfficiencyRatio);
-            int cleaningBase = isLowCost ? 300 : 900;
-            int cateringBase = isLowCost ? 300 : 900;
+            int boardingBase = (int)((IsLowCost ? 900 : 1200) / boardingEfficiencyRatio);
+            int cleaningBase = IsLowCost ? 300 : 900;
+            int cateringBase = IsLowCost ? 300 : 900;
             
             // Calculate fuel difference. 1 kg/L roughly. PlanRamp is kg. 
             // We assume refueling is 50kg/sec.
@@ -351,7 +353,7 @@ namespace FlightSupervisor.UI.Services
                         {
                             bool cateringPending = catering != null && catering.State != GroundServiceState.Completed && catering.State != GroundServiceState.Skipped;
                             bool cleaningPending = cleaning != null && cleaning.State != GroundServiceState.Completed && cleaning.State != GroundServiceState.Skipped;
-                            bool isLcc = cleaning != null && isLowCost;
+                            bool isLcc = cleaning != null && IsLowCost;
 
                             if (!isLcc && (cateringPending || cleaningPending))
                             {
@@ -366,7 +368,7 @@ namespace FlightSupervisor.UI.Services
                         }
                         else if ((s.Name == "Cleaning" || s.Name == "Catering") && boarding != null && boarding.State != GroundServiceState.NotStarted && boarding.State != GroundServiceState.Skipped)
                         {
-                            bool isLcc = isLowCost;
+                            bool isLcc = IsLowCost;
                             
                             if (!isLcc)
                             {
