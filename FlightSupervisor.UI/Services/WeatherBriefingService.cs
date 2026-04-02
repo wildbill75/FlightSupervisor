@@ -616,7 +616,7 @@ namespace FlightSupervisor.UI.Services
             }
 
             // Parse QNH
-            var qnhMatch = Regex.Match(upperMetar, @"\s(Q|A)([0-9]{4})\s");
+            var qnhMatch = Regex.Match(upperMetar, @"(?:^|\s)(Q|A)([0-9]{4})(?:\s|=|$)", RegexOptions.IgnoreCase);
             if (qnhMatch.Success)
             {
                 if (station != null) station.Qnh = $"{qnhMatch.Groups[1].Value}{qnhMatch.Groups[2].Value}";

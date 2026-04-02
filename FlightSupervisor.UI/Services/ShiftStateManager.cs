@@ -21,7 +21,15 @@ namespace FlightSupervisor.UI.Services
 
     public class ShiftStateManager
     {
-        private static readonly string StateFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ShiftState.json");
+        private static string StateFilePath 
+        {
+            get 
+            {
+                var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FlightSupervisor");
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                return Path.Combine(dir, "ShiftState.json");
+            }
+        }
 
         public static void SaveState(CabinManager cabinManager, string arrivalIcao, string airlineName)
         {

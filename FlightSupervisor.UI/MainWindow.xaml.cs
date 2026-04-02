@@ -56,10 +56,12 @@ namespace FlightSupervisor.UI
         
         private GroundOpsManager _groundOpsManager;
         private System.Windows.Threading.DispatcherTimer _uiTimer;
+        private System.Windows.Threading.DispatcherTimer _msfsWatcherTimer;
         private System.Windows.Forms.NotifyIcon _notifyIcon;
         private PanelServerService? _panelServer;
         private AudioEngineService _audioEngine;
         private SuperScoreManager _scoreManager;
+        private List<FlightSupervisor.UI.Models.FlightArchive> _sessionArchives = new List<FlightSupervisor.UI.Models.FlightArchive>();
         
         private double _currentFobKg = 0;
 
@@ -422,7 +424,9 @@ namespace FlightSupervisor.UI
                             };
 
                             FlightSupervisor.UI.Services.FlightLogger.ArchiveFlight(report);
-                            SendToWeb(new { type = "flightReport", report });
+                            _sessionArchives.Add(report);
+                            bool isFinal = _rotationQueue.Count == 0;
+                            SendToWeb(new { type = "flightReport", report, isFinal, allReports = _sessionArchives });
                             
                             // Send updated profile to UI immediately to reflect new stats
                             SendToWeb(new { type = "InitProfile", payload = p });
@@ -455,13 +459,18 @@ namespace FlightSupervisor.UI
                             };
 
                             FlightSupervisor.UI.Services.FlightLogger.ArchiveFlight(fallbackReport);
-                            SendToWeb(new { type = "flightReport", report = fallbackReport });
+                            _sessionArchives.Add(fallbackReport);
+                            bool isFinal = _rotationQueue.Count == 0;
+                            SendToWeb(new { type = "flightReport", report = fallbackReport, isFinal, allReports = _sessionArchives });
                         }
 
                         // Persist multi-leg session state
                         string arrIcao = _currentResponse?.Destination?.IcaoCode ?? "UNK";
                         string arrAirline = _currentResponse?.General?.Airline ?? "UNK";
                         ShiftStateManager.SaveState(_cabinManager, arrIcao, arrAirline);
+                        
+                        // Pass into Turnaround immediately so the UI unlocks the "Deboarding" and ground ops
+                        _phaseManager.ForcePhase(FlightPhase.Turnaround);
                     }
                     SendToWeb(new { type = "phaseUpdate", phase = phase.ToString(), 
                                     aobt = _aobt != null ? _aobt.Value.ToString("HH:mm") + "z" : null, 
@@ -517,7 +526,16 @@ namespace FlightSupervisor.UI
 
             _scoreManager = new SuperScoreManager(_phaseManager, _simConnectService);
             _scoreManager.OnScoreChanged += (score, delta, reason) => {
-                Dispatcher.Invoke(() => SendToWeb(new { type = "scoreUpdate", score = score, delta = delta, msg = reason }));
+                Dispatcher.Invoke(() => SendToWeb(new { 
+                    type = "scoreUpdate", 
+                    score = score, 
+                    delta = delta, 
+                    msg = reason,
+                    safety = _scoreManager.SafetyPoints,
+                    comfort = _scoreManager.ComfortPoints,
+                    maint = _scoreManager.MaintenancePoints,
+                    ops = _scoreManager.OperationsPoints
+                }));
             };
 
             _cabinManager.OnOperationBonusTriggered += (amount, msg) => {
@@ -696,7 +714,9 @@ namespace FlightSupervisor.UI
             await MainWebView.EnsureCoreWebView2Async(env);
             
             MainWebView.CoreWebView2.SetVirtualHostNameToFolderMapping("app.local", "wwwroot", CoreWebView2HostResourceAccessKind.Allow);
-            MainWebView.CoreWebView2.SetVirtualHostNameToFolderMapping("fsv.local", AppDomain.CurrentDomain.BaseDirectory, CoreWebView2HostResourceAccessKind.Allow);
+            var appDataFolder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FlightSupervisor");
+            if (!System.IO.Directory.Exists(appDataFolder)) System.IO.Directory.CreateDirectory(appDataFolder);
+            MainWebView.CoreWebView2.SetVirtualHostNameToFolderMapping("fsv.local", appDataFolder, CoreWebView2HostResourceAccessKind.Allow);
             MainWebView.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
             MainWebView.CoreWebView2.Navigate("https://app.local/index.html");
 
@@ -795,27 +815,34 @@ namespace FlightSupervisor.UI
                 else if (action == "updateAvatar")
                 {
                     var payloadStr = doc.RootElement.GetProperty("payload").GetString();
-                    System.IO.File.WriteAllText(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ProfileAvatar.b64"), payloadStr);
+                    var saveDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FlightSupervisor");
+                    if (!System.IO.Directory.Exists(saveDir)) System.IO.Directory.CreateDirectory(saveDir);
+                    System.IO.File.WriteAllText(System.IO.Path.Combine(saveDir, "ProfileAvatar.b64"), payloadStr);
                 }
                 else if (action == "updateProfileField")
                 {
                     if (_profileManager != null && _profileManager.CurrentProfile != null)
                     {
-                        var field = doc.RootElement.GetProperty("field").GetString();
-                        var val = doc.RootElement.GetProperty("value").GetString();
-                        switch (field)
+                        if (doc.RootElement.TryGetProperty("field", out var fieldProp) && 
+                            doc.RootElement.TryGetProperty("value", out var valProp))
                         {
-                            case "CallSign": _profileManager.CurrentProfile.CallSign = val; break;
-                            case "AvatarPosition": _profileManager.CurrentProfile.AvatarPosition = val; break;
-                            case "FullName": 
-                                var parts = val.Split(' ');
-                                _profileManager.CurrentProfile.FirstName = parts.Length > 0 ? parts[0] : val;
-                                _profileManager.CurrentProfile.LastName = parts.Length > 1 ? string.Join(" ", parts.Skip(1)) : "";
-                                break;
-                            case "HomeBaseIcao": _profileManager.CurrentProfile.HomeBaseIcao = val; break;
-                            case "CountryCode": _profileManager.CurrentProfile.CountryCode = val; break;
+                            var field = fieldProp.GetString() ?? "";
+                            var val = valProp.GetString() ?? "";
+                            switch (field)
+                            {
+                                case "CallSign": _profileManager.CurrentProfile.CallSign = val; break;
+                                case "AvatarPosition": _profileManager.CurrentProfile.AvatarPosition = val; break;
+                                case "FullName": 
+                                    var parts = val.Split(new[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
+                                    if (parts.Length > 0) _profileManager.CurrentProfile.FirstName = parts[0];
+                                    if (parts.Length > 1) _profileManager.CurrentProfile.LastName = parts[1];
+                                    else _profileManager.CurrentProfile.LastName = "";
+                                    break;
+                                case "HomeBaseIcao": _profileManager.CurrentProfile.HomeBaseIcao = val.ToUpper(); break;
+                                case "CountryCode": _profileManager.CurrentProfile.CountryCode = val.ToUpper(); break;
+                            }
+                            _profileManager.SaveProfile();
                         }
-                        _profileManager.SaveProfile();
                     }
                 }
 
@@ -896,6 +923,10 @@ namespace FlightSupervisor.UI
                         _groundOpsManager.StartManualService(serviceName);
                     }
                 }
+                else if (action == "startDeboarding")
+                {
+                    _cabinManager.StartDeboarding();
+                }
                 else if (action == "requestTimeWarp")
                 {
                     _groundOpsManager.ForceCompleteAllServices();
@@ -972,37 +1003,6 @@ namespace FlightSupervisor.UI
                             morale = savedState.CrewMorale, 
                             date = savedState.SavedAtLocal.ToString("g") 
                         });
-                    }
-                }
-                else if (action == "updateProfileField")
-                {
-                    if (_profileManager != null && _profileManager.CurrentProfile != null)
-                    {
-                        string field = doc.RootElement.GetProperty("field").GetString() ?? "";
-                        string value = doc.RootElement.GetProperty("value").GetString() ?? "";
-
-                        switch (field)
-                        {
-                            case "FullName":
-                                var parts = value.Split(new[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
-                                if (parts.Length > 0) _profileManager.CurrentProfile.FirstName = parts[0];
-                                if (parts.Length > 1) _profileManager.CurrentProfile.LastName = parts[1];
-                                else _profileManager.CurrentProfile.LastName = "";
-                                break;
-                            case "CallSign":
-                                _profileManager.CurrentProfile.CallSign = value;
-                                break;
-                            case "HomeBaseIcao":
-                                _profileManager.CurrentProfile.HomeBaseIcao = value.ToUpper();
-                                break;
-                            case "CountryCode":
-                                _profileManager.CurrentProfile.CountryCode = value.ToUpper();
-                                break;
-                            case "AvatarPosition":
-                                _profileManager.CurrentProfile.AvatarPosition = value;
-                                break;
-                        }
-                        _profileManager.SaveProfile();
                     }
                 }
                 else if (action == "resumeShift")
@@ -1154,15 +1154,10 @@ namespace FlightSupervisor.UI
                         _groundOpsManager.StartManualService(srvName!);
                     }
                 }
-                else if (action == "warpToDeparture")
+                else if (action == "updateGroundSpeed")
                 {
-                    _groundOpsManager.ForceCompleteAllServices();
-                    _scoreManager.AddScore(-300, "Time Warp (Fast Travel Penalty)", ScoreCategory.Operations);
-                    if (_groundOpsManager.TargetSobt.HasValue)
-                    {
-                        var target = _groundOpsManager.TargetSobt.Value;
-                        _simConnectService.SendTimeWarpCommand(target);
-                    }
+                    var spd = doc.RootElement.GetProperty("value").GetString() ?? "Realistic";
+                    _groundOpsManager?.SetGroundSpeedMultiplier(spd);
                 }
                 else if (action == "acarsWeatherRequest")
                 {
@@ -1170,9 +1165,50 @@ namespace FlightSupervisor.UI
                         await RefreshLiveWeatherAsync();
                     });
                 }
-                else if (action == "startGroundOps")
+                else if (action == "requestStartGroundOps")
                 {
                     Dispatcher.Invoke(() => {
+                        bool isMoteursEteints = !_phaseManager.Eng1Combustion && !_phaseManager.Eng2Combustion;
+                        if (!_simConnectService.IsConnected || !isMoteursEteints || !_phaseManager.IsOnGround)
+                        {
+                            SendToWeb(new { type = "gatekeeperFailed" });
+                        }
+                        else
+                        {
+                            SendToWeb(new { type = "gatekeeperPassed" });
+                        }
+                    });
+                }
+                else if (action == "syncRotationsAndStart")
+                {
+                    Dispatcher.Invoke(() => {
+                        // Resync rotation queue with Javascript's Drag & Drop order
+                        if (doc.RootElement.TryGetProperty("payload", out var payloadArray) && payloadArray.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        {
+                            _rotationQueue.Clear();
+                            foreach (var item in payloadArray.EnumerateArray())
+                            {
+                                try
+                                {
+                                    var response = System.Text.Json.JsonSerializer.Deserialize<SimBriefResponse>(item.GetRawText());
+                                    if (response != null)
+                                    {
+                                        _rotationQueue.Enqueue(response);
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[IPC] Failed to deserialize sorted leg: {ex.Message}");
+                                }
+                            }
+                        }
+
+                        // Prevent Ground Ops abort by setting the first leg into the state manager
+                        if (_currentResponse == null && _rotationQueue.Count > 0)
+                        {
+                            LoadNextLeg();
+                        }
+                        
                         _groundOpsManager.StartOps();
                     });
                 }
@@ -1382,6 +1418,12 @@ namespace FlightSupervisor.UI
 
             var response = _rotationQueue.Dequeue();
             _currentResponse = response;
+            
+            if (_cabinManager.SessionFlightsCompleted == 0)
+            {
+                _sessionArchives.Clear();
+            }
+
             _cabinManager.CurrentFlight = _currentResponse;
 
             _phaseManager.Reset(true); // true = Turnaround state
@@ -1577,11 +1619,14 @@ namespace FlightSupervisor.UI
                     var passengerService = new FlightSupervisor.UI.Services.PassengerManifestService();
                     var manifestData = passengerService.GenerateManifest(response);
 
+                    var aProfile = _airlineDb.GetProfileFor(response.General?.Airline ?? "");
+
                     SendToWeb(new { 
                         type = "flightData", 
                         data = response,
                         briefing = briefingData,
-                        manifest = manifestData
+                        manifest = manifestData,
+                        airlineProfile = aProfile
                     });
                     
                     SendToWeb(new { type = "fetchStatus", status = "success", message = "Flight plan parsed and added to rotation." });
@@ -1602,6 +1647,21 @@ namespace FlightSupervisor.UI
             var helper = new WindowInteropHelper(this);
             var hwndScreen = HwndSource.FromHwnd(helper.Handle);
             hwndScreen.AddHook(WndProc);
+
+            _msfsWatcherTimer = new System.Windows.Threading.DispatcherTimer();
+            _msfsWatcherTimer.Interval = TimeSpan.FromSeconds(5);
+            _msfsWatcherTimer.Tick += (s, ev) => {
+                if (!_simConnectService.IsConnected)
+                {
+                    var procs = System.Diagnostics.Process.GetProcessesByName("FlightSimulator");
+                    if (procs.Length > 0)
+                    {
+                        var hwHelper = new WindowInteropHelper(this);
+                        _simConnectService.Connect(hwHelper.Handle);
+                    }
+                }
+            };
+            _msfsWatcherTimer.Start();
         }
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)

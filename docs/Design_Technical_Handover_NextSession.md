@@ -1,20 +1,33 @@
-# Bilan de la Session - Stabilisation Pristine, Embarquement & Fenix OFP
+# Bilan de la Session - Révolution Architecturale & UX (Startup, Briefing & Pilot Profile)
 
-## Ce qui a été accompli
-1. **Refonte de la Désérialisation IPC & Protection "Pristine" (`MainWindow.xaml.cs`)** :
-   - Le système perdait l'état "FirstFlightClean" lors des relances de Ground Ops car la valeur booléenne arrivait sous forme de string depuis le JS local storage. 
-   - La méthode de parsing `TryGetProperty` a été complètement blindée pour traiter `ValueKind.String` (`"true"`, `"false"`) et ainsi sécuriser l'état initial de la cabine. 
+## Ce qui a été accompli (Aujourd'hui)
 
-2. **Restauration du Moteur d'Embarquement Passagers (`GroundOpsResourceService.cs` & `CabinManager.cs`)** :
-   - Découverte majeure : La méthode `BoardPassenger()` qui transforme les objets passagers en état "Embarqué" avait disparu dans une précédente session.
-   - Refonte totale du synchroniseur `BoardSvc` : le rythme d'embarquement (0 - 121) est désormais mathématiquement interpolé et couplé à la durée en secondes du timer du `GroundOpsManager`. L'affichage Javascript reçoit cette télémétrie en temps réel et remplit sa jauge fluidement.
+### 1. Refonte Radicale du Startup Workflow ("Blank Slate")
+- Suppression complète de la modal bloquante `dutySetupModal` (Company Roster, Customs Flights, etc.).
+- L'application démarre directement sur un Dashboard vide avec un workflow fluide "Relève" (Handover) ou "Vol Initial" (Pristine).
 
-3. **Injection Fenix A320 Simbrief** :
-   - Revue complète du circuit JSON Export (depuis `index.html` > IPC Javascript > `File.WriteAllText` C#). La feature marchait parfaitement.
-   - Le problème venait du placeholder de la page Paramètres ("Settings") qui indiquait par mégarde un répertoire fantôme dans *Mes Documents*.
-   - Le texte d'aide HTML a été corrigé pour pointer clairement vers `C:\ProgramData\Fenix\FenixSim A320`.
+### 2. Création du Planificateur Multi-Leg (Briefing UI)
+- Le joueur peut désormais importer un vol SimBrief à la volée directement depuis l'application.
+- **Drag and Drop** fonctionnel pour réorganiser l'ordre des vols prévus au sein d'une rotation.
+- **Recalcul Dynamique** : Les temps "Block" (SOBT/SIBT) sont calculés en cascade lors des glisser-déposer, garantissant une cohérence temporelle pour les turnarounds (35 mins).
 
-## Prochaines Étapes pour le prochain agent
-1. **Validation En-Jeu (Test Rotatif)** : Tester un vol complet sur simulateur avec le Fenix A320. Générer d'abord un vol avec SimBrief, initier l'embarquement via Flight Supervisor, vérifier au MCDU que le plan spécifique injecté est bien chargé, et évaluer la synchronisation des passagers.
-2. **Poursuite du Design UX/UI** : Implémenter et perfectionner toute nouvelle interface requise par le "Product Backlog" de l'utilisateur.
-3. **Météo En-Vol** : S'assurer que les rapports météo (ACARS / TAF) via ActiveSky pendant une phase de croisière ultra-long courrier ne crash pas le WebView2 en cas de changement brutal de zones d'informations de vol (FIR).
+### 3. Stabilisation de la Persistance & Migration Windows (`%APPDATA%`)
+- **Bug Fix "Silent Wipe"** : L'effacement intempestif des profils et des états de vol après un "Clean Solution" de MS Visual Studio a été annulé en migrant toutes les données (JSON, image Avatar) sur le chemin sécurisé de Windows (`%APPDATA%\FlightSupervisor`).
+- Redirection correcte du WebView2 localHost (`fsv.local`) pour pointer vers le répertoire sécurisé, autorisant l'affichage asynchrone sécurisé de l'image de profil.
+- Découverte et correction d'un bug majeur Javascript de sérialisation JSON (`payload.payload`) qui masquait l'efficacité des sauvegardes du profil.
+
+### 4. Expérience Utilisateur : Profile Hub & Flight Archives
+- Absorption complète de l'historique de vols (Logbook) dans l'onglet des caractéristiques du PNT (`PILOT PROFILE & CAREER`).
+- Le bouton obsolète "Logs / DEV" a été supprimé du menu de navigation pour purifier l'interface de commande latérale.
+- La vue de l'historique a été totalement repensée : on abandonne les carrés pour une disposition en Liste Horizontale haut de gamme (Route, Block Time, Touchdown FPM, Score), facilement lisible et sans surcharger l'espace.
+- Un système de navigation par sous-onglet (simulé et intuitif) a été ajouté en sommet de la page Profile pour basculer gracieusement entre "Identity" (Profil & Badges) et "Archives".
+
+## Prochaine Épreuve / Tâche pour le Prochain Agent
+Le cœur absolu de la prochaine séance sera l'épreuve du crash test logiciel ("Flight Test Validations") par l'utilisateur final.
+
+1. **Validation MSFS End-to-End ("Le Test Multi-Leg")** : 
+   - Dés que le simulateur sera prêt, l'utilisateur devra effectuer au moins **deux vols (Legs) consécutifs** en situation réelle (avec Start Ops, Service Passagers, Arrivée, Débarquement).
+   - *Objectif de validation principal* : Confirmer que lors de la fin du débarquement, le logiciel bascule sans aucune corruption vers sa vue de "Turnaround", appelant le deuxième tableau JSON de la file `_rotationQueue`, et remettant correctement à zéro les données pour la relève (Handover).
+
+2. **Veille Technologique sur l'Interaction C# / JS (Glisser-Déposer)** :
+   - Vérifier, avec de vrais avions et du temps qui s'écoule pour de vrai dans le simulateur, que l'état de l'application C# suit fidèlement la timeline altérée ou imposée manuellement par l'User Experience Javascript.

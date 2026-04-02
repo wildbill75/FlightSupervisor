@@ -684,7 +684,14 @@ namespace FlightSupervisor.UI.Services
                     _lastBoardingTick = DateTime.MaxValue;
                     _audio?.SpeakAsPurser("Boarding is complete Captain.");
                     OnCrewMessage?.Invoke("cyan", LocalizationService.Translate("PA: Boarding is complete.", "PA: Embarquement terminé."), null);
-                }
+            }
+
+            // GATING CONDITION: Disable all stress, comfort, and thermal decay while boarding is in progress.
+            // Points 1 & 2: Monitoring and Thermal effects should not apply while doors are open and boarding.
+            if (!isBoarded && phase == FlightPhase.AtGate)
+            {
+                _thermalDissatisfactionGauge = 0.0;
+                return; 
             }
 
             // --- Pushback Safety Check ---
@@ -771,15 +778,9 @@ namespace FlightSupervisor.UI.Services
                 }
             }
 
-            if (!isBoarded && phase == FlightPhase.AtGate)
+            // Removed old `if (!isBoarded...)` thermal bypass as we already return earlier.
+            if (cabinTemperature > 0.0) // Valid sensor data
             {
-                _thermalDissatisfactionGauge = 0.0;
-                _hasWarnedThermal = false;
-            }
-            else
-            {
-                if (cabinTemperature > 0.0) // Valid sensor data
-                {
                     double agitationIncrement = 0.0;
                     double currentTemp = LastKnownCabinTemp;
 

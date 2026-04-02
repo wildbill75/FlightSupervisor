@@ -129,8 +129,8 @@ namespace FlightSupervisor.UI.Services
             }
 
             double multiplier = SpeedSetting switch {
-                GroundOpsSpeed.Instant => 0.05,
-                GroundOpsSpeed.Short => 0.4,
+                GroundOpsSpeed.Instant => 0.01,   // Approx ~15 sec for a 20min boarding
+                GroundOpsSpeed.Short => 0.25,     // x4 max speed
                 _ => 1.0
             };
 
@@ -189,7 +189,11 @@ namespace FlightSupervisor.UI.Services
             int applyTime(double baseSec)
             {
                 double variation = 1.0 + (_rnd.NextDouble() * 0.30 - 0.15); // +/- 15%
-                return (int)Math.Max(2.0, baseSec * variation * multiplier * tierTimeMultiplier);
+                int calculated = (int)Math.Max(2.0, baseSec * variation * multiplier * tierTimeMultiplier);
+                
+                // Enforce Instant constraint
+                if (SpeedSetting == GroundOpsSpeed.Instant && calculated > 15) return 15;
+                return calculated;
             }
 
             // --- TICKET 34 : REALISTIC DURATIONS (Base A320/B737) ---
@@ -197,10 +201,12 @@ namespace FlightSupervisor.UI.Services
             // LCC: Deboarding(600s), Clean(300s), Cater(300s/Optional), Fuel(600s), Boarding(900s) = ~30m min
             // Legacy: Deboarding(900s), Clean(900s), Cater(900s), Fuel(600s), Boarding(1200s) = ~45m min
             
+            if (IsLowCost) cleanName = "Cabin Clean (PNC)";
+
             int deboardingBase = IsLowCost ? 600 : 900;
             double boardingEfficiencyRatio = Math.Max(50.0, CurrentCrewEfficiency) / 100.0;
             int boardingBase = (int)((IsLowCost ? 900 : 1200) / boardingEfficiencyRatio);
-            int cleaningBase = IsLowCost ? 300 : 900;
+            int cleaningBase = IsLowCost ? (int)(400 / boardingEfficiencyRatio) : 900;
             int cateringBase = IsLowCost ? 300 : 900;
             
             // Calculate fuel difference. 1 kg/L roughly. PlanRamp is kg. 
@@ -250,6 +256,46 @@ namespace FlightSupervisor.UI.Services
             _lastTick = DateTime.UtcNow;
             
             OnOpsUpdated?.Invoke();
+        }
+
+        public void SetGroundSpeedMultiplier(string speedString)
+        {
+            if (Enum.TryParse<GroundOpsSpeed>(speedString, true, out var spd))
+            {
+                if (SpeedSetting == spd) return; // No change
+
+                double oldMultiplier = SpeedSetting switch {
+                    GroundOpsSpeed.Instant => 0.01,
+                    GroundOpsSpeed.Short => 0.25,
+                    _ => 1.0
+                };
+
+                SpeedSetting = spd;
+
+                double newMultiplier = SpeedSetting switch {
+                    GroundOpsSpeed.Instant => 0.01,
+                    GroundOpsSpeed.Short => 0.25,
+                    _ => 1.0
+                };
+
+                double transitionRatio = newMultiplier / oldMultiplier;
+
+                foreach (var s in Services)
+                {
+                    if (s.State != GroundServiceState.Completed && s.State != GroundServiceState.Skipped)
+                    {
+                        s.TotalDurationSec = (int)Math.Max(2.0, s.TotalDurationSec * transitionRatio);
+                        
+                        // Limit Instant to 15 secs max
+                        if (SpeedSetting == GroundOpsSpeed.Instant && s.TotalDurationSec > 15)
+                        {
+                            s.TotalDurationSec = 15;
+                        }
+                    }
+                }
+                
+                OnOpsUpdated?.Invoke();
+            }
         }
         
         // Manual trigger capability for Refueling or other paused features

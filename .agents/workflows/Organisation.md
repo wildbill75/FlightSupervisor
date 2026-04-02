@@ -11,5 +11,6 @@ Chaque conversation mentionnant la création du nouveau "Design" doit faire l'ob
 5.Lorsque qu'un nouvel agent est connecté il doit toujours prendre connaissance de la totalite du contennu du dossier nommé : "/docs"
 6.Chaque aspect du design doit être segmenté en tâches individuelles qu'on appelle "Tickets"
 7.A chaque fois que des "tickets" sont ajoutés dans un doc design il faut les numéroter et ajouter en prefixe les symboles suivants : "[ ]" et quand ils sont fait "[X]"
-8.A chaque modification ou création d'un document design, l'agent doit l'afficher dans la fenêtre principale.
-9. Ne jamais démarrer des modifications de code sans avoir demander l'autorisation à l'utilisateur
+8. A chaque modification ou création d'un document design, l'agent doit l'afficher dans la fenêtre principale.
+9. Ne jamais démarrer des modifications de code sans avoir demander l'autorisation à l'utilisateur.
+10. La progression des tâches (tickets) doit OBLIGATOIREMENT être traquée de manière claire et visuelle dans un document "task.md" généré sous forme d'Artifact. Cette méthode permet à l'utilisateur de bien suivre visuellement la progression (usage de [ ] et [x]).

@@ -121,7 +121,50 @@ window.parseBriefing = (data, rd) => {
 window.renderBriefingTabs = () => {
                     const pillsContainer = document.getElementById('briefingPills');
                     const viewsContainer = document.getElementById('briefingViewsContainer');
-                    if (!pillsContainer || !viewsContainer || window.allRotations.length === 0) return;
+                    if (!pillsContainer || !viewsContainer) return;
+
+                    pillsContainer.innerHTML = '';
+                    viewsContainer.innerHTML = '';
+
+                    // Empty State: No flights loaded yet
+                    if (!window.allRotations || window.allRotations.length === 0) {
+                        const btnStartOps = document.getElementById('btnStartGroundOps');
+                        if (btnStartOps) {
+                            btnStartOps.disabled = true;
+                            btnStartOps.classList.add('opacity-30', 'cursor-not-allowed');
+                        }
+                        const gPnl = document.getElementById('manualGroundOpsPnl');
+                        if (gPnl) gPnl.style.display = 'none';
+                        
+                        pillsContainer.style.display = 'none';
+                        viewsContainer.innerHTML = `
+                            <div class="flex flex-col items-center justify-center p-16 bg-[#1C1F26] rounded-xl border border-sky-500/20 border-dashed animate-fade-in text-center mt-6 shadow-[0_0_30px_rgba(14,165,233,0.05)]">
+                                <span class="material-symbols-outlined text-6xl text-sky-500/50 mb-4 drop-shadow-[0_0_15px_rgba(14,165,233,0.5)]">route</span>
+                                <h2 class="text-3xl font-black text-white tracking-widest uppercase mb-3">Build Your Rotation</h2>
+                                <p class="text-slate-400 text-sm mb-10 max-w-lg leading-relaxed">
+                                    You have not imported any flight plans yet. Fetch your first operational flight plan from SimBrief to initialize the cabin services.
+                                </p>
+                                <div class="flex flex-col items-center gap-4 w-full max-w-xs">
+                                    <button onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' })" class="w-full bg-gradient-to-r from-sky-500 to-sky-400 hover:brightness-110 text-slate-900 font-bold px-8 py-5 rounded-xl shadow-[0_0_20px_rgba(14,165,233,0.3)] transition-all uppercase tracking-widest text-[12px] flex items-center justify-center gap-3">
+                                        <span class="material-symbols-outlined text-xl">download</span>
+                                        FETCH SIMBRIEF
+                                    </button>
+                                    <div id="simbriefLoadingState" class="hidden flex items-center justify-center p-4 bg-sky-900/10 border border-sky-500/20 rounded-xl w-full">
+                                        <div class="w-5 h-5 border-2 border-sky-500/30 border-t-sky-400 rounded-full animate-spin mr-3"></div>
+                                        <span id="simbriefLoadingLabel" class="text-sky-400 font-label tracking-widest text-[10px] uppercase animate-pulse">Contacting Dispatch...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    // Enable Ground Ops Button globally when rotation is active
+                    const globalBtnStartOps = document.getElementById('btnStartGroundOps');
+                    if (globalBtnStartOps) {
+                        globalBtnStartOps.disabled = false;
+                        globalBtnStartOps.classList.remove('opacity-30', 'cursor-not-allowed');
+                    }
 
                     pillsContainer.innerHTML = '';
                     viewsContainer.innerHTML = '';
@@ -181,7 +224,7 @@ pillsContainer.style.display = 'none';
                                 </div>
                                 <div class="text-right">
                                     <div class="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-1">Global Rating</div>
-                                    <div class="text-3xl font-black text-white">100 <span class="text-xs text-slate-500">/100</span></div>
+                                    <div class="text-3xl font-black text-white">${window.allRotations[0].airlineProfile ? window.allRotations[0].airlineProfile.global_score : 100} <span class="text-xs text-slate-500">/100</span></div>
                                 </div>
                             </div>
                         </div>
@@ -208,19 +251,33 @@ pillsContainer.style.display = 'none';
                         <h3 class="text-lg font-label tracking-[0.4em] text-white/80 uppercase mb-6 flex items-center gap-3 mt-10">
                             <span class="material-symbols-outlined text-sky-400 text-2xl opacity-80">route</span> LEGS DETAILS
                         </h3>
-                        <div class="space-y-4">`;
+                        <div class="space-y-4" id="briefingLegsContainer">`;
 
+                    const curLeg = window.currentLegIndex || 0;
                     window.allRotations.forEach((rot, idx) => {
                         const rd = rot.data;
+                        const isPast = idx < curLeg;
+                        const isActive = idx === curLeg;
+                        
+                        let legStatusHtml = '';
+                        if (isPast) {
+                            legStatusHtml = `<span class="bg-slate-800/80 text-slate-500 font-bold px-3 py-1 rounded text-[10px] tracking-widest border border-slate-700/50 mt-2 inline-block">LEG COMPLETED</span>`;
+                        }
+
                         globalHtml += `
-                            <div onclick="window.setBriefingTab(${idx + 1})" class="bg-gradient-to-r from-[#171A21] to-[#12141A] hover:from-sky-900/10 hover:to-[#171A21] transition-all p-6 rounded-xl border border-white/5 cursor-pointer flex items-center justify-between group shadow-lg">
-                                <div class="flex items-center gap-6">
-                                    <div class="text-4xl font-black text-slate-800/80 group-hover:text-sky-500/30 transition-colors">${idx + 1}</div>
+                            <div draggable="${isActive ? 'false' : (isPast ? 'false' : 'true')}" data-index="${idx}" onclick="window.setBriefingTab(${idx + 1})" class="${!isActive && !isPast ? 'drag-leg-item' : ''} bg-gradient-to-r ${isPast ? 'from-[#111318] to-[#0A0C0F] opacity-50 grayscale' : 'from-[#171A21] to-[#12141A]'} hover:from-sky-900/10 hover:to-[#171A21] transition-all p-6 rounded-xl border ${isActive ? 'border-sky-500/30 shadow-[0_0_15px_rgba(14,165,233,0.15)]' : 'border-white/5 shadow-lg'} cursor-pointer flex items-center justify-between group relative">
+                                <div class="flex items-center gap-6 pointer-events-none">
+                                    <div class="flex items-center text-4xl font-black ${isActive ? 'text-sky-500/80' : 'text-slate-800/80 group-hover:text-sky-500/30'} transition-colors">
+                                        ${isPast ? `<span class="material-symbols-outlined text-4xl mr-2 text-slate-700" title="Completed">check_circle</span>` : 
+                                         isActive ? `<span class="material-symbols-outlined text-4xl mr-2 text-sky-500/60" title="Active Leg (Locked)">lock</span>` : 
+                                         `<span class="material-symbols-outlined text-4xl mr-2 cursor-grab active:cursor-grabbing text-slate-700 pointer-events-auto hover:text-white" title="Drag to reorder">drag_indicator</span>`}
+                                        ${idx + 1}
+                                    </div>
                                     <div>
                                         <div class="text-xl font-black text-white tracking-widest flex items-center gap-4">
-                                            <span class="text-sky-400">${rd.origin?.icao_code || '---'}</span>
+                                            <span class="${isPast ? 'text-slate-500' : 'text-sky-400'}">${rd.origin?.icao_code || '---'}</span>
                                             <span class="material-symbols-outlined text-sm text-slate-500">arrow_forward</span>
-                                            <span class="text-emerald-400">${rd.destination?.icao_code || '---'}</span>
+                                            <span class="${isPast ? 'text-slate-500' : 'text-emerald-400'}">${rd.destination?.icao_code || '---'}</span>
                                         </div>
                                         <div class="text-xs font-mono text-slate-400 mt-2 uppercase tracking-widest">
                                             Flight ${rd.general?.icao_airline || ''}${rd.general?.flight_number || ''}
@@ -228,19 +285,21 @@ pillsContainer.style.display = 'none';
                                     </div>
                                 </div>
                                 <div class="text-right flex flex-col items-end gap-2">
-                                    <div class="flex items-center gap-4 bg-black/40 px-4 py-2 rounded-lg border border-white/5 font-mono text-[11px]">
+                                    <div class="flex items-center gap-4 bg-black/40 px-4 py-2 rounded-lg border border-white/5 font-mono text-[11px] ${isPast ? 'opacity-50' : ''}">
                                         <span class="text-slate-500">SOBT</span> <span class="text-slate-200">${timeStr(rd.times?.sched_out)}Z</span>
                                         <span class="text-slate-600">&bull;</span>
                                         <span class="text-slate-500">SIBT</span> <span class="text-slate-200">${timeStr(rd.times?.sched_in)}Z</span>
                                     </div>
                                     <div class="flex items-center gap-4">
-                                        <div class="text-[11px] text-slate-500 font-bold tracking-widest uppercase mt-1 mr-2">
-                                            ETE ${rd.times?.est_time_enroute ? Math.floor(rd.times.est_time_enroute/3600).toString().padStart(2,'0') + 'H' + Math.floor((rd.times.est_time_enroute%3600)/60).toString().padStart(2,'0') : '---'}
+                                        <div class="text-[11px] text-slate-500 font-bold tracking-widest uppercase mt-1 mr-2 flex flex-col items-end">
+                                            <span>ETE ${rd.times?.est_time_enroute ? Math.floor(rd.times.est_time_enroute/3600).toString().padStart(2,'0') + 'H' + Math.floor((rd.times.est_time_enroute%3600)/60).toString().padStart(2,'0') : '---'}</span>
+                                            ${legStatusHtml}
                                         </div>
+                                        ${isActive && ['A319','A320','A321','A20N'].includes(rd.aircraft?.base_type?.toUpperCase()) ? `
                                         <button onclick="event.stopPropagation(); window.chrome.webview.postMessage({action: 'fenixExport', path: localStorage.getItem('fenixExportPath'), jsonPayload: JSON.stringify(window.allRotations[${idx}].data)})"
                                                 class="flex items-center gap-2 px-3 py-1 bg-[#1C1F26] hover:bg-amber-500/20 text-slate-500 hover:text-amber-500 text-[10px] font-bold tracking-widest uppercase border border-white/5 hover:border-amber-500/30 rounded transition-colors shadow-lg group-hover:block transition-all">
                                             <span class="material-symbols-outlined text-[14px]">save</span> EXPORT TO FENIX
-                                        </button>
+                                        </button>` : ''}
                                     </div>
                                 </div>
                             </div>
@@ -248,10 +307,20 @@ pillsContainer.style.display = 'none';
                     });
 
                     globalHtml += `</div>
-                                   <div class="mt-10 mb-10 flex justify-end">
-                                        <button onclick="document.getElementById('btnStartGroundOps').click()" class="bg-[#232730] hover:bg-white/10 text-slate-300 hover:text-white font-bold py-4 px-10 rounded-xl uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(0,0,0,0.5)] flex items-center gap-3 text-xs border border-white/5">
-                                            <span class="material-symbols-outlined text-[18px]">flight_takeoff</span> START OPS
+                                   <div class="mt-10 mb-10 flex justify-between items-center border-t border-white/5 pt-8">
+                                        <button onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' })" class="bg-[#1C1F26] hover:bg-sky-900/20 text-sky-400 font-bold py-4 px-8 rounded-xl uppercase tracking-widest transition-all shadow-lg flex items-center border border-sky-500/30 hover:border-sky-400 gap-3 text-[11px] group">
+                                            <span class="material-symbols-outlined text-[16px] group-hover:rotate-90 transition-transform">add</span> ADD FLIGHT LEG
                                         </button>
+                                        
+                                        <div class="flex items-center gap-6">
+                                            <div id="simbriefLoadingState" class="hidden flex flex-row items-center border border-sky-500/20 bg-sky-900/10 px-4 py-2 rounded-lg">
+                                                <div class="w-4 h-4 border-2 border-sky-500/30 border-t-sky-400 rounded-full animate-spin mr-3"></div>
+                                                <span id="simbriefLoadingLabel" class="text-sky-400 text-[10px] font-bold uppercase tracking-widest animate-pulse">FETCHING...</span>
+                                            </div>
+                                            <button onclick="document.getElementById('btnStartGroundOps').click()" class="bg-[#232730] hover:bg-white/10 text-slate-300 hover:text-white font-bold py-4 px-10 rounded-xl uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(0,0,0,0.5)] flex items-center gap-3 text-[11px] border border-white/5">
+                                                <span class="material-symbols-outlined text-[18px]">flight_takeoff</span> START OPS
+                                            </button>
+                                        </div>
                                    </div>
                                </div>`;
                     
@@ -432,11 +501,92 @@ pillsContainer.style.display = 'none';
                     window.setBriefingTab = setActiveTab;
                     // Auto-focus on the Global Overview (Index 0) instead of the latest leg
                     setActiveTab(0);
+
+                    if (window.allRotations && window.allRotations.length > 1) {
+                        window.initBriefingDragAndDrop();
+                    }
                 };
 
+window.initBriefingDragAndDrop = () => {
+    const list = document.getElementById('briefingLegsContainer');
+    if (!list) return;
+
+    let draggedItemIdx = null;
+
+    const items = list.querySelectorAll('.drag-leg-item');
+    items.forEach(item => {
+        item.addEventListener('dragstart', (e) => {
+            draggedItemIdx = parseInt(item.getAttribute('data-index'));
+            e.dataTransfer.effectAllowed = 'move';
+            item.classList.add('opacity-50', 'border-sky-500/50');
+        });
+        item.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            item.classList.add('border-t-2', 'border-t-sky-400');
+        });
+        item.addEventListener('dragleave', () => {
+            item.classList.remove('border-t-2', 'border-t-sky-400');
+        });
+        item.addEventListener('drop', (e) => {
+            e.preventDefault();
+            item.classList.remove('border-t-2', 'border-t-sky-400');
+            const targetIdx = parseInt(item.closest('.drag-leg-item').getAttribute('data-index'));
+            
+            if (draggedItemIdx !== null && draggedItemIdx !== targetIdx) {
+                // Swap/Reorder Array
+                const movedItem = window.allRotations.splice(draggedItemIdx, 1)[0];
+                window.allRotations.splice(targetIdx, 0, movedItem);
+                
+                // Recalculate block times based on new sequence
+                window.recalculateAllLegTimes();
+                window.renderBriefingTabs();
+            }
+        });
+        item.addEventListener('dragend', () => {
+            item.classList.remove('opacity-50', 'border-sky-500/50');
+            draggedItemIdx = null;
+        });
+    });
+};
+
+window.recalculateAllLegTimes = () => {
+    if (!window.allRotations || window.allRotations.length === 0) return;
+    
+    let currentSec = 0;
+    const tatSeconds = 35 * 60; // 35 min Turnaround
+    
+    window.allRotations.forEach((rot, idx) => {
+        const rd = rot.data;
+        if (!rd.times) rd.times = {};
+        
+        if (idx === 0) {
+            // First leg remains untouched. Base the next departure on this leg's arrival time + Turnaround.
+            currentSec = parseInt(rd.times.sched_in || '0');
+            if (currentSec <= 0) {
+                currentSec = parseInt(rd.times.sched_out || '0') + parseInt(rd.times.est_time_enroute || '0');
+            }
+            if (currentSec <= 0) currentSec = Math.floor(Date.now() / 1000);
+            currentSec += tatSeconds; 
+            return;
+        }
+        
+        rd.times.sched_out = currentSec.toString();
+        const ete = parseInt(rd.times.est_time_enroute || '0');
+        currentSec += ete;
+        rd.times.sched_in = currentSec.toString();
+        currentSec += tatSeconds; 
+    });
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     window.isFlightActive = false;
+    window.airportsDb = {};
+    fetch('airports.json')
+        .then(res => res.json())
+        .then(data => { window.airportsDb = data; console.log('Airports DB loaded.'); })
+        .catch(e => console.error('Error loading Airports DB:', e));
+
 
     // --- UTILITIES ---
     window.saveLocalToggle = function(key, isChecked) {
@@ -566,7 +716,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Update Active Section
             const targetId = item.getAttribute('data-target');
-            if (targetId === 'logs') {
+            if (targetId === 'logbook') {
                 window.chrome.webview.postMessage({ action: 'fetchLogbook' });
             }
             sections.forEach(sec => {
@@ -630,9 +780,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const format = localStorage.getItem('selTimeFormat') || '24H';
         return dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: format === '12H' });
     };
-
+    let acarsTimeouts = [];
+    
     window.requestAcarsUpdate = function () {
         if (!window.allRotations || window.allRotations.length === 0) return;
+        
+        acarsTimeouts.forEach(t => clearTimeout(t));
+        acarsTimeouts = [];
         
         let idx = window.activeLegIndex || 0;
         if (idx >= window.allRotations.length) idx = window.allRotations.length - 1;
@@ -672,30 +826,30 @@ document.addEventListener('DOMContentLoaded', () => {
             statusStr.classList.remove('text-emerald-400', 'text-amber-400');
         }
         
-        setTimeout(() => {
+        acarsTimeouts.push(setTimeout(() => {
             if (statusStr) {
                 statusStr.innerText = 'UPLINK IN PROGRESS';
                 statusStr.classList.replace('text-sky-400', 'text-amber-400');
             }
             document.getElementById('acarsScratchpad').innerText = 'AOC MSG RCV...';
             
-            setTimeout(() => {
+            acarsTimeouts.push(setTimeout(() => {
                 if (window.chrome && window.chrome.webview) {
                     window.chrome.webview.postMessage({ action: 'acarsWeatherRequest' });
                 }
                 
                 if (statusStr) {
-                    statusStr.innerText = 'PRINTING NEW WX...';
+                    statusStr.innerText = '';
                     statusStr.classList.replace('text-amber-400', 'text-emerald-400');
                     statusStr.classList.remove('animate-pulse');
                 }
-                document.getElementById('acarsScratchpad').innerText = 'WX BRIEF UPDATED';
+                document.getElementById('acarsScratchpad').innerText = '';
                 
                 const btnClose = document.getElementById('btnAcarsClose');
                 if (btnClose) btnClose.innerHTML = '&lt; EXIT';
                 
-            }, 3000);
-        }, 2000);
+            }, 3000));
+        }, 2000));
     };
 
     // Language processing
@@ -1019,6 +1173,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (username) localStorage.setItem('sbUsername', username);
             localStorage.setItem('groundSpeed', groundSpeed);
+            window.chrome.webview.postMessage({ action: 'updateGroundSpeed', value: groundSpeed });
             localStorage.setItem('groundProb', groundProb);
             localStorage.setItem('weatherSource', weatherSrc);
             localStorage.setItem('gsxSync', gsxSync);
@@ -1076,6 +1231,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // Send to backend C# ProfileManager
                     window.chrome.webview.postMessage({ action: 'updateAvatar', payload: base64Str });
+                    window.chrome.webview.postMessage({ action: 'updateProfileField', field: 'AvatarPosition', value: '50% 50%' });
                 };
                 reader.readAsDataURL(file);
             }
@@ -1086,6 +1242,46 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnEditAvatar) {
         btnEditAvatar.addEventListener('click', () => {
             if (avatarInput) avatarInput.click();
+        });
+    }
+
+    const btnSaveIdentity = document.getElementById('btnSaveIdentity');
+    if (btnSaveIdentity) {
+        btnSaveIdentity.addEventListener('click', () => {
+            const fieldsToSave = [
+                { id: 'prfCallsign', field: 'CallSign' },
+                { id: 'prfFullName', field: 'FullName' },
+                { id: 'prfHomeBase', field: 'HomeBaseIcao' },
+                { id: 'prfCountry', field: 'CountryCode' }
+            ];
+            fieldsToSave.forEach(pf => {
+                const el = document.getElementById(pf.id);
+                if (el) {
+                    let v = el.innerText.trim();
+                    if (pf.field === 'HomeBaseIcao') v = v.toUpperCase();
+                    if (pf.field === 'CountryCode') v = v.toUpperCase();
+                    window.chrome.webview.postMessage({
+                        action: 'updateProfileField',
+                        field: pf.field,
+                        value: v
+                    });
+                }
+            });
+
+            const callsign = document.getElementById('prfCallsign')?.innerText.trim() || 'MAVERICK';
+            const sbCallsign = document.getElementById('sbProfileCallsign');
+            if (sbCallsign) sbCallsign.innerText = callsign;
+            
+            // Visual feedback
+            const originalText = btnSaveIdentity.innerText;
+            btnSaveIdentity.innerText = 'SAVED!';
+            btnSaveIdentity.classList.remove('text-emerald-400', 'border-emerald-500/30');
+            btnSaveIdentity.classList.add('text-white', 'border-white', 'bg-emerald-600/80');
+            setTimeout(() => {
+                btnSaveIdentity.innerText = originalText;
+                btnSaveIdentity.classList.add('text-emerald-400', 'border-emerald-500/30');
+                btnSaveIdentity.classList.remove('text-white', 'border-white', 'bg-emerald-600/80');
+            }, 1500);
         });
     }
 
@@ -1437,147 +1633,81 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    window.populateRecentIcaos = function() {
+        const dl = document.getElementById('recentIcaos');
+        if (!dl) return;
+        dl.innerHTML = '';
+        const recent = JSON.parse(localStorage.getItem('recentIcaos') || '[]');
+        recent.forEach(icao => {
+            const opt = document.createElement('option');
+            opt.value = icao;
+            dl.appendChild(opt);
+        });
+    };
+    
+    // Call once on initialized
+    window.populateRecentIcaos();
+
     const btnDutyNext = document.getElementById('btnDutyNext');
     if (btnDutyNext) {
         btnDutyNext.addEventListener('click', () => {
-            let unInput = document.getElementById('dutySbUsername');
-            let username = unInput && unInput.value.trim() !== '' ? unInput.value.trim() : localStorage.getItem('sbUsername') || '';
+            const originInput = document.getElementById('dutyOriginInput');
+            const originICAO = originInput ? originInput.value.trim().toUpperCase() : '';
 
-            if (!username || username === '') {
-                alert('Please enter your SimBrief ID/Username.');
+            if (originICAO.length !== 4) {
+                alert('Please enter a valid 4-letter ICAO code for your Departure Airport.');
                 return;
             }
-            
-            window.plannedDummyLegs = [];
-            
-            if (window.currentDutyMode === 'custom') {
-                let plannedRouteInput = document.getElementById('dutyPlannedRoute');
-                if (plannedRouteInput && plannedRouteInput.value.trim() !== '') {
-                    let icaos = plannedRouteInput.value.toUpperCase().split(/[^A-Z0-9]/).filter(x => x.length === 4);
-                    if (icaos.length >= 2) {
-                        for (let i = 0; i < icaos.length - 1; i++) {
-                            let dummyData = getDummyLeg(icaos[i], icaos[i+1]);
-                            if (dummyData) window.plannedDummyLegs.push(dummyData);
-                        }
-                    }
-                }
-            } else if (window.currentDutyMode === 'roster') {
-                const airline = document.getElementById('rosterSelAirline').value;
-                const hub = document.getElementById('rosterSelHub').value;
-                if (window.predefinedRosters && window.predefinedRosters[airline] && window.predefinedRosters[airline][hub]) {
-                    const rot = window.predefinedRosters[airline][hub].find(r => r.id === window.selectedRosterId);
-                    if (rot && rot.legs && rot.legs.length >= 2) {
-                        for (let i = 0; i < rot.legs.length - 1; i++) {
-                            let dummyData = getDummyLeg(rot.legs[i], rot.legs[i+1]);
-                            if (dummyData) window.plannedDummyLegs.push(dummyData);
-                        }
-                    }
-                }
-            }
 
-            localStorage.setItem('sbUsername', username);
+            // Save Origin
+            localStorage.setItem('startupOriginIcao', originICAO);
 
-            const ffClean = currentDutyState === 'pristine';
+            // Add to recent ICAOs
+            let recent = JSON.parse(localStorage.getItem('recentIcaos') || '[]');
+            recent = recent.filter(icao => icao !== originICAO); // remove duplicates
+            recent.unshift(originICAO); // add to front
+            if (recent.length > 5) recent = recent.slice(0, 5); // keep max 5
+            localStorage.setItem('recentIcaos', JSON.stringify(recent));
+            window.populateRecentIcaos();
+
+            // Save Pristine vs Handover
+            const ffClean = window.currentDutyState === 'pristine';
             localStorage.setItem('firstFlightClean', ffClean);
 
-            const groundSpeed = localStorage.getItem('groundSpeed') || 'Realistic';
-            const groundProb = localStorage.getItem('groundProb') || '25';
-            const weatherSrc = 'simbrief';
-
+            // Bypass completely and jump straight into the app
             document.getElementById('dutySetupModal').style.display = 'none';
 
-            if (window.currentDutyMode === 'roster' && window.plannedDummyLegs.length > 0) {
-                // BYPASS SimBrief Dispatch Modal entirely
-                window.allRotations = [];
-                let currentSec = Math.floor(Date.now() / 1000) + (45 * 60); // Starts in 45 minutes
-                window.plannedDummyLegs.forEach((dummy, idx) => {
-                    // Inject sequential dummy times
-                    dummy.times.sched_out = currentSec.toString();
-                    const ete = parseInt(dummy.times.est_time_enroute || '0');
-                    currentSec += ete;
-                    dummy.times.sched_in = currentSec.toString();
-                    currentSec += (35 * 60); // 35 min turnaround for the next leg
+            window.allRotations = [];
+            window.plannedDummyLegs = [];
+            
+            // Initialize Dashboard State for Blank App
+            isFlightCancelled = false;
+            window.isFlightActive = true;
+            
+            const dso = document.getElementById('dashStartOverlay');
+            if (dso) dso.classList.add('opacity-0', 'pointer-events-none');
+            
+            const btnFetchLabel = document.getElementById('btnFetchPlanLabel');
+            if (btnFetchLabel) btnFetchLabel.innerText = 'CANCEL FLIGHT';
+            const btnFetch = document.getElementById('btnFetchPlan');
+            if (btnFetch) btnFetch.querySelector('.material-symbols-outlined').innerText = 'cancel';
+            
+            const mScore = document.getElementById('mainScoreValue');
+            if (mScore) mScore.innerText = "1000";
+            const tScore = document.getElementById('topScoreValue');
+            if (tScore) tScore.innerText = "1000";
+            const pLogs = document.getElementById('penaltyLogs');
+            if (pLogs) pLogs.innerHTML = "";
+            const sFeed = document.getElementById('scoreFeed');
+            if (sFeed) sFeed.innerHTML = "<li style=\"color:#64748b; text-align:center;\">Awaiting Flight Plan...</li>";
 
-                    const sbLegId = `dummy_${Date.now()}_${idx}`;
-                    window.allRotations.push({
-                        id: sbLegId,
-                        flightId: 'EST',
-                        data: dummy,
-                        briefing: null,
-                        timestamp: new Date().toISOString()
-                    });
-                });
+            // If we have an empty rotations array, renderBriefingTabs might draw an empty screen
+            if (window.renderBriefingTabs) window.renderBriefingTabs();
+            if (window.updateDashboard) window.updateDashboard();
 
-                // Enable Ground Ops Button
-                const btnStartOps = document.getElementById('btnStartGroundOps');
-                if (btnStartOps) {
-                    btnStartOps.disabled = false;
-                    btnStartOps.classList.remove('opacity-30', 'cursor-not-allowed');
-                }
-
-                // Switch to Briefing Tab via the menu logic
-                const briefMenuBtn = document.querySelector('.menu li[data-target="briefing"]');
-                if (briefMenuBtn) briefMenuBtn.click();
-
-                // Initialize Dashboard State for Roster Mode Bypass
-                isFlightCancelled = false;
-                window.isFlightActive = true;
-                const dso = document.getElementById('dashStartOverlay');
-                if (dso) dso.classList.add('opacity-0', 'pointer-events-none');
-                
-                const btnFetchLabel = document.getElementById('btnFetchPlanLabel');
-                if (btnFetchLabel) btnFetchLabel.innerText = 'CANCEL FLIGHT';
-                const btnFetch = document.getElementById('btnFetchPlan');
-                if (btnFetch) btnFetch.querySelector('.material-symbols-outlined').innerText = 'cancel';
-                
-                const mScore = document.getElementById('mainScoreValue');
-                if (mScore) mScore.innerText = "1000";
-                const tScore = document.getElementById('topScoreValue');
-                if (tScore) tScore.innerText = "1000";
-                const pLogs = document.getElementById('penaltyLogs');
-                if (pLogs) pLogs.innerHTML = "";
-                const sFeed = document.getElementById('scoreFeed');
-                if (sFeed) sFeed.innerHTML = "<li style=\"color:#64748b; text-align:center;\">Tracking standing by...</li>";
-
-                if (window.renderBriefingTabs) window.renderBriefingTabs();
-                if (window.updateDashboard) window.updateDashboard();
-
-                return; // Exit here
-            }
-
-            const dispatchModal = document.getElementById('simbriefDispatchModal');
-            if (dispatchModal) {
-                dispatchModal.style.display = 'flex';
-                // Reset states for fresh dispatch session
-                window.currentLegCounter = 1;
-                window.simbriefSavedLegsNodes = [];
-
-                const dispatchContainer = document.getElementById('dispatchLegsContainer');
-                if (dispatchContainer) {
-                    dispatchContainer.innerHTML = `
-                        <button onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' })" class="bg-[#1C1F26] border border-sky-500/30 text-white px-8 py-6 rounded-xl hover:bg-sky-500/10 hover:border-sky-500 shadow-xl transition-all font-bold tracking-widest flex items-center justify-between group w-full">
-                            <div class="flex items-center gap-4">
-                                <span class="material-symbols-outlined text-3xl group-hover:scale-110 transition-transform text-sky-400">open_in_new</span>
-                                <div class="text-left">
-                                    <div class="text-lg">ADD LEG 1</div>
-                                    <div class="text-slate-500 text-[10px] uppercase mt-1 font-manrope font-normal">Open SimBrief to configure your first flight</div>
-                                </div>
-                            </div>
-                            <span class="material-symbols-outlined text-slate-600">chevron_right</span>
-                        </button>
-                        <div id="simbriefLoadingState" class="hidden flex items-center justify-center p-6 bg-sky-900/10 border border-sky-500/20 rounded-xl mt-2">
-                            <div class="w-6 h-6 border-2 border-sky-500/30 border-t-sky-400 rounded-full animate-spin mr-4"></div>
-                            <span id="simbriefLoadingLabel" class="text-sky-400 font-label tracking-widest text-xs uppercase animate-pulse">Contacting Dispatch...</span>
-                        </div>
-                    `;
-                }
-
-                // Disable global finish button initially
-                const btnFinishDispatch = document.getElementById('btnFinishDispatch');
-                if (btnFinishDispatch) {
-                    btnFinishDispatch.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
-                }
-            }
+            // Switch to Briefing Tab via the menu logic
+            const briefMenuBtn = document.querySelector('.menu li[data-target="briefing"]');
+            if (briefMenuBtn) briefMenuBtn.click();
         });
     }
 
@@ -1611,10 +1741,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnStartGroundOps = document.getElementById('btnStartGroundOps');
     if (btnStartGroundOps) {
         btnStartGroundOps.addEventListener('click', () => {
-            window.chrome.webview.postMessage({ action: 'startGroundOps' });
-            btnStartGroundOps.disabled = true;
-            btnStartGroundOps.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> In Progress';
-            document.querySelector('.menu li[data-target="groundops"]').click();
+            // Point 2: Does not start ground operations directly anymore, just sends to ground ops tab.
+            if (typeof switchTab === 'function') switchTab('groundops');
         });
     }
 
@@ -1697,6 +1825,38 @@ document.addEventListener('DOMContentLoaded', () => {
                         time: localStorage.getItem('selTimeFormat') || '24H'
                     }
                 });
+                break;
+            case 'gatekeeperPassed':
+                window.chrome.webview.postMessage({ 
+                    action: 'syncRotationsAndStart', 
+                    payload: window.gatekeeperPendingPayload || []
+                });
+                const btnPass = document.getElementById('btnStartGroundOps');
+                if (btnPass) {
+                    btnPass.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> In Progress';
+                }
+                const groundOpsTarget = document.querySelector('.menu li[data-target="groundops"]');
+                if (groundOpsTarget) groundOpsTarget.click();
+                break;
+            case 'gatekeeperFailed':
+                // Use SweetAlert to show the user instead of a generic browser alert
+                if (window.Swal) {
+                    Swal.fire({
+                        title: 'ACTION DENIED',
+                        text: 'Launch MSFS first and start a flight in Cold & Dark state (Engines OFF, On Ground).',
+                        icon: 'error',
+                        background: '#1C1F26',
+                        color: '#f8fafc',
+                        confirmButtonColor: '#0ea5e9'
+                    });
+                } else {
+                    alert("ACTION DENIED: Launch MSFS first and start a flight in Cold & Dark state (Engines OFF, On Ground).");
+                }
+                const btnFail = document.getElementById('btnStartGroundOps');
+                if (btnFail) {
+                    btnFail.disabled = false;
+                    btnFail.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> START OPS';
+                }
                 break;
             case 'shiftResumeAvailable':
                 const resumeModal = document.getElementById('shiftResumeModal');
@@ -1783,6 +1943,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 updateIntercomButtons(payload);
                 document.getElementById('flightPhase').innerText = `${payload.phase}`;
+
+                // Start Ops Button Lifecycle (Point 11)
+                const startOpsBtn = document.getElementById('btnStartGroundOps');
+                if (startOpsBtn) {
+                    if (payload.phaseEnum !== 'AtGate' && payload.phaseEnum !== 'Turnaround') {
+                        if (!startOpsBtn.disabled || !startOpsBtn.innerText.includes('FLIGHT')) {
+                            startOpsBtn.disabled = true;
+                            startOpsBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">lock</span> FLIGHT IN PROGRESS';
+                        }
+                        const gPnl = document.getElementById('manualGroundOpsPnl');
+                        if (gPnl) gPnl.style.display = 'none';
+                    } else if (startOpsBtn.disabled && startOpsBtn.innerText.includes('FLIGHT')) {
+                        startOpsBtn.disabled = false;
+                        startOpsBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> GROUND OPS PNL';
+                    }
+
+                    // Show manual ground ops panel
+                    if (payload.phaseEnum === 'AtGate' || payload.phaseEnum === 'Turnaround') {
+                        const gPnl = document.getElementById('manualGroundOpsPnl');
+                        if (gPnl) gPnl.style.display = 'grid';
+
+                        const btnDeboardToggle = document.getElementById('btnDeboardingToggle');
+                        if (btnDeboardToggle) {
+                            if (payload.phaseEnum === 'Turnaround') {
+                                btnDeboardToggle.innerText = 'START DEBOARDING';
+                                // It should send action 'startDeboarding' to the backend
+                                btnDeboardToggle.onclick = () => window.chrome.webview.postMessage({action: 'startDeboarding'});
+                            } else {
+                                btnDeboardToggle.innerText = 'START BOARDING';
+                                // It should send action 'startService' for Boarding
+                                btnDeboardToggle.onclick = () => window.chrome.webview.postMessage({action: 'startService', service: 'Boarding'});
+                            }
+                        }
+                    }
+                }
 
                 // Turbulence Severity Update (Story 25)
                 if (payload.turbulenceSeverity !== undefined) {
@@ -2051,21 +2246,34 @@ document.addEventListener('DOMContentLoaded', () => {
                         document.getElementById('dashFlightCompany').innerText = GLOBAL_AIRLINES[aCode] || currentFlight.general?.airline_name || aCode || 'AIRLINE';
                         document.getElementById('dashFlightIdent').innerText = `${currentFlight.general?.icao_airline || ''}${currentFlight.general?.flight_number || ''}`;
                         
-                        let baseType = currentFlight.aircraft?.base_type || '';
-                        let acType = baseType;
-                        if (baseType === 'A320') acType = 'Airbus A320-200';
-                        else if (baseType === 'A20N') acType = 'Airbus A320neo';
-                        else if (baseType === 'B738') acType = 'Boeing 737-800';
-                        else if (baseType === 'B77W') acType = 'Boeing 777-300ER';
-                        else if (!acType) acType = currentFlight.aircraft?.name || currentFlight.aircraft?.icaocode || 'Unknown';
+                        let acType = currentFlight.aircraft?.name || currentFlight.aircraft?.base_type || currentFlight.aircraft?.icaocode || 'Unknown';
+                        if (acType.toUpperCase().includes('FENIX') || acType === 'A320') {
+                            acType = 'Airbus A320-200';
+                        }
+                        else if (acType === 'A20N') acType = 'Airbus A320neo';
+                        else if (acType === 'B738') acType = 'Boeing 737-800';
+                        else if (acType === 'B77W') acType = 'Boeing 777-300ER';
                         
                         document.getElementById('dashAircraftType').innerText = acType;
                         document.getElementById('dashAircraftReg').innerText = currentFlight.aircraft?.reg || 'NO REG';
                         
                         let depCity = currentFlight.origin?.city || '';
                         let depNameStr = currentFlight.origin?.name || '---';
+                        let depIcao = currentFlight.origin?.icao_code;
+                        
                         let arrCity = currentFlight.destination?.city || '';
                         let arrNameStr = currentFlight.destination?.name || '---';
+                        let arrIcao = currentFlight.destination?.icao_code;
+
+                        if (depIcao && window.airportsDb && window.airportsDb[depIcao]) {
+                            depCity = window.airportsDb[depIcao].city || depCity;
+                            depNameStr = window.airportsDb[depIcao].name || depNameStr;
+                        }
+
+                        if (arrIcao && window.airportsDb && window.airportsDb[arrIcao]) {
+                            arrCity = window.airportsDb[arrIcao].city || arrCity;
+                            arrNameStr = window.airportsDb[arrIcao].name || arrNameStr;
+                        }
 
                         if (depNameStr.includes('/')) {
                             const pts = depNameStr.split('/');
@@ -2198,38 +2406,56 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // --- Global Rotation Timer Logic ---
                     const globalBanner = document.getElementById('globalRotationBanner');
-                    if (globalBanner && window.allRotations && window.allRotations.length > 1 && payload.rawUnix) {
+                    if (globalBanner && window.allRotations && window.allRotations.length > 0 && payload.rawUnix) {
                         globalBanner.classList.remove('hidden');
                         
                         let currentIdx = window.currentLegIndex || 0;
                         document.getElementById('globalRotationStatus').innerText = `Leg ${currentIdx + 1} of ${window.allRotations.length}`;
+                        document.getElementById('currentLegStatus').innerText = `Leg ${currentIdx + 1}`;
                         
+                        let curLegData = window.allRotations[currentIdx];
                         let lastLeg = window.allRotations[window.allRotations.length - 1];
-                        let finalUnix = 0;
-                        if (lastLeg.times?.sched_in) {
-                            finalUnix = parseInt(lastLeg.times.sched_in);
+                        let curLegFinalUnix = curLegData.times?.sched_in ? parseInt(curLegData.times.sched_in) : 0;
+                        let finalUnix = lastLeg.times?.sched_in ? parseInt(lastLeg.times.sched_in) : 0;
+
+                        // Calculate current accumulated delay
+                        let currentDelay = 0;
+                        if (window.finalAibtUnix && window.currentSibtUnix > 0) {
+                            currentDelay = window.finalAibtUnix - window.currentSibtUnix;
+                        } else if (window.finalAobtUnix && typeof currentSobtUnix !== 'undefined' && currentSobtUnix > 0) {
+                            currentDelay = window.finalAobtUnix - currentSobtUnix;
+                        } else if (typeof currentSobtUnix !== 'undefined' && currentSobtUnix > 0 && payload.rawUnix > currentSobtUnix && !window.finalAobtUnix) {
+                            currentDelay = payload.rawUnix - currentSobtUnix;
                         }
 
-                        if (finalUnix > 0) {
-                            // Calculate current accumulated delay
-                            let currentDelay = 0;
-                            if (window.finalAibtUnix && window.currentSibtUnix > 0) {
-                                currentDelay = window.finalAibtUnix - window.currentSibtUnix;
-                            } else if (window.finalAobtUnix && typeof currentSobtUnix !== 'undefined' && currentSobtUnix > 0) {
-                                currentDelay = window.finalAobtUnix - currentSobtUnix;
-                            } else if (typeof currentSobtUnix !== 'undefined' && currentSobtUnix > 0 && payload.rawUnix > currentSobtUnix && !window.finalAobtUnix) {
-                                currentDelay = payload.rawUnix - currentSobtUnix;
-                            }
+                        // CURRENT LEG TIMER
+                        if (curLegFinalUnix > 0) {
+                            let estArrival = curLegFinalUnix;
+                            if (currentDelay > 0) estArrival += currentDelay;
                             
-                            // The true remaining time is reaching the FINAL leg's scheduled arrival, 
-                            // shifted by whatever delay we've already accumulated right now.
+                            let rem = estArrival - payload.rawUnix;
+                            if (rem > 0) {
+                                let cM = Math.floor((rem % 3600) / 60);
+                                let cS = rem % 60;
+                                let cH = Math.floor(rem / 3600);
+                                document.getElementById('currentLegTimer').innerText = `${cH.toString().padStart(2, '0')}:${cM.toString().padStart(2, '0')}:${cS.toString().padStart(2, '0')}`;
+                                
+                                if (cH === 0 && cM < 30) document.getElementById('currentLegTimer').className = "font-mono text-xl md:text-2xl font-black text-rose-500 tracking-wider drop-shadow-[0_0_10px_rgba(244,63,94,0.4)]";
+                                else if (cH === 0) document.getElementById('currentLegTimer').className = "font-mono text-xl md:text-2xl font-black text-amber-400 tracking-wider drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]";
+                                else document.getElementById('currentLegTimer').className = "font-mono text-xl md:text-2xl font-black text-emerald-400 tracking-wider drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]";
+                            } else {
+                                document.getElementById('currentLegTimer').innerText = "00:00:00";
+                            }
+                        }
+
+                        // GLOBAL ROTATION TIMER
+                        if (finalUnix > 0) {
                             let estimatedFinalArrival = finalUnix;
                             if (currentDelay > 0) {
                                 estimatedFinalArrival += currentDelay;
                             }
                             
                             let remainingSecs = estimatedFinalArrival - payload.rawUnix;
-                            
                             if (remainingSecs > 0) {
                                 let gH = Math.floor(remainingSecs / 3600);
                                 let gM = Math.floor((remainingSecs % 3600) / 60);
@@ -2305,23 +2531,71 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderLogbook(payload.history);
                 break;
             case 'flightReport':
-                let rep = payload.report;
-                let isLate = rep.DelaySec > 300;
-                let isEarly = rep.RawDelaySec < -300;
-                let puncText = isLate ? `${Math.round(rep.DelaySec / 60)}m Late` : (isEarly ? `${Math.abs(Math.round(rep.RawDelaySec / 60))}m Early` : 'On Time');
-                let puncClass = isLate ? 'red' : (isEarly ? 'blue' : 'green');
-                if (rep.DelaySec <= 300 && rep.RawDelaySec > 300) puncClass = 'orange'; // Ops Delay Pardon
+                {
+                    const rep = payload.report;
+                    const isFinal = payload.isFinal;
+                    const allReps = payload.allReports || [];
 
-                document.getElementById('frFlightNo').innerText = `${rep.Airline}${rep.FlightNo}`;
-                document.getElementById('frRoute').innerText = `${rep.Dep} ➔ ${rep.Arr}`;
+                    let isLate = rep.DelaySec > 300;
+                    let isEarly = rep.RawDelaySec < -300;
+                    let puncText = isLate ? `${Math.round(rep.DelaySec / 60)}m Late` : (isEarly ? `${Math.abs(Math.round(rep.RawDelaySec / 60))}m Early` : 'On Time');
+                    let puncClass = isLate ? 'red' : (isEarly ? 'blue' : 'green');
+                    if (rep.DelaySec <= 300 && rep.RawDelaySec > 300) puncClass = 'orange'; // Ops Delay Pardon
 
-                const mainScoreEl = document.getElementById('frScore');
-                mainScoreEl.innerText = rep.Score;
-                mainScoreEl.classList.remove('text-emerald-400', 'text-fuchsia-400', 'text-red-400');
-                if (rep.Score >= 1100) mainScoreEl.classList.add('text-fuchsia-400');
-                else if (rep.Score >= 1000) mainScoreEl.classList.add('text-emerald-400');
-                else mainScoreEl.classList.add('text-red-400');
+                    const evtTitle = document.querySelector('[data-i18n="report_title"]');
+                    if (evtTitle) {
+                        if (isFinal) {
+                            evtTitle.innerText = "ROTATION DEBRIEFING";
+                        } else {
+                            evtTitle.innerText = "POST-FLIGHT DEBRIEF";
+                        }
+                    }
 
+                    // Super Averages Display
+                    const rotSummary = document.getElementById('frRotationSummaryContainer');
+                    if (isFinal && allReps && allReps.length > 1 && rotSummary) {
+                        rotSummary.style.display = 'block';
+                        
+                        let totalBlock = 0;
+                        let totalDelay = 0;
+                        let sumSafety = 0;
+                        let sumComfort = 0;
+                        let sumSuper = 0;
+                        
+                        allReps.forEach(r => {
+                            totalBlock += parseInt(r.BlockTime) || 0;
+                            totalDelay += parseInt(r.DelaySec) || 0;
+                            sumSafety += parseInt(r.SafetyPoints) || 0;
+                            sumComfort += parseInt(r.ComfortPoints) || 0;
+                            sumSuper += parseInt(r.Score) || 0;
+                        });
+                        
+                        let numFlights = allReps.length;
+                        
+                        document.getElementById('frRotBlockTime').innerText = `${Math.floor(totalBlock/60)}h ${Math.floor(totalBlock%60)}m`;
+                        let delayMins = Math.round(totalDelay/60);
+                        document.getElementById('frRotDelay').innerText = delayMins > 0 ? `+${delayMins}m` : `${delayMins}m`;
+                        if (delayMins > 10) document.getElementById('frRotDelay').className = "text-xl font-mono text-rose-400";
+                        else if (delayMins > 0) document.getElementById('frRotDelay').className = "text-xl font-mono text-amber-400";
+                        else document.getElementById('frRotDelay').className = "text-xl font-mono text-emerald-400";
+
+                        document.getElementById('frRotSafety').innerText = Math.round(sumSafety);
+                        document.getElementById('frRotComfort').innerText = Math.round(sumComfort);
+                        document.getElementById('frRotSuper').innerText = Math.round(sumSuper / numFlights);
+                    } else if (rotSummary) {
+                        rotSummary.style.display = 'none';
+                    }
+
+                    document.getElementById('frFlightNo').innerText = `${rep.Airline}${rep.FlightNo}`;
+                    document.getElementById('frRoute').innerText = `${rep.Dep} ➔ ${rep.Arr}`;
+
+                    const mainScoreEl = document.getElementById('frScore');
+                    mainScoreEl.innerText = rep.Score;
+                    mainScoreEl.classList.remove('text-emerald-400', 'text-fuchsia-400', 'text-red-400', 'text-amber-400');
+                    if (rep.Score >= 1100) mainScoreEl.classList.add('text-fuchsia-400');
+                    else if (rep.Score >= 1000) mainScoreEl.classList.add('text-emerald-400');
+                    else if (rep.Score >= 800) mainScoreEl.classList.add('text-amber-400');
+                    else mainScoreEl.classList.add('text-red-400');
                 const setSubScore = (id, pts) => {
                     const el = document.getElementById(id);
                     if (!el) return;
@@ -2474,6 +2748,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 document.getElementById('flightReportModal').style.display = 'flex';
+                }
                 break;
             case 'switchTab':
                 const targetTab = payload.target;
@@ -2610,7 +2885,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 break;
             case 'InitProfile':
-                const profile = payload;
+                const profile = payload.payload || payload;
                 if (profile) {
                     // DEBUG: Log the profile object to the terminal/console to see what it contains
                     console.log("[DEBUG] InitProfile received:", JSON.stringify(profile));
@@ -2677,7 +2952,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const prfTotalFlights = document.getElementById('prfTotalFlights');
                     if (prfTotalFlights) prfTotalFlights.innerText = profile.totalFlights ?? profile.TotalFlights ?? 0;
 
-                    const prfSuperScore = document.getElementById('prfSuperScore');
+                    const prfSuperScore = document.getElementById('prfAvgScore');
                     if (prfSuperScore) prfSuperScore.innerText = Math.round(profile.averageSuperScore ?? profile.AverageSuperScore ?? 0);
 
                     const prfHighestScore = document.getElementById('prfHighestScore');
@@ -2686,7 +2961,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const prfPunctuality = document.getElementById('prfPunctuality');
                     if (prfPunctuality) prfPunctuality.innerText = `${Math.round(profile.punctualityRatingPercentage ?? profile.PunctualityRatingPercentage ?? 0)}%`;
 
-                    const prfTouchdown = document.getElementById('prfTouchdown');
+                    const prfTouchdown = document.getElementById('prfBestFpm');
                     const tdFpm = profile.smoothestTouchdownFpm ?? profile.SmoothestTouchdownFpm ?? 0;
                     if (prfTouchdown) prfTouchdown.innerText = tdFpm === 0 ? "--- fpm" : `${Math.round(tdFpm)} fpm`;
 
@@ -2740,6 +3015,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isFlightCancelled) return;
                 let topScore = document.getElementById('topScoreValue');
                 if (topScore) topScore.innerText = payload.score;
+                
+                // Update Briefing Live Score Display
+                const bScore = document.getElementById('briefingScoreValue');
+                if (bScore) {
+                    bScore.innerText = payload.score;
+                    bScore.classList.remove('text-emerald-400', 'text-fuchsia-400', 'text-amber-400', 'text-red-400');
+                    if (payload.score >= 1100) bScore.classList.add('text-fuchsia-400');
+                    else if (payload.score >= 1000) bScore.classList.add('text-emerald-400');
+                    else if (payload.score >= 800) bScore.classList.add('text-amber-400');
+                    else bScore.classList.add('text-red-400');
+                }
+
+                const updateSubBar = (idPts, idBar, pts) => {
+                    const elPts = document.getElementById(idPts);
+                    const elBar = document.getElementById(idBar);
+                    if (!elPts || !elBar) return;
+                    
+                    elPts.innerText = (pts > 0 ? '+' : '') + pts;
+                    elPts.classList.remove('text-sky-400', 'text-emerald-400', 'text-amber-400', 'text-purple-400', 'text-red-400', 'text-white');
+                    if (pts > 0) elPts.classList.add('text-emerald-400');
+                    else if (pts < 0) elPts.classList.add('text-red-400');
+                    else elPts.classList.add('text-white');
+
+                    let pct = 50 + ((pts / 1000) * 50);
+                    if (pct < 5) pct = 5;
+                    if (pct > 100) pct = 100;
+                    elBar.style.width = pct + '%';
+                };
+
+                updateSubBar('b_safetyPts', 'b_safetyBar', payload.safety || 0);
+                updateSubBar('b_comfortPts', 'b_comfortBar', payload.comfort || 0);
+                updateSubBar('b_maintPts', 'b_maintBar', payload.maint || 0);
+                updateSubBar('b_opsPts', 'b_opsBar', payload.ops || 0);
+
                 const mainScore = document.getElementById('mainScoreValue');
                 if (mainScore) mainScore.innerText = payload.score;
 
@@ -2867,9 +3176,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (mText) { mText.innerText = dictCancel ? (dictCancel.gops_meta_aborted || "OPS ABORTED") : "OPS ABORTED"; mText.style.color = "#DC2626"; }
                     if (mFill) mFill.style.backgroundColor = "#DC2626";
                 }
+                const btnStartGroundOps = document.getElementById('btnStartGroundOps');
                 if (btnStartGroundOps) {
                     btnStartGroundOps.disabled = true;
-                    btnStartGroundOps.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> START OPS';
+                    btnStartGroundOps.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> GROUND OPS PNL';
                 }
                 break;
             case 'flightData':
@@ -3005,7 +3315,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         // We also allow replacement if we are replacing the very first dummy leg, regardless of origin mismatch, if it's the first leg
                         if ((rotOrig === dOrig && rotDest === dDest) || (i === 0 && window.allRotations.length > 0)) {
-                            window.allRotations[i] = { data: d, briefing: payload.briefing, manifest: payload.manifest };
+                            window.allRotations[i] = { data: d, briefing: payload.briefing, manifest: payload.manifest, airlineProfile: payload.airlineProfile };
                             replacedDummy = true;
                             break;
                         }
@@ -3028,7 +3338,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                     
                     if (!isDupe) {
-                        window.allRotations.push({ data: d, briefing: payload.briefing, manifest: payload.manifest });
+                        window.allRotations.push({ data: d, briefing: payload.briefing, manifest: payload.manifest, airlineProfile: payload.airlineProfile });
                     }
                 }
 
@@ -3323,6 +3633,7 @@ function renderGroundOps(services) {
         else if (locName === "Cargo") locName = mDict.gops_cargo || locName;
         else if (locName === "Catering") locName = mDict.gops_catering || locName;
         else if (locName === "Cleaning") locName = mDict.gops_cleaning || locName;
+        else if (locName === "Cabin Clean (PNC)") locName = "Cabin Clean (PNC)";
         else if (locName === "Water/Waste") locName = mDict.gops_water || locName;
 
         let locStatus = s.StatusMessage !== undefined ? s.StatusMessage : s.statusMessage;
@@ -3417,7 +3728,7 @@ function renderGroundOps(services) {
                 const cBg = cr <= 10 ? 'bg-red-500/10' : (cr <= 25 ? 'bg-amber-500/10' : 'bg-emerald-500/10');
                 extraBadgesHtml += `<div class="px-2 py-[2px] rounded ${cBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${cColor}; border-color: ${cColor}40;">🍱 ${cr} Units</div>`;
             }
-            if (s.Name === "Cleanliness" || s.Name === "Cleaning") {
+            if (s.Name === "Cleanliness" || s.Name === "Cleaning" || s.Name === "Cabin Clean (PNC)") {
                 const cl = window.lastTelemetry.cabinCleanliness !== undefined ? window.lastTelemetry.cabinCleanliness : 100;
                 const clColor = cl < 50 ? '#EF4444' : (cl < 75 ? '#F59E0B' : '#34D399');
                 const clBg = cl < 50 ? 'bg-red-500/10' : (cl < 75 ? 'bg-amber-500/10' : 'bg-emerald-500/10');
@@ -3498,24 +3809,7 @@ function renderGroundOps(services) {
 
     html += '</div>';
 
-    // STORY 29: Global Time Warp Button
-    const hasActiveOps = services.some(s => s.State !== 3 && s.State !== 4);
-    if (hasActiveOps) {
-        let btnLbl = (window.locales && window.locales[(localStorage.getItem('selLanguage') || 'EN').toLowerCase()]?.gops_timewarp) || "Time Warp (Skip to SOBT)";
-        let penLbl = (window.locales && window.locales[(localStorage.getItem('selLanguage') || 'EN').toLowerCase()]?.gops_timewarp_penalty) || "-50 SuperScore Penalty";
-
-        html += `
-        <div class="mt-8 flex flex-col items-center justify-center">
-            <button class="px-8 py-3 bg-rose-600/20 text-rose-400 hover:bg-rose-600/40 hover:text-white border border-rose-500/30 rounded-lg text-sm tracking-widest uppercase font-black transition-all shadow-[0_0_15px_rgba(244,63,94,0.3)] hover:shadow-[0_0_25px_rgba(244,63,94,0.5)] flex items-center gap-3" onclick="window.chrome.webview.postMessage({action: 'requestTimeWarp'})">
-                <span class="text-xl">⏩</span>
-                ${btnLbl}
-            </button>
-            <p class="text-rose-500/60 text-[10px] uppercase font-bold tracking-widest mt-3 flex items-center gap-1">
-                <span class="text-xs">⚠️</span> ${penLbl}
-            </p>
-        </div>
-        `;
-    }
+    // REMOVED: Global Time Warp Button per user request.
 
     container.innerHTML = html;
 }
@@ -3671,7 +3965,10 @@ window.renderManifest = function (manifest) {
             }
             .seat {
                 width: 22px;
+                min-width: 22px;
                 height: 26px;
+                min-height: 26px;
+                flex-shrink: 0;
                 border-radius: 4px 4px 2px 2px;
                 background: #334155;
                 border: 1px solid #475569;
@@ -3974,7 +4271,7 @@ function renderLogbook(history) {
     if (!grid) return;
 
     if (!history || history.length === 0) {
-        grid.innerHTML = `<div class="col-span-1 md:col-span-2 lg:col-span-3 text-center py-12 text-slate-500 font-label tracking-widest text-xs uppercase" data-i18n="logb_empty">No flight logs recorded yet.</div>`;
+        grid.innerHTML = `<div class="text-center py-12 text-slate-500 font-label tracking-widest text-xs uppercase" data-i18n="logb_empty">No flight logs recorded yet.</div>`;
         return;
     }
 
@@ -3987,28 +4284,37 @@ function renderLogbook(history) {
         const payloadStr = encodeURIComponent(JSON.stringify(f)).replace(/'/g, "%27");
 
         return `
-        <div class="bg-[#1C1F26] p-6 rounded-xl border border-white/5 relative hover:border-sky-500/30 hover:bg-white/[0.02] transition-colors cursor-pointer group" onclick="replayFlightLog('${payloadStr}')">
-            <div class="absolute top-6 right-6 w-3 h-3 rounded-full ${colorPill}"></div>
-            <div class="text-[10px] text-slate-500 font-label tracking-widest uppercase mb-2">${dateStr}</div>
-            <div class="text-xl font-headline font-black text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                ${f.Dep} <span class="material-symbols-outlined text-slate-600 text-sm">flight</span> ${f.Arr}
+        <div class="bg-black/20 hover:bg-[#1C1F26] p-4 rounded-xl border border-white/5 relative hover:border-sky-500/30 transition-colors cursor-pointer group flex items-center justify-between" onclick="replayFlightLog('${payloadStr}')">
+            
+            <!-- Date & Flight -->
+            <div class="flex items-center gap-6 w-[30%] shrink-0">
+                <div class="w-2 h-2 rounded-full ${colorPill} shrink-0"></div>
+                <div>
+                    <div class="text-[10px] text-slate-500 font-label tracking-widest uppercase">${dateStr}</div>
+                    <div class="text-sm font-black text-white uppercase tracking-widest mt-1">${f.Airline}${f.FlightNo}</div>
+                </div>
             </div>
-            <div class="space-y-2 mt-4 pt-4 border-t border-white/5 font-mono text-xs">
-                <div class="flex justify-between">
-                    <span class="text-slate-400 uppercase tracking-widest text-[9px] font-manrope font-bold">Flight No</span>
-                    <span class="text-white">${f.Airline}${f.FlightNo}</span>
+
+            <!-- Route -->
+            <div class="flex items-center gap-3 w-[20%] justify-center shrink-0">
+                <span class="text-lg font-headline font-black text-white tracking-widest">${f.Dep}</span>
+                <span class="material-symbols-outlined text-slate-600 text-[16px] group-hover:text-sky-500/50 transition-colors">flight_takeoff</span>
+                <span class="text-lg font-headline font-black text-white tracking-widest">${f.Arr}</span>
+            </div>
+
+            <!-- Stats -->
+            <div class="flex items-center justify-end gap-6 w-[50%] pr-4 font-mono text-xs">
+                <div class="flex flex-col items-end">
+                    <span class="text-slate-500 uppercase tracking-widest text-[9px] font-manrope font-bold mb-1">Block Time</span>
+                    <span class="text-slate-300 font-bold">${blkFormat}</span>
                 </div>
-                <div class="flex justify-between">
-                    <span class="text-slate-400 uppercase tracking-widest text-[9px] font-manrope font-bold">Score</span>
-                    <span class="text-${isSuper ? 'emerald' : 'red'}-400 font-bold">${f.Score} pts</span>
+                <div class="flex flex-col items-end">
+                    <span class="text-slate-500 uppercase tracking-widest text-[9px] font-manrope font-bold mb-1">Touchdown</span>
+                    <span class="text-slate-300 font-bold">${Math.round(f.TouchdownFpm)} fpm</span>
                 </div>
-                <div class="flex justify-between">
-                    <span class="text-slate-400 uppercase tracking-widest text-[9px] font-manrope font-bold">Block Time</span>
-                    <span class="text-white">${blkFormat}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-slate-400 uppercase tracking-widest text-[9px] font-manrope font-bold">Touchdown</span>
-                    <span class="text-white">${Math.round(f.TouchdownFpm)} fpm</span>
+                <div class="flex flex-col items-end w-24">
+                    <span class="text-slate-500 uppercase tracking-widest text-[9px] font-manrope font-bold mb-1">Score</span>
+                    <span class="text-${isSuper ? 'emerald' : 'red'}-400 font-bold text-sm">${f.Score} <span class="text-[9px] text-slate-500">pts</span></span>
                 </div>
             </div>
         </div>`;

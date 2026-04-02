@@ -12,7 +12,11 @@ namespace FlightSupervisor.UI.Services
 
         public ProfileManager(string basePath = null)
         {
-            if (basePath == null) basePath = AppDomain.CurrentDomain.BaseDirectory;
+            if (basePath == null) 
+            {
+                basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FlightSupervisor");
+            }
+            if (!Directory.Exists(basePath)) Directory.CreateDirectory(basePath);
             _filePath = Path.Combine(basePath, "Profile.json");
             LoadProfile();
         }
@@ -28,7 +32,7 @@ namespace FlightSupervisor.UI.Services
                 }
                 catch (Exception ex)
                 {
-                    File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ProfileLoadError.txt"), ex.ToString());
+                    File.WriteAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FlightSupervisor", "ProfileLoadError.txt"), ex.ToString());
                     CurrentProfile = new PilotProfile(); // fallback
                 }
             }
@@ -49,7 +53,8 @@ namespace FlightSupervisor.UI.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error saving profile: " + ex.Message);
+                File.AppendAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FlightSupervisor", "ProfileError.log"), 
+                    $"[{DateTime.Now}] Error saving profile: {ex}\n");
             }
         }
     }
