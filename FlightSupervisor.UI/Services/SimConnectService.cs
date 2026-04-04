@@ -44,6 +44,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<bool, bool>? OnEngineCombustionReceived;
         public event Action<double>? OnHeadingReceived;
         public event Action<double, double>? OnWindReceived;
+        public event Action<double, double>? OnPositionReceived;
         public event Action<double, double, bool>? OnNavigationReceived;
         public event Action<double, double>? OnAirframeDynamicsReceived;
         public event Action<double>? OnAmbientTemperatureReceived;
@@ -104,6 +105,8 @@ namespace FlightSupervisor.UI.Services
             public double TimeZoneDeviation;
             public double AmbientTemperature;
             public double FuelTotalMass;
+            public double Latitude;
+            public double Longitude;
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
@@ -169,6 +172,8 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "TIME ZONE DEVIATION", "Seconds", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AMBIENT TEMPERATURE", "Celsius", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "FUEL TOTAL QUANTITY WEIGHT", "Kilograms", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "PLANE LATITUDE", "Degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "PLANE LONGITUDE", "Degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
 
                 _simconnect.AddToDataDefinition(DEFINITIONS.GForceData, "G FORCE", "GForce", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
 
@@ -261,6 +266,7 @@ namespace FlightSupervisor.UI.Services
                 OnEngineCombustionReceived?.Invoke(planeData.Eng1Combustion > 0.5, planeData.Eng2Combustion > 0.5);
                 OnHeadingReceived?.Invoke(planeData.Heading);
                 OnWindReceived?.Invoke(planeData.WindDirection, planeData.WindVelocity);
+                OnPositionReceived?.Invoke(planeData.Latitude, planeData.Longitude);
                 OnNavigationReceived?.Invoke(planeData.NavLocalizerError, planeData.GpsCrossTrackError, planeData.HasLocalizer > 0.5);
                 OnAirframeDynamicsReceived?.Invoke(planeData.VelocityBodyZ, planeData.AccelerationBodyZ);
 

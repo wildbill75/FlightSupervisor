@@ -1,0 +1,42 @@
+130: if (!window.allRotations || window.allRotations.length === 0) {
+216: <h2 class="text-4xl font-black text-white font-headline tracking-widest uppercase">${AIRLINES[window.allRotations[0].data?.general?.icao_airline] || window.allRotations[0].data?.general?.airline_name || window.allRotations[0].data?.general?.icao_airline || 'AIRLINE'}</h2>
+222: <h2 class="text-2xl font-black text-white tracking-widest uppercase">${window.allRotations[0].data?.aircraft?.name || window.allRotations[0].data?.aircraft?.base_type || 'AIRCRAFT'}</h2>
+223: <p class="text-sky-400 font-mono text-sm mt-1 uppercase tracking-widest">${window.allRotations[0].data?.aircraft?.reg || 'PENDING'}</p>
+227: <div class="text-3xl font-black text-white">${window.allRotations[0].airlineProfile ? window.allRotations[0].airlineProfile.global_score : 100} <span class="text-xs text-slate-500">/100</span></div>
+246: You are scheduled for a rotation of <strong class="text-white">${window.allRotations.length} legs</strong> today. Ensure adequate turnaround time between flights. Weather reports across the network currently appear manageable, but refer to individual leg operational briefings for critical Notams and precise meteorological impacts.
+257: window.allRotations.forEach((rot, idx) => {
+299: <button onclick="event.stopPropagation(); window.chrome.webview.postMessage({action: 'fenixExport', path: localStorage.getItem('fenixExportPath'), jsonPayload: JSON.stringify(window.allRotations[${idx}].data)})"
+327: window.allRotations.forEach((rot, i) => {
+502: if (window.allRotations && window.allRotations.length > 1) {
+535: const movedItem = window.allRotations.splice(draggedItemIdx, 1)[0];
+536: window.allRotations.splice(targetIdx, 0, movedItem);
+551: if (!window.allRotations || window.allRotations.length === 0) return;
+556: window.allRotations.forEach((rot, idx) => {
+783: if (!window.allRotations || window.allRotations.length === 0) return;
+789: if (idx >= window.allRotations.length) idx = window.allRotations.length - 1;
+791: const rotation = window.allRotations[idx]?.data;
+1677: window.allRotations = [];
+2226: if (dashDetails && window.allRotations && window.allRotations.length > 0) {
+2227: const currentIdx = Math.min(window.activeLegIndex || 0, window.allRotations.length - 1);
+2228: const currentFlight = window.allRotations[currentIdx]?.data;
+2405: if (globalBanner && window.allRotations && window.allRotations.length > 0 && payload.rawUnix) {
+2409: document.getElementById('globalRotationStatus').innerText = `Leg ${currentIdx + 1} of ${window.allRotations.length}`;
+2412: let curLegData = window.allRotations[currentIdx];
+2413: let lastLeg = window.allRotations[window.allRotations.length - 1];
+2750: if (window.allRotations) {
+2751: const sbPayload = window.allRotations.map(r => r.data);
+3320: if (!window.allRotations) window.allRotations = [];
+3324: for (let i = 0; i < window.allRotations.length; i++) {
+3325: const rotData = window.allRotations[i].data;
+3333: if ((rotOrig === dOrig && rotDest === dDest) || (i === 0 && window.allRotations.length > 0)) {
+3334: window.allRotations[i] = { data: d, briefing: payload.briefing, manifest: payload.manifest, airlineProfile: payload.airlineProfile };
+3343: const isDupe = window.allRotations.some(r => {
+3357: window.allRotations.push({ data: d, briefing: payload.briefing, manifest: payload.manifest, airlineProfile: payload.airlineProfile });
+3361: // Inject remaining planned dummy legs into allRotations if they aren't there yet
+3376: const exists = window.allRotations.some(r => {
+3383: window.allRotations.push({ data: dummy, briefing: null, manifest: null });
+3389: for (let i = 1; i < window.allRotations.length; i++) {
+3390: const prevLeg = window.allRotations[i - 1].data;
+3391: const currLeg = window.allRotations[i].data;
+3445: if (window.allRotations && window.allRotations.length > 0) {
+3447: window.allRotations[0].briefing = payload.briefing;

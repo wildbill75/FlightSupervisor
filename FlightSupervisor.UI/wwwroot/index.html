@@ -189,7 +189,7 @@
         <button id="btnSmartConnect" data-i18n="btn_not_connected" class="text-[10px] font-bold py-3 tracking-widest uppercase rounded-xl bg-red-900/20 text-red-500 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:bg-red-900/40 transition-colors w-full">Not Connected</button>
         <div class="flex items-center gap-4">
             <span id="appBuildString" class="text-[9px] text-slate-700 font-mono font-bold tracking-widest uppercase" title="Build Version">BUILD ---</span>
-            <span class="text-[9px] text-red-900/40 hover:text-red-500/80 cursor-pointer font-black tracking-widest transition-colors font-mono" onclick="document.querySelector('li[data-target=\'devLogs\']').click()">DEV</span>
+            <span class="text-[9px] text-red-900/40 hover:text-red-500/80 cursor-pointer font-black tracking-widest transition-colors font-mono" onclick="document.querySelector('li[data-target=\'options\']').click()">DEV</span>
         </div>
     </div>
     </aside>
@@ -224,9 +224,13 @@
                         <div class="flex justify-between items-start w-full relative z-10">
                             <div>
                                 <div class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase mb-4" data-i18n="dash_current_phase">Current Flight Phase</div>
-                                <div style="display: flex; align-items: baseline; gap: 20px;">
+                                <div style="display: flex; align-items: baseline; gap: 20px; width: 100%;">
                                     <h1 id="flightPhase" class="text-7xl font-black font-headline text-sky-400 tracking-tighter neon-glow" style="text-transform: capitalize;">Off</h1>
                                     <div id="flightCountdown" class="text-lg text-slate-400 font-bold" style="font-family: monospace;"></div>
+                                    <button id="btnSystemPause" class="ml-auto w-12 h-12 flex items-center justify-center rounded-xl bg-slate-800 text-sky-400 border border-slate-700 hover:bg-slate-700 hover:text-sky-300 transition-all shadow-md" style="align-self: center;" title="Pause Simulator">
+                                        <svg id="iconPause" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                        <svg id="iconPlay" class="w-6 h-6 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -314,8 +318,8 @@
 
                     <div class="col-span-12 lg:col-span-5 glass-panel rounded-xl overflow-hidden flex flex-col">
                         <div class="px-8 py-5 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
-                            <h2 class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase" data-i18n="dash_timetable_utc">Flight Timetable (UTC)</h2>
-                            <span class="text-xs font-bold text-sky-400 font-mono tracking-widest" id="zuluTime">--:--Z</span>
+                            <h2 class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase" data-i18n="dash_timetable">Flight Timetable</h2>
+                            <span class="text-lg md:text-xl font-bold text-sky-400 font-mono tracking-wider drop-shadow-[0_0_8px_rgba(56,189,248,0.4)] text-right" id="zuluTime">--:-- UTC / --:-- LOCAL</span>
                         </div>
                         <div id="globalRotationBanner" class="hidden bg-[#1E293B]/60 border-b border-white/5 py-4 px-8 flex items-center justify-between shadow-[inset_0_-10px_20px_rgba(0,0,0,0.2)] gap-8">
                             <!-- CURRENT LEG -->
@@ -584,6 +588,10 @@
                 <div class="mb-4 flex items-center justify-between">
                     <div class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80" data-i18n="brief_title">Flight Briefing</div>
                     <div class="flex gap-4">
+                        <button onclick="window.cancelRotations()" id="btnCancelRotations" class="border border-red-500/30 bg-[#12141A] hover:bg-red-900/40 text-red-400 px-4 py-2 rounded-lg text-[10px] uppercase font-bold tracking-widest flex items-center gap-2 transition-colors shadow-lg" style="display: none;">
+                            <span class="material-symbols-outlined text-[16px]">cancel</span>
+                            RESET LEGS
+                        </button>
                         <button onclick="window.requestAcarsUpdate()" id="btnAcarsReqTrigger" class="border border-sky-500/30 bg-[#12141A] hover:bg-sky-900/40 text-sky-400 px-4 py-2 rounded-lg text-[10px] uppercase font-bold tracking-widest flex items-center gap-2 transition-colors shadow-lg">
                             <span class="material-symbols-outlined text-[16px]">print</span>
                             ACARS REQ
@@ -663,13 +671,7 @@
                     <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80" data-i18n="ground_title">Ground Operations</h2>
                 </div>
                 
-                <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6" id="manualGroundOpsPnl" style="display: none;">
-                    <button onclick="window.chrome.webview.postMessage({action: 'startDeboarding'})" id="btnDeboardingToggle" class="bg-[#1C1F26] border border-sky-500/20 text-slate-300 hover:border-sky-400 hover:text-sky-400 px-4 py-3 rounded-lg text-[10px] uppercase font-bold tracking-widest transition-all">START DEBOARDING</button>
-                    <button onclick="window.chrome.webview.postMessage({action: 'startService', service: 'Cargo'})" class="bg-[#1C1F26] border border-emerald-500/20 text-slate-300 hover:border-emerald-400 hover:text-emerald-400 px-4 py-3 rounded-lg text-[10px] uppercase font-bold tracking-widest transition-all">CALL CARGO</button>
-                    <button onclick="window.chrome.webview.postMessage({action: 'startService', service: 'Cleaning'})" class="bg-[#1C1F26] border border-amber-500/20 text-slate-300 hover:border-amber-400 hover:text-amber-400 px-4 py-3 rounded-lg text-[10px] uppercase font-bold tracking-widest transition-all">CALL CLEANING</button>
-                    <button onclick="window.chrome.webview.postMessage({action: 'startService', service: 'Catering'})" class="bg-[#1C1F26] border border-orange-500/20 text-slate-300 hover:border-orange-400 hover:text-orange-400 px-4 py-3 rounded-lg text-[10px] uppercase font-bold tracking-widest transition-all">CALL CATERING</button>
-                    <button onclick="window.chrome.webview.postMessage({action: 'startService', service: 'Water/Waste'})" class="bg-[#1C1F26] border border-blue-500/20 text-slate-300 hover:border-blue-400 hover:text-blue-400 px-4 py-3 rounded-lg text-[10px] uppercase font-bold tracking-widest transition-all">WATER / WASTE</button>
-                </div>
+
                 
                 <div id="airportTierPanel" class="hidden mb-6 bg-[#1A1C23] p-5 rounded-xl border border-white/10 shadow-lg flex items-center gap-6 transition-all duration-500">
                     <div class="flex flex-col items-center justify-center min-w-[80px]">
@@ -1080,103 +1082,6 @@
     <!-- MODALS -->
     <!-- Removed Warp Confirmation Modal -->
 
-    <!-- Continue Shift Modal -->
-    <div id="shiftResumeModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md" style="display: none;">
-        <div class="bg-[#1C1F26] border border-sky-500/30 rounded-2xl p-10 max-w-xl w-full shadow-[0_0_80px_rgba(14,165,233,0.15)] flex flex-col items-center text-center relative overflow-hidden">
-            <div class="absolute top-0 right-[-20%] w-[300px] h-[300px] bg-sky-500/10 blur-[100px] rounded-full pointer-events-none"></div>
-            
-            <div class="w-24 h-24 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-full flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(16,185,129,0.4)]">
-                <span class="material-symbols-outlined text-white text-5xl">airline_seat_recline_extra</span>
-            </div>
-            
-            <h2 class="text-3xl font-headline font-black text-white mb-2 tracking-wide uppercase">Resume Shift?</h2>
-            <p class="text-slate-400 text-sm mb-8 leading-relaxed">
-                We detected an active duty shift. Would you like to continue from your last parking stand, or start fresh and discard previous cabin state?
-            </p>
-
-            <div class="w-full bg-black/40 border border-white/5 rounded-xl p-6 mb-8 flex divide-x divide-white/5">
-                <div class="flex-1 flex flex-col items-center">
-                    <span class="text-[10px] text-slate-500 font-label tracking-widest uppercase mb-1">Last Arrival</span>
-                    <span class="text-lg font-mono font-bold text-white" id="srIcao">UNK</span>
-                </div>
-                <div class="flex-1 flex flex-col items-center">
-                    <span class="text-[10px] text-slate-500 font-label tracking-widest uppercase mb-1">Airline</span>
-                    <span class="text-sm font-bold text-sky-400 mt-1" id="srAirline">N/A</span>
-                </div>
-                <div class="flex-1 flex flex-col items-center">
-                    <span class="text-[10px] text-slate-500 font-label tracking-widest uppercase mb-1">Date</span>
-                    <span class="text-xs font-mono text-slate-300 mt-1" id="srDate">N/A</span>
-                </div>
-            </div>
-
-            <div class="flex gap-4 w-full">
-                <button onclick="window.chrome.webview.postMessage({action: 'resumeShift'})" class="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-400 text-slate-900 px-6 py-4 rounded-xl hover:brightness-110 transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] uppercase font-bold text-sm tracking-widest group relative overflow-hidden">
-                    <span class="relative z-10 flex items-center justify-center gap-2"><span class="material-symbols-outlined text-lg">play_arrow</span> CONTINUE SHIFT</span>
-                </button>
-                <button onclick="window.chrome.webview.postMessage({action: 'clearShift'})" class="flex-1 bg-transparent border border-rose-500/30 text-rose-400 px-6 py-4 rounded-xl hover:bg-rose-500/10 hover:border-rose-500 transition-all uppercase font-bold text-[11px] tracking-widest">
-                    START FRESH (RESET)
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Cancel Modal -->
-    <div id="dutySetupModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md" style="display: none;">
-        <div class="bg-[#1C1F26] border border-sky-500/20 rounded-2xl p-10 max-w-4xl w-full shadow-[0_0_50px_rgba(14,165,233,0.15)] flex flex-col items-center">
-            
-            <div class="w-20 h-20 bg-gradient-to-br from-sky-400 to-sky-600 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(14,165,233,0.4)]">
-                <span class="material-symbols-outlined text-white text-4xl">flight_takeoff</span>
-            </div>
-            
-            <h2 class="text-3xl font-headline font-black text-white mb-2 tracking-wide uppercase">Shift Start Configurator</h2>
-            <p class="text-slate-400 text-sm mb-12 text-center max-w-2xl">
-                Welcome to your shift, Captain. Choose your initial operational state before importing your flight plan. This will dictate your ground logistics.
-            </p>
-
-            <!-- State Choice Cards -->
-            <div class="grid grid-cols-2 gap-8 w-full mb-12">
-                
-                <!-- Pristine Option -->
-                <div id="cardPristine" onclick="selectDutyState('pristine')" class="duty-card cursor-pointer border-2 border-sky-500 bg-sky-900/10 rounded-xl p-6 transition-all hover:bg-sky-500/10 shadow-[0_0_20px_rgba(14,165,233,0.2)] flex flex-col relative overflow-hidden group">
-                    <div class="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-bl-full group-hover:scale-110 transition-transform"></div>
-                    <span class="material-symbols-outlined text-4xl text-sky-400 mb-4 z-10">cleaning_services</span>
-                    <h3 class="text-xl font-bold text-white mb-2 z-10">Pristine (Cold & Dark)</h3>
-                    <p class="text-xs text-slate-400 leading-relaxed z-10">First flight of the day. Aircraft is clean and fully restocked. Ground Ops minimum time required.</p>
-                </div>
-                
-                <!-- Turnaround Option -->
-                <div id="cardTurnaround" onclick="selectDutyState('turnaround')" class="duty-card cursor-pointer border-2 border-white/5 bg-[#12141A] rounded-xl p-6 transition-all hover:bg-orange-500/10 hover:border-orange-500/50 flex flex-col relative overflow-hidden group opacity-50">
-                    <div class="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-bl-full group-hover:scale-110 transition-transform"></div>
-                    <span class="material-symbols-outlined text-4xl text-orange-400 mb-4 z-10">sync_alt</span>
-                    <h3 class="text-xl font-bold text-white mb-2 z-10">Crew Handover (Turnaround)</h3>
-                    <p class="text-xs text-slate-400 leading-relaxed z-10">Taking over from a previous crew. Aircraft is dirty. Waste, water and catering must be fully managed during Ground Ops.</p>
-                </div>
-
-            </div>
-
-            <!-- Setup Input -->
-            <div id="viewStartupConfig" class="w-full mb-8 flex justify-center">
-                <div class="flex flex-col items-center justify-center bg-black/20 p-6 rounded-xl border border-sky-500/30 shadow-inner w-[300px]">
-                    <label for="dutyOriginInput" class="text-sky-400 font-label tracking-widest text-[10px] uppercase mb-4 text-center">Departure Airport (ICAO)</label>
-                    <input type="text" id="dutyOriginInput" list="recentIcaos" placeholder="e.g. LFPG" maxlength="4" class="bg-[#1C1F26] border border-sky-900/40 text-white font-mono text-center px-4 py-3 rounded-lg outline-none focus:border-sky-500/80 focus:shadow-[0_0_15px_rgba(14,165,233,0.2)] transition-all w-full text-lg tracking-[0.2em] uppercase">
-                    <datalist id="recentIcaos"></datalist>
-                    <p class="text-slate-500 text-[10px] italic mt-3 text-center">Where are you starting your shift?</p>
-                </div>
-            </div>
-
-            <!-- Next/Cancel Actions -->
-            <div class="flex gap-4 items-center w-full justify-center">
-                <button id="btnDutyNext" class="bg-gradient-to-r from-sky-500 to-sky-400 text-slate-900 px-8 py-3 rounded-lg hover:brightness-110 transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] uppercase font-bold text-[12px] tracking-widest shrink-0">
-                    NEXT
-                </button>
-                <button id="btnDutyCancel" onclick="document.getElementById('dutySetupModal').style.display='none'" class="bg-[#1C1F26] border border-white/10 text-slate-300 px-8 py-3 rounded-lg hover:bg-white/5 transition-all shadow-xl uppercase font-bold text-[12px] tracking-widest shrink-0">
-                    CANCEL
-                </button>
-            </div>
-
-        </div>
-    </div>
-
     <!-- SimBrief Dispatch View Modal -->
     <div id="simbriefDispatchModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md" style="display: none;">
         <div class="bg-[#1C1F26] border border-sky-500/20 rounded-2xl max-w-5xl w-full h-[85vh] shadow-[0_0_50px_rgba(14,165,233,0.15)] flex flex-col overflow-hidden">
@@ -1249,32 +1154,7 @@
         </div>
     </div>
 
-    <div id="abortServiceModal" class="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-sm" style="display: none;">
-        <div class="bg-[#1C1F26] p-8 rounded-xl max-w-sm text-center border border-white/5 shadow-2xl">
-            <h3 class="text-sky-400 font-bold mb-3 font-headline text-lg uppercase tracking-widest" data-i18n="modal_abort_title">Abort Service?</h3>
-            <p class="text-slate-400 text-xs mb-8 leading-relaxed font-body"><span data-i18n="modal_abort_desc_pre">Are you sure you want to skip</span> <strong id="abortServiceName" class="text-white"></strong>?<br><br><span class="opacity-70" data-i18n="modal_abort_desc_post">Aborting ground operations early can trigger negative consequences.</span></p>
-            <div class="flex gap-4 justify-center font-manrope">
-                <button id="btnAbortNo" class="bg-[#12141A] border border-white/5 text-slate-300 hover:text-white px-6 py-3 rounded-xl hover:bg-white/5 transition-all shadow-xl uppercase font-bold text-[10px] tracking-widest" data-i18n="modal_abort_no">CONTINUE</button>
-                <button id="btnAbortYes" class="bg-gradient-to-r from-sky-500 to-sky-400 text-slate-900 px-6 py-3 rounded-xl hover:brightness-110 transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] uppercase font-bold text-[10px] tracking-widest" data-i18n="modal_abort_yes">ABORT</button>
-            </div>
-        </div>
-    </div>
 
-    <div id="groundEventModal" class="fixed inset-0 z-[160] flex items-center justify-center bg-black/80 backdrop-blur-sm" style="display: none;">
-        <div class="bg-[#1C1F26] p-8 rounded-xl max-w-sm text-center border-l-4 border-l-orange-500 border-white/5 shadow-2xl relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-bl-[100px]"></div>
-            
-            <div class="flex flex-col items-center">
-                <span class="material-symbols-outlined text-orange-400 text-3xl mb-4 relative z-10 w-12 h-12 flex items-center justify-center bg-orange-500/20 rounded-full border border-orange-500/30">report_problem</span>
-                <h3 id="geTitle" class="text-white font-black mb-3 font-headline text-lg uppercase tracking-widest relative z-10">Event Title</h3>
-                <p id="geDesc" class="text-slate-400 text-xs mb-8 leading-relaxed font-body relative z-10">Event Description...</p>
-                
-                <div id="geChoices" class="flex flex-col gap-3 w-full font-manrope relative z-10">
-                    <!-- Buttons inserted dynamically -->
-                </div>
-            </div>
-        </div>
-    </div>
 
     <div id="flightReportModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-[#0B0C10]/90 backdrop-blur-md p-4" style="display: none;">
         <div class="bg-[#12141A] w-full max-w-4xl max-h-[95vh] rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden relative">
@@ -1519,11 +1399,46 @@
 
         // Start Action Handler
         function handleStartAction() {
-            if (window.pendingResumeShift) {
-                document.getElementById('shiftResumeModal').style.display = 'flex';
-            } else {
-                document.getElementById('dutySetupModal').style.display = 'flex';
-            }
+            // Bypass setup modals entirely
+            document.getElementById('dashStartOverlay').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('dashStartOverlay').style.display = 'none';
+            }, 1000);
+
+            // Establish pristine shift as default setup behavior
+            let ffClean = localStorage.getItem('firstFlightClean') !== 'false';
+            localStorage.setItem('firstFlightClean', ffClean);
+
+            window.allRotations = [];
+            window.plannedDummyLegs = [];
+            
+            // Initialize Dashboard State for Blank App
+            if (typeof isFlightCancelled !== 'undefined') isFlightCancelled = false;
+            window.isFlightActive = true;
+            
+            const dso = document.getElementById('dashStartOverlay');
+            if (dso) dso.classList.add('opacity-0', 'pointer-events-none');
+            
+            const btnFetchLabel = document.getElementById('btnFetchPlanLabel');
+            if (btnFetchLabel) btnFetchLabel.innerText = 'CANCEL FLIGHT';
+            const btnFetch = document.getElementById('btnFetchPlan');
+            if (btnFetch) btnFetch.querySelector('.material-symbols-outlined').innerText = 'cancel';
+            
+            const mScore = document.getElementById('mainScoreValue');
+            if (mScore) mScore.innerText = "1000";
+            const tScore = document.getElementById('topScoreValue');
+            if (tScore) tScore.innerText = "1000";
+            const pLogs = document.getElementById('penaltyLogs');
+            if (pLogs) pLogs.innerHTML = "";
+            const sFeed = document.getElementById('scoreFeed');
+            if (sFeed) sFeed.innerHTML = "<li style=\"color:#64748b; text-align:center;\">Awaiting Flight Plan...</li>";
+
+            if (window.renderBriefingTabs) window.renderBriefingTabs();
+            if (window.updateDashboard) window.updateDashboard();
+
+            // Switch to Briefing Tab automatically to prompt import
+            const briefMenuBtn = document.querySelector('.menu li[data-target="briefing"]');
+            if (briefMenuBtn) briefMenuBtn.click();
         }
     </script>
 </body>

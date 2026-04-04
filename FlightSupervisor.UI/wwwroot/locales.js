@@ -126,6 +126,7 @@ const locales = {
         // Ground Ops Services
         gops_refueling: "Refueling",
         gops_boarding: "Boarding",
+        gops_deboarding: "Deboarding",
         gops_cargo: "Cargo Loading",
         gops_catering: "Catering",
         gops_cleaning: "Cleaning",
@@ -152,6 +153,7 @@ const locales = {
         
         gops_desc_refuel: "The fuel truck is connected and transferring fuel to the main tanks.",
         gops_desc_boarding: "Passenger boarding is currently in progress via the main gate.",
+        gops_desc_deboarding: "Passenger deboarding is currently in progress.",
         gops_desc_cargo: "Ramp agents are loading ULD containers and bulk baggage into the cargo holds.",
         gops_desc_catering: "Catering service is restocking galleys and food trolleys.",
         gops_desc_cleaning: "The cleaning crew is preparing the cabin for the next flight.",
@@ -285,6 +287,7 @@ const locales = {
         // Ground Ops Services
         gops_refueling: "Avitaillement",
         gops_boarding: "Embarquement",
+        gops_deboarding: "Débarquement",
         gops_cargo: "Chargement Soutes",
         gops_catering: "Service Traiteur",
         gops_cleaning: "Nettoyage / Entretien",
@@ -311,6 +314,7 @@ const locales = {
 
         gops_desc_refuel: "Le camion-citerne est connecté et transfère le carburant vers les réservoirs principaux.",
         gops_desc_boarding: "L'embarquement des passagers est en cours via la porte principale.",
+        gops_desc_deboarding: "Le débarquement des passagers est en cours.",
         gops_desc_cargo: "Les bagagistes chargent les conteneurs ULD et les bagages en vrac dans soutes.",
         gops_desc_catering: "Le service traiteur réapprovisionne les galleys et chariots repas.",
         gops_desc_cleaning: "L'équipe de nettoyage prépare la cabine pour le prochain vol.",

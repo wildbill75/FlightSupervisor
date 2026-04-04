@@ -165,6 +165,9 @@ window.renderBriefingTabs = () => {
                         globalBtnStartOps.disabled = false;
                         globalBtnStartOps.classList.remove('opacity-30', 'cursor-not-allowed');
                     }
+                    const btnCancel = document.getElementById('btnCancelRotations');
+                    if (btnCancel) { btnCancel.style.display = 'flex';
+                    }
 
                     pillsContainer.innerHTML = '';
                     viewsContainer.innerHTML = '';
@@ -253,7 +256,7 @@ pillsContainer.style.display = 'none';
                         </h3>
                         <div class="space-y-4" id="briefingLegsContainer">`;
 
-                    const curLeg = window.currentLegIndex || 0;
+                    const curLeg = window.activeLegIndex || 0;
                     window.allRotations.forEach((rot, idx) => {
                         const rd = rot.data;
                         const isPast = idx < curLeg;
@@ -317,9 +320,6 @@ pillsContainer.style.display = 'none';
                                                 <div class="w-4 h-4 border-2 border-sky-500/30 border-t-sky-400 rounded-full animate-spin mr-3"></div>
                                                 <span id="simbriefLoadingLabel" class="text-sky-400 text-[10px] font-bold uppercase tracking-widest animate-pulse">FETCHING...</span>
                                             </div>
-                                            <button onclick="document.getElementById('btnStartGroundOps').click()" class="bg-[#232730] hover:bg-white/10 text-slate-300 hover:text-white font-bold py-4 px-10 rounded-xl uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(0,0,0,0.5)] flex items-center gap-3 text-[11px] border border-white/5">
-                                                <span class="material-symbols-outlined text-[18px]">flight_takeoff</span> START OPS
-                                            </button>
                                         </div>
                                    </div>
                                </div>`;
@@ -433,7 +433,7 @@ pillsContainer.style.display = 'none';
                                 <div class="flex items-center gap-4">
                                     <span class="material-symbols-outlined text-amber-500 text-4xl animate-pulse">pending</span>
                                     <div>
-                                        <h3 class="text-amber-500 font-bold tracking-widest uppercase">Dummy Leg — Awaiting OFP</h3>
+                                        <h3 class="text-amber-500 font-bold tracking-widest uppercase">Dummy Leg â€” Awaiting OFP</h3>
                                         <p class="text-slate-400 text-xs mt-1">Please generate a SimBrief operational flight plan to dispatch this leg.</p>
                                     </div>
                                 </div>
@@ -673,7 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Fallback intelligence : si le MP3 échoue, on tente la suite.
+            // Fallback intelligence : si le MP3 Ã©choue, on tente la suite.
             this.audioElement.onerror = (e) => {
                 console.warn(`[AudioEngine] Fichier introuvable ou erreur de lecture - ${filename}`);
                 this.playNext(); // Failsafe
@@ -685,7 +685,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const playPromise = this.audioElement.play();
             if (playPromise !== undefined) {
                 playPromise.catch(error => {
-                    console.warn(`[AudioEngine] autoplay empêché ou erreur sur ${filename}.mp3`, error);
+                    console.warn(`[AudioEngine] autoplay empÃªchÃ© ou erreur sur ${filename}.mp3`, error);
                     this.playNext();
                 });
             }
@@ -757,6 +757,16 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         const initialFreq = localStorage.getItem('selCrisisFreq') || 'Realistic';
         window.chrome.webview.postMessage({ action: 'setCrisisFrequency', value: initialFreq });
+        
+        // Sync Ground Ops configurations with C#
+        window.chrome.webview.postMessage({
+            action: 'saveSettings',
+            options: {
+                groundSpeed: localStorage.getItem('groundSpeed') || 'Realistic',
+                groundProb: localStorage.getItem('groundProb') || '25',
+                firstFlightClean: localStorage.getItem('firstFlightClean') === 'true'
+            }
+        });
     }, 500);
 
     // Time Formatting
@@ -782,6 +792,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     let acarsTimeouts = [];
     
+    window.cancelRotations = function () {
+        location.reload();
+    };
+
+    window.cancelRotations = function () { location.reload(); };
     window.requestAcarsUpdate = function () {
         if (!window.allRotations || window.allRotations.length === 0) return;
         
@@ -971,7 +986,7 @@ document.addEventListener('DOMContentLoaded', () => {
             paOptions.push({ val: 'Approach', text: 'PA: Approach Info', disabled: !ok, reason: 'Approche requise' });
         }
 
-        paOptions.push({ val: 'CruiseStatus', text: 'PA: Cruise Status', disabled: phase !== 'Cruise', reason: 'Croisière requise' });
+        paOptions.push({ val: 'CruiseStatus', text: 'PA: Cruise Status', disabled: phase !== 'Cruise', reason: 'CroisiÃ¨re requise' });
         paOptions.push({ val: 'ArrivalWeather', text: 'PA: Arrival Weather', disabled: !['Descent', 'Approach'].includes(phase), reason: 'Descente/Approche requise' });
 
         if (flightHasExperiencedDelay) {
@@ -1148,7 +1163,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const weatherSrc = document.getElementById('selWeatherSource') ? document.getElementById('selWeatherSource').value : 'SimBrief';
             const fenixPath = document.getElementById('fenixExportPath') ? document.getElementById('fenixExportPath').value : '';
             const gsxSync = document.getElementById('chkGsxSync') ? document.getElementById('chkGsxSync').checked : false;
-            const ffClean = document.getElementById('chkFirstFlightClean') ? document.getElementById('chkFirstFlightClean').checked : true;
+            const savedFfc = localStorage.getItem('firstFlightClean');
+            const ffClean = document.getElementById('chkFirstFlightClean') ? document.getElementById('chkFirstFlightClean').checked : (savedFfc === 'true');
 
             const selItems = ['selLanguage', 'selTimeFormat', 'selUnitSpeed', 'selUnitAlt', 'selUnitWeight', 'selUnitTemp', 'selUnitPress', 'selCrisisFreq'];
             selItems.forEach(id => {
@@ -1175,6 +1191,14 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('groundSpeed', groundSpeed);
             window.chrome.webview.postMessage({ action: 'updateGroundSpeed', value: groundSpeed });
             localStorage.setItem('groundProb', groundProb);
+            window.chrome.webview.postMessage({ 
+                action: 'saveSettings', 
+                options: {
+                    groundSpeed: groundSpeed,
+                    groundProb: groundProb,
+                    firstFlightClean: ffClean
+                }
+            });
             localStorage.setItem('weatherSource', weatherSrc);
             localStorage.setItem('gsxSync', gsxSync);
             localStorage.setItem('fenixExportPath', fenixPath);
@@ -1648,69 +1672,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Call once on initialized
     window.populateRecentIcaos();
 
-    const btnDutyNext = document.getElementById('btnDutyNext');
-    if (btnDutyNext) {
-        btnDutyNext.addEventListener('click', () => {
-            const originInput = document.getElementById('dutyOriginInput');
-            const originICAO = originInput ? originInput.value.trim().toUpperCase() : '';
-
-            if (originICAO.length !== 4) {
-                alert('Please enter a valid 4-letter ICAO code for your Departure Airport.');
-                return;
-            }
-
-            // Save Origin
-            localStorage.setItem('startupOriginIcao', originICAO);
-
-            // Add to recent ICAOs
-            let recent = JSON.parse(localStorage.getItem('recentIcaos') || '[]');
-            recent = recent.filter(icao => icao !== originICAO); // remove duplicates
-            recent.unshift(originICAO); // add to front
-            if (recent.length > 5) recent = recent.slice(0, 5); // keep max 5
-            localStorage.setItem('recentIcaos', JSON.stringify(recent));
-            window.populateRecentIcaos();
-
-            // Save Pristine vs Handover
-            const ffClean = window.currentDutyState === 'pristine';
-            localStorage.setItem('firstFlightClean', ffClean);
-
-            // Bypass completely and jump straight into the app
-            document.getElementById('dutySetupModal').style.display = 'none';
-
-            window.allRotations = [];
-            window.plannedDummyLegs = [];
-            
-            // Initialize Dashboard State for Blank App
-            isFlightCancelled = false;
-            window.isFlightActive = true;
-            
-            const dso = document.getElementById('dashStartOverlay');
-            if (dso) dso.classList.add('opacity-0', 'pointer-events-none');
-            
-            const btnFetchLabel = document.getElementById('btnFetchPlanLabel');
-            if (btnFetchLabel) btnFetchLabel.innerText = 'CANCEL FLIGHT';
-            const btnFetch = document.getElementById('btnFetchPlan');
-            if (btnFetch) btnFetch.querySelector('.material-symbols-outlined').innerText = 'cancel';
-            
-            const mScore = document.getElementById('mainScoreValue');
-            if (mScore) mScore.innerText = "1000";
-            const tScore = document.getElementById('topScoreValue');
-            if (tScore) tScore.innerText = "1000";
-            const pLogs = document.getElementById('penaltyLogs');
-            if (pLogs) pLogs.innerHTML = "";
-            const sFeed = document.getElementById('scoreFeed');
-            if (sFeed) sFeed.innerHTML = "<li style=\"color:#64748b; text-align:center;\">Awaiting Flight Plan...</li>";
-
-            // If we have an empty rotations array, renderBriefingTabs might draw an empty screen
-            if (window.renderBriefingTabs) window.renderBriefingTabs();
-            if (window.updateDashboard) window.updateDashboard();
-
-            // Switch to Briefing Tab via the menu logic
-            const briefMenuBtn = document.querySelector('.menu li[data-target="briefing"]');
-            if (briefMenuBtn) briefMenuBtn.click();
-        });
-    }
-
     const btnCancelDispatch = document.getElementById('btnCancelDispatch');
     if (btnCancelDispatch) {
         btnCancelDispatch.addEventListener('click', () => {
@@ -1741,8 +1702,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnStartGroundOps = document.getElementById('btnStartGroundOps');
     if (btnStartGroundOps) {
         btnStartGroundOps.addEventListener('click', () => {
-            // Point 2: Does not start ground operations directly anymore, just sends to ground ops tab.
-            if (typeof switchTab === 'function') switchTab('groundops');
+            let expIcao = '';
+            if (window.allRotations && window.allRotations.length > 0 && window.allRotations[0].data && window.allRotations[0].data.origin) {
+                expIcao = window.allRotations[0].data.origin.icao_code || '';
+            }
+            let expLat = '';
+            let expLon = '';
+            if (window.allRotations && window.allRotations.length > 0 && window.allRotations[0].data && window.allRotations[0].data.origin) {
+                expLat = window.allRotations[0].data.origin.pos_lat || '';
+                expLon = window.allRotations[0].data.origin.pos_long || '';
+            }
+            window.chrome.webview.postMessage({ action: 'requestStartGroundOps', expectedIcao: expIcao, expectedLat: expLat, expectedLon: expLon });
         });
     }
 
@@ -1792,6 +1762,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!payload || !payload.type) return;
 
         switch (payload.type) {
+            case 'pauseStateUpdate':
+                const btnPause = document.getElementById('btnSystemPause');
+                const iPause = document.getElementById('iconPause');
+                const iPlay = document.getElementById('iconPlay');
+                if (btnPause && iPause && iPlay) {
+                    if (payload.isPaused) {
+                        btnPause.classList.remove('bg-slate-800', 'text-sky-400', 'border-slate-700');
+                        btnPause.classList.add('bg-red-900/50', 'text-red-400', 'border-red-500', 'animate-pulse');
+                        iPause.classList.add('hidden');
+                        iPlay.classList.remove('hidden');
+                    } else {
+                        btnPause.classList.add('bg-slate-800', 'text-sky-400', 'border-slate-700');
+                        btnPause.classList.remove('bg-red-900/50', 'text-red-400', 'border-red-500', 'animate-pulse');
+                        iPause.classList.remove('hidden');
+                        iPlay.classList.add('hidden');
+                    }
+                }
+                break;
             case 'simbriefWindowClosed':
                 // Auto-fetch flight plan! No validation step needed.
                 const user = localStorage.getItem('sbUsername') || '';
@@ -1812,17 +1800,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     action: 'fetch',
                     username: user,
                     remember: true,
-                    groundSpeed: localStorage.getItem('groundSpeed') || 'Realistic',
-                    groundProb: localStorage.getItem('groundProb') || '25',
-                    firstFlightClean: ffCln,
                     syncMsfsTime: document.getElementById('chkSyncTime') ? document.getElementById('chkSyncTime').checked : false,
-                    units: {
-                        weight: localStorage.getItem('selUnitWeight') || 'LBS',
-                        temp: localStorage.getItem('selUnitTemp') || 'C',
-                        alt: localStorage.getItem('selUnitAlt') || 'FT',
-                        speed: localStorage.getItem('selUnitSpeed') || 'KTS',
-                        press: localStorage.getItem('selUnitPress') || 'HPA',
-                        time: localStorage.getItem('selTimeFormat') || '24H'
+                    options: {
+                        groundSpeed: localStorage.getItem('groundSpeed') || 'Realistic',
+                        groundProb: localStorage.getItem('groundProb') || '25',
+                        firstFlightClean: ffCln,
+                        units: {
+                            weight: localStorage.getItem('selUnitWeight') || 'LBS',
+                            temp: localStorage.getItem('selUnitTemp') || 'C',
+                            alt: localStorage.getItem('selUnitAlt') || 'FT',
+                            speed: localStorage.getItem('selUnitSpeed') || 'KTS',
+                            press: localStorage.getItem('selUnitPress') || 'HPA',
+                            time: localStorage.getItem('selTimeFormat') || '24H'
+                        }
                     }
                 });
                 break;
@@ -1843,58 +1833,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (window.Swal) {
                     Swal.fire({
                         title: 'ACTION DENIED',
-                        text: 'Launch MSFS first and start a flight in Cold & Dark state (Engines OFF, On Ground).',
+                        text: payload.reason || 'Launch MSFS first and start a flight in Cold & Dark state (Engines OFF, On Ground).',
                         icon: 'error',
                         background: '#1C1F26',
                         color: '#f8fafc',
                         confirmButtonColor: '#0ea5e9'
                     });
                 } else {
-                    alert("ACTION DENIED: Launch MSFS first and start a flight in Cold & Dark state (Engines OFF, On Ground).");
+                    alert("ACTION DENIED: " + (payload.reason || "Launch MSFS first and start a flight in Cold & Dark state (Engines OFF, On Ground)."));
                 }
                 const btnFail = document.getElementById('btnStartGroundOps');
                 if (btnFail) {
                     btnFail.disabled = false;
                     btnFail.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> START OPS';
                 }
-                break;
-            case 'shiftResumeAvailable':
-                const resumeModal = document.getElementById('shiftResumeModal');
-                if (resumeModal) {
-                    const srIcao = document.getElementById('srIcao');
-                    const srAirline = document.getElementById('srAirline');
-                    const srDate = document.getElementById('srDate');
-                    if (srIcao) srIcao.innerText = payload.icao;
-                    if (srAirline) srAirline.innerText = payload.airline;
-                    if (srDate) srDate.innerText = payload.date;
-                    
-                    // ON NE L'AFFICHE PAS TOUT DE SUITE !
-                    // On enregistre simplement que c'est dispo pour l'écran de démarrage.
-                    window.pendingResumeShift = true;
-                }
-                break;
-            case 'shiftResumed':
-                const resMod = document.getElementById('shiftResumeModal');
-                if (resMod) resMod.style.display = 'none';
-
-                // Allow interactions
-                const startOverlay = document.getElementById('dashStartOverlay');
-                if (startOverlay) {
-                    startOverlay.style.opacity = '0';
-                    startOverlay.style.pointerEvents = 'none';
-                }
-                break;
-            case 'shiftCleared':
-                const clrMod = document.getElementById('shiftResumeModal');
-                if (clrMod) clrMod.style.display = 'none';
-
-                const sbUser = localStorage.getItem('sbUsername') || '';
-                const unInput = document.getElementById('dutySbUsername');
-                if (unInput) unInput.value = sbUser;
-                if (!currentDutyState) selectDutyState('pristine');
-
-                const dutyModal = document.getElementById('dutySetupModal');
-                if (dutyModal) dutyModal.style.display = 'flex';
                 break;
             case 'briefingUpdate':
                 if (typeof window.parseBriefing === 'function') {
@@ -2001,8 +1953,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Passenger Manifest Refresh (Story 25)
                 if (payload.passengers && Array.isArray(payload.passengers)) {
-                    if (window.manifest && window.manifest.Passengers) {
-                        window.manifest.Passengers.forEach(p => {
+                    if (window.manifest && (window.manifest.Passengers || window.manifest.passengers)) {
+                        (window.manifest.Passengers || window.manifest.passengers).forEach(p => {
                             const state = payload.passengers.find(s => s.seat === p.Seat || s.Seat === p.Seat);
                             if (state) {
                                 p.IsBoarded = (state.IsBoarded !== undefined) ? state.IsBoarded : state.isBoarded;
@@ -2183,9 +2135,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     const tNeedle = document.getElementById('thermalNeedle');
 
                     if (tVal && tNeedle) {
-                        tVal.innerHTML = `${payload.cabinTemp.toFixed(1)}<span class="text-[10px] text-slate-500 font-light ml-1">°C</span>`;
+                        tVal.innerHTML = `${payload.cabinTemp.toFixed(1)}<span class="text-[10px] text-slate-500 font-light ml-1">Â°C</span>`;
 
-                        // Map 18-30°C to 0-100% position
+                        // Map 18-30Â°C to 0-100% position
                         let mappedPercent = ((payload.cabinTemp - 18.0) / 12.0) * 100.0;
                         if (mappedPercent < 0) mappedPercent = 0;
                         if (mappedPercent > 100) mappedPercent = 100;
@@ -2323,8 +2275,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 break;
             case 'simTime':
-                if (payload.rawUnix) document.getElementById('zuluTime').innerText = getFormattedTime(payload.rawUnix);
-                else document.getElementById('zuluTime').innerText = payload.time;
+                let localSuffix = payload.localTime && payload.localTime !== '--:--' ? ` / ${payload.localTime} LOCAL` : '';
+                if (payload.rawUnix) document.getElementById('zuluTime').innerText = `${getFormattedTime(payload.rawUnix).replace(/z/gi, '')} UTC${localSuffix}`;
+                else document.getElementById('zuluTime').innerText = `${payload.time.replace(/z/gi, '')} UTC${localSuffix}`;
                 const cd = document.getElementById('flightCountdown');
                 if (cd && payload.rawUnix && currentSobtUnix > 0) {
                     let d = 0; // Delay in seconds
@@ -2356,8 +2309,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else if (window.finalAobtUnix) {
                         d = window.finalAobtUnix - currentSobtUnix;
                         let st = getPunc(currentSobtUnix, window.finalAobtUnix);
-                        cd.innerText = `Departed ${st.t} (${st.d < 0 ? '-' : '+'}${fmt(st.d)})`;
-                        cd.style.color = st.c;
+                        
+                        let etaText = `Airborne`;
+                        let curIdx = window.activeLegIndex || 0;
+                        if (window.allRotations && window.allRotations[curIdx]?.data?.times?.sched_in) {
+                            let schedIn = parseInt(window.allRotations[curIdx].data.times.sched_in);
+                            let delay = d > 0 ? d : 0;
+                            etaText = `ETA: ${getFormattedTime(schedIn + delay).replace(/z/gi, ' UTC')}`;
+                        }
+                        cd.innerText = etaText;
+                        cd.style.color = '#38bdf8';
                         let aobtSp = document.getElementById('bdAobt');
                         if (aobtSp) aobtSp.style.color = st.c;
                     } else {
@@ -2409,14 +2370,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (globalBanner && window.allRotations && window.allRotations.length > 0 && payload.rawUnix) {
                         globalBanner.classList.remove('hidden');
                         
-                        let currentIdx = window.currentLegIndex || 0;
+                        let currentIdx = window.activeLegIndex || 0;
                         document.getElementById('globalRotationStatus').innerText = `Leg ${currentIdx + 1} of ${window.allRotations.length}`;
                         document.getElementById('currentLegStatus').innerText = `Leg ${currentIdx + 1}`;
                         
-                        let curLegData = window.allRotations[currentIdx];
-                        let lastLeg = window.allRotations[window.allRotations.length - 1];
-                        let curLegFinalUnix = curLegData.times?.sched_in ? parseInt(curLegData.times.sched_in) : 0;
-                        let finalUnix = lastLeg.times?.sched_in ? parseInt(lastLeg.times.sched_in) : 0;
+                        let curLegData = window.allRotations[currentIdx]?.data;
+                        let lastLeg = window.allRotations[window.allRotations.length - 1]?.data;
+                        let curLegFinalUnix = curLegData?.times?.sched_in ? parseInt(curLegData.times.sched_in) : 0;
+                        let finalUnix = lastLeg?.times?.sched_in ? parseInt(lastLeg.times.sched_in) : 0;
 
                         // Calculate current accumulated delay
                         let currentDelay = 0;
@@ -2587,7 +2548,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     document.getElementById('frFlightNo').innerText = `${rep.Airline}${rep.FlightNo}`;
-                    document.getElementById('frRoute').innerText = `${rep.Dep} ➔ ${rep.Arr}`;
+                    document.getElementById('frRoute').innerText = `${rep.Dep} âž” ${rep.Arr}`;
 
                     const mainScoreEl = document.getElementById('frScore');
                     mainScoreEl.innerText = rep.Score;
@@ -2750,6 +2711,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('flightReportModal').style.display = 'flex';
                 }
                 break;
+            case 'gatekeeperPassed':
+                if (window.allRotations) {
+                    const sbPayload = window.allRotations.map(r => r.data);
+                    window.chrome.webview.postMessage({ action: 'syncRotationsAndStart', payloadStr: JSON.stringify(sbPayload) });
+                }
+                const btnStartOpsGlobal = document.getElementById('btnStartGroundOps');
+                if (btnStartOpsGlobal) {
+                    btnStartOpsGlobal.disabled = true;
+                    btnStartOpsGlobal.style.backgroundColor = '#334155';
+                    btnStartOpsGlobal.style.color = '#64748b';
+                    btnStartOpsGlobal.style.cursor = 'not-allowed';
+                    const lbl = document.getElementById('btnStartOpsLabel');
+                    if (lbl) lbl.innerText = 'OPS IN PROGRESS';
+                }
+                const menuTarget = document.querySelector('.menu li[data-target="groundops"]');
+                if (menuTarget) menuTarget.click();
+                break;
+            case 'gatekeeperFailed':
+                alert(payload.reason || "Cannot start ground ops! Ensure MSFS is connected, engines are off, parking brake is set, and aircraft is on the ground.");
+                break;
             case 'switchTab':
                 const targetTab = payload.target;
                 const menuItems = document.querySelectorAll('.menu li, li[data-target="profile"]');
@@ -2771,42 +2752,72 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 break;
             case 'showGroundEvent':
-                const geModal = document.getElementById('groundEventModal');
-                const geTitle = document.getElementById('geTitle');
-                const geDesc = document.getElementById('geDesc');
-                const geChoices = document.getElementById('geChoices');
-
-                if (geModal && payload.eventData) {
+                if (payload.eventData) {
                     const evt = payload.eventData;
-                    geTitle.innerText = evt.title;
-                    geDesc.innerText = evt.description;
-                    geChoices.innerHTML = '';
+
+                    // Match service logic based on ServiceName or "Generic" container
+                    let containerId = undefined;
+                    
+                    if (evt.serviceName) {
+                        // Find the safeName matching the service (e.g. "CargoLuggage" from "Cargo/Luggage")
+                        const safeName = evt.serviceName.replace(/\s|[^\w]/g, '');
+                        containerId = `ge-container-${safeName}`;
+                    }
+
+                    let geCardContainer = containerId ? document.getElementById(containerId) : null;
+                    
+                    // Fallback to the first available if not found
+                    if (!geCardContainer) {
+                        console.warn(`[RAMP] Service container not found for ${evt.serviceName}, falling back to top level.`);
+                        // Here we could have a generic global one, but for now just grab the first card container or skip.
+                        const anyContainer = document.querySelector('[id^="ge-container-"]');
+                        if (anyContainer) geCardContainer = anyContainer;
+                        else return; 
+                    }
+
+                    geCardContainer.innerHTML = `
+                        <div class="flex items-start gap-4 p-5 bg-orange-900/20 border-t border-orange-500/30 w-full rounded-b-xl shadow-inner relative overflow-hidden">
+                            <div class="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-bl-[100px] pointer-events-none"></div>
+                            
+                            <span class="material-symbols-outlined text-orange-400 text-3xl mt-1 w-12 h-12 flex shrink-0 items-center justify-center bg-orange-500/20 rounded-full border border-orange-500/30 relative z-10">report_problem</span>
+                            
+                            <div class="flex flex-col flex-grow relative z-10">
+                                <h3 class="text-white font-black font-headline text-lg uppercase tracking-widest leading-none mb-1">${evt.title}</h3>
+                                <p class="text-slate-400 text-xs mb-4 leading-relaxed font-body">${evt.description}</p>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full font-manrope choices-container">
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    const choicesContainer = geCardContainer.querySelector('.choices-container');
 
                     if (evt.choices) {
                         evt.choices.forEach(c => {
                             const btn = document.createElement('button');
-                            btn.className = 'w-full py-3 px-4 rounded-xl font-bold uppercase tracking-widest text-[11px] transition-all shadow-lg flex items-center justify-left gap-3 ';
+                            btn.className = 'w-full py-3 px-4 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all flex items-center justify-left gap-2 text-left ';
 
                             if (c.colorClass === 'success') {
                                 btn.className += 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500 hover:text-slate-900 shadow-[0_0_15px_rgba(16,185,129,0.1)]';
-                                btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">check_circle</span> ${c.text}`;
+                                btn.innerHTML = `<span class="material-symbols-outlined text-[16px]">check_circle</span> <span>${c.text}</span>`;
                             } else if (c.colorClass === 'error') {
                                 btn.className += 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500 hover:text-white shadow-[0_0_15px_rgba(239,68,68,0.1)]';
-                                btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">warning</span> ${c.text}`;
+                                btn.innerHTML = `<span class="material-symbols-outlined text-[16px]">warning</span> <span>${c.text}</span>`;
                             } else {
-                                btn.className += 'bg-[#12141A] text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white';
+                                btn.className += 'bg-black/40 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white';
                                 btn.innerText = c.text;
                             }
 
                             btn.addEventListener('click', () => {
                                 window.chrome.webview.postMessage({ action: 'resolveGroundEvent', eventId: evt.id, choiceId: c.id });
-                                geModal.style.display = 'none';
+                                geCardContainer.classList.add('hidden');
+                                geCardContainer.innerHTML = '';
                             });
 
-                            geChoices.appendChild(btn);
+                            choicesContainer.appendChild(btn);
                         });
                     }
-                    geModal.style.display = 'flex';
+                    geCardContainer.classList.remove('hidden');
                 }
                 break;
             case 'penalty':
@@ -3208,7 +3219,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             let errorMsg = null;
                             if (origin === pOrigin && dest === pDest) {
-                                errorMsg = `Leg ${window.currentLegCounter} cannot be identical to the previous flight (${origin} ➔ ${dest}). Please configure a new route in SimBrief.`;
+                                errorMsg = `Leg ${window.currentLegCounter} cannot be identical to the previous flight (${origin} âž” ${dest}). Please configure a new route in SimBrief.`;
                             } else if (origin !== pDest) {
                                 errorMsg = `Geographic Continuity Error: Leg ${window.currentLegCounter} must depart from ${pDest} (the arrival of your previous leg), but you planned a departure from ${origin}.`;
                             } else if (airline !== pAirline || aircraft !== pAircraft) {
@@ -3258,7 +3269,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <span class="material-symbols-outlined text-3xl">check_circle</span>
                                     <div class="text-left">
                                         <div class="text-sm font-bold tracking-widest uppercase">LEG ${window.currentLegCounter || 1} SAVED</div>
-                                        <div class="text-emerald-500/70 text-[10px] uppercase mt-1 font-manrope font-bold">${origin} ➔ ${dest}</div>
+                                        <div class="text-emerald-500/70 text-[10px] uppercase mt-1 font-manrope font-bold">${origin} âž” ${dest}</div>
                                     </div>
                                 </div>
                             </div>
@@ -3369,21 +3380,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
 
-                // Calculate estimated times for Dummy Legs based on preceding legs
+                // Calculate estimated times for appended legs based on preceding legs
                 for (let i = 1; i < window.allRotations.length; i++) {
                     const prevLeg = window.allRotations[i - 1].data;
                     const currLeg = window.allRotations[i].data;
                     
-                    if (currLeg.isDummy && prevLeg.times?.sched_in) {
-                        // Hardcoding a 35 min average turnaround for dummy estimations
-                        const tatSeconds = 35 * 60; 
+                    if (prevLeg.times?.sched_in) {
+                        const tatSeconds = 35 * 60; // 35 min average turnaround
+                        const prevSibt = parseInt(prevLeg.times.sched_in);
+                        let currSobt = parseInt(currLeg.times?.sched_out || '0');
                         
-                        // New SOBT is previous SIBT + TAT
-                        currLeg.times.sched_out = (parseInt(prevLeg.times.sched_in) + tatSeconds).toString();
-                        
-                        // New SIBT is new SOBT + ETE
-                        const eteSeconds = parseInt(currLeg.times.est_time_enroute || '0');
-                        currLeg.times.sched_in = (parseInt(currLeg.times.sched_out) + eteSeconds).toString();
+                        // If it's a dummy leg OR if the fetched SimBrief leg overlaps or is too tight (< 35 min turnaround)
+                        if (currLeg.isDummy || isNaN(currSobt) || currSobt < prevSibt + tatSeconds) {
+                            // Automatically cascade the sequence
+                            currLeg.times.sched_out = (prevSibt + tatSeconds).toString();
+                            
+                            const eteSeconds = parseInt(currLeg.times.est_time_enroute || '3600');
+                            currLeg.times.sched_in = (parseInt(currLeg.times.sched_out) + eteSeconds).toString();
+                        }
                     }
                 }
 
@@ -3502,6 +3516,7 @@ window.closedAccordions = window.closedAccordions || new Set();
 const GO_ICONS = {
     'Refuel': '<span class="material-symbols-outlined text-[18px] text-orange-500">local_gas_station</span>',
     'Boarding': '<span class="material-symbols-outlined text-[18px] text-sky-400">group</span>',
+    'Deboarding': '<span class="material-symbols-outlined text-[18px] text-sky-300">directions_run</span>',
     'Cargo': '<span class="material-symbols-outlined text-[18px] text-amber-500">luggage</span>',
     'Catering': '<span class="material-symbols-outlined text-[18px] text-pink-400">restaurant</span>',
     'Cleaning': '<span class="material-symbols-outlined text-[18px] text-fuchsia-400">cleaning_services</span>',
@@ -3512,6 +3527,7 @@ const GO_ICONS = {
 const GO_NARRATIVES = {
     'Refuel': 'gops_desc_refuel',
     'Boarding': 'gops_desc_boarding',
+    'Deboarding': 'gops_desc_deboarding',
     'Cargo': 'gops_desc_cargo',
     'Catering': 'gops_desc_catering',
     'Cleaning': 'gops_desc_cleaning',
@@ -3592,13 +3608,13 @@ function updateMetaBar(services) {
         } else if (blockingService) {
             let color = getSeverityColor(blockingService.DelayAddedSec);
             let mins = Math.round(blockingService.DelayAddedSec / 60);
-            metaText.innerText = `⚠️ ${blockingService.Name.toUpperCase()} : ${blockingService.ActiveDelayEvent} (+${mins}m)`;
+            metaText.innerText = `âš ï¸ ${blockingService.Name.toUpperCase()} : ${blockingService.ActiveDelayEvent} (+${mins}m)`;
             metaText.style.color = color;
             if (metaFill) { metaFill.style.backgroundColor = color; metaFill.style.boxShadow = `0 0 10px ${color}`; }
             setTimeout(() => { if (metaFill) metaFill.style.boxShadow = 'none'; }, 1000);
         } else if (window.recentlyCompleted && (Date.now() - window.recentlyCompletedTime < 15000)) {
-            const icon = GO_ICONS[window.recentlyCompleted.Name] || '✅';
-            metaText.innerHTML = `${icon} <span style="font-weight:bold">${window.recentlyCompleted.Name.toUpperCase()} TERMINÉ</span>`;
+            const icon = GO_ICONS[window.recentlyCompleted.Name] || 'âœ…';
+            metaText.innerHTML = `${icon} <span style="font-weight:bold">${window.recentlyCompleted.Name.toUpperCase()} TERMINÃ‰</span>`;
             metaText.style.color = "#34D399";
             if (metaFill) metaFill.style.backgroundColor = "#34D399";
         } else if (isActive) {
@@ -3620,8 +3636,15 @@ function renderGroundOps(services) {
         container.innerHTML = '<p class="text-slate-500 font-mono text-center delay-fade-in" data-i18n="ground_pending">Ground operations pending SimBrief initialization...</p>';
         return;
     }
-    
+
     let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+
+    let isDeboardingActive = services.some(s => s.Name === "Deboarding" && s.State === 1);
+    let isBoardingActive = services.some(s => s.Name === "Boarding" && s.State === 1);
+    let isCleaningActive = services.some(s => s.Name.includes("Clean") && s.State === 1);
+    let isCateringActive = services.some(s => s.Name === "Catering" && s.State === 1);
+    let isPaxMoving = isDeboardingActive || isBoardingActive;
+    let isCrewWorking = isCleaningActive || isCateringActive;
 
     services.forEach(s => {
         const mLang = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
@@ -3630,109 +3653,70 @@ function renderGroundOps(services) {
         let locName = s.Name !== undefined ? s.Name : s.name;
         if (locName === "Refueling") locName = mDict.gops_refueling || locName;
         else if (locName === "Boarding") locName = mDict.gops_boarding || locName;
+        else if (locName === "Deboarding") locName = mDict.gops_deboarding || locName;
         else if (locName === "Cargo") locName = mDict.gops_cargo || locName;
         else if (locName === "Catering") locName = mDict.gops_catering || locName;
         else if (locName === "Cleaning") locName = mDict.gops_cleaning || locName;
         else if (locName === "Cabin Clean (PNC)") locName = "Cabin Clean (PNC)";
         else if (locName === "Water/Waste") locName = mDict.gops_water || locName;
 
-        let locStatus = s.StatusMessage !== undefined ? s.StatusMessage : s.statusMessage;
-        if (s.IsPreServiced || s.isPreServiced) locStatus = mDict.gops_pre_serviced || "ALREADY SERVICED";
-        else if (locStatus === "In Progress") locStatus = mDict.gops_stat_prog || locStatus;
-        else if (locStatus === "Completed") locStatus = mDict.gops_stat_comp || locStatus;
-        else if (locStatus === "Skipped by Capt.") locStatus = mDict.gops_stat_skip || locStatus;
-
-        let btnSkipText = "Skip / Abort";
-        btnSkipText = mDict.gops_skip_abort || btnSkipText;
-
-        let btnHtml = '';
         let stateVal = s.State !== undefined ? s.State : s.state;
-        let isOpt = s.IsOptional !== undefined ? s.IsOptional : s.isOptional;
+        const icon = GO_ICONS[s.Name] || 'ðŸ”¹';
+        
+        let isBlocked = false;
+        if ((s.Name === "Deboarding" || s.Name === "Boarding") && isCrewWorking) isBlocked = true;
+        if ((s.Name.includes("Clean") || s.Name === "Catering") && isPaxMoving) isBlocked = true;
 
-        if (stateVal === 5 && locName === "Refueling") {
-            btnHtml = `<button class="go-btn px-4 py-2 bg-amber-600/20 text-amber-500 hover:bg-amber-600/40 border border-amber-500/30 rounded text-xs tracking-widest uppercase font-bold transition-colors shadow-[0_0_10px_rgba(245,158,11,0.2)]" onclick="window.chrome.webview.postMessage({action: 'startService', service: '${s.Name}'})">Request Fuel Truck</button>`;
-        }
-        else if (isOpt && stateVal !== 3 /* Completed */ && stateVal !== 4 /* Skipped */ && stateVal !== 0) {
-            btnHtml = `<button class="go-btn px-4 py-2 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white rounded text-xs tracking-widest uppercase transition-colors" onclick="skipService('${locName}')">${btnSkipText}</button>`;
-        }
-
-        let getSeverityColor = (sec) => {
-            if (sec < 180) return '#FACC15';
-            if (sec <= 420) return '#FB923C';
-            return '#EF4444';
-        };
-
-        let statusColor = '#94A3B8';
-        let barColor = '#4A90E2';
-        let titleColor = stateVal === 3 ? ((s.IsPreServiced || s.isPreServiced) ? '#64748B' : '#34D399') : '#F8FAFC';
-        let opacityClass = (s.IsPreServiced || s.isPreServiced) ? 'opacity-50' : '';
-
-        if (stateVal === 2 /* Delayed */) {
-            let delaySec = s.DelayAddedSec !== undefined ? s.DelayAddedSec : s.delayAddedSec;
-            let c = getSeverityColor(delaySec);
-            statusColor = c;
-            barColor = c;
-        }
-        else if (stateVal === 3 /* Completed */) {
-            if (s.IsPreServiced || s.isPreServiced) {
-                statusColor = '#64748B';
-                barColor = '#475569';
+        let isCompleted = stateVal === 3 || stateVal === 4 || s.IsPreServiced || s.isPreServiced;
+        
+        let buttonText = `START ${locName.toUpperCase()}`;
+        let buttonStyles = '';
+        let buttonClass = 'transition-all duration-300';
+        let isClickable = false;
+        let actionName = s.Name === 'Deboarding' ? 'startDeboarding' : 'startService';
+        
+        if (stateVal === 0 || stateVal === 5) {
+            if (isBlocked) {
+                buttonStyles = 'color: #ef4444; opacity: 0.4; cursor: default; pointer-events: none;';
             } else {
-                statusColor = '#34D399';
-                barColor = '#34D399';
+                buttonStyles = 'color: #38bdf8; cursor: pointer;';
+                buttonClass += ' hover:text-white hover:bg-sky-500/10 hover:border hover:border-sky-500/50';
+                isClickable = true;
             }
+        } else if (stateVal === 1 || stateVal === 2) {
+            buttonText = locName.toUpperCase();
+            if (stateVal === 2) {
+                buttonStyles = 'color: #f97316; cursor: default; pointer-events: none;';
+                buttonClass += ' animate-pulse';
+            } else {
+                buttonStyles = 'color: #34d399; cursor: default; pointer-events: none;';
+                buttonClass += ' shadow-[0_0_15px_rgba(52,211,153,0.2)] bg-emerald-500/5 animate-pulse';
+            }
+        } else if (isCompleted) {
+            buttonStyles = 'color: #64748b; opacity: 0.5; cursor: default; pointer-events: none;';
         }
-        else if (stateVal === 4 /* Skipped */) { statusColor = '#F87171'; barColor = '#F87171'; }
-        else if (stateVal === 5 /* WaitingForAction */) { statusColor = '#FACC15'; barColor = '#334155'; }
-        else if (stateVal === 0 /* NotStarted */) { statusColor = '#64748B'; barColor = '#334155'; }
+
         let timeDisplay = '';
         let remainingSec = s.RemainingSec !== undefined ? s.RemainingSec : s.remainingSec;
-        if (stateVal === 0) {
-            let offset = s.StartOffsetMinutes !== undefined ? s.StartOffsetMinutes : s.startOffsetMinutes;
-            if (offset < 0) {
-                // Negative offset means it is scheduled to start BEFORE SOBT!
-                timeDisplay = `(T${offset})`;
-            }
-        }
-        else if (remainingSec > 0 && stateVal !== 3 && stateVal !== 4) {
+        if (remainingSec > 0 && stateVal !== 3 && stateVal !== 4) {
             const m = Math.floor(remainingSec / 60).toString().padStart(2, '0');
             const sec = (remainingSec % 60).toString().padStart(2, '0');
-            timeDisplay = `(${m}:${sec})`;
+            timeDisplay = `<span class="text-xs font-mono tracking-wider opacity-80 ml-2" style="color: inherit;">${m}:${sec}</span>`;
         }
-
-        const safeName = s.Name.replace(/\s|[^\w]/g, '');
-        const isOpen = !window.closedAccordions.has(s.Name);
-        const displayStyle = isOpen ? 'block' : 'none';
-        const chevronRot = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
-        const icon = GO_ICONS[s.Name] || '🔹';
-        let narrative = 'Ground operation in progress.';
-        if (mDict) {
-            const key = GO_NARRATIVES[s.Name];
-            narrative = key ? mDict[key] : (mDict.gops_desc_generic || narrative);
-        } else {
-            narrative = GO_NARRATIVES[s.Name] || 'Opération au sol en cours.';
-        }
-
-        let statusStateLabel = 'ACTIVE';
-        if (stateVal === 3) statusStateLabel = 'FINISHED';
-        else if (stateVal === 4) statusStateLabel = 'ABORTED';
-        else if (stateVal === 2) statusStateLabel = 'DELAYED';
-        else if (stateVal === 0) statusStateLabel = 'NOT STARTED';
-        else if (stateVal === 5) statusStateLabel = 'WAITING FOR ACTION';
 
         let extraBadgesHtml = '';
-        if (window.lastTelemetry && stateVal !== 1 && (!s.IsPreServiced && !s.isPreServiced)) {
+        if (window.lastTelemetry && stateVal !== 1 && !isCompleted) {
             if (s.Name === "Catering") {
                 const cr = window.lastTelemetry.cateringRations !== undefined ? window.lastTelemetry.cateringRations : 0;
                 const cColor = cr <= 10 ? '#EF4444' : (cr <= 25 ? '#F59E0B' : '#34D399');
                 const cBg = cr <= 10 ? 'bg-red-500/10' : (cr <= 25 ? 'bg-amber-500/10' : 'bg-emerald-500/10');
-                extraBadgesHtml += `<div class="px-2 py-[2px] rounded ${cBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${cColor}; border-color: ${cColor}40;">🍱 ${cr} Units</div>`;
+                extraBadgesHtml += `<div class="px-2 py-1 rounded ${cBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${cColor}; border-color: ${cColor}40;">ðŸ± ${cr}</div>`;
             }
             if (s.Name === "Cleanliness" || s.Name === "Cleaning" || s.Name === "Cabin Clean (PNC)") {
                 const cl = window.lastTelemetry.cabinCleanliness !== undefined ? window.lastTelemetry.cabinCleanliness : 100;
                 const clColor = cl < 50 ? '#EF4444' : (cl < 75 ? '#F59E0B' : '#34D399');
                 const clBg = cl < 50 ? 'bg-red-500/10' : (cl < 75 ? 'bg-amber-500/10' : 'bg-emerald-500/10');
-                extraBadgesHtml += `<div class="px-2 py-[2px] rounded ${clBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${clColor}; border-color: ${clColor}40;">✨ ${Math.round(cl)}% Clean</div>`;
+                extraBadgesHtml += `<div class="px-2 py-1 rounded ${clBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${clColor}; border-color: ${clColor}40;">âœ¨ ${Math.round(cl)}%</div>`;
             }
             if (s.Name === "Water/Waste") {
                 const wl = window.lastTelemetry.waterLevel !== undefined ? window.lastTelemetry.waterLevel : 100;
@@ -3741,48 +3725,40 @@ function renderGroundOps(services) {
                 const wBg = wl < 20 ? 'bg-red-500/10' : (wl < 50 ? 'bg-amber-500/10' : 'bg-blue-500/10');
                 const waColor = wasl > 90 ? '#EF4444' : (wasl > 70 ? '#F59E0B' : '#60A5FA');
                 const waBg = wasl > 90 ? 'bg-red-500/10' : (wasl > 70 ? 'bg-amber-500/10' : 'bg-blue-500/10');
-                extraBadgesHtml += `<div class="px-2 py-[2px] rounded ${wBg} border text-[9px] uppercase font-bold tracking-widest leading-none mr-2 flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${wColor}; border-color: ${wColor}40;">💧 ${Math.round(wl)}%</div>`;
-                extraBadgesHtml += `<div class="px-2 py-[2px] rounded ${waBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${waColor}; border-color: ${waColor}40;">🗑️ ${Math.round(wasl)}%</div>`;
+                extraBadgesHtml += `<div class="px-2 py-1 rounded ${wBg} border text-[9px] uppercase font-bold tracking-widest leading-none mr-1 flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${wColor}; border-color: ${wColor}40;">ðŸ’§ ${Math.round(wl)}%</div>`;
+                extraBadgesHtml += `<div class="px-2 py-1 rounded ${waBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${waColor}; border-color: ${waColor}40;">ðŸ—‘ï¸ ${Math.round(wasl)}%</div>`;
             }
         }
 
+        const safeName = s.Name.replace(/\s|[^\w]/g, '');
+        const clickAction = isClickable ? `onclick="window.chrome.webview.postMessage({action: '${actionName}', service: '${s.Name}'})"` : '';
+        
+        let barColor = stateVal === 3 ? '#34D399' : (stateVal === 2 ? '#FB923C' : '#4A90E2');
+        if (isCompleted && !(s.IsPreServiced || s.isPreServiced)) barColor = '#34D399';
+        else if (isCompleted && (s.IsPreServiced || s.isPreServiced)) barColor = '#475569';
+
         html += `
-            <div class="go-accordion bg-[#12141A] rounded-xl border border-white/5 overflow-hidden flex flex-col h-full ${opacityClass}">
-                <div class="go-acc-header p-4 cursor-pointer hover:bg-white/[0.02] flex justify-between items-center transition-colors border-b border-transparent" onclick="toggleAccordion('${s.Name}')">
-                    <div class="go-acc-title flex flex-col gap-2">
-                        <div class="flex items-center gap-2">
-                            <span class="go-icon text-lg flex items-center">${icon}</span>
-                            <strong style="color: ${titleColor};" class="font-label tracking-[0.4em] uppercase text-xs">${locName}</strong>
-                        </div>
-                        ${extraBadgesHtml ? `<div class="flex items-center mt-1">${extraBadgesHtml}</div>` : ''}
-                    </div>
-                    <div class="go-acc-summary flex items-center gap-3">
-                        <span style="color: ${statusColor}; font-weight: 600;" class="text-[10px] uppercase tracking-widest">${locStatus} ${timeDisplay}</span>
-                        <svg id="acc-icon-${safeName}" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" style="transform: ${chevronRot}; transition: transform 0.2s;">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                    </div>
-                </div>
+            <div class="bg-[#12141A] rounded-xl border border-white/5 overflow-hidden flex flex-col justify-center h-full min-h-[90px] relative">
                 ${(() => {
                 if (s.Name === "Water/Waste") {
                     let waterLvl = s.State === 1 ? s.ProgressPercent : Math.round(window.lastTelemetry?.waterLevel || 100);
                     let wasteLvl = s.State === 1 ? s.ProgressPercent : Math.round(window.lastTelemetry?.wasteLevel || 0);
                     let wColor = waterLvl < 20 ? '#EF4444' : (waterLvl < 50 ? '#F59E0B' : '#60A5FA');
                     let waColor = wasteLvl > 90 ? '#EF4444' : (wasteLvl > 70 ? '#F59E0B' : '#60A5FA');
-                    if (s.IsPreServiced || s.isPreServiced) { wColor = '#475569'; waColor = '#475569'; }
+                    if (isCompleted) { wColor = '#475569'; waColor = '#475569'; }
                     return `
-                        <div class="w-full flex flex-col gap-[1px] bg-black/40">
-                            <div class="go-acc-bar w-full h-1">
-                                <div class="go-bar-fill h-full transition-all duration-1000 ease-out" style="width: ${waterLvl}%; background-color: ${wColor};"></div>
+                        <div class="absolute bottom-0 left-0 w-full flex flex-col gap-[1px] bg-black/40 h-2">
+                            <div class="h-1">
+                                <div class="h-full transition-all duration-1000 ease-out" style="width: ${waterLvl}%; background-color: ${wColor}; opacity: 0.8"></div>
                             </div>
-                            <div class="go-acc-bar w-full h-1">
-                                <div class="go-bar-fill h-full transition-all duration-1000 ease-out" style="width: ${wasteLvl}%; background-color: ${waColor};"></div>
+                            <div class="h-1">
+                                <div class="h-full transition-all duration-1000 ease-out" style="width: ${wasteLvl}%; background-color: ${waColor}; opacity: 0.8"></div>
                             </div>
                         </div>`;
                 } else {
                     let mappedProgress = s.ProgressPercent;
                     let mappedColor = barColor;
-                    if (s.State !== 1 && window.lastTelemetry && !(s.IsPreServiced || s.isPreServiced)) {
+                    if (s.State !== 1 && window.lastTelemetry && !isCompleted) {
                         if (s.Name === "Catering") {
                             mappedProgress = window.lastTelemetry.cateringCompletion !== undefined ? window.lastTelemetry.cateringCompletion : 100;
                             mappedColor = mappedProgress < 20 ? '#EF4444' : (mappedProgress < 50 ? '#F59E0B' : '#34D399');
@@ -3791,17 +3767,20 @@ function renderGroundOps(services) {
                             mappedColor = mappedProgress < 50 ? '#EF4444' : (mappedProgress < 75 ? '#F59E0B' : '#34D399');
                         }
                     }
-                    return `<div class="go-acc-bar w-full h-1 bg-black/40">
-                                    <div class="go-bar-fill h-full transition-all duration-1000 ease-out" style="width: ${mappedProgress}%; background-color: ${mappedColor};"></div>
-                                </div>`;
+                    return `<div class="absolute bottom-0 left-0 w-full h-[3px] bg-black/40">
+                                <div class="h-full transition-all duration-1000 ease-out" style="width: ${mappedProgress}%; background-color: ${mappedColor}; opacity: 0.8"></div>
+                            </div>`;
                 }
             })()}
-                <div id="acc-content-${safeName}" class="go-acc-content p-4 bg-[#0F1116]" style="display: ${displayStyle}; flex-grow: 1;">
-                    <p style="color: #cbd5e1; font-size: 13px; margin: 0 0 15px 0; line-height: 1.5; font-style: italic;">"${narrative}"</p>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto;">
-                        <span style="font-size: 10px; color: #64748b; font-family: monospace;">STATUS: ${statusStateLabel}</span>
-                        ${btnHtml}
-                    </div>
+                <button ${clickAction} class="w-full h-full p-5 flex items-center justify-start gap-4 outline-none border-none ${buttonClass}" style="${buttonStyles}">
+                    <span class="text-2xl">${icon}</span>
+                    <strong class="font-headline tracking-widest uppercase text-base">${buttonText}</strong>
+                    <div class="ml-auto flex items-center justify-end">${timeDisplay}</div>
+                </button>
+                ${extraBadgesHtml ? `<div class="absolute top-2 right-2 flex items-center">${extraBadgesHtml}</div>` : ''}
+                
+                <div id="ge-container-${safeName}" class="hidden w-full transition-all duration-300">
+                    <!-- Events will be dynamically injected here -->
                 </div>
             </div>
         `;
@@ -3809,18 +3788,8 @@ function renderGroundOps(services) {
 
     html += '</div>';
 
-    // REMOVED: Global Time Warp Button per user request.
-
     container.innerHTML = html;
 }
-
-// Global skip function for inline onclick
-window.currentAbortService = null;
-window.skipService = function (name) {
-    window.currentAbortService = name;
-    document.getElementById('abortServiceName').innerText = name;
-    document.getElementById('abortServiceModal').style.display = 'flex';
-};
 
 window.renderManifest = function (manifest) {
     const container = document.getElementById('manifestContainer');
@@ -3843,12 +3812,12 @@ window.renderManifest = function (manifest) {
     const existingMap = document.getElementById('seatMapContent');
     const expectedPaxCount = container.dataset.flightPaxCount ? parseInt(container.dataset.flightPaxCount) : -1;
 
-    if (existingMap && expectedPaxCount === manifest.Passengers.length) {
+    if (existingMap && expectedPaxCount === (manifest.Passengers || manifest.passengers).length) {
         let boardedCount = 0;
         let fastenedCount = 0;
         let injuredCount = 0;
 
-        manifest.Passengers.forEach(p => {
+        (manifest.Passengers || manifest.passengers).forEach(p => {
             if (p.IsBoarded === true || p.isBoarded === true) {
                 boardedCount++;
                 if (p.IsSeatbeltFastened) fastenedCount++;
@@ -3876,7 +3845,7 @@ window.renderManifest = function (manifest) {
 
         let headerLabel = document.getElementById('paxListHeader');
         if (headerLabel) {
-            headerLabel.innerText = `LIST (${boardedCount} / ${manifest.Passengers.length} PAX)`;
+            headerLabel.innerText = `LIST (${boardedCount} / ${(manifest.Passengers || manifest.passengers).length} PAX)`;
         }
 
         let totalSeats = container.dataset.totalSeats ? parseInt(container.dataset.totalSeats) : expectedPaxCount;
@@ -3895,11 +3864,11 @@ window.renderManifest = function (manifest) {
         return; // Fast update complete!
     }
 
-    container.dataset.flightPaxCount = manifest.Passengers.length;
+    container.dataset.flightPaxCount = (manifest.Passengers || manifest.passengers).length;
 
     let maxRow = 0;
     let hasLettersGHK = false; // check if widebody
-    manifest.Passengers.forEach(p => {
+    (manifest.Passengers || manifest.passengers).forEach(p => {
         let rowStr = p.Seat.replace(/[^0-9]/g, '');
         let row = parseInt(rowStr);
         if (row > maxRow) maxRow = row;
@@ -4034,14 +4003,16 @@ window.renderManifest = function (manifest) {
         seatMapHtml += `<div class="seat-block">`;
         lettersLeft.forEach(l => {
             let sId = r + l;
-            let p = manifest.Passengers.find(x => x.Seat === sId);
+            let p = (manifest.Passengers || manifest.passengers).find(x => (x.Seat || x.seat) === sId);
             if (p) {
-                if (p.IsBoarded !== false) {
-                    const seatClass = p.IsSeatbeltFastened ? 'fastened' : 'unfastened';
-                    const injuryIcon = p.IsInjured ? '<span class="material-symbols-outlined text-[10px] text-red-500 absolute -top-1 -left-1 animate-pulse" style="z-index:10;">medical_services</span>' : '';
+                if (p.IsBoarded === true || p.isBoarded === true) {
+                    const isFastened = p.IsSeatbeltFastened === true || p.isSeatbeltFastened === true;
+                    const seatClass = isFastened ? 'fastened' : 'unfastened';
+                    const isInjured = p.IsInjured === true || p.isInjured === true;
+                    const injuryIcon = isInjured ? '<span class="material-symbols-outlined text-[10px] text-red-500 absolute -top-1 -left-1 animate-pulse" style="z-index:10;">medical_services</span>' : '';
                     seatMapHtml += `<div id="seat-${sId}" class="seat ${seatClass} relative" data-initialized="true">
                         ${injuryIcon}
-                        <span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span>
+                        <span class="tooltip">${p.Seat || p.seat} : ${p.Name || p.name} (${p.Nationality || p.nationality})</span>
                     </div>`;
                 } else {
                     seatMapHtml += `<div id="seat-${sId}" class="seat"></div>`;
@@ -4057,14 +4028,16 @@ window.renderManifest = function (manifest) {
             seatMapHtml += `<div class="seat-block" style="margin: 0 10px;">`;
             lettersCenter.forEach(l => {
                 let sId = r + l;
-                let p = manifest.Passengers.find(x => x.Seat === sId);
+                let p = (manifest.Passengers || manifest.passengers).find(x => (x.Seat || x.seat) === sId);
                 if (p) {
-                    if (p.IsBoarded !== false) {
-                        const seatClass = p.IsSeatbeltFastened ? 'fastened' : 'unfastened';
-                        const injuryIcon = p.IsInjured ? '<span class="material-symbols-outlined text-[10px] text-red-500 absolute -top-1 -left-1 animate-pulse" style="z-index:10;">medical_services</span>' : '';
+                    if (p.IsBoarded === true || p.isBoarded === true) {
+                        const isFastened = p.IsSeatbeltFastened === true || p.isSeatbeltFastened === true;
+                        const seatClass = isFastened ? 'fastened' : 'unfastened';
+                        const isInjured = p.IsInjured === true || p.isInjured === true;
+                        const injuryIcon = isInjured ? '<span class="material-symbols-outlined text-[10px] text-red-500 absolute -top-1 -left-1 animate-pulse" style="z-index:10;">medical_services</span>' : '';
                         seatMapHtml += `<div id="seat-${sId}" class="seat ${seatClass} relative" data-initialized="true">
                             ${injuryIcon}
-                            <span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span>
+                            <span class="tooltip">${p.Seat || p.seat} : ${p.Name || p.name} (${p.Nationality || p.nationality})</span>
                         </div>`;
                     } else {
                         seatMapHtml += `<div id="seat-${sId}" class="seat"></div>`;
@@ -4080,14 +4053,16 @@ window.renderManifest = function (manifest) {
         seatMapHtml += `<div class="seat-block">`;
         lettersRight.forEach(l => {
             let sId = r + l;
-            let p = manifest.Passengers.find(x => x.Seat === sId);
+            let p = (manifest.Passengers || manifest.passengers).find(x => (x.Seat || x.seat) === sId);
             if (p) {
-                if (p.IsBoarded !== false) {
-                    const seatClass = p.IsSeatbeltFastened ? 'fastened' : 'unfastened';
-                    const injuryIcon = p.IsInjured ? '<span class="material-symbols-outlined text-[10px] text-red-500 absolute -top-1 -left-1 animate-pulse" style="z-index:10;">medical_services</span>' : '';
+                if (p.IsBoarded === true || p.isBoarded === true) {
+                    const isFastened = p.IsSeatbeltFastened === true || p.isSeatbeltFastened === true;
+                    const seatClass = isFastened ? 'fastened' : 'unfastened';
+                    const isInjured = p.IsInjured === true || p.isInjured === true;
+                    const injuryIcon = isInjured ? '<span class="material-symbols-outlined text-[10px] text-red-500 absolute -top-1 -left-1 animate-pulse" style="z-index:10;">medical_services</span>' : '';
                     seatMapHtml += `<div id="seat-${sId}" class="seat ${seatClass} relative" data-initialized="true">
                         ${injuryIcon}
-                        <span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span>
+                        <span class="tooltip">${p.Seat || p.seat} : ${p.Name || p.name} (${p.Nationality || p.nationality})</span>
                     </div>`;
                 } else {
                     seatMapHtml += `<div id="seat-${sId}" class="seat"></div>`;
@@ -4112,18 +4087,18 @@ window.renderManifest = function (manifest) {
     const legEmpty = mDict.man_leg_empty || "Empty";
     const legInjured = mDict.man_leg_injured || "Injured";
 
-    let boardedInitialCount = manifest.Passengers.filter(p => p.IsBoarded !== false).length;
+    let boardedInitialCount = (manifest.Passengers || manifest.passengers).filter(p => p.IsBoarded === true || p.isBoarded === true).length;
 
     let html = `
         <div style="display:flex; gap: 40px; justify-content: space-between; height: 100%;">
             <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column; height: 100%;">
                 <div style="flex-shrink: 0;">
-                    <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 border-b border-white/5 pb-3 mb-4">${flightCrewLabel} (${manifest.FlightCrew.length})</h3>
+                    <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 border-b border-white/5 pb-3 mb-4">${flightCrewLabel} (${(manifest.FlightCrew || manifest.flightCrew).length})</h3>
                     <ul style="list-style:none; padding:0; margin:0; line-height: 1.8; color:#cbd5e1; margin-bottom: 20px;">
     `;
 
     let cabCrewRendered = false;
-    manifest.FlightCrew.forEach(c => {
+    (manifest.FlightCrew || manifest.flightCrew).forEach(c => {
         if (!cabCrewRendered && (c.Role === "Purser" || c.Role === "Flight Attendant")) {
             html += `<li class="text-[10px] font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 border-b border-white/5 pb-2 mb-2 mt-4 border-dotted mt-4">${cabinCrewLabel}</li>`;
             cabCrewRendered = true;
@@ -4142,15 +4117,15 @@ window.renderManifest = function (manifest) {
     const thNat = mDict.man_th_nat || "Nat.";
     const thAge = mDict.man_th_age || "Age";
 
-    let fastenedCount = manifest.Passengers.filter(p => p.IsBoarded !== false && p.IsSeatbeltFastened).length;
+    let fastenedCount = (manifest.Passengers || manifest.passengers).filter(p => (p.IsBoarded === true || p.isBoarded === true) && (p.IsSeatbeltFastened === true || p.isSeatbeltFastened === true)).length;
     let unfastenedCount = boardedInitialCount - fastenedCount;
-    let injuredCount = manifest.Passengers.filter(p => p.IsBoarded !== false && p.IsInjured).length;
-    let fallbackAircraftSeats = container.dataset.totalSeats ? parseInt(container.dataset.totalSeats) : manifest.Passengers.length;
+    let injuredCount = (manifest.Passengers || manifest.passengers).filter(p => (p.IsBoarded === true || p.isBoarded === true) && (p.IsInjured === true || p.isInjured === true)).length;
+    let fallbackAircraftSeats = container.dataset.totalSeats ? parseInt(container.dataset.totalSeats) : (manifest.Passengers || manifest.passengers).length;
     let emptyCount = fallbackAircraftSeats - boardedInitialCount;
 
     html += `       </ul>
                     <div class="border-b border-white/5 pb-3 mb-4" style="display:flex; justify-content:space-between; align-items:flex-end;">
-                        <h3 id="paxListHeader" class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80" style="margin:0;">${paxListLabel} (${boardedInitialCount} / ${manifest.Passengers.length} PAX)</h3>
+                        <h3 id="paxListHeader" class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80" style="margin:0;">${paxListLabel} (${boardedInitialCount} / ${(manifest.Passengers || manifest.passengers).length} PAX)</h3>
                     </div>
                 </div>
                 <div style="flex: 1; overflow-y: auto; padding-right: 15px; border-right: 1px solid #1e293b; color:#94A3B8; font-size:13px;">
@@ -4166,17 +4141,15 @@ window.renderManifest = function (manifest) {
                         <tbody>
     `;
 
-    manifest.Passengers.forEach(p => {
-        if (p.IsBoarded !== false) {
-            html += `
-                <tr style="border-bottom: 1px solid rgba(51, 65, 85, 0.4);">
-                    <td style="padding: 3px 4px; color: #38BDF8; font-weight: bold;">${p.Seat}</td>
-                    <td style="padding: 3px 4px;">${p.Name}</td>
-                    <td style="padding: 3px 4px;">${p.Nationality}</td>
-                    <td style="padding: 3px 4px; text-align: center;">${p.Age}</td>
-                </tr>
-            `;
-        }
+    (manifest.Passengers || manifest.passengers).forEach(p => {
+        html += `
+            <tr style="border-bottom: 1px solid rgba(51, 65, 85, 0.4);">
+                <td style="padding: 3px 4px; color: #38BDF8; font-weight: bold;">${p.Seat || p.seat}</td>
+                <td style="padding: 3px 4px;">${p.Name || p.name}</td>
+                <td style="padding: 3px 4px;">${p.Nationality || p.nationality}</td>
+                <td style="padding: 3px 4px; text-align: center;">${p.Age || p.age}</td>
+            </tr>
+        `;
     });
 
     html += `           </tbody>
@@ -4342,3 +4315,16 @@ setTimeout(() => {
         window.chrome.webview.postMessage({ action: 'uiReady' });
     }
 }, 500);
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btnPause = document.getElementById('btnSystemPause');
+    if (btnPause) {
+        btnPause.addEventListener('click', () => {
+            window.chrome.webview.postMessage({ action: 'systemPause' });
+        });
+    }
+});
+
+
+
+

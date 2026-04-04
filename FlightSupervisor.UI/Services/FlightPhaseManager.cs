@@ -34,6 +34,17 @@ namespace FlightSupervisor.UI.Services
     {
         public FlightPhase CurrentPhase { get; private set; } = FlightPhase.AtGate;
         
+        public bool IsPaused { get; set; } = false;
+        private DateTime _immunityEndTime = DateTime.MinValue;
+
+        public void ResumeWithImmunity(int seconds = 5)
+        {
+            IsPaused = false;
+            _immunityEndTime = DateTime.Now.AddSeconds(seconds);
+            _gForceHistory.Clear();
+            _vsHistory.Clear();
+        }
+        
         public string GetLocalizedPhaseName()
         {
             switch (CurrentPhase)
@@ -57,6 +68,7 @@ namespace FlightSupervisor.UI.Services
         
         public event Action<FlightPhase>? OnPhaseChanged;
         public event Action<string>? OnPenaltyTriggered;
+        public event Action<string>? OnFoMessage;
         
         private bool _hasTriggeredOverspeedPenalty = false;
         private bool _hasTriggeredTaxiPenalty = false;
@@ -66,11 +78,21 @@ namespace FlightSupervisor.UI.Services
         private bool _hasTriggered10kClimbBonus = false;
         private bool _hasTriggeredAbnormalGear = false;
         private bool _hasTriggeredEngineFailure = false;
+        
+        private bool _hasFoWarnedGearUp = false;
+        private bool _hasFoWarnedGearDown = false;
+        private bool _hasFoWarnedSeatbeltTaxi = false;
+        private bool _hasFoWarnedSeatbelt10k = false;
+        private bool _hasFoWarnedSeatbeltDesc = false;
+        private bool _hasFoWarnedLights10kClimb = false;
+        private bool _hasFoWarnedLights10kDesc = false;
         private DateTime _lastTightTurnPenalty = DateTime.MinValue;
         private double? _lastHeading = null;
         public double Heading { get; private set; }
         public double WindDirection { get; private set; } = 0.0;
         public double WindVelocity { get; private set; } = 0.0;
+        public double Latitude { get; private set; } = 0.0;
+        public double Longitude { get; private set; } = 0.0;
         public bool Eng1Combustion { get; private set; } = true;
         public bool Eng2Combustion { get; private set; } = true;
         private int _taxiOverspeedSeconds = 0;
@@ -95,6 +117,7 @@ namespace FlightSupervisor.UI.Services
             get => _gForce;
             set 
             {
+                if (IsPaused || DateTime.Now < _immunityEndTime) return;
                 _gForce = value;
                 CalculateTurbulence(value);
             }
@@ -155,6 +178,12 @@ namespace FlightSupervisor.UI.Services
             WindVelocity = velocity;
         }
 
+        public void UpdatePosition(double lat, double lon)
+        {
+            Latitude = lat;
+            Longitude = lon;
+        }
+
         public void UpdateNavigation(double locErr, double gpsErr, bool hasLoc)
         {
             NavLocalizerError = locErr;
@@ -180,6 +209,8 @@ namespace FlightSupervisor.UI.Services
 
         public void UpdateTelemetry(double groundSpeed, double indicatedAirspeed, double altitude, double radioHeight, bool isParkingBrakeSet, bool isGearDown, double throttle, double pitch, double bank)
         {
+            if (IsPaused || DateTime.Now < _immunityEndTime) return;
+
             GroundSpeed = groundSpeed;
 
             // Calculate Turn Rate (degrees per second)
@@ -239,6 +270,44 @@ namespace FlightSupervisor.UI.Services
                     ManualFlyingSecondsApproach = 0;
                 }
             }
+
+            // --- VIRTUAL FO CALLOUTS (MVP) ---
+            if (!isGearDown && CurrentPhase == FlightPhase.Approach && radioHeight < 2000 && !_hasFoWarnedGearDown)
+            {
+                _hasFoWarnedGearDown = true;
+                OnFoMessage?.Invoke("Captain, crossing 2000, gear is not down.");
+            }
+            if (isGearDown && (CurrentPhase == FlightPhase.Takeoff || CurrentPhase == FlightPhase.InitialClimb || CurrentPhase == FlightPhase.Climb) && indicatedAirspeed > 200.0 && !_hasFoWarnedGearUp)
+            {
+                _hasFoWarnedGearUp = true;
+                OnFoMessage?.Invoke("Captain, speed is increasing, gear is still down.");
+            }
+            if (CurrentPhase == FlightPhase.TaxiOut && groundSpeed > 5.0 && !IsSeatbeltsOn && !_hasFoWarnedSeatbeltTaxi)
+            {
+                _hasFoWarnedSeatbeltTaxi = true;
+                OnFoMessage?.Invoke("Captain, aircraft is moving, seatbelts are off.");
+            }
+            if ((CurrentPhase == FlightPhase.Climb || CurrentPhase == FlightPhase.Cruise) && altitude > 10500 && IsSeatbeltsOn && !_hasFoWarnedSeatbelt10k)
+            {
+                _hasFoWarnedSeatbelt10k = true;
+                OnFoMessage?.Invoke("Passing 10,000, consider releasing the cabin.");
+            }
+            if ((CurrentPhase == FlightPhase.Descent || CurrentPhase == FlightPhase.Approach) && altitude < 9500 && !IsSeatbeltsOn && !_hasFoWarnedSeatbeltDesc)
+            {
+                _hasFoWarnedSeatbeltDesc = true;
+                OnFoMessage?.Invoke("Passing 10,000, seatbelts sign is off.");
+            }
+            if ((CurrentPhase == FlightPhase.Climb || CurrentPhase == FlightPhase.Cruise) && altitude > 10500 && (IsLandingLightOn || FenixNoseLight == 2) && !_hasFoWarnedLights10kClimb)
+            {
+                _hasFoWarnedLights10kClimb = true;
+                OnFoMessage?.Invoke("Passing 10,000, landing lights are still on.");
+            }
+            if ((CurrentPhase == FlightPhase.Descent || CurrentPhase == FlightPhase.Approach) && altitude < 9500 && !IsLandingLightOn && FenixNoseLight == 0 && !_hasFoWarnedLights10kDesc)
+            {
+                _hasFoWarnedLights10kDesc = true;
+                OnFoMessage?.Invoke("Passing 10,000, landing lights are off.");
+            }
+            // ----------------------------------
 
             // Global Airborne Speed Limit (250kts under 10,000ft)
             if (CurrentPhase == FlightPhase.Takeoff || CurrentPhase == FlightPhase.InitialClimb || CurrentPhase == FlightPhase.Climb || CurrentPhase == FlightPhase.Cruise || 
@@ -714,6 +783,14 @@ namespace FlightSupervisor.UI.Services
                     _hasTriggeredGearUpBonus = false;
                     _hasTriggeredAbnormalGear = false;
                     _hasTriggeredEngineFailure = false;
+                    
+                    _hasFoWarnedGearUp = false;
+                    _hasFoWarnedGearDown = false;
+                    _hasFoWarnedSeatbeltTaxi = false;
+                    _hasFoWarnedSeatbelt10k = false;
+                    _hasFoWarnedSeatbeltDesc = false;
+                    _hasFoWarnedLights10kClimb = false;
+                    _hasFoWarnedLights10kDesc = false;
                 }
                 else if (CurrentPhase == FlightPhase.Descent || CurrentPhase == FlightPhase.Approach)
                 {

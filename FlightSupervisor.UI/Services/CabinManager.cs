@@ -352,6 +352,9 @@ namespace FlightSupervisor.UI.Services
             HasPenalizedRefuelingSeatbelts = false;
 
             if (profile == null) return;
+            
+            ActiveAirlineId = profile.Name;
+            
             PassengerManifest.Clear();
             
             double baseComfort = 50.0 + (profile.HardProductScore * 5.0);
@@ -598,6 +601,11 @@ namespace FlightSupervisor.UI.Services
                     CateringRations = Math.Max(0, CateringRations - PassengerManifest.Count);
                 }
             }
+
+            if (deltaSeconds >= 300)
+            {
+                LastKnownCabinTemp = CurrentAmbientTemperature; // Instantly stabilize environment during massive time warps
+            }
         }
 
         public void Tick(double gForce, double bankAngle, bool isBoarded, DateTime currentZulu, DateTime? sobt, FlightPhase phase, double groundSpeed, double altitude, double verticalSpeed, bool isCrisisActive, double cabinTemperature = 22.0, double boardingProgress = -1.0)
@@ -631,10 +639,9 @@ namespace FlightSupervisor.UI.Services
                 return;
             }
 
-            if (phase == FlightPhase.AtGate && !HasBoardingStarted) return;
-
+            // Thermal monitoring still runs before boarding, so we don't completely return.
             // Progressive Boarding Logic (Phase 3)
-            if (phase == FlightPhase.AtGate && HasBoardingStarted)
+            if (phase == FlightPhase.AtGate && HasBoardingStarted && !isBoarded)
             {
                 if (_lastBoardingTick == DateTime.MaxValue) 
                 {
@@ -676,14 +683,14 @@ namespace FlightSupervisor.UI.Services
                     }
                 }
             }
-            else
+            
+            // Check if boarding just completed (either via ground ops or moving to Taxi without GroundOps)
+            if ((isBoarded || phase != FlightPhase.AtGate) && _lastBoardingTick != DateTime.MaxValue)
             {
-                if (_lastBoardingTick != DateTime.MaxValue)
-                {
-                    foreach (var p in PassengerManifest) p.IsBoarded = true;
-                    _lastBoardingTick = DateTime.MaxValue;
-                    _audio?.SpeakAsPurser("Boarding is complete Captain.");
-                    OnCrewMessage?.Invoke("cyan", LocalizationService.Translate("PA: Boarding is complete.", "PA: Embarquement terminé."), null);
+                foreach (var p in PassengerManifest) p.IsBoarded = true;
+                _lastBoardingTick = DateTime.MaxValue; // Set to MaxValue to prevent re-triggering
+                _audio?.SpeakAsPurser("Boarding is complete Captain.");
+                OnCrewMessage?.Invoke("cyan", LocalizationService.Translate("PA: Boarding is complete.", "PA: Embarquement terminé."), null);
             }
 
             // GATING CONDITION: Disable all stress, comfort, and thermal decay while boarding is in progress.
@@ -864,10 +871,8 @@ namespace FlightSupervisor.UI.Services
                     {
                         double penaltyFactor = (_thermalDissatisfactionGauge / 100.0);
                         DecreaseComfort(penaltyFactor * 0.05 * deltaTimeSeconds);
-                        ModifySatisfaction(-penaltyFactor * 0.02 * deltaTimeSeconds);
                     }
                 }
-            }
 
             // --- CLEANLINESS & WATER PENALTIES ---
             if (isBoarded && State != CabinState.Deboarding)

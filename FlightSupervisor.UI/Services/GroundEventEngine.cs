@@ -75,12 +75,12 @@ namespace FlightSupervisor.UI.Services
 
             var evt = _eventPool[_rnd.Next(_eventPool.Count)];
 
-            // Create payload DTO
             var payload = new GroundEventDTO
             {
                 Id = evt.Id,
                 Title = evt.Title,
                 Description = evt.Description,
+                ServiceName = evt.RequiredActivePhase, // Add the mapping
                 Choices = new List<EventChoiceDTO>()
             };
 

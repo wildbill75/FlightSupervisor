@@ -121,19 +121,7 @@ namespace FlightSupervisor.UI
             };
             
             _cabinManager.OnDeboardingComplete += () => {
-                _cabinManager.SessionFlightsCompleted++;
-
-                if (_rotationQueue.Count > 0)
-                {
-                    LoadNextLeg();
-                    SendToWeb(new { type = "log", message = $"[SYSTEM] Cabin secured, initiating turnaround operations. {_rotationQueue.Count} leg(s) remaining in rotation." });
-                }
-                else
-                {
-                    _groundOpsManager.PrepareNextLeg(_currentFobKg);
-                    SendToWeb(new { type = "log", message = "[SYSTEM] Shift completed. No further flights scheduled." });
-                    Dispatcher.Invoke(() => SendToWeb(new { type = "groundOps", services = _groundOpsManager.Services }));
-                }
+                SendToWeb(new { type = "log", message = "[SYSTEM] Cabin secured, passengers have disembarked." });
             };
 
             // Tray Icon Setup
@@ -158,6 +146,8 @@ namespace FlightSupervisor.UI
             _uiTimer = new System.Windows.Threading.DispatcherTimer();
             _uiTimer.Interval = TimeSpan.FromSeconds(1);
             _uiTimer.Tick += (s, e) => {
+                if (_phaseManager.IsPaused) return;
+                
                 _groundOpsManager.Tick(_currentSimTime);
 
                 // --- MULTI-LEG PROGRESSIVE GROUND OP REFILLS ---
@@ -272,7 +262,6 @@ namespace FlightSupervisor.UI
                     }
                     else if (phase == FlightPhase.Arrived)
                     {
-                        _cabinManager.SessionFlightsCompleted++;
                         if (_aibt == null && _currentSimTime != DateTime.MinValue) 
                             _aibt = _currentSimTime;
 
@@ -469,10 +458,23 @@ namespace FlightSupervisor.UI
                         string arrAirline = _currentResponse?.General?.Airline ?? "UNK";
                         ShiftStateManager.SaveState(_cabinManager, arrIcao, arrAirline);
                         
-                        // Pass into Turnaround immediately so the UI unlocks the "Deboarding" and ground ops
-                        _phaseManager.ForcePhase(FlightPhase.Turnaround);
+                        // Increment leg counter and load next leg instead of waiting for acknowledgeDebrief
+                        _cabinManager.SessionFlightsCompleted++;
+
+                        if (_rotationQueue.Count > 0)
+                        {
+                            LoadNextLeg();
+                            SendToWeb(new { type = "log", message = $"[SYSTEM] Flight secured. Initiating turnaround operations. {_rotationQueue.Count} leg(s) remaining." });
+                        }
+                        else
+                        {
+                            _groundOpsManager.PrepareNextLeg(_currentFobKg);
+                            // Pass into Turnaround immediately so the UI unlocks the "Deboarding" and ground ops
+                            _phaseManager.ForcePhase(FlightPhase.Turnaround);
+                        }
                     }
                     SendToWeb(new { type = "phaseUpdate", phase = phase.ToString(), 
+                                    sessionFlightsCompleted = _cabinManager.SessionFlightsCompleted,
                                     aobt = _aobt != null ? _aobt.Value.ToString("HH:mm") + "z" : null, 
                                     aibt = _aibt != null ? _aibt.Value.ToString("HH:mm") + "z" : null,
                                     aobtUnix = _aobt != null ? new DateTimeOffset(_aobt.Value).ToUnixTimeSeconds() : (long?)null,
@@ -481,6 +483,12 @@ namespace FlightSupervisor.UI
             };
             _phaseManager.OnPenaltyTriggered += msg => {
                 Dispatcher.Invoke(() => SendToWeb(new { type = "penalty", message = msg }));
+            };
+            _phaseManager.OnFoMessage += msg => {
+                Dispatcher.Invoke(() => {
+                    _audioEngine?.SpeakAsFO(msg);
+                    SendToWeb(new { type = "flightUpdate", message = $"[FO] {msg}" });
+                });
             };
 
 
@@ -603,6 +611,7 @@ namespace FlightSupervisor.UI
             _simConnectService.OnGForceReceived += gf => { _phaseManager.GForce = gf; };
             _simConnectService.OnHeadingReceived += h => { _phaseManager.UpdateHeading(h); };
             _simConnectService.OnWindReceived += (wd, wv) => { _phaseManager.UpdateWind(wd, wv); };
+            _simConnectService.OnPositionReceived += (lat, lon) => { _phaseManager.UpdatePosition(lat, lon); };
             _simConnectService.OnNavigationReceived += (locErr, gpsErr, hasLoc) => { _phaseManager.UpdateNavigation(locErr, gpsErr, hasLoc); };
             _simConnectService.OnEngineCombustionReceived += (eng1, eng2) => {
                 _phaseManager.UpdateEngineCombustion(eng1, eng2);
@@ -687,7 +696,8 @@ namespace FlightSupervisor.UI
             _simConnectService.OnSimTimeReceived += time => { 
                 _currentSimTime = time;
                 _cabinManager.CurrentSimZuluTime = time;
-                Dispatcher.Invoke(() => SendToWeb(new { type = "simTime", time = time.ToString("HH:mm") + "z", rawUnix = ((DateTimeOffset)time).ToUnixTimeSeconds() }));
+                var locTimeStr = _cabinManager.CurrentSimLocalTime != DateTime.MinValue ? _cabinManager.CurrentSimLocalTime.ToString("HH:mm") : "--:--";
+                Dispatcher.Invoke(() => SendToWeb(new { type = "simTime", time = time.ToString("HH:mm") + "z", localTime = locTimeStr, rawUnix = ((DateTimeOffset)time).ToUnixTimeSeconds() }));
             };
 
             _simConnectService.OnSimLocalTimeReceived += localTime => {
@@ -812,6 +822,23 @@ namespace FlightSupervisor.UI
                 {
                     _cabinManager.ToggleServiceInterruption();
                 }
+                else if (action == "systemPause")
+                {
+                    if (_phaseManager != null)
+                    {
+                        bool newState = !_phaseManager.IsPaused;
+                        //_simConnectService?.SetPause(newState);
+                        if (newState)
+                        {
+                            _phaseManager.IsPaused = true;
+                        }
+                        else
+                        {
+                            _phaseManager.ResumeWithImmunity(5);
+                        }
+                        SendToWeb(new { type = "pauseStateUpdate", isPaused = newState });
+                    }
+                }
                 else if (action == "updateAvatar")
                 {
                     var payloadStr = doc.RootElement.GetProperty("payload").GetString();
@@ -850,6 +877,10 @@ namespace FlightSupervisor.UI
                 {
                     var history = FlightSupervisor.UI.Services.FlightLogger.GetLogbook();
                     SendToWeb(new { type = "logbookData", history });
+                }
+                else if (action == "acarsWeatherRequest")
+                {
+                    _ = RefreshLiveWeatherAsync();
                 }
                 else if (action == "resolveCrisis")
                 {
@@ -923,10 +954,7 @@ namespace FlightSupervisor.UI
                         _groundOpsManager.StartManualService(serviceName);
                     }
                 }
-                else if (action == "startDeboarding")
-                {
-                    _cabinManager.StartDeboarding();
-                }
+                    // Duplicated "startDeboarding" removed. Kept secondary block.
                 else if (action == "requestTimeWarp")
                 {
                     _groundOpsManager.ForceCompleteAllServices();
@@ -1095,13 +1123,7 @@ namespace FlightSupervisor.UI
                         }
                     });
                 }
-                else if (action == "acknowledgeDebrief")
-                {
-                    _cabinManager.StartDeboarding();
-                    Dispatcher.Invoke(() => {
-                        SendToWeb(new { type = "switchTab", target = "groundops" });
-                    });
-                }
+
                 else if (action == "connectSim")
                 {
                     Dispatcher.Invoke(() => {
@@ -1154,6 +1176,15 @@ namespace FlightSupervisor.UI
                         _groundOpsManager.StartManualService(srvName!);
                     }
                 }
+                else if (action == "startDeboarding")
+                {
+                    _cabinManager.StartDeboarding();
+                    _groundOpsManager.StartManualService("Deboarding");
+                }
+                else if (action == "startBoarding")
+                {
+                    _groundOpsManager.StartManualService("Boarding");
+                }
                 else if (action == "updateGroundSpeed")
                 {
                     var spd = doc.RootElement.GetProperty("value").GetString() ?? "Realistic";
@@ -1167,11 +1198,59 @@ namespace FlightSupervisor.UI
                 }
                 else if (action == "requestStartGroundOps")
                 {
+                    string expectedLatStr = "";
+                    string expectedLonStr = "";
+                    string expectedIcao = "";
+                    if (doc.RootElement.TryGetProperty("expectedLat", out var expLatProp))
+                        expectedLatStr = expLatProp.GetString() ?? "";
+                    if (doc.RootElement.TryGetProperty("expectedLon", out var expLonProp))
+                        expectedLonStr = expLonProp.GetString() ?? "";
+                    if (doc.RootElement.TryGetProperty("expectedIcao", out var expIcaoProp))
+                        expectedIcao = expIcaoProp.GetString() ?? "";
+
                     Dispatcher.Invoke(() => {
                         bool isMoteursEteints = !_phaseManager.Eng1Combustion && !_phaseManager.Eng2Combustion;
-                        if (!_simConnectService.IsConnected || !isMoteursEteints || !_phaseManager.IsOnGround)
+                        bool isAtRightAirport = true; 
+                        string failReason = "";
+
+                        if (!string.IsNullOrEmpty(expectedLatStr) && !string.IsNullOrEmpty(expectedLonStr) &&
+                            double.TryParse(expectedLatStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double expLat) &&
+                            double.TryParse(expectedLonStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double expLon))
                         {
-                            SendToWeb(new { type = "gatekeeperFailed" });
+                            double currentLat = _phaseManager.Latitude;
+                            double currentLon = _phaseManager.Longitude;
+
+                            // Only check if SimConnect has populated the vars (not 0,0 or denormalized garbage)
+                            if (Math.Abs(currentLat) > 0.0001 || Math.Abs(currentLon) > 0.0001)
+                            {
+                                double distanceNM = CalculateHaversineDistanceNM(currentLat, currentLon, expLat, expLon);
+                                
+                                // Check if within 5 Nautical Miles
+                                if (distanceNM > 5.0)
+                                {
+                                    isAtRightAirport = false;
+                                    failReason = $"Wrong Airport! Expected {expectedIcao} but you are {Math.Round(distanceNM, 1)} nm away. (You are at {currentLat}, {currentLon})";
+                                    SendToWeb(new { type = "log", message = $"[Gatekeeper] Expected {expectedIcao}. Too far (Dist: {Math.Round(distanceNM, 1)} nm). Rejected." });
+                                }
+                                else 
+                                {
+                                    SendToWeb(new { type = "log", message = $"[Gatekeeper] Expected {expectedIcao} (Dist: {Math.Round(distanceNM, 1)} nm). Accepted." });
+                                }
+                            }
+                        }
+
+                        if (!_simConnectService.IsConnected) {
+                            failReason = "Flight Simulator is not connected.";
+                        } else if (!isMoteursEteints) {
+                            failReason = "Both engines must be OFF to start Ground Ops.";
+                        } else if (!_phaseManager.IsOnGround) {
+                            failReason = "Aircraft must be ON THE GROUND to start Ground Ops.";
+                        }
+
+                        if (!_simConnectService.IsConnected || !isMoteursEteints || !_phaseManager.IsOnGround || !isAtRightAirport)
+                        {
+                            if (string.IsNullOrEmpty(failReason)) failReason = "Action Denied by Gatekeeper system.";
+                            SendToWeb(new { type = "gatekeeperFailed", reason = failReason });
                         }
                         else
                         {
@@ -1183,33 +1262,68 @@ namespace FlightSupervisor.UI
                 {
                     Dispatcher.Invoke(() => {
                         // Resync rotation queue with Javascript's Drag & Drop order
-                        if (doc.RootElement.TryGetProperty("payload", out var payloadArray) && payloadArray.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        string logPath = "sync_debug.txt";
+                        System.IO.File.AppendAllText(logPath, $"\n[{DateTime.Now}] syncRotationsAndStart called.\n");
+                        
+                        if (doc.RootElement.TryGetProperty("payloadStr", out var payloadStrProp))
                         {
-                            _rotationQueue.Clear();
-                            foreach (var item in payloadArray.EnumerateArray())
+                            string rawJson = payloadStrProp.GetString();
+                            try 
                             {
+                                var arr = System.Text.Json.JsonDocument.Parse(rawJson).RootElement;
+                                System.IO.File.AppendAllText(logPath, $"[DEBUG] Parsing payload array of length {arr.GetArrayLength()}\n");
+                                SendToWeb(new { type = "log", message = $"[DEBUG] syncRotationsAndStart: Parsing payload array of length {arr.GetArrayLength()}" });
+                                _rotationQueue.Clear();
+                                foreach (var item in arr.EnumerateArray())
+                                {
                                 try
                                 {
-                                    var response = System.Text.Json.JsonSerializer.Deserialize<SimBriefResponse>(item.GetRawText());
+                                    System.IO.File.AppendAllText(logPath, $"[DEBUG] Deserializing element of length {item.GetRawText().Length}...\n");
+                                    var response = System.Text.Json.JsonSerializer.Deserialize<SimBriefResponse>(item.GetRawText(), new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                                     if (response != null)
                                     {
                                         _rotationQueue.Enqueue(response);
+                                        System.IO.File.AppendAllText(logPath, $"[DEBUG] Enqueued flight {response.Origin?.IcaoCode} -> {response.Destination?.IcaoCode}.\n");
                                     }
                                 }
                                 catch (Exception ex)
                                 {
-                                    System.Diagnostics.Debug.WriteLine($"[IPC] Failed to deserialize sorted leg: {ex.Message}");
+                                    System.IO.File.AppendAllText(logPath, $"[ERROR] Deserialize failed: {ex.Message}\n");
+                                    SendToWeb(new { type = "log", message = $"[IPC] Failed to deserialize sorted leg: {ex.Message}" });
                                 }
                             }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.IO.File.AppendAllText(logPath, $"[ERROR] Failed to parse payloadStr JSON: {ex.Message}\n");
+                            }
                         }
+                        else
+                        {
+                            System.IO.File.AppendAllText(logPath, $"[ERROR] Payload was missing or not an array.\n");
+                        }
+
+                        System.IO.File.AppendAllText(logPath, $"[DEBUG] Queue size is now {_rotationQueue.Count}, _currentResponse is {(_currentResponse == null ? "NULL" : "SET")}\n");
+                        SendToWeb(new { type = "log", message = $"[DEBUG] syncRotationsAndStart: Queue size is now {_rotationQueue.Count}, _currentResponse is {(_currentResponse == null ? "NULL" : "SET")}" });
 
                         // Prevent Ground Ops abort by setting the first leg into the state manager
                         if (_currentResponse == null && _rotationQueue.Count > 0)
                         {
+                            System.IO.File.AppendAllText(logPath, $"[DEBUG] Calling LoadNextLeg()!\n");
+                            SendToWeb(new { type = "log", message = $"[DEBUG] LoadNextLeg() is being called!" });
                             LoadNextLeg();
+                        }
+                        else if (_currentResponse != null)
+                        {
+                            System.IO.File.AppendAllText(logPath, $"[DEBUG] _currentResponse is already set! It has {(_currentResponse.Origin?.IcaoCode) ?? "NoOrigin"}. Not calling LoadNextLeg().\n");
+                        }
+                        else
+                        {
+                            System.IO.File.AppendAllText(logPath, $"[ERROR] _currentResponse is null, but _rotationQueue is empty!\n");
                         }
                         
                         _groundOpsManager.StartOps();
+                        System.IO.File.AppendAllText(logPath, $"[DEBUG] StartOps() complete.\n");
                     });
                 }
                 else if (action == "setAlwaysOnTop")
@@ -1426,7 +1540,8 @@ namespace FlightSupervisor.UI
 
             _cabinManager.CurrentFlight = _currentResponse;
 
-            _phaseManager.Reset(true); // true = Turnaround state
+            bool isTurnaroundPhase = !(_cabinManager.SessionFlightsCompleted == 0 && _cabinManager.FirstFlightClean);
+            _phaseManager.Reset(isTurnaroundPhase); // false = AtGate (Pristine), true = Turnaround
             _scoreManager.Reset();
             _cabinManager.Reset();
             _eventEngine.Reset();
@@ -1819,6 +1934,23 @@ namespace FlightSupervisor.UI
                 var briefingData = weatherService.GenerateBriefing(_currentResponse);
                 SendToWeb(new { type = "briefingUpdate", briefing = briefingData });
             }
+        }
+
+        private double CalculateHaversineDistanceNM(double lat1, double lon1, double lat2, double lon2)
+        {
+            var r = 3440.065; // Radius of earth in Nautical Miles
+            var dLat = ToRadians(lat2 - lat1);
+            var dLon = ToRadians(lon2 - lon1);
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                    Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
+                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            return r * c;
+        }
+
+        private double ToRadians(double angle)
+        {
+            return Math.PI * angle / 180.0;
         }
     }
 }

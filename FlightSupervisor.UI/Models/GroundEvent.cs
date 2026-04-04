@@ -75,6 +75,8 @@ namespace FlightSupervisor.UI.Models
         public string Title { get; set; } = string.Empty;
         [JsonPropertyName("description")]
         public string Description { get; set; } = string.Empty;
+        [JsonPropertyName("serviceName")]
+        public string ServiceName { get; set; } = string.Empty;
         [JsonPropertyName("choices")]
         public List<EventChoiceDTO> Choices { get; set; } = new List<EventChoiceDTO>();
     }

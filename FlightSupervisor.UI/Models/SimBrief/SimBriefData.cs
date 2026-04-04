@@ -42,18 +42,27 @@ namespace FlightSupervisor.UI.Models.SimBrief
 
         [JsonPropertyName("navlog")]
         public NavlogContainer? Navlog { get; set; }
+
+        [JsonExtensionData]
+        public System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? ExtensionData { get; set; }
     }
 
     public class TextInfo
     {
         [JsonPropertyName("plan_html")]
         public string? PlanHtml { get; set; }
+
+        [JsonExtensionData]
+        public System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? ExtensionData { get; set; }
     }
 
     public class NavlogContainer
     {
         [JsonPropertyName("fix")]
         public System.Collections.Generic.List<NavlogInfo>? Fixes { get; set; }
+
+        [JsonExtensionData]
+        public System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? ExtensionData { get; set; }
     }
 
     public class NavlogInfo
@@ -66,18 +75,27 @@ namespace FlightSupervisor.UI.Models.SimBrief
 
         [JsonPropertyName("tropopause_feet")]
         public string? TropopauseFeet { get; set; }
+
+        [JsonExtensionData]
+        public System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? ExtensionData { get; set; }
     }
 
     public class FetchInfo
     {
         [JsonPropertyName("status")]
         public string? Status { get; set; }
+
+        [JsonExtensionData]
+        public System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? ExtensionData { get; set; }
     }
 
     public class ParamsInfo
     {
         [JsonPropertyName("units")]
         public string? Units { get; set; }
+
+        [JsonExtensionData]
+        public System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? ExtensionData { get; set; }
     }
 
     public class GeneralInfo
@@ -108,6 +126,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
 
         [JsonPropertyName("etops")]
         public string? Etops { get; set; }
+
+        [JsonExtensionData]
+        public System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? ExtensionData { get; set; }
     }
 
     public class AircraftInfo
@@ -126,6 +147,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
 
         [JsonPropertyName("max_passengers")]
         public string? MaxPassengers { get; set; }
+
+        [JsonExtensionData]
+        public System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? ExtensionData { get; set; }
     }
 
     public class AirportInfo
@@ -139,8 +163,17 @@ namespace FlightSupervisor.UI.Models.SimBrief
         [JsonPropertyName("city")]
         public string? City { get; set; }
 
+        [JsonPropertyName("pos_lat")]
+        public string? PosLat { get; set; }
+
+        [JsonPropertyName("pos_long")]
+        public string? PosLong { get; set; }
+
         [JsonPropertyName("plan_rwy")]
         public string? PlanRwy { get; set; }
+
+        [JsonExtensionData]
+        public System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? ExtensionData { get; set; }
     }
 
     public class TimesInfo
@@ -156,6 +189,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
 
         [JsonPropertyName("sched_in")]
         public string? SchedIn { get; set; } // unix timestamp
+
+        [JsonExtensionData]
+        public System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? ExtensionData { get; set; }
     }
 
     public class WeightsInfo
@@ -189,12 +225,18 @@ namespace FlightSupervisor.UI.Models.SimBrief
 
         [JsonPropertyName("block_fuel")]
         public string? BlockFuel { get; set; }
+
+        [JsonExtensionData]
+        public System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? ExtensionData { get; set; }
     }
 
     public class FuelInfo
     {
         [JsonPropertyName("plan_ramp")]
         public string? PlanRamp { get; set; }
+
+        [JsonExtensionData]
+        public System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? ExtensionData { get; set; }
     }
     
     public class WeatherInfo
@@ -222,5 +264,8 @@ namespace FlightSupervisor.UI.Models.SimBrief
 
         [JsonPropertyName("enrt_taf")]
         public System.Text.Json.JsonElement? EnrtTaf { get; set; }
+
+        [JsonExtensionData]
+        public System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? ExtensionData { get; set; }
     }
 }

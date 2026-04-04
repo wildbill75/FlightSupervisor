@@ -1,0 +1,6 @@
+
+[3 Apr 2026 04:46:44] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.

@@ -215,14 +215,18 @@ namespace FlightSupervisor.UI.Services
             int fuelBase = Math.Max(600, (int)(fuelNeededKg / 50.0)); // Minimum 10 minutes ou 50kg/sec
 
             Services.Add(new GroundService { Name = "Refueling", TotalDurationSec = applyTime(fuelBase), IsOptional = false, RequiresManualStart = true, StartOffsetMinutes = 0 });
-            Services.Add(new GroundService { Name = "Boarding", TotalDurationSec = applyTime(boardingBase), IsOptional = false, StartOffsetMinutes = boardOffset });
-            Services.Add(new GroundService { Name = "Cargo/Luggage", TotalDurationSec = applyTime(Math.Max(600, pax * 6)), IsOptional = false, StartOffsetMinutes = cargoOffset });
-            Services.Add(new GroundService { Name = "Catering", TotalDurationSec = applyTime(cateringBase), IsOptional = true, StartOffsetMinutes = caterOffset });
-            Services.Add(new GroundService { Name = cleanName, TotalDurationSec = applyTime(cleaningBase), IsOptional = true, StartOffsetMinutes = cleanOffset });
-            Services.Add(new GroundService { Name = "Water/Waste", TotalDurationSec = applyTime(450), IsOptional = true, StartOffsetMinutes = waterOffset });
+            Services.Add(new GroundService { Name = "Deboarding", TotalDurationSec = applyTime(deboardingBase), IsOptional = false, RequiresManualStart = true, StartOffsetMinutes = 0 });
+            Services.Add(new GroundService { Name = "Boarding", TotalDurationSec = applyTime(boardingBase), IsOptional = false, RequiresManualStart = true, StartOffsetMinutes = boardOffset });
+            Services.Add(new GroundService { Name = "Cargo/Luggage", TotalDurationSec = applyTime(Math.Max(600, pax * 6)), IsOptional = false, RequiresManualStart = true, StartOffsetMinutes = cargoOffset });
+            Services.Add(new GroundService { Name = "Catering", TotalDurationSec = applyTime(cateringBase), IsOptional = true, RequiresManualStart = true, StartOffsetMinutes = caterOffset });
+            Services.Add(new GroundService { Name = cleanName, TotalDurationSec = applyTime(cleaningBase), IsOptional = true, RequiresManualStart = true, StartOffsetMinutes = cleanOffset });
+            Services.Add(new GroundService { Name = "Water/Waste", TotalDurationSec = applyTime(450), IsOptional = true, RequiresManualStart = true, StartOffsetMinutes = waterOffset });
             
             if (firstFlightClean)
             {
+                // Un avion Pristine n'a pas besoin d'être débarqué.
+                Services.RemoveAll(x => x.Name == "Deboarding");
+
                 var cleanNames = new[] { "Catering", cleanName, "Water/Waste" };
                 foreach (var s in Services.Where(x => cleanNames.Contains(x.Name)))
                 {
@@ -244,6 +248,7 @@ namespace FlightSupervisor.UI.Services
             IsPaused = false;
             TargetSobt = null;
             Services.Clear();
+            Services.Add(new GroundService { Name = "Deboarding", TotalDurationSec = 600, StatusMessage = "Pending", State = GroundServiceState.NotStarted, ElapsedSec = 0 });
             OnOpsUpdated?.Invoke();
         }
 
@@ -301,13 +306,52 @@ namespace FlightSupervisor.UI.Services
         // Manual trigger capability for Refueling or other paused features
         public void StartManualService(string name)
         {
-            var s = Services.FirstOrDefault(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-            if (s != null && s.State == GroundServiceState.WaitingForAction)
+            var s = Services.FirstOrDefault(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase) || 
+                                                 (name.Equals("Cleaning", StringComparison.OrdinalIgnoreCase) && x.Name.Contains("Clean", StringComparison.OrdinalIgnoreCase)) ||
+                                                 (name.Equals("Cargo", StringComparison.OrdinalIgnoreCase) && x.Name.Contains("Cargo", StringComparison.OrdinalIgnoreCase)));
+            if (s != null && (s.State == GroundServiceState.WaitingForAction || s.State == GroundServiceState.NotStarted))
             {
+                if (!_isStarted) StartOps();
+                
+                // Enforce Constraints
+                var boarding = Services.FirstOrDefault(x => x.Name == "Boarding");
+                var deboarding = Services.FirstOrDefault(x => x.Name == "Deboarding");
+                var cleaning = Services.FirstOrDefault(x => x.Name.Contains("Clean"));
+                var catering = Services.FirstOrDefault(x => x.Name == "Catering");
+
+                bool isPaxMoving = (boarding != null && boarding.State == GroundServiceState.InProgress) || 
+                                   (deboarding != null && deboarding.State == GroundServiceState.InProgress);
+
+                if ((name.Equals("Cleaning", StringComparison.OrdinalIgnoreCase) || name.Equals("Catering", StringComparison.OrdinalIgnoreCase)) && isPaxMoving)
+                {
+                    s.StatusMessage = LocalizationService.Translate("Blocked (Pax)", "Bloqué (Pax)");
+                    OnOpsLog?.Invoke(LocalizationService.Translate($"[{GetActorForService(s.Name)}] Cannot start {s.Name} while passengers are boarding/deboarding.", $"[{GetActorForService(s.Name)}] Impossible de démarrer {s.Name} pendant le mouvement des passagers."));
+                    OnOpsUpdated?.Invoke();
+                    return;
+                }
+
+                if (name.Equals("Boarding", StringComparison.OrdinalIgnoreCase))
+                {
+                    bool cleaningActive = cleaning != null && cleaning.State == GroundServiceState.InProgress;
+                    bool cateringActive = catering != null && catering.State == GroundServiceState.InProgress;
+                    
+                    if (cleaningActive || cateringActive)
+                    {
+                        s.StatusMessage = LocalizationService.Translate("Blocked (Crew)", "Bloqué (Serv.)");
+                        OnOpsLog?.Invoke(LocalizationService.Translate($"[{GetActorForService(s.Name)}] Cannot start Boarding while Cleaning or Catering is in progress.", $"[{GetActorForService(s.Name)}] L'embarquement est bloqué car le nettoyage ou le catering est en cours."));
+                        OnOpsUpdated?.Invoke();
+                        return;
+                    }
+                }
+
                 s.State = GroundServiceState.InProgress;
                 s.StatusMessage = LocalizationService.Translate("In Progress", "En cours");
                 s.RequiresManualStart = false; // consume the block
-                OnOpsLog?.Invoke(LocalizationService.Translate($"[RAMP AGENT] {name} starting manually.", $"[RAMP AGENT] L'opération {name} demandée manuellement a démarré."));
+                
+                string actor = GetActorForService(s.Name);
+                string startMsg = GetStartMessageForService(s.Name);
+                OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] {startMsg} (Manual Start)", $"[{actor}] {startMsg} (Manuel)"));
+                
                 OnOpsUpdated?.Invoke();
             }
         }
@@ -343,13 +387,15 @@ namespace FlightSupervisor.UI.Services
             _isStarted = false;
         }
 
-        // Overloaded Tick to receive Current MSFS Zulu Time from MainWindow
         public void Tick(DateTime? currentZulu)
         {
-            if (!_isStarted || IsPaused) return;
+            if (!_isStarted) return;
             var now = DateTime.UtcNow;
             var delta = (int)(now - _lastTick).TotalSeconds;
-            if (delta <= 0) return;
+            _lastTick = now; // Update immediately to prevent delta buildup if paused
+
+            if (IsPaused || delta <= 0) return;
+            if (delta > 10) delta = 1; // Protect against system sleep / massive lag spikes
             _lastTick = now;
 
             if (Services.Count == 0) return;
