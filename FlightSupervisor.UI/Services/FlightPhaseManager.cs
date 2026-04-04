@@ -132,8 +132,9 @@ namespace FlightSupervisor.UI.Services
         private const int JitterWindowSize = 300; // ~5 seconds at Visual Frame rate (60Hz)
 
         // Fenix specific states
-        public int FenixNoseLight { get; set; } = 0;
+        public int FenixNoseLight { get; set; } = 0; // 0=OFF, 1=TAXI, 2=TO
         public bool IsRunwayTurnoffLightOn { get; set; } = false;
+        public int FenixStrobeLight { get; set; } = 0; // 0=OFF, 1=AUTO, 2=ON
         public bool IsSeatbeltsOn { get; set; } = true;
         public bool FenixApuMaster { get; set; } = false;
         public bool FenixApuStart { get; set; } = false;
@@ -451,14 +452,12 @@ namespace FlightSupervisor.UI.Services
 
             // Ground lighting rules (Strobe & Landing Lights OFF)
             // Removed TaxiOut & Pushback so the user can turn them on at engine start or holding point
-            // Ground lighting rules (Strobe & Landing Lights OFF)
-            // Removed TaxiOut & Pushback so the user can turn them on at engine start or holding point
             if (CurrentPhase == FlightPhase.AtGate || 
                 CurrentPhase == FlightPhase.Turnaround || 
                 CurrentPhase == FlightPhase.Arrived ||
                 (CurrentPhase == FlightPhase.TaxiIn && _taxiInStartTime.HasValue && (DateTime.Now - _taxiInStartTime.Value).TotalSeconds > 120))
             {
-                if ((IsStrobeLightOn || IsLandingLightOn) && (DateTime.Now - _lastLightPenalty).TotalMinutes > 0.5)
+                if (((IsStrobeLightOn && FenixStrobeLight != 1) || IsLandingLightOn) && (DateTime.Now - _lastLightPenalty).TotalMinutes > 0.5)
                 {
                     _lastLightPenalty = DateTime.Now;
                     OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Safety Violation: Strobes or Landing Lights ON during ground ops", "Violation Sécurité: Strobes ou phares atterrissage ALLUMÉS au sol"));

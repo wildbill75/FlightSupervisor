@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using FlightSupervisor.UI.Models.SimBrief;
@@ -161,6 +161,7 @@ namespace FlightSupervisor.UI.Services
             // --- TICKET 35 : AIRPORT EFFICIENCY TIER ---
             double tierTimeMultiplier = 1.0;
             CurrentAirportTier = "Tier A"; // Default
+            EventProbabilityPercent = 20; // Reset default probability base
             string originIcao = sb?.Origin?.IcaoCode?.ToUpper() ?? "";
 
             string[] tierS = { "EGSS", "EIDW", "EGKK", "KATL", "EGGW", "LOWW" };
@@ -176,13 +177,15 @@ namespace FlightSupervisor.UI.Services
             else if (tierB.Contains(originIcao)) 
             { 
                 CurrentAirportTier = "Tier B"; 
-                tierTimeMultiplier = 1.15; 
-                CurrentAirportTierDescription = "This airport relies on average infrastructure. Ground operations may take slightly longer."; 
+                tierTimeMultiplier = 1.00; // Mega hub: Normal speed due to huge logistics means
+                EventProbabilityPercent = 40; // Double risk of random events
+                CurrentAirportTierDescription = "A mega hub with immense resources, but extremely high traffic. Base ops are fast, but random delays are common."; 
             }
             else if (tierF.Contains(originIcao)) 
             { 
                 CurrentAirportTier = "Tier F"; 
                 tierTimeMultiplier = 1.30; 
+                EventProbabilityPercent = 50;
                 CurrentAirportTierDescription = "This airport has extremely poor infrastructure or congestion. Expect chaotic and long ground operations."; 
             }
 

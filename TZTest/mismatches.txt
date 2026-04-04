@@ -1,0 +1,39 @@
+1: Altitude <---> INDICATED ALTITUDE
+2: GroundSpeed <---> GROUND VELOCITY
+3: IndicatedAirspeed <---> AIRSPEED INDICATED
+4: ZuluTime <---> ZULU TIME
+5: ParkingBrakeIndicator <---> BRAKE PARKING INDICATOR
+6: RadioHeight <---> RADIO HEIGHT
+7: GearHandle <---> GEAR HANDLE POSITION
+8: FlapsHandleIndex <---> FLAPS HANDLE INDEX
+9: AutopilotMaster <---> AUTOPILOT MASTER
+10: AutothrustMaster <---> AUTOPILOT THROTTLE ARM
+11: ThrottleLever <---> GENERAL ENG THROTTLE LEVER POSITION:1
+12: SpoilersHandle <---> SPOILERS HANDLE POSITION
+13: LightBeacon <---> LIGHT BEACON
+14: LightStrobe <---> LIGHT STROBE
+15: LightNav <---> LIGHT NAV
+16: LightTaxi <---> LIGHT TAXI
+17: LightLanding <---> LIGHT LANDING
+18: Pitch <---> PLANE PITCH DEGREES
+19: Bank <---> PLANE BANK DEGREES
+20: SimOnGround <---> SIM ON GROUND
+21: VerticalSpeed <---> VERTICAL SPEED
+22: GForce <---> G FORCE
+23: Eng1Combustion <---> GENERAL ENG COMBUSTION:1
+24: Eng2Combustion <---> GENERAL ENG COMBUSTION:2
+25: Heading <---> PLANE HEADING DEGREES TRUE
+26: WindDirection <---> AMBIENT WIND DIRECTION
+27: WindVelocity <---> AMBIENT WIND VELOCITY
+28: NavLocalizerError <---> NAV LOCALIZER ERROR:1
+29: GpsCrossTrackError <---> GPS WP CROSS TRK
+30: HasLocalizer <---> NAV HAS LOCALIZER:1
+31: CabinSeatbelts <---> CABIN SEATBELTS ALERT SWITCH
+32: AccelerationBodyZ <---> ACCELERATION BODY Z
+33: VelocityBodyZ <---> VELOCITY BODY Z
+34: TimeZoneDeviation <---> TIME ZONE DEVIATION
+35: AmbientTemperature <---> AMBIENT TEMPERATURE
+36: FuelTotalMass <---> FUEL TOTAL QUANTITY WEIGHT
+37: Latitude <---> PLANE LATITUDE
+38: Longitude <---> PLANE LONGITUDE
+39: GForce <---> ---

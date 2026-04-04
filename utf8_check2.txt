@@ -1,0 +1,11 @@
+﻿Found non-ASCII characters at offsets:
+'ppercase">Dummy Leg ΓÇö Awaiting OFP</h3'
+'percase">Dummy Leg ΓÇö Awaiting OFP</h3>'
+'ercase">Dummy Leg ΓÇö Awaiting OFP</h3>\n'
+'ligence : si le MP3 ├⌐choue, on tente la'
+'igence : si le MP3 ├⌐choue, on tente la '
+'Engine] autoplay emp├¬ch├⌐ ou erreur sur'
+'ngine] autoplay emp├¬ch├⌐ ou erreur sur '
+'ne] autoplay emp├¬ch├⌐ ou erreur sur ${f'
+'e] autoplay emp├¬ch├⌐ ou erreur sur ${fi'
+"se', reason: 'Croisi├¿re requise' });\n  "

@@ -189,7 +189,7 @@ namespace FlightSupervisor.UI
                 // Track Cabin Anxiety
                 var bService = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Boarding");
                 bool isBoardingComplete = bService?.State == GroundServiceState.Completed;
-                _cabinManager.HasBoardingStarted = bService != null && bService.State != GroundServiceState.NotStarted;
+                _cabinManager.HasBoardingStarted = bService != null && bService.State != GroundServiceState.NotStarted && bService.State != GroundServiceState.WaitingForAction;
                 DateTime? sobtDate = null;
                 if (_currentResponse?.Times?.SchedOut != null && long.TryParse(_currentResponse.Times.SchedOut, out long sobtUnix))
                 {
@@ -600,6 +600,7 @@ namespace FlightSupervisor.UI
             };
             _simConnectService.OnLightBeaconReceived += l => { if (_lastLogLightBeacon != null && _lastLogLightBeacon != l) SendToWeb(new { type = "log", message = l ? "Beacon Lights ON" : "Beacon Lights OFF" }); _lastLogLightBeacon = l; };
             _simConnectService.OnLightStrobeReceived += l => { _phaseManager.IsStrobeLightOn = l; if (_lastLogLightStrobe != null && _lastLogLightStrobe != l) SendToWeb(new { type = "log", message = l ? "Strobe Lights ON" : "Strobe Lights OFF" }); _lastLogLightStrobe = l; };
+            _simConnectService.OnFenixStrobeStateChanged += s => { _phaseManager.FenixStrobeLight = s; };
             _simConnectService.OnLightNavReceived += l => { if (_lastLogLightNav != null && _lastLogLightNav != l) SendToWeb(new { type = "log", message = l ? "Nav Lights ON" : "Nav Lights OFF" }); _lastLogLightNav = l; };
             _simConnectService.OnLightTaxiReceived += l => { 
                 _phaseManager.IsTaxiLightOn = l;
@@ -1580,6 +1581,10 @@ namespace FlightSupervisor.UI
             }
 
             _groundOpsManager.InitializeFromSimBrief(response, _cabinManager.SessionFlightsCompleted == 0 && _cabinManager.FirstFlightClean, _currentFobKg, nextSobt);
+              if (_cabinManager.SessionFlightsCompleted == 0)
+              {
+                  _groundOpsManager.Services.RemoveAll(x => x.Name == "Deboarding");
+              }
 
             _ = RefreshLiveWeatherAsync();
 
@@ -1954,3 +1959,4 @@ namespace FlightSupervisor.UI
         }
     }
 }
+

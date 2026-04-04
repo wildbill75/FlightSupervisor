@@ -31,7 +31,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="GeoTimeZone" Version="6.1.0" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3856.49" />
     <PackageReference Include="System.Speech" Version="8.0.0" />
+    <PackageReference Include="TimeZoneConverter" Version="7.2.0" />
   </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -49,7 +49,7 @@ namespace FlightSupervisor.UI.Services
         public double PassengerAnxiety 
         {
             get {
-                if (!PassengerManifest.Where(p => p.IsBoarded).Any()) return 0.0;
+                if (_lastBoardingTick != DateTime.MaxValue || !PassengerManifest.Where(p => p.IsBoarded).Any()) return 0.0;
                 double avg = PassengerManifest.Where(p => p.IsBoarded).Average(p => p.IndividualAnxiety);
                 return Math.Max(0.0, Math.Round(avg + (_renderRnd.NextDouble() * 1.2 - 0.6), 1));
             }
@@ -58,7 +58,7 @@ namespace FlightSupervisor.UI.Services
         public double ComfortLevel 
         {
             get {
-                if (!PassengerManifest.Where(p => p.IsBoarded).Any()) return Math.Round(95.0 + (_renderRnd.NextDouble() * 3.0), 1);
+                if (_lastBoardingTick != DateTime.MaxValue || !PassengerManifest.Where(p => p.IsBoarded).Any()) return 100.0;
                 double avg = PassengerManifest.Where(p => p.IsBoarded).Average(p => p.IndividualComfort);
                 return Math.Min(Math.Round(95.0 + (_renderRnd.NextDouble() * 3.0), 1), Math.Round(avg - (_renderRnd.NextDouble() * 1.5), 1));
             }
@@ -67,7 +67,7 @@ namespace FlightSupervisor.UI.Services
         public double Satisfaction 
         {
             get {
-                if (!PassengerManifest.Where(p => p.IsBoarded).Any()) return Math.Round(95.0 + (_renderRnd.NextDouble() * 3.0), 1);
+                if (_lastBoardingTick != DateTime.MaxValue || !PassengerManifest.Where(p => p.IsBoarded).Any()) return 100.0;
                 double avg = PassengerManifest.Where(p => p.IsBoarded).Average(p => p.IndividualSatisfaction);
                 return Math.Min(Math.Round(95.0 + (_renderRnd.NextDouble() * 3.0), 1), Math.Round(avg - (_renderRnd.NextDouble() * 1.8), 1));
             }
@@ -685,7 +685,7 @@ namespace FlightSupervisor.UI.Services
             }
             
             // Check if boarding just completed (either via ground ops or moving to Taxi without GroundOps)
-            if ((isBoarded || phase != FlightPhase.AtGate) && _lastBoardingTick != DateTime.MaxValue)
+            if ((isBoarded || phase != FlightPhase.AtGate) && _lastBoardingTick != DateTime.MaxValue && State != CabinState.Deboarding)
             {
                 foreach (var p in PassengerManifest) p.IsBoarded = true;
                 _lastBoardingTick = DateTime.MaxValue; // Set to MaxValue to prevent re-triggering
@@ -972,9 +972,9 @@ namespace FlightSupervisor.UI.Services
                     string destName = CurrentFlight?.Destination?.Name ?? CurrentFlight?.Destination?.IcaoCode ?? "your destination";
                     string arrTime = CurrentSimLocalTime != DateTime.MinValue ? CurrentSimLocalTime.ToString("HH:mm") : DateTime.Now.ToString("HH:mm");
                     string arrTemp = Math.Round(CurrentAmbientTemperature).ToString();
-                    string arrivalPA = $"Welcome to {destName}. The local time is {arrTime} and the local temperature is {arrTemp} degrees Celsius. For your safety and the safety of those around you, please remain seated with your seatbelt fastened until the captain has turned off the seatbelt sign at the gate. As you leave the aircraft, please check around your seat for any personal items. On behalf of the entire crew, thank you for flying with us today.";
+                    string arrivalPA = $"Welcome to {destName}. The local time is {arrTime}. For your safety and the safety of those around you, please remain seated with your seatbelt fastened until the captain has turned off the seatbelt sign at the gate. As you leave the aircraft, please check around your seat for any personal items. On behalf of the entire crew, thank you for flying with us today.";
                     _audio?.SpeakAsPurser(arrivalPA);
-                    OnCrewMessage?.Invoke("sky", LocalizationService.Translate($"PA: Welcome to {destName}. Local time is {arrTime}, Temperature: {arrTemp}°C.", $"PA: Bienvenue à {destName}. Heure locale : {arrTime}, Température : {arrTemp}°C."), null);
+                    OnCrewMessage?.Invoke("sky", LocalizationService.Translate($"PA: Welcome to {destName}. Local time is {arrTime}.", $"PA: Bienvenue à {destName}. Heure locale : {arrTime}."), null);
                 }
                 _lastPhase = phase;
                 _lastPhaseChangeTime = DateTime.Now;
@@ -1920,3 +1920,5 @@ namespace FlightSupervisor.UI.Services
         }
     }
 }
+
+

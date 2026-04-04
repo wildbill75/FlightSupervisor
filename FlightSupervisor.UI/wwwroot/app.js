@@ -36,8 +36,8 @@ window.parseBriefing = (data, rd) => {
 
                             let variablesHtml = '';
                             const getSeverityStyle = (severity) => {
-                                if (severity === 2) return { text: 'text-red-100 font-bold', bg: 'bg-red-900/60 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-pulse' };
-                                if (severity === 1) return { text: 'text-orange-100 font-bold', bg: 'bg-orange-900/50 border-orange-500/80 shadow-[0_0_10px_rgba(249,115,22,0.3)]' };
+                                if (severity === 2 || severity === 'Danger') return { text: 'text-red-100 font-bold', bg: 'bg-red-900/60 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-pulse' };
+                                if (severity === 1 || severity === 'Warning') return { text: 'text-orange-100 font-bold', bg: 'bg-orange-900/50 border-orange-500/80 shadow-[0_0_10px_rgba(249,115,22,0.3)]' };
                                 return null;
                             };
 
@@ -2301,7 +2301,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (window.finalAibtUnix && window.currentSibtUnix > 0) {
                         d = window.finalAibtUnix - window.currentSibtUnix;
                         let st = getPunc(window.currentSibtUnix, window.finalAibtUnix);
-                        cd.innerText = `Arrived ${st.t} (${st.d < 0 ? '-' : '+'}${fmt(st.d)})`;
+                        let isEarly = st.d < 0;
+                            let turnaroundStr = window.currentTotTurnaround ? ` | TAS Remaining: ${window.currentTotTurnaround}m` : "";
+                            cd.innerText = `Arrivé avec ${fmt(st.d)} ${isEarly ? "d'avance" : "de retard"}${turnaroundStr}`;
                         cd.style.color = st.c;
                         let aibtSp = document.getElementById('bdAibt');
                         if (aibtSp) aibtSp.style.color = st.c;
@@ -3514,13 +3516,13 @@ document.addEventListener('DOMContentLoaded', () => {
 window.closedAccordions = window.closedAccordions || new Set();
 
 const GO_ICONS = {
-    'Refuel': '<span class="material-symbols-outlined text-[18px] text-orange-500">local_gas_station</span>',
+    'Refueling': '<span class="material-symbols-outlined text-[18px] text-orange-500">local_gas_station</span>',
     'Boarding': '<span class="material-symbols-outlined text-[18px] text-sky-400">group</span>',
     'Deboarding': '<span class="material-symbols-outlined text-[18px] text-sky-300">directions_run</span>',
-    'Cargo': '<span class="material-symbols-outlined text-[18px] text-amber-500">luggage</span>',
+    'Cargo/Luggage': '<span class="material-symbols-outlined text-[18px] text-amber-500">luggage</span>',
     'Catering': '<span class="material-symbols-outlined text-[18px] text-pink-400">restaurant</span>',
     'Cleaning': '<span class="material-symbols-outlined text-[18px] text-fuchsia-400">cleaning_services</span>',
-    'PNC Chores': '<span class="material-symbols-outlined text-[18px] text-indigo-400">dry_cleaning</span>',
+    'Cabin Clean (PNC)': '<span class="material-symbols-outlined text-[18px] text-indigo-400">dry_cleaning</span>',
     'Water/Waste': '<span class="material-symbols-outlined text-[18px] text-emerald-400">water_drop</span>'
 };
 
@@ -3608,13 +3610,13 @@ function updateMetaBar(services) {
         } else if (blockingService) {
             let color = getSeverityColor(blockingService.DelayAddedSec);
             let mins = Math.round(blockingService.DelayAddedSec / 60);
-            metaText.innerText = `âš ï¸ ${blockingService.Name.toUpperCase()} : ${blockingService.ActiveDelayEvent} (+${mins}m)`;
+            metaText.innerText = `⚠️ ${blockingService.Name.toUpperCase()} : ${blockingService.ActiveDelayEvent} (+${mins}m)`;
             metaText.style.color = color;
             if (metaFill) { metaFill.style.backgroundColor = color; metaFill.style.boxShadow = `0 0 10px ${color}`; }
             setTimeout(() => { if (metaFill) metaFill.style.boxShadow = 'none'; }, 1000);
         } else if (window.recentlyCompleted && (Date.now() - window.recentlyCompletedTime < 15000)) {
-            const icon = GO_ICONS[window.recentlyCompleted.Name] || 'âœ…';
-            metaText.innerHTML = `${icon} <span style="font-weight:bold">${window.recentlyCompleted.Name.toUpperCase()} TERMINÃ‰</span>`;
+            const icon = GO_ICONS[window.recentlyCompleted.Name] || '✅';
+            metaText.innerHTML = `${icon} <span style="font-weight:bold">${window.recentlyCompleted.Name.toUpperCase()} TERMINÉ</span>`;
             metaText.style.color = "#34D399";
             if (metaFill) metaFill.style.backgroundColor = "#34D399";
         } else if (isActive) {
@@ -3642,7 +3644,7 @@ function renderGroundOps(services) {
     let isDeboardingActive = services.some(s => s.Name === "Deboarding" && s.State === 1);
     let isBoardingActive = services.some(s => s.Name === "Boarding" && s.State === 1);
     let isCleaningActive = services.some(s => s.Name.includes("Clean") && s.State === 1);
-    let isCateringActive = services.some(s => s.Name === "Catering" && s.State === 1);
+    let isCateringActive = services.some(s => s.Name.includes("Catering") && s.State === 1);
     let isPaxMoving = isDeboardingActive || isBoardingActive;
     let isCrewWorking = isCleaningActive || isCateringActive;
 
@@ -3661,7 +3663,7 @@ function renderGroundOps(services) {
         else if (locName === "Water/Waste") locName = mDict.gops_water || locName;
 
         let stateVal = s.State !== undefined ? s.State : s.state;
-        const icon = GO_ICONS[s.Name] || 'ðŸ”¹';
+        const icon = GO_ICONS[s.Name] || '🔹';
         
         let isBlocked = false;
         if ((s.Name === "Deboarding" || s.Name === "Boarding") && isCrewWorking) isBlocked = true;
@@ -3710,13 +3712,13 @@ function renderGroundOps(services) {
                 const cr = window.lastTelemetry.cateringRations !== undefined ? window.lastTelemetry.cateringRations : 0;
                 const cColor = cr <= 10 ? '#EF4444' : (cr <= 25 ? '#F59E0B' : '#34D399');
                 const cBg = cr <= 10 ? 'bg-red-500/10' : (cr <= 25 ? 'bg-amber-500/10' : 'bg-emerald-500/10');
-                extraBadgesHtml += `<div class="px-2 py-1 rounded ${cBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${cColor}; border-color: ${cColor}40;">ðŸ± ${cr}</div>`;
+                extraBadgesHtml += `<div class="px-2 py-1 rounded ${cBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${cColor}; border-color: ${cColor}40;">🥪 ${cr}</div>`;
             }
             if (s.Name === "Cleanliness" || s.Name === "Cleaning" || s.Name === "Cabin Clean (PNC)") {
                 const cl = window.lastTelemetry.cabinCleanliness !== undefined ? window.lastTelemetry.cabinCleanliness : 100;
                 const clColor = cl < 50 ? '#EF4444' : (cl < 75 ? '#F59E0B' : '#34D399');
                 const clBg = cl < 50 ? 'bg-red-500/10' : (cl < 75 ? 'bg-amber-500/10' : 'bg-emerald-500/10');
-                extraBadgesHtml += `<div class="px-2 py-1 rounded ${clBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${clColor}; border-color: ${clColor}40;">âœ¨ ${Math.round(cl)}%</div>`;
+                extraBadgesHtml += `<div class="px-2 py-1 rounded ${clBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${clColor}; border-color: ${clColor}40;">✨ ${Math.round(cl)}%</div>`;
             }
             if (s.Name === "Water/Waste") {
                 const wl = window.lastTelemetry.waterLevel !== undefined ? window.lastTelemetry.waterLevel : 100;
@@ -3725,8 +3727,8 @@ function renderGroundOps(services) {
                 const wBg = wl < 20 ? 'bg-red-500/10' : (wl < 50 ? 'bg-amber-500/10' : 'bg-blue-500/10');
                 const waColor = wasl > 90 ? '#EF4444' : (wasl > 70 ? '#F59E0B' : '#60A5FA');
                 const waBg = wasl > 90 ? 'bg-red-500/10' : (wasl > 70 ? 'bg-amber-500/10' : 'bg-blue-500/10');
-                extraBadgesHtml += `<div class="px-2 py-1 rounded ${wBg} border text-[9px] uppercase font-bold tracking-widest leading-none mr-1 flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${wColor}; border-color: ${wColor}40;">ðŸ’§ ${Math.round(wl)}%</div>`;
-                extraBadgesHtml += `<div class="px-2 py-1 rounded ${waBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${waColor}; border-color: ${waColor}40;">ðŸ—‘ï¸ ${Math.round(wasl)}%</div>`;
+                extraBadgesHtml += `<div class="px-2 py-1 rounded ${wBg} border text-[9px] uppercase font-bold tracking-widest leading-none mr-1 flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${wColor}; border-color: ${wColor}40;">💧 ${Math.round(wl)}%</div>`;
+                extraBadgesHtml += `<div class="px-2 py-1 rounded ${waBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${waColor}; border-color: ${waColor}40;">🗑️ ${Math.round(wasl)}%</div>`;
             }
         }
 
@@ -4324,6 +4326,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+
 
 
 

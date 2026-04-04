@@ -65,20 +65,19 @@ Ground operations must follow a logical and realistic order. The following stric
 
 ## 5. Nouvelles Spécifications : Réalisme et Notes Aéroportuaires (WIP)
 
-- [X] **TICKET 34 : Durées d'Opérations Réalistes (A320/B737)**
-  - Les temps au sol doivent s'inspirer de la réalité. Pour un *Narrowbody* (A320/B737) de ~150-180 places, les temps moyens de Turnaround sont de 25-35 minutes minimum (Low-Cost) et 45-60 min (Standard Hub).
-  - Redéfinir la durée de base de chaque service :
-    - *Deboarding* : ~10-15 minutes (flux constant à 20 pax/min)
-    - *Cleaning* : ~10-15 minutes (Standard) ou ~5 minutes (PNC Low-Cost)
-    - *Catering* : ~15 minutes (Complet) ou ~5 minutes (Snacks Low-Cost)
-    - *Refueling* : ~10-15 minutes
-    - *Boarding* : ~15-20 minutes
-  - *À définir* : Appliquer un ratio "Temps de Jeu" (ex: divisé par 2) pour l'utilisateur, ou forcer les temps réels complets pour la simulation hardcore.
+- [ ] **TICKET 34 : Variables Dynamiques & Durées d'Opérations (Scaling)**
+  - Les temps au sol doivent s'adapter dynamiquement aux variables de la rotation, de l'état de l'avion, et des métriques SimBrief.
+  - **Refueling** : Doit être calculé à partir de la quantité de fuel manquante (`(PlanRamp - CurrentFob) / Débit`). *Note: Déjà partiellement implémenté.*
+  - **Boarding & Deboarding** : La durée doit être un calcul du nombre total de passagers (`Simbrief Pax Count` x `Temps moyen par PAX`). Ce temps est ensuite pondéré à la hausse ou à la baisse en fonction du score de réputation / d'efficacité de l'équipage PNC (`CrewEfficiency`).
+  - **Cargo / Bagages** : Le temps est calculé en fonction du nombre de passagers (bagages soute) ET de la masse du fret (Cargo Weight) extraits de SimBrief.
+  - **Cleaning / Ménage** : La durée doit être proportionnelle à l'état de dégradation au moment du "turnaround". Une cabine très sale (`CabinCleanliness < 30%`) nécessitera beaucoup plus de temps qu'une cabine propre.
+  - **Catering** : La durée de chargement doit dépendre du nombre exact de plateaux et rations à raitailler (delta depuis la fin du vol précédent).
+  - **Water / Waste** : Temps variable selon les niveaux des cuves d'eaux usées à vider et d'eau potable à remplir.
 
 - [X] **TICKET 35 : "Feuilles de Personnage" d'Aéroports (ICAO Tier List)**
   - Afin de simuler l'efficacité et l'organisation variable des différentes escales, chaque aéroport (selon son code ICAO) possèdera un rating ou "Tier" de S à F. Ce rating affecte le multiplicateur global de temps (T) pour les services au sol (Catering, Fuel, Luggage, etc.) et la probabilité (P) de générer un retard/incident au sol (effet domino).
-  - **Tier S** (Ultra Efficient / Super-Hub LCC) : Temps réduit de 15% (ex: `EGSS` Stansted, `EIDW` Dublin, `KATL` Atlanta).
-  - **Tier A** (Excellent Hub / Standard) : Temps normal, 0% de pénalité (ex: `LFBO` Toulouse, `EDDM` Munich). S'applique aux aéroports non-référencés.
-  - **Tier B** (Congestionné / Major Hub) : Pénalité de temps de +15%. Risque de retard accru. (ex: `LFPG` CDG, `EGLL` Heathrow, `EDDF` Frankfurt).
-  - **Tier C/F** (Grèves/Sous-effectifs/Délai systématique) : Pénalité de temps de +30%. Fort risque d'incident catering/cleaning introuvable. (ex: `EHAM` Amsterdam l'été, `KEWR` Newark, `LIRF` Rome, etc.).
+  - **Tier S** (Ultra-efficace / Super-Hub LCC) : Temps réduit de 15% grâce à des infrastructures hyper-optimisées. Risque d'incident très faible. (ex: `EGSS` Stansted, `EIDW` Dublin, `KATL` Atlanta).
+  - **Tier A** (Excellent Hub / Aéroports Standards) : Temps normal (0% de pénalité). Risque d'incident standard. (ex: `LFBO` Toulouse, `EDDM` Munich). S'applique par défaut aux aéroports non-référencés.
+  - **Tier B** (Méga Hubs / Fort Trafic) : Pas de pénalité de temps de base (leurs immenses moyens logistiques compensent leur taille). **Cependant**, la probabilité d'événements aléatoires (traffic jam sur le tarmac, équipe envoyée au mauvais terminal) est augmentée de 20%. (ex: `LFPG` CDG, `EGLL` Heathrow, `EDDF` Frankfurt).
+  - **Tier C/F** (Congestion chronique / Sous-effectifs) : Pénalité de temps de +30%. Fort risque d'incident et de délai permanent. (ex: `EHAM` Amsterdam l'été, `KEWR` Newark, `LIRF` Rome).
   - *Design* : Afficher subtilement ce rating dans le Header de l'UI et afficher une Modale/Panel descriptif en haut de la page Ground Operations avec lettre en couleur et description du profil d'infrastructure.

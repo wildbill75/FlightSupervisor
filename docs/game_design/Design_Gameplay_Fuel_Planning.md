@@ -20,8 +20,8 @@ La refonte à venir intégrera une sous-catégorie ou un widget de "Fuel Plannin
    - Les appels intercom (si existants) avec l'agent de piste pourront utiliser cette donnée consolidée (`"Captain, here is the fuel slip, we loaded XXXX kg..."`).
 
 ### Contraintes Architecturales
-- La validation du carburant sera *indispensable* si l'on souhaite débloquer la fin de la Ground Op `Refueling`. Tant que le "Fuel Planning" n'est pas validé, le pompiste attendra les instructions.
-- Si le vol est chargé en mode _Fast_, l'application auto-validera le Request Fuel basé strictement sur le plan Simbrief.
+- La validation du carburant sera *indispensable* pour **autoriser le chargement physique** du Fuel lors de la Ground Op `Refueling`. Tant que le "Fuel Load Sheet" n'est pas validé par le commandant, le camion de refueling peut arriver à l'avion et se connecter (Logistique / Approche), mais le pompage restera en attente (`Waiting for Fuel Sheet`).
+- Si le vol est chargé en mode _Fast_, l'application auto-validera le Request Fuel basé strictement sur le plan Simbrief pour accélérer le "chemin critique".
 
 ### Interface Recommandée (Draft UI)
 - Le widget de Fuel devra adopter le style EFB (Electronic Flight Bag). 

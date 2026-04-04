@@ -319,7 +319,10 @@
                     <div class="col-span-12 lg:col-span-5 glass-panel rounded-xl overflow-hidden flex flex-col">
                         <div class="px-8 py-5 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
                             <h2 class="text-xs font-label tracking-[0.4em] text-slate-500 uppercase" data-i18n="dash_timetable">Flight Timetable</h2>
-                            <span class="text-lg md:text-xl font-bold text-sky-400 font-mono tracking-wider drop-shadow-[0_0_8px_rgba(56,189,248,0.4)] text-right" id="zuluTime">--:-- UTC / --:-- LOCAL</span>
+                            <div class="flex flex-col items-end">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1" id="zuluDate">--/--/----</span>
+                                <span class="text-lg md:text-xl font-bold text-sky-400 font-mono tracking-wider drop-shadow-[0_0_8px_rgba(56,189,248,0.4)] text-right" id="zuluTime">--:-- UTC / --:-- LOCAL</span>
+                            </div>
                         </div>
                         <div id="globalRotationBanner" class="hidden bg-[#1E293B]/60 border-b border-white/5 py-4 px-8 flex items-center justify-between shadow-[inset_0_-10px_20px_rgba(0,0,0,0.2)] gap-8">
                             <!-- CURRENT LEG -->
@@ -1354,9 +1357,9 @@
     <audio id="chimeEmergency" src="assets/sounds/chime_emergency.wav" preload="auto"></audio>
     <audio id="notifSound" src="notification.mp3" preload="auto"></audio>
 
-    <script src="locales.js?v=3"></script>
-    <script src="narrative.js?v=1"></script>
-    <script src="app.js?v=17"></script>
+    <script src="locales.js?v=3" charset="utf-8"></script>
+    <script src="narrative.js?v=1" charset="utf-8"></script>
+    <script src="app.js?v=17" charset="utf-8"></script>
     <script>
         // Update top bar dynamically using the flight status
         setInterval(() => {
@@ -1443,3 +1446,4 @@
     </script>
 </body>
 </html>
+

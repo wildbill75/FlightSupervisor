@@ -2,6 +2,8 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.FlightSimulator.SimConnect;
+using GeoTimeZone;
+using TimeZoneConverter;
 
 namespace FlightSupervisor.UI.Services
 {
@@ -33,6 +35,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<double>? OnSpoilersReceived;
         public event Action<bool>? OnLightBeaconReceived;
         public event Action<bool>? OnLightStrobeReceived;
+        public event Action<int>? OnFenixStrobeStateChanged;
         public event Action<bool>? OnLightNavReceived;
         public event Action<bool>? OnLightTaxiReceived;
         public event Action<bool>? OnLightLandingReceived;
@@ -235,20 +238,36 @@ namespace FlightSupervisor.UI.Services
                 OnAirspeedReceived?.Invoke(planeData.IndicatedAirspeed);
                 OnRadioHeightReceived?.Invoke(planeData.RadioHeight);
                 
-                var timeSpan = TimeSpan.FromSeconds(planeData.ZuluTime);
                 DateTime currentUtc = DateTime.UtcNow;
                 try {
+                    TimeSpan timeSpan = TimeSpan.FromSeconds(planeData.ZuluTime);
                     currentUtc = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds, DateTimeKind.Utc);
                     CurrentSimZuluTime = currentUtc;
                     OnSimTimeReceived?.Invoke(currentUtc);
                 } catch { }
 
                 try {
-                    // TIME ZONE DEVIATION is Zulu - Local (so positive if standard time is before UTC, e.g. USA)
-                    // Therefore, Local = Zulu - TimeZoneDeviation
-                    DateTime localDt = currentUtc.AddSeconds(-planeData.TimeZoneDeviation);
+                    DateTime localDt = currentUtc;
+                    // Validate coordinates
+                    if (!double.IsNaN(planeData.Latitude) && !double.IsNaN(planeData.Longitude) && (Math.Abs(planeData.Latitude) > 0.01 || Math.Abs(planeData.Longitude) > 0.01))
+                    {
+                        string tzid = TimeZoneLookup.GetTimeZone(planeData.Latitude, planeData.Longitude).Result;
+                        if (!string.IsNullOrEmpty(tzid) && tzid != "UTC" && !tzid.StartsWith("Etc/"))
+                        {
+                            var tzi = TZConvert.GetTimeZoneInfo(tzid);
+                            localDt = TimeZoneInfo.ConvertTimeFromUtc(currentUtc, tzi);
+                        }
+                        else
+                        {
+                            // Solar fallback
+                            double offsetHours = Math.Round(planeData.Longitude / 15.0);
+                            localDt = currentUtc.AddHours(offsetHours);
+                        }
+                    }
                     OnSimLocalTimeReceived?.Invoke(localDt);
-                } catch { }
+                } catch { 
+                    OnSimLocalTimeReceived?.Invoke(currentUtc);
+                }
                 
                 OnAmbientTemperatureReceived?.Invoke(planeData.AmbientTemperature);
                 OnFuelTotalReceived?.Invoke(planeData.FuelTotalMass);
@@ -310,6 +329,7 @@ namespace FlightSupervisor.UI.Services
                 OnRunwayTurnoffChanged?.Invoke(data.TurnoffLight > 0.5);
                 OnLightBeaconReceived?.Invoke(data.BeaconLight > 0.5);
                 OnLightStrobeReceived?.Invoke(data.StrobeLight > 0.5);
+                OnFenixStrobeStateChanged?.Invoke((int)data.StrobeLight);
                 OnLightNavReceived?.Invoke(data.NavLight > 0.5);
                 OnLightTaxiReceived?.Invoke(data.NoseLight == 1); // 1 = Taxi, 2 = TO
                 OnLightLandingReceived?.Invoke(data.LandingLightL > 0.5 || data.LandingLightR > 0.5);
@@ -317,3 +337,5 @@ namespace FlightSupervisor.UI.Services
         }
     }
 }
+
+
