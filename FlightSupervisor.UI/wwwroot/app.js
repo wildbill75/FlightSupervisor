@@ -3124,8 +3124,31 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (pLogs) pLogs.innerHTML = "";
                     const sFeed = document.getElementById('scoreFeed');
                     if (sFeed) sFeed.innerHTML = "<li style=\"color:#64748b; text-align:center;\">Tracking standing by...</li>";
-                    // Auto switch to Briefing tab
-                    document.querySelector('.menu li[data-target="briefing"]').click();
+                    // Auto switch to GroundOps instead of Briefing
+                    setTimeout(() => {
+                        let sbPayloadStr = "[]";
+                        try {
+                            let sbPayload = [];
+                            if (window.allRotations && window.allRotations.length > 0) {
+                                sbPayload = window.allRotations.map(r => r.data);
+                            }
+                            sbPayloadStr = JSON.stringify(sbPayload);
+                            window.chrome.webview.postMessage({ action: 'syncRotationsAndStart', payloadStr: sbPayloadStr });
+                            
+                            setTimeout(() => {
+                                window.chrome.webview.postMessage({ action: 'finishDispatch' });
+                                
+                                // Clean up UI state
+                                const dispatchModal = document.getElementById('simbriefDispatchModal');
+                                if (dispatchModal) dispatchModal.style.display = 'none';
+                                
+                                const btnFinishDispatch = document.getElementById('btnFinishDispatch');
+                                if (btnFinishDispatch) btnFinishDispatch.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+                            }, 800); // Small 800ms delay to let the dashboard prepare visually
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    }, 500);
                 }
                 break;
             case 'groundOpsReady':
@@ -4352,15 +4375,9 @@ if (timeSkipModal) {
 
 window.requestTimeSkip = function(minutes) {
     if (window.chrome && window.chrome.webview) {
-        window.chrome.webview.postMessage({ action: 'timeSkip', minutes: minutes });
-    }
-};
-
-// Expose method to trigger time skip IPC
-window.requestTimeSkip = function(minutes) {
-    if (window.chrome && window.chrome.webview) {
         window.chrome.webview.postMessage({ action: 'requestTimeSkip', minutes: minutes });
-        document.getElementById('timeSkipModal').classList.add('hidden');
+        const modal = document.getElementById('timeSkipModal');
+        if (modal) modal.classList.add('hidden');
     }
 };
 

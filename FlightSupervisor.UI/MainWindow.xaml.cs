@@ -1365,9 +1365,24 @@ namespace FlightSupervisor.UI
                         if (minutes > 0) 
                         {
                             _currentSimTime = _currentSimTime.AddMinutes(minutes); // Advance global tracking time
-                            if (_cabinManager != null && _cabinManager.CurrentSimLocalTime != DateTime.MinValue)
-                                _cabinManager.CurrentSimLocalTime = _cabinManager.CurrentSimLocalTime.AddMinutes(minutes);
+                            
+                            // Let the CabinManager consume resources (water, waste, temperatures, etc.)
+                            if (_cabinManager != null)
+                            {
+                                int simAdvanceSec = minutes * 60;
+                                _cabinManager.CurrentSimLocalTime = _cabinManager.CurrentSimLocalTime.AddSeconds(simAdvanceSec);
+                                _cabinManager.FastForward(simAdvanceSec, _phaseManager.CurrentPhase);
+                            }
+
                             _groundOpsManager.TimeSkip(minutes); // Advance ground ops progress
+                            
+                            // Send to MSFS
+                            if (_simConnectService != null && _simConnectService.IsConnected)
+                            {
+                                _simConnectService.SendTimeWarpCommand(_currentSimTime);
+                                SendToWeb(new { type = "log", message = $"[SYSTEM] Dispatched SimConnect TimeWarp to {_currentSimTime:HH:mm}Z" });
+                            }
+
                             SendToWeb(new { type = "log", message = $"[CAPTAIN] Time advanced by {minutes} minutes." });
                             SendTelemetryToWeb();
                         }
