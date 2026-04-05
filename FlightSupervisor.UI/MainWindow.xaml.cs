@@ -200,10 +200,13 @@ namespace FlightSupervisor.UI
 
                 double currentCabinTemp = 22.0;
 
-                // Fenix Cabin Temp Fwd/Aft expose the rotary knob position from 0.0 (Cold) to 1.0 (Hot). 
-                // We map this into an empirical A320 range of 18°C to 30°C. If Lvar sends actual temp, we use it directly.
-                double mappedTempFwd = _phaseManager.FenixCabinTempFwd > 2.0 ? _phaseManager.FenixCabinTempFwd : 18.0 + (_phaseManager.FenixCabinTempFwd * 12.0);
-                double mappedTempAft = _phaseManager.FenixCabinTempAft > 2.0 ? _phaseManager.FenixCabinTempAft : 18.0 + (_phaseManager.FenixCabinTempAft * 12.0);
+                // Fenix Cabin Temp Fwd/Aft expose the rotary knob position (usually 0 to 100 scale, sometimes 0 to 1.0). 
+                // We map this into an empirical A320 range of 18°C to 30°C.
+                double normFwd = _phaseManager.FenixCabinTempFwd > 1.5 ? Math.Min(100.0, _phaseManager.FenixCabinTempFwd) / 100.0 : _phaseManager.FenixCabinTempFwd;
+                double normAft = _phaseManager.FenixCabinTempAft > 1.5 ? Math.Min(100.0, _phaseManager.FenixCabinTempAft) / 100.0 : _phaseManager.FenixCabinTempAft;
+
+                double mappedTempFwd = 18.0 + (normFwd * 12.0);
+                double mappedTempAft = 18.0 + (normAft * 12.0);
 
                 if (_phaseManager.FenixCabinTempFwd > 0.01 || _phaseManager.FenixCabinTempAft > 0.01) 
                 {
