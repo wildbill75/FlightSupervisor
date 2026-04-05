@@ -1977,7 +1977,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                const isAtGate = payload.phaseEnum === 'AtGate';
+                const isAtGate = payload.phaseEnum === 'AtGate' || payload.phaseEnum === 'Turnaround';
                 const boardingFinished = payload.passengers && payload.passengers.length > 0 ? payload.passengers.every(p => (p.IsBoarded !== undefined ? p.IsBoarded : p.isBoarded)) : false;
                 const hideCabinStats = isAtGate && !boardingFinished;
 
@@ -3716,10 +3716,11 @@ function renderGroundOps(services) {
             timeDisplay = `<span class="text-xl font-mono font-black tracking-wider ml-auto drop-shadow-[0_0_10px_currentColor] min-w-[70px] text-right" style="color: inherit;">${m}:${sec}</span>`;
         }
 
+        let smMsg = s.StatusMessage !== undefined ? s.StatusMessage : s.statusMessage;
         let inlineStateHtml = '';
-        if (stateVal === 1) inlineStateHtml = `<span class="text-yellow-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-yellow-500/20 shadow-[0_0_10px_rgba(250,204,21,0.1)]"><span class="animate-pulse">●</span> IN TRANSIT</span>`;
+        if (stateVal === 1) inlineStateHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-sky-500/20 shadow-[0_0_10px_rgba(56,189,248,0.1)]"><span class="animate-pulse">●</span> ${smMsg ? smMsg.toUpperCase() : 'IN PROGRESS'}</span>`;
         else if (stateVal === 2) inlineStateHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-orange-500/20 shadow-[0_0_10px_rgba(249,115,22,0.1)]">WAITING (DELAYED)</span>`;
-        else if (stateVal === 5) inlineStateHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-sky-500/20 shadow-[0_0_10px_rgba(14,165,233,0.1)] animate-pulse">WAITING FOR PILOT</span>`;
+        else if (stateVal === 5) inlineStateHtml = `<span class="text-yellow-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-yellow-500/20 shadow-[0_0_10px_rgba(250,204,21,0.1)] animate-pulse">WAITING FOR PILOT</span>`;
         // if completed, we could show completed, but let's keep it clean
         if (isCompleted) inlineStateHtml = `<span class="text-slate-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-white/5"><span class="material-symbols-outlined text-[10px]">check</span> COMPLETED</span>`;
 

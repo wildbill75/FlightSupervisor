@@ -1325,26 +1325,7 @@
         </div>
     </div>
 
-    <!-- TIME SKIP MODAL -->
-    <div id="timeSkipModal" class="fixed top-20 right-10 z-[200] hidden flex-col w-64 glass-panel border border-white/10 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] overflow-hidden cursor-move">
-        <div class="bg-black/60 p-3 border-b border-white/5 flex items-center justify-between pointer-events-none">
-            <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-sky-400 text-[16px]">fast_forward</span>
-                <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest leading-none">Time Jump (Turnaround)</span>
-            </div>
-            <button onclick="document.getElementById('timeSkipModal').classList.add('hidden')" class="text-slate-500 hover:text-white transition-colors cursor-pointer pointer-events-auto leading-none">
-                <span class="material-symbols-outlined text-[16px]">close</span>
-            </button>
-        </div>
-        <div class="p-4 flex flex-col gap-3 bg-[#1C1F26]/80 cursor-default">
-            <p class="text-[10px] text-slate-400 leading-relaxed italic text-center px-2">Fast forward SimTime. Blocked 5 mins before Target SOBT.</p>
-            <div class="grid grid-cols-3 gap-2">
-                <button onclick="window.requestTimeSkip(1)" class="py-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded font-mono text-xs font-bold transition-all shadow-[0_0_10px_rgba(14,165,233,0.1)]">+1m</button>
-                <button onclick="window.requestTimeSkip(5)" class="py-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded font-mono text-xs font-bold transition-all shadow-[0_0_10px_rgba(14,165,233,0.1)]">+5m</button>
-                <button onclick="window.requestTimeSkip(10)" class="py-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded font-mono text-xs font-bold transition-all shadow-[0_0_10px_rgba(14,165,233,0.1)]">+10m</button>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Hidden audio element -->
     <audio id="chimeEmergency" src="assets/sounds/chime_emergency.wav" preload="auto"></audio>
