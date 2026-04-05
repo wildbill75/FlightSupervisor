@@ -2184,7 +2184,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Update Flight Details Dashboard
-                if (payload.sessionFlightsCompleted !== undefined) window.activeLegIndex = payload.sessionFlightsCompleted;
+                if (payload.sessionFlightsCompleted !== undefined) {
+                    if (window.activeLegIndex !== payload.sessionFlightsCompleted) {
+                        window.activeLegIndex = payload.sessionFlightsCompleted;
+                        if (window.renderBriefingTabs) window.renderBriefingTabs();
+                    }
+                }
                 const dashDetails = document.getElementById('dashFlightDetails');
                 if (dashDetails && window.allRotations && window.allRotations.length > 0) {
                     const currentIdx = Math.min(window.activeLegIndex || 0, window.allRotations.length - 1);
@@ -3764,7 +3769,6 @@ function renderGroundOps(services) {
                     let wasteLvl = s.State === 1 ? s.ProgressPercent : Math.round(window.lastTelemetry?.wasteLevel || 0);
                     let wColor = waterLvl < 20 ? '#EF4444' : (waterLvl < 50 ? '#F59E0B' : '#60A5FA');
                     let waColor = wasteLvl > 90 ? '#EF4444' : (wasteLvl > 70 ? '#F59E0B' : '#60A5FA');
-                    if (isCompleted) { wColor = '#475569'; waColor = '#475569'; }
                     return `
                         <div class="absolute bottom-0 left-0 w-full flex flex-col gap-[1px] bg-black/40 h-2">
                             <div class="h-1">
@@ -4356,7 +4360,7 @@ const timeSkipModal = document.getElementById('timeSkipModal');
 
 if (timeSkipModal) {
     timeSkipModal.addEventListener('mousedown', (e) => {
-        if (e.target.tagName.toLowerCase() === 'button') return;
+        if (e.target.closest('button')) return;
         isTimeSkipDragging = true;
         tsDragStartX = e.clientX - timeSkipModal.offsetLeft;
         tsDragStartY = e.clientY - timeSkipModal.offsetTop;
@@ -4385,10 +4389,7 @@ window.requestTimeSkip = function(minutes) {
 // Expose a method to handle showing hiding based on FlightPhase (from telemetry)
 window.checkTimeSkipVisibility = function(phase) {
     if (!timeSkipModal) return;
-    if (phase === 'Turnaround' || phase === 'AtGate') {
-        timeSkipModal.classList.remove('hidden');
-        timeSkipModal.classList.add('flex');
-    } else {
+    if (phase !== 'Turnaround' && phase !== 'AtGate' && phase !== 0 && phase !== 9) {
         timeSkipModal.classList.add('hidden');
         timeSkipModal.classList.remove('flex');
     }

@@ -349,6 +349,7 @@ namespace FlightSupervisor.UI.Services
 
         public void InitializeFlightDemographics(FlightSupervisor.UI.Services.AirlineProfile profile, FlightSupervisor.UI.Services.ManifestData manifestData = null)
         {
+            _hasAnnouncedBoardingComplete = false;
             _hasWarnedPushbackNoSeatbelts = false;
             HasPenalizedRefuelingSeatbelts = false;
 
@@ -568,6 +569,12 @@ namespace FlightSupervisor.UI.Services
         
         public event Action? OnDeboardingComplete;
 
+        public void StartBoarding()
+        {
+            HasBoardingStarted = true;
+            _hasAnnouncedBoardingComplete = false;
+        }
+
         public void StartDeboarding()
         {
             if (State != CabinState.Idle && State != CabinState.LandingSecured) return; // Prevent double trigger
@@ -605,7 +612,8 @@ namespace FlightSupervisor.UI.Services
 
             if (deltaSeconds >= 300)
             {
-                LastKnownCabinTemp = CurrentAmbientTemperature; // Instantly stabilize environment during massive time warps
+                // Removed LastKnownCabinTemp = CurrentAmbientTemperature 
+                // to prevent instant temperature jumps when AC is actually running during time skip.
             }
         }
 
@@ -663,6 +671,7 @@ namespace FlightSupervisor.UI.Services
                         for(int i = 0; i < Math.Min(toBoard, unboarded.Count); i++)
                         {
                             unboarded[i].IsBoarded = true;
+                            unboarded[i].IsSeatbeltFastened = _seatbeltsOn ? (_rnd.Next(100) < 98) : (_rnd.Next(100) < 33);
                         }
                     }
                 }
@@ -679,6 +688,7 @@ namespace FlightSupervisor.UI.Services
                             for(int i = 0; i < Math.Min(toBoard, unboarded.Count); i++)
                             {
                                 unboarded[i].IsBoarded = true;
+                                unboarded[i].IsSeatbeltFastened = _seatbeltsOn ? (_rnd.Next(100) < 98) : (_rnd.Next(100) < 33);
                             }
                         }
                     }
@@ -689,8 +699,15 @@ namespace FlightSupervisor.UI.Services
             bool isAircraftMoving = phase >= FlightPhase.Pushback && phase <= FlightPhase.Arrived;
             if ((isBoarded || isAircraftMoving) && !_hasAnnouncedBoardingComplete && State != CabinState.Deboarding)
             {
-                foreach (var p in PassengerManifest) p.IsBoarded = true;
+                var remainingUnboarded = PassengerManifest.Where(x => !x.IsBoarded).ToList();
+                foreach (var p in remainingUnboarded)
+                {
+                    p.IsBoarded = true;
+                    p.IsSeatbeltFastened = _seatbeltsOn ? (_rnd.Next(100) < 98) : (_rnd.Next(100) < 33);
+                }
+                
                 _lastBoardingTick = DateTime.MaxValue; // Set to MaxValue to stop progressive logic
+                State = CabinState.Idle;
                 _hasAnnouncedBoardingComplete = true;
                 _audio?.SpeakAsPurser("Boarding is complete Captain.");
                 OnCrewMessage?.Invoke("cyan", LocalizationService.Translate("PA: Boarding is complete.", "PA: Embarquement terminé."), null);
@@ -1633,6 +1650,14 @@ namespace FlightSupervisor.UI.Services
         {
             ClearAnxiety();
             
+            State = CabinState.Idle;
+            HasBoardingStarted = false;
+            _hasAnnouncedBoardingComplete = false;
+            _lastBoardingTick = DateTime.MaxValue;
+            _thermalDissatisfactionGauge = 0.0;
+            _hasWarnedPushbackNoSeatbelts = false;
+            HasPenalizedRefuelingSeatbelts = false;
+            
             SetSatisfaction(Math.Round(80.0 + (_rnd.NextDouble() * 16.0), 1));
             _manualApologyCount = 0;
             CrewProactivity = Math.Round(30.0 + (_rnd.NextDouble() * 70.0));
@@ -1703,12 +1728,16 @@ namespace FlightSupervisor.UI.Services
                     }
                     else 
                     {
-                        if (!p.IsSeatbeltFastened && _rnd.Next(1000) < 10) p.IsSeatbeltFastened = true;
-                        else if (p.IsSeatbeltFastened && _rnd.Next(1000) < 20) p.IsSeatbeltFastened = false;
-                        
-                        if (phase == FlightPhase.AtGate) 
+                        if (phase == FlightPhase.AtGate || phase == FlightPhase.Turnaround) 
                         {
-                             if (!p.IsSeatbeltFastened && _rnd.Next(1000) < 30) p.IsSeatbeltFastened = true;
+                             // Maintain around 33% fastened when boarding/at gate
+                             if (p.IsSeatbeltFastened && _rnd.Next(100) < 5) p.IsSeatbeltFastened = false;
+                             else if (!p.IsSeatbeltFastened && _rnd.Next(100) < 2) p.IsSeatbeltFastened = true;
+                        }
+                        else
+                        {
+                             if (!p.IsSeatbeltFastened && _rnd.Next(1000) < 10) p.IsSeatbeltFastened = true;
+                             else if (p.IsSeatbeltFastened && _rnd.Next(1000) < 20) p.IsSeatbeltFastened = false;
                         }
                     }
                 }

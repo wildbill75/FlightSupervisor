@@ -198,36 +198,49 @@ namespace FlightSupervisor.UI
                 var boardingService = _groundOpsManager?.Services?.FirstOrDefault(s => s.Name == "Boarding");
                 double boardingProg = boardingService != null ? (boardingService.ProgressPercent / 100.0) : -1.0;
 
-                double currentCabinTemp = 22.0;
-
-                // Fenix Cabin Temp Fwd/Aft expose the rotary knob position (usually 0 to 100 scale, sometimes 0 to 1.0). 
-                // We map this into an empirical A320 range of 18°C to 30°C.
-                double normFwd = _phaseManager.FenixCabinTempFwd > 1.5 ? Math.Min(100.0, _phaseManager.FenixCabinTempFwd) / 100.0 : _phaseManager.FenixCabinTempFwd;
-                double normAft = _phaseManager.FenixCabinTempAft > 1.5 ? Math.Min(100.0, _phaseManager.FenixCabinTempAft) / 100.0 : _phaseManager.FenixCabinTempAft;
-
-                double mappedTempFwd = 18.0 + (normFwd * 12.0);
-                double mappedTempAft = 18.0 + (normAft * 12.0);
+                double targetTemp = _cabinManager.CurrentAmbientTemperature;
+                double variance = (_currentSimTime.Second % 10) / 20.0; // 0.0 to 0.45 pseudo-random drift
+                bool hasAcPower = _phaseManager.Eng1Combustion || _phaseManager.Eng2Combustion || _phaseManager.FenixApuBleed;
 
                 if (_phaseManager.FenixCabinTempFwd > 0.01 || _phaseManager.FenixCabinTempAft > 0.01) 
                 {
                     _hasReceivedFenixLvars = true; // Latch so we know the data link is active!
                 }
 
-                if (_hasReceivedFenixLvars) 
+                if (_hasReceivedFenixLvars && hasAcPower) 
                 {
-                    currentCabinTemp = (mappedTempFwd + mappedTempAft) / 2.0;
+                    // Fenix Cabin Temp Fwd/Aft expose the rotary knob position (usually 0 to 100 scale, sometimes 0 to 1.0). 
+                    // We map this into an empirical A320 range of 18°C to 30°C.
+                    double normFwd = _phaseManager.FenixCabinTempFwd > 1.5 ? Math.Min(100.0, _phaseManager.FenixCabinTempFwd) / 100.0 : _phaseManager.FenixCabinTempFwd;
+                    double normAft = _phaseManager.FenixCabinTempAft > 1.5 ? Math.Min(100.0, _phaseManager.FenixCabinTempAft) / 100.0 : _phaseManager.FenixCabinTempAft;
+
+                    double mappedTempFwd = 18.0 + (normFwd * 12.0);
+                    double mappedTempAft = 18.0 + (normAft * 12.0);
+
+                    targetTemp = ((mappedTempFwd + mappedTempAft) / 2.0) + variance;
                 }
-                else if (Math.Abs(_cabinManager.CurrentAmbientTemperature - 15.0) > 0.1)
+                else if (hasAcPower)
                 {
-                    currentCabinTemp = _cabinManager.CurrentAmbientTemperature;
+                    // Without explicit Fenix LVar, we gently trend towards a comfortable 22.5 +/- 0.5
+                    targetTemp = 22.0 + variance;
                 }
 
                 _cabinManager.Tick(_phaseManager.GForce, _lastKnownBank, isBoardingComplete,
                                    _currentSimTime, sobtDate, _phaseManager.CurrentPhase, _lastKnownGroundSpeed,
                                    _lastKnownAltitude, _lastKnownVerticalSpeed,
                                    _phaseManager.IsGoAroundActive || _phaseManager.IsSevereTurbulenceActive || _phaseManager.HasEngineFailure,
-                                   currentCabinTemp, boardingProg);
+                                   targetTemp, boardingProg);
                 
+                // Continuous Check for Refueling rules
+                if (_phaseManager.IsSeatbeltsOn && _groundOpsManager != null && !_cabinManager.HasPenalizedRefuelingSeatbelts)
+                {
+                    var refSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Refueling");
+                    if (refSvc != null && (refSvc.State == GroundServiceState.InProgress || refSvc.State == GroundServiceState.Delayed))
+                    {
+                        _cabinManager.TriggerRefuelingSeatbeltPenalty();
+                    }
+                }
+
                 // Keep parameters refilled if Ground Services are marked as Completed while at the Gate or Turnaround
                 if (_phaseManager.CurrentPhase == FlightPhase.AtGate || _phaseManager.CurrentPhase == FlightPhase.Turnaround)
                 {
