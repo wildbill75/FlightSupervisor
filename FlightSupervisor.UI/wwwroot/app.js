@@ -1685,34 +1685,23 @@ document.addEventListener('DOMContentLoaded', () => {
         btnFinishDispatch.addEventListener('click', () => {
             const dispatchModal = document.getElementById('simbriefDispatchModal');
             if (dispatchModal) dispatchModal.style.display = 'none';
-            const btnStartOps = document.getElementById('btnStartGroundOps');
-            if (btnStartOps) {
-                btnStartOps.disabled = false;
-                btnStartOps.classList.remove('opacity-30', 'cursor-not-allowed');
-            }
-            // Reset footer states
-            const btnFinishDispatch = document.getElementById('btnFinishDispatch');
-            if (btnFinishDispatch) {
-                btnFinishDispatch.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
-            }
-            window.chrome.webview.postMessage({ action: 'finishDispatch' });
-        });
-    }
 
-    const btnStartGroundOps = document.getElementById('btnStartGroundOps');
-    if (btnStartGroundOps) {
-        btnStartGroundOps.addEventListener('click', () => {
-            let expIcao = '';
-            if (window.allRotations && window.allRotations.length > 0 && window.allRotations[0].data && window.allRotations[0].data.origin) {
-                expIcao = window.allRotations[0].data.origin.icao_code || '';
+            let sbPayloadStr = "[]";
+            try {
+                let sbPayload = [];
+                if (window.allRotations && window.allRotations.length > 0) {
+                    sbPayload = window.allRotations.map(r => r.data);
+                }
+                sbPayloadStr = JSON.stringify(sbPayload);
+                window.chrome.webview.postMessage({ action: 'syncRotationsAndStart', payloadStr: sbPayloadStr });
+                // Reset footer states
+                btnFinishDispatch.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+                window.chrome.webview.postMessage({ action: 'finishDispatch' });
+            } catch (err) {
+                console.error("Failed to stringify or send payload", err);
+                // Fallback to finishDispatch anyway to unblock the UI
+                window.chrome.webview.postMessage({ action: 'finishDispatch' });
             }
-            let expLat = '';
-            let expLon = '';
-            if (window.allRotations && window.allRotations.length > 0 && window.allRotations[0].data && window.allRotations[0].data.origin) {
-                expLat = window.allRotations[0].data.origin.pos_lat || '';
-                expLon = window.allRotations[0].data.origin.pos_long || '';
-            }
-            window.chrome.webview.postMessage({ action: 'requestStartGroundOps', expectedIcao: expIcao, expectedLat: expLat, expectedLon: expLon });
         });
     }
 
@@ -1858,6 +1847,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 break;
+            case 'phaseChanged':
+                console.log(`[IPC] Phase changed to ${payload.phase || msg.phase}`);
+                if (payload.phase === 'GroundOps' || msg.phase === 'GroundOps') {
+                    const navDashboard = document.getElementById('navDashboard');
+                    if (navDashboard) navDashboard.click(); // Switch to the dashboard
+                    if (window.populateActiveFlightDetails) {
+                        window.populateActiveFlightDetails();
+                    }
+                    
+                    // Ensure Ground Ops UI forces a render
+                    if (window.groundOpsCache && window.renderGroundOps) {
+                        window.renderGroundOps(window.groundOpsCache);
+                    }
+                }
+                break;
             case 'savedUsername':
                 document.getElementById('sbUsername').value = payload.username;
                 if (payload.username) {
@@ -1890,6 +1894,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'telemetry':
                 window.lastTelemetry = payload;
+                if (typeof window.checkTimeSkipVisibility === 'function') {
+                    window.checkTimeSkipVisibility(payload.phaseEnum);
+                }
                 if (payload.isDelayed === true) flightHasExperiencedDelay = true;
                 if (payload.turbulenceSeverity > 1) flightHasExperiencedTurbulence = true; // Moderate, Severe or Extreme
 
@@ -2713,23 +2720,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('flightReportModal').style.display = 'flex';
                 }
                 break;
-            case 'gatekeeperPassed':
-                if (window.allRotations) {
-                    const sbPayload = window.allRotations.map(r => r.data);
-                    window.chrome.webview.postMessage({ action: 'syncRotationsAndStart', payloadStr: JSON.stringify(sbPayload) });
-                }
-                const btnStartOpsGlobal = document.getElementById('btnStartGroundOps');
-                if (btnStartOpsGlobal) {
-                    btnStartOpsGlobal.disabled = true;
-                    btnStartOpsGlobal.style.backgroundColor = '#334155';
-                    btnStartOpsGlobal.style.color = '#64748b';
-                    btnStartOpsGlobal.style.cursor = 'not-allowed';
-                    const lbl = document.getElementById('btnStartOpsLabel');
-                    if (lbl) lbl.innerText = 'OPS IN PROGRESS';
-                }
-                const menuTarget = document.querySelector('.menu li[data-target="groundops"]');
-                if (menuTarget) menuTarget.click();
-                break;
             case 'gatekeeperFailed':
                 alert(payload.reason || "Cannot start ground ops! Ensure MSFS is connected, engines are off, parking brake is set, and aircraft is on the ground.");
                 break;
@@ -3139,12 +3129,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 break;
             case 'groundOpsReady':
-                const startBtn = document.getElementById('btnStartGroundOps');
-                if (startBtn) {
-                    startBtn.disabled = false;
-                    startBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> START OPS';
-                }
-                // Reset Meta Bar display to default
                 const metaText = document.getElementById('dashMetaText');
                 const metaFill = document.getElementById('dashMetaFill');
                 const metaBar = document.getElementById('dashMetaBar');
@@ -3189,11 +3173,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (mText) { mText.innerText = dictCancel ? (dictCancel.gops_meta_aborted || "OPS ABORTED") : "OPS ABORTED"; mText.style.color = "#DC2626"; }
                     if (mFill) mFill.style.backgroundColor = "#DC2626";
                 }
-                const btnStartGroundOps = document.getElementById('btnStartGroundOps');
-                if (btnStartGroundOps) {
-                    btnStartGroundOps.disabled = true;
-                    btnStartGroundOps.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> GROUND OPS PNL';
-                }
+
                 break;
             case 'flightData':
                 const d = payload.data;
@@ -3456,6 +3436,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 break;
             case 'groundOps':
+                window.groundOpsCache = payload.services;
                 renderGroundOps(payload.services);
                 updateMetaBar(payload.services);
                 if (payload.airportTier) {
@@ -3639,12 +3620,18 @@ function renderGroundOps(services) {
         return;
     }
 
-    let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+    let html = `
+    <div class="flex justify-end mb-4">
+        <button onclick="document.getElementById('timeSkipModal').classList.remove('hidden')" class="bg-amber-600/20 text-amber-500 border border-amber-500/30 px-3 py-1 rounded text-[10px] uppercase tracking-widest font-bold hover:bg-amber-600/40 transition-colors shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+            <span class="material-symbols-outlined text-[12px] align-middle mr-1">fast_forward</span> Time skip
+        </button>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
 
-    let isDeboardingActive = services.some(s => s.Name === "Deboarding" && s.State === 1);
-    let isBoardingActive = services.some(s => s.Name === "Boarding" && s.State === 1);
-    let isCleaningActive = services.some(s => s.Name.includes("Clean") && s.State === 1);
-    let isCateringActive = services.some(s => s.Name.includes("Catering") && s.State === 1);
+    let isDeboardingActive = services.some(s => (s.Name || s.name) === "Deboarding" && (s.State !== undefined ? s.State : s.state) === 1);
+    let isBoardingActive = services.some(s => (s.Name || s.name) === "Boarding" && (s.State !== undefined ? s.State : s.state) === 1);
+    let isCleaningActive = services.some(s => (s.Name || s.name).includes("Clean") && (s.State !== undefined ? s.State : s.state) === 1);
+    let isCateringActive = services.some(s => (s.Name || s.name).includes("Catering") && (s.State !== undefined ? s.State : s.state) === 1);
     let isPaxMoving = isDeboardingActive || isBoardingActive;
     let isCrewWorking = isCleaningActive || isCateringActive;
 
@@ -3703,8 +3690,15 @@ function renderGroundOps(services) {
         if (remainingSec > 0 && stateVal !== 3 && stateVal !== 4) {
             const m = Math.floor(remainingSec / 60).toString().padStart(2, '0');
             const sec = (remainingSec % 60).toString().padStart(2, '0');
-            timeDisplay = `<span class="text-xs font-mono tracking-wider opacity-80 ml-2" style="color: inherit;">${m}:${sec}</span>`;
+            timeDisplay = `<span class="text-xl font-mono font-black tracking-wider ml-auto drop-shadow-[0_0_10px_currentColor] min-w-[70px] text-right" style="color: inherit;">${m}:${sec}</span>`;
         }
+
+        let inlineStateHtml = '';
+        if (stateVal === 1) inlineStateHtml = `<span class="text-yellow-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-yellow-500/20 shadow-[0_0_10px_rgba(250,204,21,0.1)]"><span class="animate-pulse">●</span> IN TRANSIT</span>`;
+        else if (stateVal === 2) inlineStateHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-orange-500/20 shadow-[0_0_10px_rgba(249,115,22,0.1)]">WAITING (DELAYED)</span>`;
+        else if (stateVal === 5) inlineStateHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-sky-500/20 shadow-[0_0_10px_rgba(14,165,233,0.1)] animate-pulse">WAITING FOR PILOT</span>`;
+        // if completed, we could show completed, but let's keep it clean
+        if (isCompleted) inlineStateHtml = `<span class="text-slate-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-white/5"><span class="material-symbols-outlined text-[10px]">check</span> COMPLETED</span>`;
 
         let extraBadgesHtml = '';
         if (window.lastTelemetry && stateVal !== 1 && !isCompleted) {
@@ -3731,9 +3725,8 @@ function renderGroundOps(services) {
                 extraBadgesHtml += `<div class="px-2 py-1 rounded ${waBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${waColor}; border-color: ${waColor}40;">🗑️ ${Math.round(wasl)}%</div>`;
             }
         }
-
-        const safeName = s.Name.replace(/\s|[^\w]/g, '');
-        const clickAction = isClickable ? `onclick="window.chrome.webview.postMessage({action: '${actionName}', service: '${s.Name}'})"` : '';
+        const safeName = (s.Name || s.name).replace(/\s|[^\w]/g, '');
+        const clickAction = isClickable ? `onclick="window.chrome.webview.postMessage({action: '${actionName}', service: '${(s.Name || s.name)}'})"` : '';
         
         let barColor = stateVal === 3 ? '#34D399' : (stateVal === 2 ? '#FB923C' : '#4A90E2');
         if (isCompleted && !(s.IsPreServiced || s.isPreServiced)) barColor = '#34D399';
@@ -3774,10 +3767,13 @@ function renderGroundOps(services) {
                             </div>`;
                 }
             })()}
-                <button ${clickAction} class="w-full h-full p-5 flex items-center justify-start gap-4 outline-none border-none ${buttonClass}" style="${buttonStyles}">
-                    <span class="text-2xl">${icon}</span>
-                    <strong class="font-headline tracking-widest uppercase text-base">${buttonText}</strong>
-                    <div class="ml-auto flex items-center justify-end">${timeDisplay}</div>
+                <button ${clickAction} class="w-full h-full p-5 flex items-center justify-between outline-none border-none relative ${buttonClass}" style="${buttonStyles}">
+                    <div class="flex items-center gap-4 overflow-hidden">
+                        <span class="text-2xl shrink-0">${icon}</span>
+                        <strong class="font-headline tracking-widest uppercase text-base truncate">${buttonText}</strong>
+                        ${inlineStateHtml ? `<span class="ml-2 shrink-0">${inlineStateHtml}</span>` : ''}
+                    </div>
+                    ${timeDisplay}
                 </button>
                 ${extraBadgesHtml ? `<div class="absolute top-2 right-2 flex items-center">${extraBadgesHtml}</div>` : ''}
                 
@@ -4328,7 +4324,55 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
+// --- TIME SKIP WIDGET LOGIC ---
+let isTimeSkipDragging = false;
+let tsDragStartX = 0;
+let tsDragStartY = 0;
+const timeSkipModal = document.getElementById('timeSkipModal');
 
+if (timeSkipModal) {
+    timeSkipModal.addEventListener('mousedown', (e) => {
+        if (e.target.tagName.toLowerCase() === 'button') return;
+        isTimeSkipDragging = true;
+        tsDragStartX = e.clientX - timeSkipModal.offsetLeft;
+        tsDragStartY = e.clientY - timeSkipModal.offsetTop;
+    });
 
+    document.addEventListener('mousemove', (e) => {
+        if (!isTimeSkipDragging) return;
+        timeSkipModal.style.left = `${e.clientX - tsDragStartX}px`;
+        timeSkipModal.style.top = `${e.clientY - tsDragStartY}px`;
+        timeSkipModal.style.right = 'auto'; // allow free movement
+    });
 
+    document.addEventListener('mouseup', () => {
+        isTimeSkipDragging = false;
+    });
+}
+
+window.requestTimeSkip = function(minutes) {
+    if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.postMessage({ action: 'timeSkip', minutes: minutes });
+    }
+};
+
+// Expose method to trigger time skip IPC
+window.requestTimeSkip = function(minutes) {
+    if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.postMessage({ action: 'requestTimeSkip', minutes: minutes });
+        document.getElementById('timeSkipModal').classList.add('hidden');
+    }
+};
+
+// Expose a method to handle showing hiding based on FlightPhase (from telemetry)
+window.checkTimeSkipVisibility = function(phase) {
+    if (!timeSkipModal) return;
+    if (phase === 'Turnaround' || phase === 'AtGate') {
+        timeSkipModal.classList.remove('hidden');
+        timeSkipModal.classList.add('flex');
+    } else {
+        timeSkipModal.classList.add('hidden');
+        timeSkipModal.classList.remove('flex');
+    }
+};
 

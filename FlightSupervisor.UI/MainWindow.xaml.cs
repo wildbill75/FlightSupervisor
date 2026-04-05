@@ -840,6 +840,13 @@ namespace FlightSupervisor.UI
                         SendToWeb(new { type = "pauseStateUpdate", isPaused = newState });
                     }
                 }
+                else if (action == "timeSkip")
+                {
+                    if (doc.RootElement.TryGetProperty("minutes", out var minProp) && minProp.TryGetInt32(out int minutes))
+                    {
+                        ExecuteTimeSkip(minutes);
+                    }
+                }
                 else if (action == "updateAvatar")
                 {
                     var payloadStr = doc.RootElement.GetProperty("payload").GetString();
@@ -1118,10 +1125,15 @@ namespace FlightSupervisor.UI
                 else if (action == "finishDispatch")
                 {
                     Dispatcher.Invoke(() => {
+                        SendToWeb(new { type = "phaseChanged", phase = "GroundOps" });
+
                         if (_currentResponse == null && _rotationQueue.Count > 0)
                         {
                             LoadNextLeg();
                         }
+                        
+                        // Force telemetry render
+                        SendTelemetryToWeb();
                     });
                 }
 
@@ -1332,6 +1344,34 @@ namespace FlightSupervisor.UI
                     Dispatcher.Invoke(() => {
                         this.Topmost = doc.RootElement.GetProperty("value").GetBoolean();
                     });
+                }
+                else if (action == "requestTimeSkip")
+                {
+                    if (doc.RootElement.TryGetProperty("minutes", out var minProp))
+                    {
+                        int minutes = minProp.GetInt32();
+                        
+                        if (_groundOpsManager.TargetSobt.HasValue && _currentSimTime.AddMinutes(minutes) >= _groundOpsManager.TargetSobt.Value.AddMinutes(-5))
+                        {
+                            SendToWeb(new { type = "log", message = $"[SYSTEM] Time Skip clamped. Aircraft is within 5 minutes of Scheduled Off Block Time." });
+                            int allowedMinutes = (int)(_groundOpsManager.TargetSobt.Value.AddMinutes(-5) - _currentSimTime).TotalMinutes;
+                            if (allowedMinutes > 0) {
+                                minutes = allowedMinutes;
+                            } else {
+                                minutes = 0;
+                            }
+                        }
+
+                        if (minutes > 0) 
+                        {
+                            _currentSimTime = _currentSimTime.AddMinutes(minutes); // Advance global tracking time
+                            if (_cabinManager != null && _cabinManager.CurrentSimLocalTime != DateTime.MinValue)
+                                _cabinManager.CurrentSimLocalTime = _cabinManager.CurrentSimLocalTime.AddMinutes(minutes);
+                            _groundOpsManager.TimeSkip(minutes); // Advance ground ops progress
+                            SendToWeb(new { type = "log", message = $"[CAPTAIN] Time advanced by {minutes} minutes." });
+                            SendTelemetryToWeb();
+                        }
+                    }
                 }
                 else if (action == "setCrisisFrequency")
                 {
@@ -1956,6 +1996,23 @@ namespace FlightSupervisor.UI
         private double ToRadians(double angle)
         {
             return Math.PI * angle / 180.0;
+        }
+
+        public void ExecuteTimeSkip(int minutes)
+        {
+            if (_currentSimTime != DateTime.MinValue)
+            {
+                _currentSimTime = _currentSimTime.AddMinutes(minutes);
+            }
+        }
+
+        public void ExecuteForcePhase(string phaseName)
+        {
+            if (Enum.TryParse<FlightPhase>(phaseName, true, out var phase))
+            {
+                _phaseManager.ForcePhase(phase);
+                SendToWeb(new { type = "flightPhaseUpdate", phase = _phaseManager.GetLocalizedPhaseName() });
+            }
         }
     }
 }

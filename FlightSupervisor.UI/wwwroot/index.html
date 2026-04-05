@@ -599,10 +599,6 @@
                             <span class="material-symbols-outlined text-[16px]">print</span>
                             ACARS REQ
                         </button>
-                        <button id="btnStartGroundOps" disabled class="bg-sky-600/20 border border-sky-500/50 text-sky-400 hover:bg-sky-500 hover:text-white px-6 py-2 rounded-lg transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(14,165,233,0.3)] disabled:opacity-30 disabled:cursor-not-allowed uppercase font-bold text-[10px] tracking-widest">
-                            <span class="material-symbols-outlined text-[16px]">flight_takeoff</span>
-                            <span id="btnStartOpsLabel">GROUND OPS PNL</span>
-                        </button>
                     </div>
                 </div>
                 
@@ -691,16 +687,7 @@
                     <p class="text-slate-500 font-mono text-center" data-i18n="ground_pending">Ground operations pending SimBrief initialization...</p>
                 </div>
                 
-                <!-- Ground Ops Bottom Progress Bar -->
-                <div id="groundOpsBottomProgress" class="mt-4 bg-[#1C1F26] rounded-xl border border-white/5 p-6 flex flex-col gap-3" style="display: none;">
-                    <div class="flex justify-between items-end">
-                        <span class="text-xs font-bold tracking-widest uppercase text-sky-400" id="groundOpsStatusText">BOARDING IN PROGRESS</span>
-                        <span class="text-xs font-mono text-slate-400" id="groundOpsTimeText">T-Minus 15m</span>
-                    </div>
-                    <div class="w-full bg-slate-800/50 h-2 rounded-full overflow-hidden">
-                        <div id="groundOpsProgressBar" class="h-full bg-sky-500 shadow-[0_0_10px_rgba(14,165,233,0.6)] transition-all duration-1000 w-[0%]"></div>
-                    </div>
-                </div>
+
             </section>
 
 
@@ -1063,22 +1050,7 @@
         </div>
     </main>
 
-    <!-- FULL SCREEN STARTUP OVERLAY -->
-    <div id="dashStartOverlay" style="-webkit-app-region: drag;" class="fixed inset-0 z-[200] bg-slate-950 flex flex-col items-center justify-center transition-opacity duration-1000">
-        <!-- Intro Text -->
-        <div class="flex flex-col items-center select-none pt-20">
-            <h1 id="introTitle" class="text-6xl md:text-8xl font-black font-headline tracking-[0.25em] text-white/90 drop-shadow-[0_0_30px_rgba(255,255,255,0.05)] opacity-0 transform scale-95 transition-all duration-[3000ms] ease-out pointer-events-none" style="text-shadow: 0 0 20px rgba(255,255,255,0.1);">TRUE AIRMANSHIP</h1>
-            <h2 id="introSub" class="text-sm md:text-xl font-body tracking-[0.6em] text-sky-400 uppercase mt-8 opacity-0 transition-opacity duration-[2000ms] ease-out delay-1000 pl-4 pointer-events-none">The Final Report</h2>
-        </div>
 
-        <!-- Start Button -->
-        <div id="introAction" class="mt-24 opacity-0 transition-opacity duration-[1500ms] ease-out delay-[2500ms] no-drag">
-            <button onclick="handleStartAction()" 
-                    class="px-10 py-3.5 rounded-full border border-sky-400/20 bg-sky-900/10 text-sky-400 font-bold tracking-[0.3em] text-[10px] uppercase hover:bg-sky-400/20 hover:border-sky-400 transition-all shadow-[0_0_20px_rgba(56,189,248,0.05)]">
-                Start New Shift
-            </button>
-        </div>
-    </div>
 
     <!-- BOTTOM ACTION BAR REMOVED PER USER DIRECTIVE -->
 
@@ -1353,13 +1325,34 @@
         </div>
     </div>
 
+    <!-- TIME SKIP MODAL -->
+    <div id="timeSkipModal" class="fixed top-20 right-10 z-[200] hidden flex-col w-64 glass-panel border border-white/10 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] overflow-hidden cursor-move">
+        <div class="bg-black/60 p-3 border-b border-white/5 flex items-center justify-between pointer-events-none">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-sky-400 text-[16px]">fast_forward</span>
+                <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest leading-none">Time Jump (Turnaround)</span>
+            </div>
+            <button onclick="document.getElementById('timeSkipModal').classList.add('hidden')" class="text-slate-500 hover:text-white transition-colors cursor-pointer pointer-events-auto leading-none">
+                <span class="material-symbols-outlined text-[16px]">close</span>
+            </button>
+        </div>
+        <div class="p-4 flex flex-col gap-3 bg-[#1C1F26]/80 cursor-default">
+            <p class="text-[10px] text-slate-400 leading-relaxed italic text-center px-2">Fast forward SimTime. Blocked 5 mins before Target SOBT.</p>
+            <div class="grid grid-cols-3 gap-2">
+                <button onclick="window.requestTimeSkip(1)" class="py-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded font-mono text-xs font-bold transition-all shadow-[0_0_10px_rgba(14,165,233,0.1)]">+1m</button>
+                <button onclick="window.requestTimeSkip(5)" class="py-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded font-mono text-xs font-bold transition-all shadow-[0_0_10px_rgba(14,165,233,0.1)]">+5m</button>
+                <button onclick="window.requestTimeSkip(10)" class="py-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded font-mono text-xs font-bold transition-all shadow-[0_0_10px_rgba(14,165,233,0.1)]">+10m</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Hidden audio element -->
     <audio id="chimeEmergency" src="assets/sounds/chime_emergency.wav" preload="auto"></audio>
     <audio id="notifSound" src="notification.mp3" preload="auto"></audio>
 
     <script src="locales.js?v=3" charset="utf-8"></script>
     <script src="narrative.js?v=1" charset="utf-8"></script>
-    <script src="app.js?v=17" charset="utf-8"></script>
+    <script src="app.js?v=25" charset="utf-8"></script>
     <script>
         // Update top bar dynamically using the flight status
         setInterval(() => {
@@ -1384,30 +1377,13 @@
             }
         }, 1000);
 
-        // Intro Animation Trigger
+        // Intro Animation Trigger (Bypassed, immediately start)
         document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                const title = document.getElementById('introTitle');
-                if(title) {
-                    title.classList.remove('opacity-0', 'scale-95');
-                    title.classList.add('opacity-100', 'scale-100');
-                }
-                const sub = document.getElementById('introSub');
-                if(sub) sub.classList.remove('opacity-0');
-                
-                const btn = document.getElementById('introAction');
-                if(btn) btn.classList.remove('opacity-0');
-            }, 300);
+            handleStartAction();
         });
 
         // Start Action Handler
         function handleStartAction() {
-            // Bypass setup modals entirely
-            document.getElementById('dashStartOverlay').style.opacity = '0';
-            setTimeout(() => {
-                document.getElementById('dashStartOverlay').style.display = 'none';
-            }, 1000);
-
             // Establish pristine shift as default setup behavior
             let ffClean = localStorage.getItem('firstFlightClean') !== 'false';
             localStorage.setItem('firstFlightClean', ffClean);
@@ -1418,9 +1394,6 @@
             // Initialize Dashboard State for Blank App
             if (typeof isFlightCancelled !== 'undefined') isFlightCancelled = false;
             window.isFlightActive = true;
-            
-            const dso = document.getElementById('dashStartOverlay');
-            if (dso) dso.classList.add('opacity-0', 'pointer-events-none');
             
             const btnFetchLabel = document.getElementById('btnFetchPlanLabel');
             if (btnFetchLabel) btnFetchLabel.innerText = 'CANCEL FLIGHT';
@@ -1439,10 +1412,82 @@
             if (window.renderBriefingTabs) window.renderBriefingTabs();
             if (window.updateDashboard) window.updateDashboard();
 
-            // Switch to Briefing Tab automatically to prompt import
-            const briefMenuBtn = document.querySelector('.menu li[data-target="briefing"]');
-            if (briefMenuBtn) briefMenuBtn.click();
+            // Switch to Dashboard Tab automatically
+            const dashMenuBtn = document.querySelector('.menu li[data-target="dashboard"]');
+            if (dashMenuBtn) dashMenuBtn.click();
         }
+    </script>
+    
+    <!-- Draggable Time Skip Modal -->
+    <div id="timeSkipModal" class="fixed z-[100] hidden bg-[#14161C] border border-white/10 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.8)]" style="top: 100px; left: calc(50% - 150px); width: 300px; cursor: default;">
+        <div id="timeSkipModalHeader" class="bg-black/40 px-4 py-2 border-b border-white/5 rounded-t-xl flex justify-between items-center select-none" style="cursor: grab;">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-amber-500 text-sm">schedule</span>
+                <span class="text-xs font-bold uppercase tracking-widest text-slate-300">Time Warp</span>
+            </div>
+            <button onclick="document.getElementById('timeSkipModal').classList.add('hidden')" class="text-slate-500 hover:text-white transition-colors">
+                <span class="material-symbols-outlined text-sm">close</span>
+            </button>
+        </div>
+        <div class="p-4 flex flex-col gap-3">
+            <p class="text-xs text-slate-400 font-mono text-center mb-1">Fast-forward ground operations & turnaround time.</p>
+            <div class="grid grid-cols-3 gap-2">
+                <button onclick="window.requestTimeSkip(5)" class="py-2 bg-slate-800 hover:bg-amber-600/30 border border-slate-700 hover:border-amber-500/50 rounded font-mono text-white text-sm font-bold transition-all shadow-inner">+5m</button>
+                <button onclick="window.requestTimeSkip(10)" class="py-2 bg-slate-800 hover:bg-amber-600/40 border border-slate-700 hover:border-amber-500/60 rounded font-mono text-white text-sm font-bold transition-all shadow-inner">+10m</button>
+                <button onclick="window.requestTimeSkip(20)" class="py-2 bg-slate-800 hover:bg-amber-600/50 border border-slate-700 hover:border-amber-500/70 rounded font-mono text-white text-sm font-bold transition-all shadow-inner">+20m</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        window.requestTimeSkip = function(minutes) {
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage({ action: 'requestTimeSkip', minutes: minutes });
+            }
+        };
+
+        function dragElement(elmnt, header) {
+            var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            if (header) {
+                header.onmousedown = dragMouseDown;
+            } else {
+                elmnt.onmousedown = dragMouseDown;
+            }
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+                elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+        
+        // Initialize dragging
+        setTimeout(() => {
+            const modal = document.getElementById('timeSkipModal');
+            const header = document.getElementById('timeSkipModalHeader');
+            if (modal && header) {
+                dragElement(modal, header);
+            }
+        }, 1000);
     </script>
 </body>
 </html>

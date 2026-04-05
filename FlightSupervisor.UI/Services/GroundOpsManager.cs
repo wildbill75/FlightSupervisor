@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using FlightSupervisor.UI.Models.SimBrief;
@@ -263,6 +263,22 @@ namespace FlightSupervisor.UI.Services
             _isStarted = true;
             _lastTick = DateTime.UtcNow;
             
+            OnOpsUpdated?.Invoke();
+        }
+
+        public void TimeSkip(int minutes)
+        {
+            if (!_isStarted) return;
+            int secondsToAdd = minutes * 60;
+            foreach (var s in Services)
+            {
+                if (s.State == GroundServiceState.InProgress || s.State == GroundServiceState.Delayed)
+                {
+                    s.ElapsedSec += secondsToAdd;
+                }
+            }
+            // Trigger tick to evaluate completions
+            Tick(null);
             OnOpsUpdated?.Invoke();
         }
 
