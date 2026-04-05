@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -695,7 +695,7 @@ namespace FlightSupervisor.UI.Services
 
             // GATING CONDITION: Disable all stress, comfort, and thermal decay while boarding is in progress.
             // Points 1 & 2: Monitoring and Thermal effects should not apply while doors are open and boarding.
-            if (!isBoarded && phase == FlightPhase.AtGate)
+            if (!isBoarded && (phase == FlightPhase.AtGate || phase == FlightPhase.Turnaround))
             {
                 _thermalDissatisfactionGauge = 0.0;
                 return; 
@@ -831,7 +831,7 @@ namespace FlightSupervisor.UI.Services
                     {
                         _hasWarnedThermal = true;
                         
-                        if (cabinTemperature > 24.0) 
+                        if (LastKnownCabinTemp > 24.0) 
                         {
                             string msg = "Captain, it's getting really hot back here, passengers are complaining. Can you adjust the temperature?";
                             _audio?.SpeakAsPurser(msg);
@@ -851,7 +851,7 @@ namespace FlightSupervisor.UI.Services
                         // Softened penalties
                         ModifySatisfaction(-5.0);
                         DecreaseComfort(5.0);
-                        OnPenaltyTriggered?.Invoke(-10, LocalizationService.Translate($"Comfort Violation: Critical Cabin Temperature ({cabinTemperature:F1}°C)", $"Alerte Confort : Température Critique ({cabinTemperature:F1}°C)"));
+                        OnPenaltyTriggered?.Invoke(-10, LocalizationService.Translate($"Comfort Violation: Critical Cabin Temperature ({LastKnownCabinTemp:F1}°C)", $"Alerte Confort : Température Critique ({LastKnownCabinTemp:F1}°C)"));
                     }
                     // Message PNC de résolution quand le pilote corrige complètement la température
                     else if (_thermalDissatisfactionGauge < 20.0 && _hasWarnedThermal)

@@ -225,6 +225,25 @@ namespace FlightSupervisor.UI
                                    _phaseManager.IsGoAroundActive || _phaseManager.IsSevereTurbulenceActive || _phaseManager.HasEngineFailure,
                                    currentCabinTemp, boardingProg);
                 
+                // Keep parameters refilled if Ground Services are marked as Completed while at the Gate or Turnaround
+                if (_phaseManager.CurrentPhase == FlightPhase.AtGate || _phaseManager.CurrentPhase == FlightPhase.Turnaround)
+                {
+                    if (_groundOpsManager.Services.FirstOrDefault(s => s.Name == "Water/Waste")?.State == GroundServiceState.Completed)
+                    {
+                        _cabinManager.WaterLevel = 100.0;
+                        _cabinManager.WasteLevel = 0.0;
+                    }
+                    if (_groundOpsManager.Services.FirstOrDefault(s => s.Name == "Cleaning" || s.Name == "Light Cleaning" || s.Name == "Deep Cleaning")?.State == GroundServiceState.Completed)
+                    {
+                        _cabinManager.CabinCleanliness = 100.0;
+                    }
+                    if (_groundOpsManager.Services.FirstOrDefault(s => s.Name == "Catering")?.State == GroundServiceState.Completed)
+                    {
+                        _cabinManager.CateringRations = Math.Max(_cabinManager.CateringRations, 150); // Default full capacity
+                        _cabinManager.CateringCompletion = 100.0;
+                    }
+                }
+
                 SendTelemetryToWeb();
                 
                 if (_panelServer != null)
