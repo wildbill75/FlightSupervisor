@@ -263,6 +263,7 @@ namespace FlightSupervisor.UI.Services
         private Dictionary<string, string> _audioExtensions = new Dictionary<string, string>();
         
         private DateTime _lastBoardingTick = DateTime.MaxValue;
+        private bool _hasAnnouncedBoardingComplete = false;
 
         private static readonly (string En, string Fr)[] CruiseEvents = new[] {
             ("Captain, a passenger is feeling a bit airsick. We are taking care of it.", "Commandant, un passager a le mal de l'air. Nous nous en occupons."),
@@ -685,10 +686,12 @@ namespace FlightSupervisor.UI.Services
             }
             
             // Check if boarding just completed (either via ground ops or moving to Taxi without GroundOps)
-            if ((isBoarded || phase != FlightPhase.AtGate) && _lastBoardingTick != DateTime.MaxValue && State != CabinState.Deboarding)
+            bool isAircraftMoving = phase >= FlightPhase.Pushback && phase <= FlightPhase.Arrived;
+            if ((isBoarded || isAircraftMoving) && !_hasAnnouncedBoardingComplete && State != CabinState.Deboarding)
             {
                 foreach (var p in PassengerManifest) p.IsBoarded = true;
-                _lastBoardingTick = DateTime.MaxValue; // Set to MaxValue to prevent re-triggering
+                _lastBoardingTick = DateTime.MaxValue; // Set to MaxValue to stop progressive logic
+                _hasAnnouncedBoardingComplete = true;
                 _audio?.SpeakAsPurser("Boarding is complete Captain.");
                 OnCrewMessage?.Invoke("cyan", LocalizationService.Translate("PA: Boarding is complete.", "PA: Embarquement terminé."), null);
             }
@@ -1666,6 +1669,7 @@ namespace FlightSupervisor.UI.Services
             _issuedCommands.Clear();
             HasBoardingStarted = false;
             _lastBoardingTick = DateTime.MaxValue;
+            _hasAnnouncedBoardingComplete = false;
         }
         
         private void UpdatePassengerStates(FlightPhase phase, bool isSevere)
