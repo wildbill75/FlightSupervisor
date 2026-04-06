@@ -96,6 +96,16 @@ namespace FlightSupervisor.UI
                 var services = _groundOpsManager.Services;
                 Dispatcher.Invoke(() => SendToWeb(new { type = "groundOps", services = services }));
             };
+            _groundOpsManager.OnServiceStarted += srvName => {
+                if (srvName.Equals("Boarding", StringComparison.OrdinalIgnoreCase))
+                {
+                    _cabinManager.StartBoarding();
+                }
+                else if (srvName.Equals("Deboarding", StringComparison.OrdinalIgnoreCase))
+                {
+                    _cabinManager.StartDeboarding();
+                }
+            };
 
             _eventEngine = new FlightSupervisor.UI.Services.GroundEventEngine();
             _eventEngine.OnEventTriggered += OnGroundEventTriggered;
@@ -188,7 +198,7 @@ namespace FlightSupervisor.UI
                 
                 // Track Cabin Anxiety
                 var bService = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Boarding");
-                bool isBoardingComplete = bService?.State == GroundServiceState.Completed;
+                bool isBoardingComplete = bService?.State == GroundServiceState.Completed || bService?.State == GroundServiceState.Skipped;
                 _cabinManager.HasBoardingStarted = bService != null && bService.State != GroundServiceState.NotStarted && bService.State != GroundServiceState.WaitingForAction;
                 DateTime? sobtDate = null;
                 if (_currentResponse?.Times?.SchedOut != null && long.TryParse(_currentResponse.Times.SchedOut, out long sobtUnix))

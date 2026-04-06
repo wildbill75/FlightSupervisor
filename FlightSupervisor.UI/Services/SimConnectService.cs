@@ -110,6 +110,15 @@ namespace FlightSupervisor.UI.Services
             public double FuelTotalMass;
             public double Latitude;
             public double Longitude;
+            
+            // Native MSFS Time Variables
+            public double ZuluYear;
+            public double ZuluMonth;
+            public double ZuluDay;
+            public double LocalTime;
+            public double LocalYear;
+            public double LocalMonth;
+            public double LocalDay;
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
@@ -177,6 +186,15 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "FUEL TOTAL QUANTITY WEIGHT", "Kilograms", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "PLANE LATITUDE", "Degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "PLANE LONGITUDE", "Degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                
+                // Add native Time Variables exactly matching the PlaneDataStruct
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "ZULU YEAR", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "ZULU MONTH OF YEAR", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "ZULU DAY OF MONTH", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "LOCAL TIME", "Seconds", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "LOCAL YEAR", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "LOCAL MONTH OF YEAR", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "LOCAL DAY OF MONTH", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
 
                 _simconnect.AddToDataDefinition(DEFINITIONS.GForceData, "G FORCE", "GForce", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
 
@@ -240,33 +258,31 @@ namespace FlightSupervisor.UI.Services
                 
                 DateTime currentUtc = DateTime.UtcNow;
                 try {
-                    TimeSpan timeSpan = TimeSpan.FromSeconds(planeData.ZuluTime);
-                    currentUtc = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds, DateTimeKind.Utc);
+                    TimeSpan zuluSpan = TimeSpan.FromSeconds(planeData.ZuluTime);
+                    int zYear = planeData.ZuluYear > 1900 ? (int)planeData.ZuluYear : DateTime.UtcNow.Year;
+                    int zMonth = planeData.ZuluMonth >= 1 && planeData.ZuluMonth <= 12 ? (int)planeData.ZuluMonth : DateTime.UtcNow.Month;
+                    int zDay = planeData.ZuluDay >= 1 && planeData.ZuluDay <= 31 ? (int)planeData.ZuluDay : DateTime.UtcNow.Day;
+                    
+                    int hours = zuluSpan.Hours < 0 ? 0 : (zuluSpan.Hours > 23 ? 23 : zuluSpan.Hours);
+                    int mins = zuluSpan.Minutes < 0 ? 0 : (zuluSpan.Minutes > 59 ? 59 : zuluSpan.Minutes);
+                    int secs = zuluSpan.Seconds < 0 ? 0 : (zuluSpan.Seconds > 59 ? 59 : zuluSpan.Seconds);
+                    
+                    currentUtc = new DateTime(zYear, zMonth, zDay, hours, mins, secs, DateTimeKind.Utc);
                     CurrentSimZuluTime = currentUtc;
                     OnSimTimeReceived?.Invoke(currentUtc);
-                } catch { }
-
-                try {
-                    DateTime localDt = currentUtc;
-                    // Validate coordinates
-                    if (!double.IsNaN(planeData.Latitude) && !double.IsNaN(planeData.Longitude) && (Math.Abs(planeData.Latitude) > 0.01 || Math.Abs(planeData.Longitude) > 0.01))
-                    {
-                        string tzid = TimeZoneLookup.GetTimeZone(planeData.Latitude, planeData.Longitude).Result;
-                        if (!string.IsNullOrEmpty(tzid) && tzid != "UTC" && !tzid.StartsWith("Etc/"))
-                        {
-                            var tzi = TZConvert.GetTimeZoneInfo(tzid);
-                            localDt = TimeZoneInfo.ConvertTimeFromUtc(currentUtc, tzi);
-                        }
-                        else
-                        {
-                            // Solar fallback
-                            double offsetHours = Math.Round(planeData.Longitude / 15.0);
-                            localDt = currentUtc.AddHours(offsetHours);
-                        }
-                    }
-                    OnSimLocalTimeReceived?.Invoke(localDt);
                 } catch { 
-                    OnSimLocalTimeReceived?.Invoke(currentUtc);
+                    CurrentSimZuluTime = currentUtc;
+                    OnSimTimeReceived?.Invoke(currentUtc);
+                }
+
+                DateTime currentLocal = currentUtc;
+                try {
+                    // Use C#'s built-in ToLocalTime() which accurately applies the correct timezone offset
+                    // AND handles Daylight Savings Time automatically.
+                    currentLocal = currentUtc.ToLocalTime();
+                    OnSimLocalTimeReceived?.Invoke(currentLocal);
+                } catch { 
+                    OnSimLocalTimeReceived?.Invoke(currentLocal);
                 }
                 
                 OnAmbientTemperatureReceived?.Invoke(planeData.AmbientTemperature);

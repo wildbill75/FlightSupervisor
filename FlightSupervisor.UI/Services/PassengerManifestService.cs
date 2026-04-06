@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using FlightSupervisor.UI.Models;
 using FlightSupervisor.UI.Models.SimBrief;
 
 namespace FlightSupervisor.UI.Services
@@ -29,7 +30,7 @@ namespace FlightSupervisor.UI.Services
     {
         private Random _rnd = new Random();
 
-        public ManifestData GenerateManifest(SimBriefResponse plan)
+        public ManifestData GenerateManifest(SimBriefResponse plan, PilotProfile profile = null)
         {
             var manifest = new ManifestData();
 
@@ -46,7 +47,7 @@ namespace FlightSupervisor.UI.Services
             if (maxPax <= 0 || maxPax < paxCount) maxPax = paxCount;
 
             // --- FLIGHT CREW ---
-            GenerateCrew(manifest, maxPax, plan?.Aircraft?.BaseType ?? plan?.Aircraft?.IcaoCode ?? "", plan?.Origin?.IcaoCode ?? "", plan?.General?.Airline ?? "");
+            GenerateCrew(manifest, maxPax, plan?.Aircraft?.BaseType ?? plan?.Aircraft?.IcaoCode ?? "", plan?.Origin?.IcaoCode ?? "", plan?.General?.Airline ?? "", profile);
 
             // --- PASSENGERS ---
             if (paxCount > 0)
@@ -57,7 +58,7 @@ namespace FlightSupervisor.UI.Services
             return manifest;
         }
 
-        private void GenerateCrew(ManifestData manifest, int maxPax, string aircraftType, string originIcao, string airline)
+        private void GenerateCrew(ManifestData manifest, int maxPax, string aircraftType, string originIcao, string airline, PilotProfile profile)
         {
             int cabinCrewCount = Math.Max(1, (int)Math.Ceiling(maxPax / 50.0));
 
@@ -72,7 +73,13 @@ namespace FlightSupervisor.UI.Services
             string crewNat = GetAirlineNationality(airline, originIcao);
             var crewNames = GenerateNames(crewNat, totalCrew);
 
-            manifest.FlightCrew.Add(new CrewMember { Role = "Commander", Name = crewNames[0] });
+            string captainName = crewNames[0];
+            if (profile != null && !string.IsNullOrWhiteSpace(profile.FirstName))
+            {
+                captainName = $"{profile.FirstName} {profile.LastName}".Trim();
+            }
+
+            manifest.FlightCrew.Add(new CrewMember { Role = "Captain", Name = captainName });
             manifest.FlightCrew.Add(new CrewMember { Role = "First Officer", Name = crewNames[1] });
 
             if (cabinCrewCount > 0)

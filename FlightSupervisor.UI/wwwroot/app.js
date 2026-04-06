@@ -1,10 +1,10 @@
 window.parseBriefing = (data, rd) => {
-                    if (!data) return '';
-                    if (typeof data === 'string') return "<i>Updating format...</i>";
+    if (!data) return '';
+    if (typeof data === 'string') return "<i>Updating format...</i>";
 
-                    let html = '';
-                    if (data.HeaderText) {
-                        html += `
+    let html = '';
+    if (data.HeaderText) {
+        html += `
                         <div class="mb-6 relative">
                             <button onclick="document.getElementById('rawOpText_${rd?.general?.flight_number || '0'}').classList.toggle('hidden')" class="text-[10px] uppercase font-bold tracking-widest text-slate-500 hover:text-sky-400 transition-colors flex items-center gap-1 mb-2">
                                 <span class="material-symbols-outlined text-[14px]">visibility</span> Toggle Dispatch Narrative
@@ -13,55 +13,55 @@ window.parseBriefing = (data, rd) => {
                                 ${data.HeaderText}
                             </div>
                         </div>`;
-                    }
-                    html += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">';
+    }
+    html += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">';
 
-                    if (data.Stations && Array.isArray(data.Stations)) {
-                        data.Stations.forEach(station => {
-                            let icon = "location_on";
-                            if (station.Id.toLowerCase() === "origin") icon = "flight_takeoff";
-                            else if (station.Id.toLowerCase() === "destination") icon = "flight_land";
-                            else if (station.Id.toLowerCase() === "alternate") icon = "alt_route";
+    if (data.Stations && Array.isArray(data.Stations)) {
+        data.Stations.forEach(station => {
+            let icon = "location_on";
+            if (station.Id.toLowerCase() === "origin") icon = "flight_takeoff";
+            else if (station.Id.toLowerCase() === "destination") icon = "flight_land";
+            else if (station.Id.toLowerCase() === "alternate") icon = "alt_route";
 
-                            // Search for specific Tropopause/Level data to show in station text
-                            let stnFlHtml = '';
-                            if (station.Id.toLowerCase() === "origin") {
-                                let flightLevel = rd?.general?.initial_alt || rd?.general?.initial_altitude || '';
-                                if (flightLevel) {
-                                    flightLevel = flightLevel.replace(/^0+/, '');
-                                    if (flightLevel.length === 5 && flightLevel.endsWith('00')) flightLevel = flightLevel.substring(0, 3);
-                                    stnFlHtml += `<span class="bg-black/40 px-2 py-1 rounded text-sky-400 font-bold ml-2">FL${flightLevel}</span>`;
-                                }
-                            }
+            // Search for specific Tropopause/Level data to show in station text
+            let stnFlHtml = '';
+            if (station.Id.toLowerCase() === "origin") {
+                let flightLevel = rd?.general?.initial_alt || rd?.general?.initial_altitude || '';
+                if (flightLevel) {
+                    flightLevel = flightLevel.replace(/^0+/, '');
+                    if (flightLevel.length === 5 && flightLevel.endsWith('00')) flightLevel = flightLevel.substring(0, 3);
+                    stnFlHtml += `<span class="bg-black/40 px-2 py-1 rounded text-sky-400 font-bold ml-2">FL${flightLevel}</span>`;
+                }
+            }
 
-                            let variablesHtml = '';
-                            const getSeverityStyle = (severity) => {
-                                if (severity === 2 || severity === 'Danger') return { text: 'text-red-100 font-bold', bg: 'bg-red-900/60 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-pulse' };
-                                if (severity === 1 || severity === 'Warning') return { text: 'text-orange-100 font-bold', bg: 'bg-orange-900/50 border-orange-500/80 shadow-[0_0_10px_rgba(249,115,22,0.3)]' };
-                                return null;
-                            };
+            let variablesHtml = '';
+            const getSeverityStyle = (severity) => {
+                if (severity === 2 || severity === 'Danger') return { text: 'text-red-100 font-bold', bg: 'bg-red-900/60 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-pulse' };
+                if (severity === 1 || severity === 'Warning') return { text: 'text-orange-100 font-bold', bg: 'bg-orange-900/50 border-orange-500/80 shadow-[0_0_10px_rgba(249,115,22,0.3)]' };
+                return null;
+            };
 
-                            const addPill = (label, value, defaultColorClass, severity) => {
-                                if (value && value.trim() !== '') {
-                                    const sevStyle = getSeverityStyle(severity);
-                                    const finalTextColor = sevStyle ? sevStyle.text : defaultColorClass;
-                                    const finalBgColor = sevStyle ? sevStyle.bg : 'bg-black/40 border-white/5';
-                                    variablesHtml += `
+            const addPill = (label, value, defaultColorClass, severity) => {
+                if (value && value.trim() !== '') {
+                    const sevStyle = getSeverityStyle(severity);
+                    const finalTextColor = sevStyle ? sevStyle.text : defaultColorClass;
+                    const finalBgColor = sevStyle ? sevStyle.bg : 'bg-black/40 border-white/5';
+                    variablesHtml += `
                                         <div class="flex flex-col rounded p-2 justify-center items-center text-center transition-all border ${finalBgColor}">
                                             <span class="text-[9px] uppercase tracking-wider text-slate-400/90 mb-1">${label}</span>
                                             <span class="font-bold text-[13px] ${finalTextColor}">${value}</span>
                                         </div>
                                     `;
-                                }
-                            };
+                }
+            };
 
-                            addPill('QNH', station.Qnh, 'text-purple-400', 0);
-                            addPill('Wind', station.Wind, 'text-emerald-400', station.WindSeverity);
-                            addPill('Temp/Dew', station.TempDew, 'text-slate-200', 0);
-                            addPill('Visibility', station.Visibility, 'text-sky-400', station.VisibilitySeverity);
-                            addPill('Clouds', station.CloudBase, 'text-slate-300', station.CloudSeverity);
+            addPill('QNH', station.Qnh, 'text-purple-400', 0);
+            addPill('Wind', station.Wind, 'text-emerald-400', station.WindSeverity);
+            addPill('Temp/Dew', station.TempDew, 'text-slate-200', 0);
+            addPill('Visibility', station.Visibility, 'text-sky-400', station.VisibilitySeverity);
+            addPill('Clouds', station.CloudBase, 'text-slate-300', station.CloudSeverity);
 
-                            html += `
+            html += `
                             <div class="bg-[#232730] p-5 rounded-xl border border-white/5 flex flex-col gap-4 shadow-xl relative overflow-hidden">
                                 <div class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
                                 
@@ -97,12 +97,12 @@ window.parseBriefing = (data, rd) => {
                                     <div class="text-red-200/80 text-[10px] whitespace-pre-wrap leading-relaxed">${station.Notams}</div>
                                 </div>` : ''}
                             </div>`;
-                        });
-                    }
-                    html += '</div>';
+        });
+    }
+    html += '</div>';
 
-                    if (data.EnrouteText) {
-                        html += `
+    if (data.EnrouteText) {
+        html += `
                         <div class="mt-6 bg-[#232730] p-5 rounded-xl border border-white/5 shadow-xl relative overflow-hidden">
                             <div class="flex items-center gap-2 mb-4 border-b border-white/5 pb-3 relative z-10">
                                 <span class="material-symbols-outlined text-sky-400 text-lg">public</span>
@@ -112,32 +112,32 @@ window.parseBriefing = (data, rd) => {
                                 ${data.EnrouteText}
                             </div>
                         </div>`;
-                    }
+    }
 
-                    return html;
-                };
+    return html;
+};
 
 
 window.renderBriefingTabs = () => {
-                    const pillsContainer = document.getElementById('briefingPills');
-                    const viewsContainer = document.getElementById('briefingViewsContainer');
-                    if (!pillsContainer || !viewsContainer) return;
+    const pillsContainer = document.getElementById('briefingPills');
+    const viewsContainer = document.getElementById('briefingViewsContainer');
+    if (!pillsContainer || !viewsContainer) return;
 
-                    pillsContainer.innerHTML = '';
-                    viewsContainer.innerHTML = '';
+    pillsContainer.innerHTML = '';
+    viewsContainer.innerHTML = '';
 
-                    // Empty State: No flights loaded yet
-                    if (!window.allRotations || window.allRotations.length === 0) {
-                        const btnStartOps = document.getElementById('btnStartGroundOps');
-                        if (btnStartOps) {
-                            btnStartOps.disabled = true;
-                            btnStartOps.classList.add('opacity-30', 'cursor-not-allowed');
-                        }
-                        const gPnl = document.getElementById('manualGroundOpsPnl');
-                        if (gPnl) gPnl.style.display = 'none';
-                        
-                        pillsContainer.style.display = 'none';
-                        viewsContainer.innerHTML = `
+    // Empty State: No flights loaded yet
+    if (!window.allRotations || window.allRotations.length === 0) {
+        const btnStartOps = document.getElementById('btnStartGroundOps');
+        if (btnStartOps) {
+            btnStartOps.disabled = true;
+            btnStartOps.classList.add('opacity-30', 'cursor-not-allowed');
+        }
+        const gPnl = document.getElementById('manualGroundOpsPnl');
+        if (gPnl) gPnl.style.display = 'none';
+
+        pillsContainer.style.display = 'none';
+        viewsContainer.innerHTML = `
                             <div class="flex flex-col items-center justify-center p-16 bg-[#1C1F26] rounded-xl border border-sky-500/20 border-dashed animate-fade-in text-center mt-6 shadow-[0_0_30px_rgba(14,165,233,0.05)]">
                                 <span class="material-symbols-outlined text-6xl text-sky-500/50 mb-4 drop-shadow-[0_0_15px_rgba(14,165,233,0.5)]">route</span>
                                 <h2 class="text-3xl font-black text-white tracking-widest uppercase mb-3">Build Your Rotation</h2>
@@ -156,61 +156,63 @@ window.renderBriefingTabs = () => {
                                 </div>
                             </div>
                         `;
-                        return;
-                    }
+        return;
+    }
 
-                    // Enable Ground Ops Button globally when rotation is active
-                    const globalBtnStartOps = document.getElementById('btnStartGroundOps');
-                    if (globalBtnStartOps) {
-                        globalBtnStartOps.disabled = false;
-                        globalBtnStartOps.classList.remove('opacity-30', 'cursor-not-allowed');
-                    }
-                    const btnCancel = document.getElementById('btnCancelRotations');
-                    if (btnCancel) { btnCancel.style.display = 'flex';
-                    }
+    // Enable Ground Ops Button globally when rotation is active
+    const globalBtnStartOps = document.getElementById('btnStartGroundOps');
+    if (globalBtnStartOps) {
+        globalBtnStartOps.disabled = false;
+        globalBtnStartOps.classList.remove('opacity-30', 'cursor-not-allowed');
+    }
+    const btnCancel = document.getElementById('btnCancelRotations');
+    if (btnCancel) {
+        btnCancel.style.display = 'flex';
+    }
 
-                    pillsContainer.innerHTML = '';
-                    viewsContainer.innerHTML = '';
-                    pillsContainer.style.display = 'flex'; // Restore Pills!
+    pillsContainer.innerHTML = '';
+    viewsContainer.innerHTML = '';
+    pillsContainer.style.display = 'flex'; // Restore Pills!
 
-                    const timeStr = (unixTimestamp) => {
-                        if (isNaN(unixTimestamp) || unixTimestamp <= 0) return '---';
-                        const d = new Date(unixTimestamp * 1000);
-                        return d.getUTCHours().toString().padStart(2, '0') + d.getUTCMinutes().toString().padStart(2, '0');
-                    };
+    const timeStr = (unixTimestamp) => {
+        if (isNaN(unixTimestamp) || unixTimestamp <= 0) return '---';
+        const offset = window.lastTelemetry?.globalTimeOffsetSeconds || 0;
+        const d = new Date((unixTimestamp + offset) * 1000);
+        return d.getUTCHours().toString().padStart(2, '0') + d.getUTCMinutes().toString().padStart(2, '0');
+    };
 
-                    const convertWeight = (valStr) => {
-                        if (!valStr || valStr === '0' || valStr === '0.0') return '---';
-                        let val = parseFloat(valStr);
-                        if (isNaN(val)) return valStr;
-                        return Math.round(val);
-                    };
+    const convertWeight = (valStr) => {
+        if (!valStr || valStr === '0' || valStr === '0.0') return '---';
+        let val = parseFloat(valStr);
+        if (isNaN(val)) return valStr;
+        return Math.round(val);
+    };
 
-                    const AIRLINES = {
-                        'AFR': 'Air France', 'BAW': 'British Airways', 'EZY': 'easyJet', 'RYR': 'Ryanair',
-                        'DLH': 'Lufthansa', 'UAE': 'Emirates', 'QTR': 'Qatar Airways', 'DAL': 'Delta',
-                        'AAL': 'American Airlines', 'UAL': 'United', 'SWA': 'Southwest'
-                    };
+    const AIRLINES = {
+        'AFR': 'Air France', 'BAW': 'British Airways', 'EZY': 'easyJet', 'RYR': 'Ryanair',
+        'DLH': 'Lufthansa', 'UAE': 'Emirates', 'QTR': 'Qatar Airways', 'DAL': 'Delta',
+        'AAL': 'American Airlines', 'UAL': 'United', 'SWA': 'Southwest'
+    };
 
-                    const setActiveTab = (index) => {
-                        document.querySelectorAll('.btn-brief-pill').forEach((btn, i) => {
-                            if (i === index) {
-                                btn.classList.add('bg-sky-500/20', 'text-sky-400', 'border-sky-500/50');
-                                btn.classList.remove('bg-[#1C1F26]', 'text-slate-500', 'border-white/5');
-                            } else {
-                                btn.classList.remove('bg-sky-500/20', 'text-sky-400', 'border-sky-500/50');
-                                btn.classList.add('bg-[#1C1F26]', 'text-slate-500', 'border-white/5');
-                            }
-                        });
-                        document.querySelectorAll('.briefing-view').forEach((view, i) => {
-                            view.style.display = i === index ? 'block' : 'none';
-                        });
-                    };
+    const setActiveTab = (index) => {
+        document.querySelectorAll('.btn-brief-pill').forEach((btn, i) => {
+            if (i === index) {
+                btn.classList.add('bg-sky-500/20', 'text-sky-400', 'border-sky-500/50');
+                btn.classList.remove('bg-[#1C1F26]', 'text-slate-500', 'border-white/5');
+            } else {
+                btn.classList.remove('bg-sky-500/20', 'text-sky-400', 'border-sky-500/50');
+                btn.classList.add('bg-[#1C1F26]', 'text-slate-500', 'border-white/5');
+            }
+        });
+        document.querySelectorAll('.briefing-view').forEach((view, i) => {
+            view.style.display = i === index ? 'block' : 'none';
+        });
+    };
 
-                    // ---- BUILD PILLS & VIEWS ----
-pillsContainer.style.display = 'none';
+    // ---- BUILD PILLS & VIEWS ----
+    pillsContainer.style.display = 'none';
 
-                    let globalHtml = `<div class="briefing-view animate-fade-in" style="display:block;">
+    let globalHtml = `<div class="briefing-view animate-fade-in" style="display:block;">
                         <div class="flex flex-col xl:flex-row gap-6 mb-6">
                             <div class="flex-1 bg-gradient-to-r from-[#1C1F26] to-[#12141A] p-8 rounded-xl border border-white/5 shadow-xl flex items-center gap-6">
                                 <span class="material-symbols-outlined text-6xl text-sky-400 opacity-80">flight</span>
@@ -256,24 +258,24 @@ pillsContainer.style.display = 'none';
                         </h3>
                         <div class="space-y-4" id="briefingLegsContainer">`;
 
-                    const curLeg = window.activeLegIndex || 0;
-                    window.allRotations.forEach((rot, idx) => {
-                        const rd = rot.data;
-                        const isPast = idx < curLeg;
-                        const isActive = idx === curLeg;
-                        
-                        let legStatusHtml = '';
-                        if (isPast) {
-                            legStatusHtml = `<span class="bg-slate-800/80 text-slate-500 font-bold px-3 py-1 rounded text-[10px] tracking-widest border border-slate-700/50 mt-2 inline-block">LEG COMPLETED</span>`;
-                        }
+    const curLeg = window.activeLegIndex || 0;
+    window.allRotations.forEach((rot, idx) => {
+        const rd = rot.data;
+        const isPast = idx < curLeg;
+        const isActive = idx === curLeg;
 
-                        globalHtml += `
+        let legStatusHtml = '';
+        if (isPast) {
+            legStatusHtml = `<span class="bg-slate-800/80 text-slate-500 font-bold px-3 py-1 rounded text-[10px] tracking-widest border border-slate-700/50 mt-2 inline-block">LEG COMPLETED</span>`;
+        }
+
+        globalHtml += `
                             <div draggable="${isActive ? 'false' : (isPast ? 'false' : 'true')}" data-index="${idx}" onclick="window.setBriefingTab(${idx + 1})" class="${!isActive && !isPast ? 'drag-leg-item' : ''} bg-gradient-to-r ${isPast ? 'from-[#111318] to-[#0A0C0F] opacity-50 grayscale' : 'from-[#171A21] to-[#12141A]'} hover:from-sky-900/10 hover:to-[#171A21] transition-all p-6 rounded-xl border ${isActive ? 'border-sky-500/30 shadow-[0_0_15px_rgba(14,165,233,0.15)]' : 'border-white/5 shadow-lg'} cursor-pointer flex items-center justify-between group relative">
                                 <div class="flex items-center gap-6 pointer-events-none">
                                     <div class="flex items-center text-4xl font-black ${isActive ? 'text-sky-500/80' : 'text-slate-800/80 group-hover:text-sky-500/30'} transition-colors">
-                                        ${isPast ? `<span class="material-symbols-outlined text-4xl mr-2 text-slate-700" title="Completed">check_circle</span>` : 
-                                         isActive ? `<span class="material-symbols-outlined text-4xl mr-2 text-sky-500/60" title="Active Leg (Locked)">lock</span>` : 
-                                         `<span class="material-symbols-outlined text-4xl mr-2 cursor-grab active:cursor-grabbing text-slate-700 pointer-events-auto hover:text-white" title="Drag to reorder">drag_indicator</span>`}
+                                        ${isPast ? `<span class="material-symbols-outlined text-4xl mr-2 text-slate-700" title="Completed">check_circle</span>` :
+                isActive ? `<span class="material-symbols-outlined text-4xl mr-2 text-sky-500/60" title="Active Leg (Locked)">lock</span>` :
+                    `<span class="material-symbols-outlined text-4xl mr-2 cursor-grab active:cursor-grabbing text-slate-700 pointer-events-auto hover:text-white" title="Drag to reorder">drag_indicator</span>`}
                                         ${idx + 1}
                                     </div>
                                     <div>
@@ -295,10 +297,10 @@ pillsContainer.style.display = 'none';
                                     </div>
                                     <div class="flex items-center gap-4">
                                         <div class="text-[11px] text-slate-500 font-bold tracking-widest uppercase mt-1 mr-2 flex flex-col items-end">
-                                            <span>ETE ${rd.times?.est_time_enroute ? Math.floor(rd.times.est_time_enroute/3600).toString().padStart(2,'0') + 'H' + Math.floor((rd.times.est_time_enroute%3600)/60).toString().padStart(2,'0') : '---'}</span>
+                                            <span>ETE ${rd.times?.est_time_enroute ? Math.floor(rd.times.est_time_enroute / 3600).toString().padStart(2, '0') + 'H' + Math.floor((rd.times.est_time_enroute % 3600) / 60).toString().padStart(2, '0') : '---'}</span>
                                             ${legStatusHtml}
                                         </div>
-                                        ${isActive && ['A319','A320','A321','A20N'].includes(rd.aircraft?.base_type?.toUpperCase()) ? `
+                                        ${isActive && ['A319', 'A320', 'A321', 'A20N'].includes(rd.aircraft?.base_type?.toUpperCase()) ? `
                                         <button onclick="event.stopPropagation(); window.chrome.webview.postMessage({action: 'fenixExport', path: localStorage.getItem('fenixExportPath'), jsonPayload: JSON.stringify(window.allRotations[${idx}].data)})"
                                                 class="flex items-center gap-2 px-3 py-1 bg-[#1C1F26] hover:bg-amber-500/20 text-slate-500 hover:text-amber-500 text-[10px] font-bold tracking-widest uppercase border border-white/5 hover:border-amber-500/30 rounded transition-colors shadow-lg group-hover:block transition-all">
                                             <span class="material-symbols-outlined text-[14px]">save</span> EXPORT TO FENIX
@@ -307,9 +309,9 @@ pillsContainer.style.display = 'none';
                                 </div>
                             </div>
                         `;
-                    });
+    });
 
-                    globalHtml += `</div>
+    globalHtml += `</div>
                                    <div class="mt-10 mb-10 flex justify-between items-center border-t border-white/5 pt-8">
                                         <button onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' })" class="bg-[#1C1F26] hover:bg-sky-900/20 text-sky-400 font-bold py-4 px-8 rounded-xl uppercase tracking-widest transition-all shadow-lg flex items-center border border-sky-500/30 hover:border-sky-400 gap-3 text-[11px] group">
                                             <span class="material-symbols-outlined text-[16px] group-hover:rotate-90 transition-transform">add</span> ADD FLIGHT LEG
@@ -323,49 +325,49 @@ pillsContainer.style.display = 'none';
                                         </div>
                                    </div>
                                </div>`;
-                    
-                    viewsContainer.innerHTML += globalHtml;
 
-                    // ---- BUILD INDIVIDUAL LEG TABS ----
-                    window.allRotations.forEach((rot, i) => {
-                        const rd = rot.data;
-                        const orig = rd.origin?.icao_code || '---';
-                        const dest = rd.destination?.icao_code || '---';
-                        const acode = rd.general?.icao_airline || 'ZZZ';
-                        const pureAirlineName = AIRLINES[acode] ? AIRLINES[acode] : (rd.general?.airline_name || acode);
-                        const flightIdent = rd.general?.iata_airline ? `${acode}/${rd.general.iata_airline}${rd.general.flight_number}` : `${acode}/${rd.general.flight_number}`;
+    viewsContainer.innerHTML += globalHtml;
 
-                        let dispName = rd.aircraft?.name || rd.aircraft?.base_type || 'Unknown';
-                        if (rd.aircraft?.reg && !dispName.includes(rd.aircraft.reg)) dispName = `${rd.aircraft.reg} - ${dispName}`;
+    // ---- BUILD INDIVIDUAL LEG TABS ----
+    window.allRotations.forEach((rot, i) => {
+        const rd = rot.data;
+        const orig = rd.origin?.icao_code || '---';
+        const dest = rd.destination?.icao_code || '---';
+        const acode = rd.general?.icao_airline || 'ZZZ';
+        const pureAirlineName = AIRLINES[acode] ? AIRLINES[acode] : (rd.general?.airline_name || acode);
+        const flightIdent = rd.general?.iata_airline ? `${acode}/${rd.general.iata_airline}${rd.general.flight_number}` : `${acode}/${rd.general.flight_number}`;
 
-                        let flightLevel = rd.general?.initial_alt || rd.general?.initial_altitude || '';
-                        let stepclimb = rd.general?.stepclimb_string || '';
-                        if (!flightLevel && stepclimb) {
-                            const parts = stepclimb.split('/');
-                            if (parts.length > 1) flightLevel = parts[parts.length - 1];
-                        }
-                        if (flightLevel) {
-                            flightLevel = flightLevel.replace(/^0+/, '');
-                            if (flightLevel.length === 5 && flightLevel.endsWith('00')) flightLevel = flightLevel.substring(0, 3);
-                        }
+        let dispName = rd.aircraft?.name || rd.aircraft?.base_type || 'Unknown';
+        if (rd.aircraft?.reg && !dispName.includes(rd.aircraft.reg)) dispName = `${rd.aircraft.reg} - ${dispName}`;
 
-                        let eteSec = parseInt(rd.times?.est_time_enroute || '0');
-                        let h = Math.floor(eteSec / 3600);
-                        let m = Math.floor((eteSec % 3600) / 60);
+        let flightLevel = rd.general?.initial_alt || rd.general?.initial_altitude || '';
+        let stepclimb = rd.general?.stepclimb_string || '';
+        if (!flightLevel && stepclimb) {
+            const parts = stepclimb.split('/');
+            if (parts.length > 1) flightLevel = parts[parts.length - 1];
+        }
+        if (flightLevel) {
+            flightLevel = flightLevel.replace(/^0+/, '');
+            if (flightLevel.length === 5 && flightLevel.endsWith('00')) flightLevel = flightLevel.substring(0, 3);
+        }
 
-                        const convertWeight = (valStr) => {
-                            if (!valStr) return '';
-                            let val = parseFloat(valStr);
-                            if (isNaN(val)) return valStr;
-                            return Math.round(val);
-                        };
+        let eteSec = parseInt(rd.times?.est_time_enroute || '0');
+        let h = Math.floor(eteSec / 3600);
+        let m = Math.floor((eteSec % 3600) / 60);
 
-                        const uiWeightUnit = document.getElementById('selUnitWeight') ? document.getElementById('selUnitWeight').value : 'LBS';
-                        let fuel = rd.fuel?.plan_ramp || rd.weights?.est_block || rd.weights?.block_fuel || '';
+        const convertWeight = (valStr) => {
+            if (!valStr) return '';
+            let val = parseFloat(valStr);
+            if (isNaN(val)) return valStr;
+            return Math.round(val);
+        };
 
-                        const parsedHtml = window.parseBriefing(rot.briefing, rd);
+        const uiWeightUnit = document.getElementById('selUnitWeight') ? document.getElementById('selUnitWeight').value : 'LBS';
+        let fuel = rd.fuel?.plan_ramp || rd.weights?.est_block || rd.weights?.block_fuel || '';
 
-                        let legHtml = `<div class="briefing-view animate-fade-in" style="display:none;">
+        const parsedHtml = window.parseBriefing(rot.briefing, rd);
+
+        let legHtml = `<div class="briefing-view animate-fade-in" style="display:none;">
                             
                             <!-- BACK TO GLOBAL NAVIGATION -->
                             <div class="mb-6 flex">
@@ -427,8 +429,8 @@ pillsContainer.style.display = 'none';
 
                             `;
 
-                        if (rd.isDummy) {
-                            legHtml += `
+        if (rd.isDummy) {
+            legHtml += `
                             <div class="bg-black/40 p-6 rounded-xl border-2 border-amber-500/30 flex items-center justify-between gap-6 font-mono mt-6 mb-6">
                                 <div class="flex items-center gap-4">
                                     <span class="material-symbols-outlined text-amber-500 text-4xl animate-pulse">pending</span>
@@ -442,8 +444,8 @@ pillsContainer.style.display = 'none';
                                 </button>
                             </div>
                             </div>`;
-                        } else {
-                            legHtml += `
+        } else {
+            legHtml += `
                             <!-- Payload & Fuel Sheet -->
                             <div class="bg-[#1C1F26] p-6 rounded-xl border border-white/5 mb-6 shadow-xl relative overflow-hidden">
                                 <div class="absolute inset-0 bg-gradient-to-br from-emerald-900/5 to-transparent pointer-events-none"></div>
@@ -492,20 +494,20 @@ pillsContainer.style.display = 'none';
                                 </div>
                             </div>
                         </div>`;
-                        }
+        }
 
-                        viewsContainer.innerHTML += legHtml;
-                    });
+        viewsContainer.innerHTML += legHtml;
+    });
 
 
-                    window.setBriefingTab = setActiveTab;
-                    // Auto-focus on the Global Overview (Index 0) instead of the latest leg
-                    setActiveTab(0);
+    window.setBriefingTab = setActiveTab;
+    // Auto-focus on the Global Overview (Index 0) instead of the latest leg
+    setActiveTab(0);
 
-                    if (window.allRotations && window.allRotations.length > 1) {
-                        window.initBriefingDragAndDrop();
-                    }
-                };
+    if (window.allRotations && window.allRotations.length > 1) {
+        window.initBriefingDragAndDrop();
+    }
+};
 
 window.initBriefingDragAndDrop = () => {
     const list = document.getElementById('briefingLegsContainer');
@@ -532,12 +534,12 @@ window.initBriefingDragAndDrop = () => {
             e.preventDefault();
             item.classList.remove('border-t-2', 'border-t-sky-400');
             const targetIdx = parseInt(item.closest('.drag-leg-item').getAttribute('data-index'));
-            
+
             if (draggedItemIdx !== null && draggedItemIdx !== targetIdx) {
                 // Swap/Reorder Array
                 const movedItem = window.allRotations.splice(draggedItemIdx, 1)[0];
                 window.allRotations.splice(targetIdx, 0, movedItem);
-                
+
                 // Recalculate block times based on new sequence
                 window.recalculateAllLegTimes();
                 window.renderBriefingTabs();
@@ -552,14 +554,14 @@ window.initBriefingDragAndDrop = () => {
 
 window.recalculateAllLegTimes = () => {
     if (!window.allRotations || window.allRotations.length === 0) return;
-    
+
     let currentSec = 0;
     const tatSeconds = 35 * 60; // 35 min Turnaround
-    
+
     window.allRotations.forEach((rot, idx) => {
         const rd = rot.data;
         if (!rd.times) rd.times = {};
-        
+
         if (idx === 0) {
             // First leg remains untouched. Base the next departure on this leg's arrival time + Turnaround.
             currentSec = parseInt(rd.times.sched_in || '0');
@@ -567,15 +569,15 @@ window.recalculateAllLegTimes = () => {
                 currentSec = parseInt(rd.times.sched_out || '0') + parseInt(rd.times.est_time_enroute || '0');
             }
             if (currentSec <= 0) currentSec = Math.floor(Date.now() / 1000);
-            currentSec += tatSeconds; 
+            currentSec += tatSeconds;
             return;
         }
-        
+
         rd.times.sched_out = currentSec.toString();
         const ete = parseInt(rd.times.est_time_enroute || '0');
         currentSec += ete;
         rd.times.sched_in = currentSec.toString();
-        currentSec += tatSeconds; 
+        currentSec += tatSeconds;
     });
 };
 
@@ -589,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- UTILITIES ---
-    window.saveLocalToggle = function(key, isChecked) {
+    window.saveLocalToggle = function (key, isChecked) {
         localStorage.setItem(key, isChecked ? 'true' : 'false');
     };
 
@@ -757,7 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         const initialFreq = localStorage.getItem('selCrisisFreq') || 'Realistic';
         window.chrome.webview.postMessage({ action: 'setCrisisFrequency', value: initialFreq });
-        
+
         // Sync Ground Ops configurations with C#
         window.chrome.webview.postMessage({
             action: 'saveSettings',
@@ -791,7 +793,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: format === '12H' });
     };
     let acarsTimeouts = [];
-    
+
     window.cancelRotations = function () {
         location.reload();
     };
@@ -799,40 +801,40 @@ document.addEventListener('DOMContentLoaded', () => {
     window.cancelRotations = function () { location.reload(); };
     window.requestAcarsUpdate = function () {
         if (!window.allRotations || window.allRotations.length === 0) return;
-        
+
         acarsTimeouts.forEach(t => clearTimeout(t));
         acarsTimeouts = [];
-        
+
         let idx = window.activeLegIndex || 0;
         if (idx >= window.allRotations.length) idx = window.allRotations.length - 1;
-        
+
         const rotation = window.allRotations[idx]?.data;
         if (!rotation) return;
-        
+
         document.getElementById('acarsOrigin').innerText = rotation.origin?.icao_code || '----';
         document.getElementById('acarsDest').innerText = rotation.destination?.icao_code || '----';
         document.getElementById('acarsAltn').innerText = rotation.alternate?.icao_code || '----';
-        
+
         document.getElementById('acarsStatus').style.display = 'none';
         document.getElementById('acarsScratchpad').innerText = '';
-        
+
         const btnSend = document.getElementById('btnAcarsSend');
         if (btnSend) {
             btnSend.style.display = 'flex';
             btnSend.innerHTML = 'SEND REQ *';
             btnSend.disabled = false;
         }
-        
+
         const btnClose = document.getElementById('btnAcarsClose');
         if (btnClose) btnClose.innerHTML = '&lt; CLOSE';
-        
+
         document.getElementById('acarsModal').style.display = 'flex';
     };
 
     window.sendAcarsReq = function () {
         const btn = document.getElementById('btnAcarsSend');
         if (btn) btn.style.display = 'none'; // hide send button
-        
+
         const statusStr = document.getElementById('acarsStatus');
         if (statusStr) {
             statusStr.style.display = 'block';
@@ -840,29 +842,29 @@ document.addEventListener('DOMContentLoaded', () => {
             statusStr.classList.add('text-sky-400');
             statusStr.classList.remove('text-emerald-400', 'text-amber-400');
         }
-        
+
         acarsTimeouts.push(setTimeout(() => {
             if (statusStr) {
                 statusStr.innerText = 'UPLINK IN PROGRESS';
                 statusStr.classList.replace('text-sky-400', 'text-amber-400');
             }
             document.getElementById('acarsScratchpad').innerText = 'AOC MSG RCV...';
-            
+
             acarsTimeouts.push(setTimeout(() => {
                 if (window.chrome && window.chrome.webview) {
                     window.chrome.webview.postMessage({ action: 'acarsWeatherRequest' });
                 }
-                
+
                 if (statusStr) {
                     statusStr.innerText = '';
                     statusStr.classList.replace('text-amber-400', 'text-emerald-400');
                     statusStr.classList.remove('animate-pulse');
                 }
                 document.getElementById('acarsScratchpad').innerText = '';
-                
+
                 const btnClose = document.getElementById('btnAcarsClose');
                 if (btnClose) btnClose.innerHTML = '&lt; EXIT';
-                
+
             }, 3000));
         }, 2000));
     };
@@ -1191,8 +1193,8 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('groundSpeed', groundSpeed);
             window.chrome.webview.postMessage({ action: 'updateGroundSpeed', value: groundSpeed });
             localStorage.setItem('groundProb', groundProb);
-            window.chrome.webview.postMessage({ 
-                action: 'saveSettings', 
+            window.chrome.webview.postMessage({
+                action: 'saveSettings',
                 options: {
                     groundSpeed: groundSpeed,
                     groundProb: groundProb,
@@ -1295,7 +1297,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const callsign = document.getElementById('prfCallsign')?.innerText.trim() || 'MAVERICK';
             const sbCallsign = document.getElementById('sbProfileCallsign');
             if (sbCallsign) sbCallsign.innerText = callsign;
-            
+
             // Visual feedback
             const originalText = btnSaveIdentity.innerText;
             btnSaveIdentity.innerText = 'SAVED!';
@@ -1398,21 +1400,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Connect to Simulator
-
-    const abortModal = document.getElementById('abortServiceModal');
-    const btnAbortYes = document.getElementById('btnAbortYes');
-    const btnAbortNo = document.getElementById('btnAbortNo');
-
-    if (btnAbortNo) btnAbortNo.addEventListener('click', () => { abortModal.style.display = 'none'; });
-    if (btnAbortYes) btnAbortYes.addEventListener('click', () => {
-        abortModal.style.display = 'none';
-        if (window.currentAbortService) {
-            window.chrome.webview.postMessage({ action: 'skipService', service: window.currentAbortService });
-            window.currentAbortService = null;
-        }
-    });
-
+    // Connected to Simulator (Abort Modal Removed)
+    
     const btnDismissReport = document.getElementById('btnDismissReport');
     if (btnDismissReport) btnDismissReport.addEventListener('click', () => {
         document.getElementById('flightReportModal').style.display = 'none';
@@ -1517,7 +1506,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnCustom.classList.add('text-slate-500', 'border-transparent');
             viewCustom.style.display = 'none';
             viewRoster.style.display = 'flex';
-            
+
             if (!window.predefinedRosters) {
                 fetch('./data/predefined_rotations.json')
                     .then(res => res.json())
@@ -1548,28 +1537,28 @@ document.addEventListener('DOMContentLoaded', () => {
     window.updateRosterUI = () => {
         const grid = document.getElementById('rosterGrid');
         if (!grid || !window.predefinedRosters) return;
-        
+
         const airline = document.getElementById('rosterSelAirline').value;
         const hub = document.getElementById('rosterSelHub').value;
-        
+
         const rotations = window.predefinedRosters[airline] && window.predefinedRosters[airline][hub] ? window.predefinedRosters[airline][hub] : [];
-        
+
         grid.innerHTML = '';
         if (rotations.length === 0) {
             grid.innerHTML = '<div class="text-slate-500 text-xs italic col-span-full py-8">No rotations found for this selection.</div>';
             return;
         }
-        
+
         rotations.forEach(rot => {
             let icon = rot.type === 'Classic' ? 'schedule' : 'warning';
             let color = rot.type === 'Classic' ? 'text-sky-400' : 'text-orange-400';
             let diffStars = '';
-            for(let i = 0; i < 5; i++) {
+            for (let i = 0; i < 5; i++) {
                 diffStars += `<span class="material-symbols-outlined text-[10px] ${i < rot.difficulty ? 'text-amber-400' : 'text-slate-700'}">star</span>`;
             }
 
             const routeHtml = rot.legs.join('<span class="material-symbols-outlined text-[10px] text-slate-600 mx-1 relative top-[1px]">navigate_next</span>');
-            
+
             const isSelected = window.selectedRosterId === rot.id;
             const extraClasses = isSelected ? 'border-emerald-500 bg-emerald-900/20 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'border-white/5 bg-[#1C1F26] opacity-40';
 
@@ -1589,7 +1578,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
         });
-        
+
         let found = false;
         if (window.selectedRosterId) {
             found = rotations.some(r => r.id === window.selectedRosterId);
@@ -1603,23 +1592,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- HAVERSINE DUMMY ETE ESTIMATOR ---
     function getDummyLeg(originIcao, destIcao) {
         if (!window.airportsDb || !window.airportsDb[originIcao] || !window.airportsDb[destIcao]) return null;
-        
+
         const deg2rad = deg => deg * (Math.PI / 180);
         const lat1 = deg2rad(window.airportsDb[originIcao].lat);
         const lon1 = deg2rad(window.airportsDb[originIcao].lon);
         const lat2 = deg2rad(window.airportsDb[destIcao].lat);
         const lon2 = deg2rad(window.airportsDb[destIcao].lon);
-        
+
         const dLat = lat2 - lat1;
         const dLon = lon2 - lon1;
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon/2) * Math.sin(dLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         const R = 3440.065; // Earth radius in Nautical Miles
         const distanceNM = R * c;
-        
+
         // 420 KTAS average speed + 30 mins maneuvering penalty (SID/STAR)
         const dummyEteMinutes = Math.round((distanceNM / 420) * 60 + 30);
-        
+
         return {
             isDummy: true,
             origin: {
@@ -1657,7 +1646,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    window.populateRecentIcaos = function() {
+    window.populateRecentIcaos = function () {
         const dl = document.getElementById('recentIcaos');
         if (!dl) return;
         dl.innerHTML = '';
@@ -1668,7 +1657,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dl.appendChild(opt);
         });
     };
-    
+
     // Call once on initialized
     window.populateRecentIcaos();
 
@@ -1691,6 +1680,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 let sbPayload = [];
                 if (window.allRotations && window.allRotations.length > 0) {
                     sbPayload = window.allRotations.map(r => r.data);
+                    if (window.activeLegIndex) {
+                        sbPayload = sbPayload.slice(window.activeLegIndex);
+                    }
                 }
                 sbPayloadStr = JSON.stringify(sbPayload);
                 window.chrome.webview.postMessage({ action: 'syncRotationsAndStart', payloadStr: sbPayloadStr });
@@ -1751,24 +1743,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!payload || !payload.type) return;
 
         switch (payload.type) {
-            case 'pauseStateUpdate':
-                const btnPause = document.getElementById('btnSystemPause');
-                const iPause = document.getElementById('iconPause');
-                const iPlay = document.getElementById('iconPlay');
-                if (btnPause && iPause && iPlay) {
-                    if (payload.isPaused) {
-                        btnPause.classList.remove('bg-slate-800', 'text-sky-400', 'border-slate-700');
-                        btnPause.classList.add('bg-red-900/50', 'text-red-400', 'border-red-500', 'animate-pulse');
-                        iPause.classList.add('hidden');
-                        iPlay.classList.remove('hidden');
-                    } else {
-                        btnPause.classList.add('bg-slate-800', 'text-sky-400', 'border-slate-700');
-                        btnPause.classList.remove('bg-red-900/50', 'text-red-400', 'border-red-500', 'animate-pulse');
-                        iPause.classList.remove('hidden');
-                        iPlay.classList.add('hidden');
-                    }
-                }
-                break;
             case 'simbriefWindowClosed':
                 // Auto-fetch flight plan! No validation step needed.
                 const user = localStorage.getItem('sbUsername') || '';
@@ -1806,8 +1780,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 break;
             case 'gatekeeperPassed':
-                window.chrome.webview.postMessage({ 
-                    action: 'syncRotationsAndStart', 
+                window.chrome.webview.postMessage({
+                    action: 'syncRotationsAndStart',
                     payload: window.gatekeeperPendingPayload || []
                 });
                 const btnPass = document.getElementById('btnStartGroundOps');
@@ -1855,7 +1829,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (window.populateActiveFlightDetails) {
                         window.populateActiveFlightDetails();
                     }
-                    
+
                     // Ensure Ground Ops UI forces a render
                     if (window.groundOpsCache && window.renderGroundOps) {
                         window.renderGroundOps(window.groundOpsCache);
@@ -1928,11 +1902,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (payload.phaseEnum === 'Turnaround') {
                                 btnDeboardToggle.innerText = 'START DEBOARDING';
                                 // It should send action 'startDeboarding' to the backend
-                                btnDeboardToggle.onclick = () => window.chrome.webview.postMessage({action: 'startDeboarding'});
+                                btnDeboardToggle.onclick = () => window.chrome.webview.postMessage({ action: 'startDeboarding' });
                             } else {
                                 btnDeboardToggle.innerText = 'START BOARDING';
                                 // It should send action 'startService' for Boarding
-                                btnDeboardToggle.onclick = () => window.chrome.webview.postMessage({action: 'startService', service: 'Boarding'});
+                                btnDeboardToggle.onclick = () => window.chrome.webview.postMessage({ action: 'startService', service: 'Boarding' });
                             }
                         }
                     }
@@ -2197,7 +2171,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (currentFlight) {
                         dashDetails.style.display = 'flex';
-                        
+
                         document.getElementById('dashDepIcao').innerText = currentFlight.origin?.icao_code || '---';
                         document.getElementById('dashArrIcao').innerText = currentFlight.destination?.icao_code || '---';
 
@@ -2209,7 +2183,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         let aCode = currentFlight.general?.icao_airline || '';
                         document.getElementById('dashFlightCompany').innerText = GLOBAL_AIRLINES[aCode] || currentFlight.general?.airline_name || aCode || 'AIRLINE';
                         document.getElementById('dashFlightIdent').innerText = `${currentFlight.general?.icao_airline || ''}${currentFlight.general?.flight_number || ''}`;
-                        
+
                         let acType = currentFlight.aircraft?.name || currentFlight.aircraft?.base_type || currentFlight.aircraft?.icaocode || 'Unknown';
                         if (acType.toUpperCase().includes('FENIX') || acType === 'A320') {
                             acType = 'Airbus A320-200';
@@ -2217,14 +2191,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         else if (acType === 'A20N') acType = 'Airbus A320neo';
                         else if (acType === 'B738') acType = 'Boeing 737-800';
                         else if (acType === 'B77W') acType = 'Boeing 777-300ER';
-                        
+
                         document.getElementById('dashAircraftType').innerText = acType;
                         document.getElementById('dashAircraftReg').innerText = currentFlight.aircraft?.reg || 'NO REG';
-                        
+
                         let depCity = currentFlight.origin?.city || '';
                         let depNameStr = currentFlight.origin?.name || '---';
                         let depIcao = currentFlight.origin?.icao_code;
-                        
+
                         let arrCity = currentFlight.destination?.city || '';
                         let arrNameStr = currentFlight.destination?.name || '---';
                         let arrIcao = currentFlight.destination?.icao_code;
@@ -2258,14 +2232,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
 
                         if (currentFlight.times?.sched_out) {
-                            currentSobtUnix = parseInt(currentFlight.times.sched_out);
-                            const bdSobt = document.getElementById('bdSobt');
-                            if (bdSobt) bdSobt.innerText = getFormattedTime(currentSobtUnix);
+                            let offset = window.lastTelemetry?.globalTimeOffsetSeconds || 0;
+                            currentSobtUnix = parseInt(currentFlight.times.sched_out) + offset;
+                            const ttSchedDep = document.getElementById('ttSchedDep');
+                            if (ttSchedDep) ttSchedDep.innerText = getFormattedTime(currentSobtUnix);
                         }
                         if (currentFlight.times?.sched_in) {
-                            window.currentSibtUnix = parseInt(currentFlight.times.sched_in);
-                            const bdSibt = document.getElementById('bdSibt');
-                            if (bdSibt) bdSibt.innerText = getFormattedTime(window.currentSibtUnix);
+                            let offset = window.lastTelemetry?.globalTimeOffsetSeconds || 0;
+                            window.currentSibtUnix = parseInt(currentFlight.times.sched_in) + offset;
+                            const ttSchedArr = document.getElementById('ttSchedArr');
+                            if (ttSchedArr) ttSchedArr.innerText = getFormattedTime(window.currentSibtUnix);
                         }
                     }
                 }
@@ -2288,9 +2264,103 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'simTime':
                 let localSuffix = payload.localTime && payload.localTime !== '--:--' ? ` / ${payload.localTime} LOCAL` : '';
-                if (payload.rawUnix) document.getElementById('zuluTime').innerText = `${getFormattedTime(payload.rawUnix).replace(/z/gi, '')} UTC${localSuffix}`;
-                else document.getElementById('zuluTime').innerText = `${payload.time.replace(/z/gi, '')} UTC${localSuffix}`;
+                let utcTime = payload.rawUnix ? getFormattedTime(payload.rawUnix).replace(/z/gi, '') : payload.time.replace(/z/gi, '');
+                document.getElementById('zuluTime').innerText = `${utcTime} UTC${localSuffix}`;
+
+                let localDateSuffix = payload.localDate && payload.localDate !== '--/--/----' ? ` / ${payload.localDate} LOCAL` : '';
+                const topDateEl = document.getElementById('topDate');
+                if (topDateEl && payload.date) topDateEl.innerText = `${payload.date} UTC${localDateSuffix}`;
+
+                const zuluDateEl = document.getElementById('zuluDate');
+                if (zuluDateEl && payload.date) zuluDateEl.innerText = `${payload.date} UTC${localDateSuffix}`;
+
+                const topZuluEl = document.getElementById('topZulu');
+                if (topZuluEl) topZuluEl.innerText = `${utcTime} UTC${localSuffix}`;
+
+                const dashDateEl = document.getElementById('dashboardDate');
+                if (dashDateEl && payload.date) dashDateEl.innerText = `${payload.date} UTC${localDateSuffix}`;
+
                 const cd = document.getElementById('flightCountdown');
+
+                // --- DYNAMIC TIMETABLE UPDATE ---
+                let simFlight = window.currentFlight;
+                if (window.allRotations && window.allRotations.length > 0) {
+                    const cIdx = Math.min(window.activeLegIndex || 0, window.allRotations.length - 1);
+                    if (window.allRotations[cIdx]?.data) simFlight = window.allRotations[cIdx].data;
+                }
+
+                if (payload.rawUnix && simFlight && simFlight.times) {
+                    let offset = window.lastTelemetry?.globalTimeOffsetSeconds || 0;
+                    currentSobtUnix = parseInt(simFlight.times.sched_out) + offset;
+                    window.currentSibtUnix = parseInt(simFlight.times.sched_in) + offset;
+
+                    const ttSchedDep = document.getElementById('ttSchedDep');
+                    const ttSchedArr = document.getElementById('ttSchedArr');
+                    if (ttSchedDep) ttSchedDep.innerText = getFormattedTime(currentSobtUnix);
+                    if (ttSchedArr) ttSchedArr.innerText = getFormattedTime(window.currentSibtUnix);
+
+                    const ttActDep = document.getElementById('ttActDep');
+                    const ttDepStatus = document.getElementById('ttDepStatus');
+                    const ttActArr = document.getElementById('ttActArr');
+                    const ttArrStatus = document.getElementById('ttArrStatus');
+
+                    const setBadge = (statusSpan, delaySec) => {
+                        if (!statusSpan) return;
+                        let m = Math.floor(Math.abs(delaySec) / 60);
+                        if (delaySec <= 180) {
+                            statusSpan.innerText = `ON TIME`;
+                            statusSpan.className = "px-2 py-0.5 rounded bg-emerald-500/10 text-[10px] text-emerald-400 uppercase font-bold tracking-wider";
+                        } else if (delaySec <= 900) {
+                            statusSpan.innerText = `+ ${m}m DELAY`;
+                            statusSpan.className = "px-2 py-0.5 rounded bg-amber-500/10 text-[10px] text-amber-500 uppercase font-bold tracking-wider";
+                        } else {
+                            statusSpan.innerText = `+ ${m}m DELAY`;
+                            statusSpan.className = "px-2 py-0.5 rounded bg-rose-500/10 text-[10px] text-rose-500 uppercase font-bold tracking-wider";
+                        }
+                    };
+
+                    let currDelay = 0;
+                    if (window.finalAobtUnix) {
+                        currDelay = window.finalAobtUnix - currentSobtUnix;
+                        if (ttActDep) {
+                            ttActDep.innerText = getFormattedTime(window.finalAobtUnix);
+                            ttActDep.className = "py-4 font-mono text-slate-300 font-bold";
+                        }
+                        if (ttDepStatus) {
+                            ttDepStatus.innerText = "DEPARTED";
+                            ttDepStatus.className = "px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-400 uppercase font-bold tracking-wider";
+                        }
+                    } else {
+                        currDelay = payload.rawUnix > currentSobtUnix ? payload.rawUnix - currentSobtUnix : 0;
+                        if (ttActDep) {
+                            ttActDep.innerText = getFormattedTime(currentSobtUnix + currDelay);
+                            ttActDep.className = currDelay > 180 ? "py-4 font-mono text-rose-400 font-bold animate-pulse" : "py-4 font-mono text-sky-400 font-bold animate-pulse";
+                        }
+                        setBadge(ttDepStatus, currDelay);
+                    }
+
+                    if (window.currentSibtUnix > 0) {
+                        if (window.finalAibtUnix) {
+                            let arrDelay = window.finalAibtUnix - window.currentSibtUnix;
+                            if (ttActArr) {
+                                ttActArr.innerText = getFormattedTime(window.finalAibtUnix);
+                                ttActArr.className = "py-4 font-mono text-slate-300 font-bold";
+                            }
+                            if (ttArrStatus) {
+                                ttArrStatus.innerText = "ARRIVED";
+                                ttArrStatus.className = "px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-400 uppercase font-bold tracking-wider";
+                            }
+                        } else {
+                            let arrDelay = currDelay;
+                            if (ttActArr) {
+                                ttActArr.innerText = getFormattedTime(window.currentSibtUnix + arrDelay);
+                                ttActArr.className = arrDelay > 180 ? "py-4 font-mono text-rose-400 font-bold animate-pulse" : "py-4 font-mono text-sky-400 font-bold animate-pulse";
+                            }
+                            setBadge(ttArrStatus, arrDelay);
+                        }
+                    }
+                }
+
                 if (cd && payload.rawUnix && currentSobtUnix > 0) {
                     let d = 0; // Delay in seconds
                     let isArrTimer = false;
@@ -2314,8 +2384,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         d = window.finalAibtUnix - window.currentSibtUnix;
                         let st = getPunc(window.currentSibtUnix, window.finalAibtUnix);
                         let isEarly = st.d < 0;
-                            let turnaroundStr = window.currentTotTurnaround ? ` | TAS Remaining: ${window.currentTotTurnaround}m` : "";
-                            cd.innerText = `Arrivé avec ${fmt(st.d)} ${isEarly ? "d'avance" : "de retard"}${turnaroundStr}`;
+                        let turnaroundStr = window.currentTotTurnaround ? ` | TAS Remaining: ${window.currentTotTurnaround}m` : "";
+                        cd.innerText = `Arrivé avec ${fmt(st.d)} ${isEarly ? "d'avance" : "de retard"}${turnaroundStr}`;
                         cd.style.color = st.c;
                         let aibtSp = document.getElementById('bdAibt');
                         if (aibtSp) aibtSp.style.color = st.c;
@@ -2323,7 +2393,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else if (window.finalAobtUnix) {
                         d = window.finalAobtUnix - currentSobtUnix;
                         let st = getPunc(currentSobtUnix, window.finalAobtUnix);
-                        
+
                         let etaText = `Airborne`;
                         let curIdx = window.activeLegIndex || 0;
                         if (window.allRotations && window.allRotations[curIdx]?.data?.times?.sched_in) {
@@ -2338,7 +2408,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         d = payload.rawUnix - currentSobtUnix;
                         let isLate = d > 0;
-                        let absDiff = Math.abs(d);
+                        let absDiff = Math.floor(Math.abs(d));
                         let h = Math.floor(absDiff / 3600);
                         let m = Math.floor((absDiff % 3600) / 60);
                         let s = absDiff % 60;
@@ -2378,20 +2448,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         else if (pct > 90) lbl.style.transform = 'translateX(-100%)';
                         else lbl.style.transform = 'translateX(-50%)';
                     }
-                    
+
                     // --- Global Rotation Timer Logic ---
                     const globalBanner = document.getElementById('globalRotationBanner');
                     if (globalBanner && window.allRotations && window.allRotations.length > 0 && payload.rawUnix) {
                         globalBanner.classList.remove('hidden');
-                        
+
                         let currentIdx = window.activeLegIndex || 0;
                         document.getElementById('globalRotationStatus').innerText = `Leg ${currentIdx + 1} of ${window.allRotations.length}`;
                         document.getElementById('currentLegStatus').innerText = `Leg ${currentIdx + 1}`;
-                        
+
                         let curLegData = window.allRotations[currentIdx]?.data;
                         let lastLeg = window.allRotations[window.allRotations.length - 1]?.data;
-                        let curLegFinalUnix = curLegData?.times?.sched_in ? parseInt(curLegData.times.sched_in) : 0;
-                        let finalUnix = lastLeg?.times?.sched_in ? parseInt(lastLeg.times.sched_in) : 0;
+                        let offset = window.lastTelemetry?.globalTimeOffsetSeconds || 0;
+                        let curLegFinalUnix = curLegData?.times?.sched_in ? parseInt(curLegData.times.sched_in) + offset : 0;
+                        let finalUnix = lastLeg?.times?.sched_in ? parseInt(lastLeg.times.sched_in) + offset : 0;
 
                         // Calculate current accumulated delay
                         let currentDelay = 0;
@@ -2407,14 +2478,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (curLegFinalUnix > 0) {
                             let estArrival = curLegFinalUnix;
                             if (currentDelay > 0) estArrival += currentDelay;
-                            
+
                             let rem = estArrival - payload.rawUnix;
                             if (rem > 0) {
                                 let cM = Math.floor((rem % 3600) / 60);
                                 let cS = rem % 60;
                                 let cH = Math.floor(rem / 3600);
                                 document.getElementById('currentLegTimer').innerText = `${cH.toString().padStart(2, '0')}:${cM.toString().padStart(2, '0')}:${cS.toString().padStart(2, '0')}`;
-                                
+
                                 if (cH === 0 && cM < 30) document.getElementById('currentLegTimer').className = "font-mono text-xl md:text-2xl font-black text-rose-500 tracking-wider drop-shadow-[0_0_10px_rgba(244,63,94,0.4)]";
                                 else if (cH === 0) document.getElementById('currentLegTimer').className = "font-mono text-xl md:text-2xl font-black text-amber-400 tracking-wider drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]";
                                 else document.getElementById('currentLegTimer').className = "font-mono text-xl md:text-2xl font-black text-emerald-400 tracking-wider drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]";
@@ -2429,14 +2500,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (currentDelay > 0) {
                                 estimatedFinalArrival += currentDelay;
                             }
-                            
+
                             let remainingSecs = estimatedFinalArrival - payload.rawUnix;
                             if (remainingSecs > 0) {
                                 let gH = Math.floor(remainingSecs / 3600);
                                 let gM = Math.floor((remainingSecs % 3600) / 60);
                                 let gS = remainingSecs % 60;
                                 document.getElementById('globalRotationTimer').innerText = `${gH.toString().padStart(2, '0')}:${gM.toString().padStart(2, '0')}:${gS.toString().padStart(2, '0')}`;
-                                
+
                                 // Color logic
                                 if (gH === 0 && gM < 30) document.getElementById('globalRotationTimer').className = "font-mono text-xl md:text-2xl font-black text-rose-500 tracking-wider drop-shadow-[0_0_10px_rgba(244,63,94,0.4)]";
                                 else if (gH === 0) document.getElementById('globalRotationTimer').className = "font-mono text-xl md:text-2xl font-black text-amber-400 tracking-wider drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]";
@@ -2511,11 +2582,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const isFinal = payload.isFinal;
                     const allReps = payload.allReports || [];
 
-                    let isLate = rep.DelaySec > 300;
-                    let isEarly = rep.RawDelaySec < -300;
-                    let puncText = isLate ? `${Math.round(rep.DelaySec / 60)}m Late` : (isEarly ? `${Math.abs(Math.round(rep.RawDelaySec / 60))}m Early` : 'On Time');
+                    let isLate = rep.delaySec > 300;
+                    let isEarly = rep.rawDelaySec < -300;
+                    let puncText = isLate ? `${Math.round(rep.delaySec / 60)}m Late` : (isEarly ? `${Math.abs(Math.round(rep.rawDelaySec / 60))}m Early` : 'On Time');
                     let puncClass = isLate ? 'red' : (isEarly ? 'blue' : 'green');
-                    if (rep.DelaySec <= 300 && rep.RawDelaySec > 300) puncClass = 'orange'; // Ops Delay Pardon
+                    if (rep.delaySec <= 300 && rep.rawDelaySec > 300) puncClass = 'orange'; // Ops Delay Pardon
 
                     const evtTitle = document.querySelector('[data-i18n="report_title"]');
                     if (evtTitle) {
@@ -2530,13 +2601,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     const rotSummary = document.getElementById('frRotationSummaryContainer');
                     if (isFinal && allReps && allReps.length > 1 && rotSummary) {
                         rotSummary.style.display = 'block';
-                        
+
                         let totalBlock = 0;
                         let totalDelay = 0;
                         let sumSafety = 0;
                         let sumComfort = 0;
                         let sumSuper = 0;
-                        
+
                         allReps.forEach(r => {
                             totalBlock += parseInt(r.BlockTime) || 0;
                             totalDelay += parseInt(r.DelaySec) || 0;
@@ -2544,11 +2615,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             sumComfort += parseInt(r.ComfortPoints) || 0;
                             sumSuper += parseInt(r.Score) || 0;
                         });
-                        
+
                         let numFlights = allReps.length;
-                        
-                        document.getElementById('frRotBlockTime').innerText = `${Math.floor(totalBlock/60)}h ${Math.floor(totalBlock%60)}m`;
-                        let delayMins = Math.round(totalDelay/60);
+
+                        document.getElementById('frRotBlockTime').innerText = `${Math.floor(totalBlock / 60)}h ${Math.floor(totalBlock % 60)}m`;
+                        let delayMins = Math.round(totalDelay / 60);
                         document.getElementById('frRotDelay').innerText = delayMins > 0 ? `+${delayMins}m` : `${delayMins}m`;
                         if (delayMins > 10) document.getElementById('frRotDelay').className = "text-xl font-mono text-rose-400";
                         else if (delayMins > 0) document.getElementById('frRotDelay').className = "text-xl font-mono text-amber-400";
@@ -2571,158 +2642,160 @@ document.addEventListener('DOMContentLoaded', () => {
                     else if (rep.Score >= 1000) mainScoreEl.classList.add('text-emerald-400');
                     else if (rep.Score >= 800) mainScoreEl.classList.add('text-amber-400');
                     else mainScoreEl.classList.add('text-red-400');
-                const setSubScore = (id, pts) => {
-                    const el = document.getElementById(id);
-                    if (!el) return;
-                    el.innerText = (pts > 0 ? '+' : '') + pts;
-                    el.classList.remove('text-emerald-400', 'text-red-400', 'text-white');
-                    if (pts > 0) el.classList.add('text-emerald-400');
-                    else if (pts < 0) el.classList.add('text-red-400');
-                    else el.classList.add('text-white');
-                };
+                    const setSubScore = (id, pts) => {
+                        const el = document.getElementById(id);
+                        if (!el) return;
+                        el.innerText = (pts > 0 ? '+' : '') + pts;
+                        el.classList.remove('text-emerald-400', 'text-red-400', 'text-white');
+                        if (pts > 0) el.classList.add('text-emerald-400');
+                        else if (pts < 0) el.classList.add('text-red-400');
+                        else el.classList.add('text-white');
+                    };
 
-                setSubScore('frSafetyScore', rep.SafetyPoints || 0);
-                setSubScore('frComfortScore', rep.ComfortPoints || 0);
-                setSubScore('frMaintScore', rep.MaintenancePoints || 0);
-                setSubScore('frOpsScore', rep.OperationsPoints || 0);
+                    setSubScore('frSafetyScore', rep.safetyPoints || 0);
+                    setSubScore('frComfortScore', rep.comfortPoints || 0);
+                    setSubScore('frMaintScore', rep.maintenancePoints || 0);
+                    setSubScore('frOpsScore', rep.operationsPoints || 0);
 
-                let btHours = Math.floor(rep.BlockTime / 60);
-                let btMins = rep.BlockTime % 60;
-                let frBlock = document.getElementById('frBlock');
-                if (frBlock) frBlock.innerText = `${btHours}h ${btMins}m`;
+                    let btHours = Math.floor(rep.blockTime ? rep.blockTime / 60 : 0);
+                    let btMins = (rep.blockTime || 0) % 60;
+                    let frBlock = document.getElementById('frBlock');
+                    if (frBlock) frBlock.innerText = `${btHours}h ${btMins}m`;
 
-                const puncBadge = document.getElementById('frPunc');
-                if (puncBadge) {
-                    puncBadge.innerText = puncText;
-                    puncBadge.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'bg-red-500/20', 'text-red-400', 'bg-orange-500/20', 'text-orange-400', 'bg-sky-500/20', 'text-sky-400');
-                    if (isLate) puncBadge.classList.add('bg-red-500/20', 'text-red-400');
-                    else if (isEarly) puncBadge.classList.add('bg-sky-500/20', 'text-sky-400');
-                    else if (rep.DelaySec <= 300 && rep.RawDelaySec > 300) puncBadge.classList.add('bg-orange-500/20', 'text-orange-400');
-                    else puncBadge.classList.add('bg-emerald-500/20', 'text-emerald-400');
-                }
+                    const puncBadge = document.getElementById('frPunc');
+                    if (puncBadge) {
+                        puncBadge.innerText = puncText;
+                        puncBadge.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'bg-red-500/20', 'text-red-400', 'bg-orange-500/20', 'text-orange-400', 'bg-sky-500/20', 'text-sky-400');
+                        if (isLate) puncBadge.classList.add('bg-red-500/20', 'text-red-400');
+                        else if (isEarly) puncBadge.classList.add('bg-sky-500/20', 'text-sky-400');
+                        else if (rep.delaySec <= 300 && rep.rawDelaySec > 300) puncBadge.classList.add('bg-orange-500/20', 'text-orange-400');
+                        else puncBadge.classList.add('bg-emerald-500/20', 'text-emerald-400');
+                    }
 
-                let frFuel = document.getElementById('frFuel');
-                if (frFuel) frFuel.innerText = rep.BlockFuel;
+                    let frFuel = document.getElementById('frFuel');
+                    if (frFuel) frFuel.innerText = rep.blockFuel || 0;
 
-                const fpmEl = document.getElementById('frFpm');
-                if (fpmEl) {
-                    fpmEl.innerText = `${rep.TouchdownFpm.toFixed(0)} fpm`;
-                    fpmEl.classList.remove('text-emerald-400', 'text-red-500', 'text-slate-200');
-                    if (rep.TouchdownFpm < -400) fpmEl.classList.add('text-red-500');
-                    else if (rep.TouchdownFpm > -150) fpmEl.classList.add('text-emerald-400');
-                    else fpmEl.classList.add('text-slate-200');
-                }
+                    const fpmEl = document.getElementById('frFpm');
+                    if (fpmEl) {
+                        let tzFpm = rep.touchdownFpm || 0;
+                        fpmEl.innerText = `${tzFpm.toFixed(0)} fpm`;
+                        fpmEl.classList.remove('text-emerald-400', 'text-red-500', 'text-slate-200');
+                        if (tzFpm < -400) fpmEl.classList.add('text-red-500');
+                        else if (tzFpm > -150) fpmEl.classList.add('text-emerald-400');
+                        else fpmEl.classList.add('text-slate-200');
+                    }
 
-                const gEl = document.getElementById('frGForce');
-                if (gEl) {
-                    gEl.innerText = `${rep.TouchdownGForce.toFixed(2)} G`;
-                    gEl.classList.remove('text-red-500', 'text-slate-200');
-                    if (rep.TouchdownGForce > 1.4) gEl.classList.add('text-red-500');
-                    else gEl.classList.add('text-slate-200');
-                }
+                    const gEl = document.getElementById('frGForce');
+                    if (gEl) {
+                        let tzG = rep.touchdownGForce || 1.0;
+                        gEl.innerText = `${tzG.toFixed(2)} G`;
+                        gEl.classList.remove('text-red-500', 'text-slate-200');
+                        if (tzG > 1.4) gEl.classList.add('text-red-500');
+                        else gEl.classList.add('text-slate-200');
+                    }
 
-                const objContainer = document.getElementById('frObjectivesContainer');
-                const objList = document.getElementById('frObjectivesList');
-                if (objContainer && objList) {
-                    objList.innerHTML = '';
-                    objContainer.style.display = 'block';
+                    const objContainer = document.getElementById('frObjectivesContainer');
+                    const objList = document.getElementById('frObjectivesList');
+                    if (objContainer && objList) {
+                        objList.innerHTML = '';
+                        objContainer.style.display = 'block';
 
-                    if (rep.Objectives && rep.Objectives.length > 0) {
-                        rep.Objectives.forEach(obj => {
-                            const isPass = obj.Passed;
-                            const icon = isPass ? 'check_circle' : 'cancel';
-                            const iconColor = isPass ? 'text-emerald-400' : 'text-red-400';
-                            const bgColor = isPass ? 'bg-emerald-500/10' : 'bg-red-500/10';
-                            const ptsStr = obj.Points > 0 ? `+${obj.Points} pts` : `${obj.Points} pts`;
+                        if (rep.Objectives && rep.Objectives.length > 0) {
+                            rep.Objectives.forEach(obj => {
+                                const isPass = obj.Passed;
+                                const icon = isPass ? 'check_circle' : 'cancel';
+                                const iconColor = isPass ? 'text-emerald-400' : 'text-red-400';
+                                const bgColor = isPass ? 'bg-emerald-500/10' : 'bg-red-500/10';
+                                const ptsStr = obj.Points > 0 ? `+${obj.Points} pts` : `${obj.Points} pts`;
 
-                            const row = document.createElement('div');
-                            row.className = `flex items-center justify-between p-3 rounded-xl border border-white/5 ${bgColor}`;
-                            row.innerHTML = `
+                                const row = document.createElement('div');
+                                row.className = `flex items-center justify-between p-3 rounded-xl border border-white/5 ${bgColor}`;
+                                row.innerHTML = `
                                 <div class="flex items-center gap-3">
                                     <span class="material-symbols-outlined ${iconColor}">${icon}</span>
                                     <span class="text-sm text-slate-200 font-medium">${obj.Description}</span>
                                 </div>
                                 <div class="font-mono font-bold text-sm ${iconColor}">${ptsStr}</div>
                             `;
-                            objList.appendChild(row);
-                        });
-                    } else {
-                        objList.innerHTML = `
+                                objList.appendChild(row);
+                            });
+                        } else {
+                            objList.innerHTML = `
                             <div class="flex items-center justify-center p-3 rounded-xl border border-white/5 bg-slate-800/30">
                                 <span class="text-sm text-slate-400 font-medium italic">No Company Challenge taken</span>
                             </div>
                         `;
+                        }
                     }
-                }
 
-                const achContainer = document.getElementById('frAchievementsContainer');
-                const achList = document.getElementById('frAchievementsList');
-                if (achContainer && achList) {
-                    achList.innerHTML = '';
-                    if (rep.NewAchievements && rep.NewAchievements.length > 0) {
-                        achContainer.style.display = 'block';
-                        rep.NewAchievements.forEach(ach => {
-                            let borderClass = 'border-amber-500/30';
-                            let bgClass = 'bg-amber-500/10';
-                            let textClass = ach.ColorClass || 'text-amber-400';
+                    const achContainer = document.getElementById('frAchievementsContainer');
+                    const achList = document.getElementById('frAchievementsList');
+                    if (achContainer && achList) {
+                        achList.innerHTML = '';
+                        if (rep.NewAchievements && rep.NewAchievements.length > 0) {
+                            achContainer.style.display = 'block';
+                            rep.NewAchievements.forEach(ach => {
+                                let borderClass = 'border-amber-500/30';
+                                let bgClass = 'bg-amber-500/10';
+                                let textClass = ach.ColorClass || 'text-amber-400';
 
-                            // Hacky parsing to derive borders from text colors
-                            if (textClass.includes('sky')) { borderClass = 'border-sky-500/30'; bgClass = 'bg-sky-500/10'; }
-                            if (textClass.includes('emerald')) { borderClass = 'border-emerald-500/30'; bgClass = 'bg-emerald-500/10'; }
-                            if (textClass.includes('purple')) { borderClass = 'border-purple-500/30'; bgClass = 'bg-purple-500/10'; }
-                            if (textClass.includes('red')) { borderClass = 'border-red-500/30'; bgClass = 'bg-red-500/10'; }
+                                // Hacky parsing to derive borders from text colors
+                                if (textClass.includes('sky')) { borderClass = 'border-sky-500/30'; bgClass = 'bg-sky-500/10'; }
+                                if (textClass.includes('emerald')) { borderClass = 'border-emerald-500/30'; bgClass = 'bg-emerald-500/10'; }
+                                if (textClass.includes('purple')) { borderClass = 'border-purple-500/30'; bgClass = 'bg-purple-500/10'; }
+                                if (textClass.includes('red')) { borderClass = 'border-red-500/30'; bgClass = 'bg-red-500/10'; }
 
-                            const row = document.createElement('div');
-                            row.className = `flex flex-col items-center p-3 rounded-xl border ${borderClass} ${bgClass} text-center shadow-lg`;
-                            row.innerHTML = `
+                                const row = document.createElement('div');
+                                row.className = `flex flex-col items-center p-3 rounded-xl border ${borderClass} ${bgClass} text-center shadow-lg`;
+                                row.innerHTML = `
                                 <span class="material-symbols-outlined text-3xl mb-2 ${textClass} drop-shadow-[0_0_10px_currentColor]">${ach.Icon || 'workspace_premium'}</span>
                                 <span class="text-[10px] font-bold tracking-widest uppercase text-white mb-2 leading-tight">${ach.Title}</span>
                                 <span class="text-[9px] text-slate-300 leading-tight">${ach.Description}</span>
                             `;
-                            achList.appendChild(row);
-                        });
-                    } else {
-                        achContainer.style.display = 'none';
+                                achList.appendChild(row);
+                            });
+                        } else {
+                            achContainer.style.display = 'none';
+                        }
                     }
-                }
 
-                const eventLogContainer = document.getElementById('frEventLog');
-                if (eventLogContainer) {
-                    eventLogContainer.innerHTML = '';
-                    if (rep.FlightEvents && rep.FlightEvents.length > 0) {
-                        rep.FlightEvents.forEach(evt => {
-                            const isPenalty = evt.Amount < 0;
-                            const colorClass = isPenalty ? 'text-red-400' : 'text-emerald-400';
-                            const sign = isPenalty ? '' : '+';
+                    const eventLogContainer = document.getElementById('frEventLog');
+                    if (eventLogContainer) {
+                        eventLogContainer.innerHTML = '';
+                        if (rep.FlightEvents && rep.FlightEvents.length > 0) {
+                            rep.FlightEvents.forEach(evt => {
+                                const isPenalty = evt.Amount < 0;
+                                const colorClass = isPenalty ? 'text-red-400' : 'text-emerald-400';
+                                const sign = isPenalty ? '' : '+';
 
-                            let icon = 'military_tech';
-                            if (evt.Category === 0) icon = 'security';
-                            else if (evt.Category === 1) icon = 'mood';
-                            else if (evt.Category === 2) icon = 'build';
-                            else if (evt.Category === 3) icon = 'schedule';
+                                let icon = 'military_tech';
+                                if (evt.Category === 0) icon = 'security';
+                                else if (evt.Category === 1) icon = 'mood';
+                                else if (evt.Category === 2) icon = 'build';
+                                else if (evt.Category === 3) icon = 'schedule';
 
-                            const row = document.createElement('div');
-                            row.className = 'flex items-center justify-between p-3 rounded bg-black/20 border border-white/5 hover:bg-white/5 transition-colors';
-                            row.innerHTML = `
+                                const row = document.createElement('div');
+                                row.className = 'flex items-center justify-between p-3 rounded bg-black/20 border border-white/5 hover:bg-white/5 transition-colors';
+                                row.innerHTML = `
                                 <div class="flex items-center gap-3">
                                     <span class="material-symbols-outlined text-[16px] text-slate-500">${icon}</span>
                                     <span class="text-xs text-slate-300 font-medium">${evt.Reason}</span>
                                 </div>
                                 <div class="font-mono font-bold text-sm ${colorClass}">${sign}${evt.Amount}</div>
                             `;
-                            eventLogContainer.appendChild(row);
-                        });
-                    } else {
-                        eventLogContainer.innerHTML = '<div class="text-xs text-slate-500 italic p-3 text-center">No recorded events for this flight.</div>';
+                                eventLogContainer.appendChild(row);
+                            });
+                        } else {
+                            eventLogContainer.innerHTML = '<div class="text-xs text-slate-500 italic p-3 text-center">No recorded events for this flight.</div>';
+                        }
                     }
-                }
 
-                if (window.generateChiefPilotDebrief) {
-                    const lang = localStorage.getItem('selLanguage') || 'en';
-                    document.getElementById('frChiefPilotSpeech').innerHTML = window.generateChiefPilotDebrief(rep, lang);
-                }
+                    if (window.generateChiefPilotDebrief) {
+                        const lang = localStorage.getItem('selLanguage') || 'en';
+                        document.getElementById('frChiefPilotSpeech').innerHTML = window.generateChiefPilotDebrief(rep, lang);
+                    }
 
-                document.getElementById('flightReportModal').style.display = 'flex';
+                    document.getElementById('flightReportModal').style.display = 'flex';
                 }
                 break;
             case 'gatekeeperFailed':
@@ -2754,7 +2827,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // Match service logic based on ServiceName or "Generic" container
                     let containerId = undefined;
-                    
+
                     if (evt.serviceName) {
                         // Find the safeName matching the service (e.g. "CargoLuggage" from "Cargo/Luggage")
                         const safeName = evt.serviceName.replace(/\s|[^\w]/g, '');
@@ -2762,14 +2835,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     let geCardContainer = containerId ? document.getElementById(containerId) : null;
-                    
+
                     // Fallback to the first available if not found
                     if (!geCardContainer) {
                         console.warn(`[RAMP] Service container not found for ${evt.serviceName}, falling back to top level.`);
                         // Here we could have a generic global one, but for now just grab the first card container or skip.
                         const anyContainer = document.querySelector('[id^="ge-container-"]');
                         if (anyContainer) geCardContainer = anyContainer;
-                        else return; 
+                        else return;
                     }
 
                     geCardContainer.innerHTML = `
@@ -3023,7 +3096,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isFlightCancelled) return;
                 let topScore = document.getElementById('topScoreValue');
                 if (topScore) topScore.innerText = payload.score;
-                
+
                 // Update Briefing Live Score Display
                 const bScore = document.getElementById('briefingScoreValue');
                 if (bScore) {
@@ -3039,7 +3112,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const elPts = document.getElementById(idPts);
                     const elBar = document.getElementById(idBar);
                     if (!elPts || !elBar) return;
-                    
+
                     elPts.innerText = (pts > 0 ? '+' : '') + pts;
                     elPts.classList.remove('text-sky-400', 'text-emerald-400', 'text-amber-400', 'text-purple-400', 'text-red-400', 'text-white');
                     if (pts > 0) elPts.classList.add('text-emerald-400');
@@ -3136,17 +3209,20 @@ document.addEventListener('DOMContentLoaded', () => {
                             let sbPayload = [];
                             if (window.allRotations && window.allRotations.length > 0) {
                                 sbPayload = window.allRotations.map(r => r.data);
+                                if (window.activeLegIndex) {
+                                    sbPayload = sbPayload.slice(window.activeLegIndex);
+                                }
                             }
                             sbPayloadStr = JSON.stringify(sbPayload);
                             window.chrome.webview.postMessage({ action: 'syncRotationsAndStart', payloadStr: sbPayloadStr });
-                            
+
                             setTimeout(() => {
                                 window.chrome.webview.postMessage({ action: 'finishDispatch' });
-                                
+
                                 // Clean up UI state
                                 const dispatchModal = document.getElementById('simbriefDispatchModal');
                                 if (dispatchModal) dispatchModal.style.display = 'none';
-                                
+
                                 const btnFinishDispatch = document.getElementById('btnFinishDispatch');
                                 if (btnFinishDispatch) btnFinishDispatch.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
                             }, 800); // Small 800ms delay to let the dashboard prepare visually
@@ -3323,7 +3399,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const timeStr = window.getFormattedTime;
 
                 if (!window.allRotations) window.allRotations = [];
-                
+
                 // Replace matching dummy leg with the real fetched SimBrief OFP data
                 let replacedDummy = false;
                 for (let i = 0; i < window.allRotations.length; i++) {
@@ -3333,7 +3409,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const rotDest = (rotData?.destination?.icao_code || '').toUpperCase();
                         const dOrig = (d.origin?.icao_code || '').toUpperCase();
                         const dDest = (d.destination?.icao_code || '').toUpperCase();
-                        
+
                         // We also allow replacement if we are replacing the very first dummy leg, regardless of origin mismatch, if it's the first leg
                         if ((rotOrig === dOrig && rotDest === dDest) || (i === 0 && window.allRotations.length > 0)) {
                             window.allRotations[i] = { data: d, briefing: payload.briefing, manifest: payload.manifest, airlineProfile: payload.airlineProfile };
@@ -3347,17 +3423,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!replacedDummy) {
                     const isDupe = window.allRotations.some(r => {
                         if (r.data?.isDummy) return false;
-                        
+
                         const rFlightNo = (r.data?.general?.flight_number || '').toUpperCase();
                         const dFlightNo = (d.general?.flight_number || '').toUpperCase();
                         const rOrig = (r.data?.origin?.icao_code || '').toUpperCase();
                         const rDest = (r.data?.destination?.icao_code || '').toUpperCase();
                         const dOrig = (d.origin?.icao_code || '').toUpperCase();
                         const dDest = (d.destination?.icao_code || '').toUpperCase();
-                        
+
                         return rFlightNo === dFlightNo && rOrig === dOrig && rDest === dDest;
                     });
-                    
+
                     if (!isDupe) {
                         window.allRotations.push({ data: d, briefing: payload.briefing, manifest: payload.manifest, airlineProfile: payload.airlineProfile });
                     }
@@ -3373,11 +3449,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         const rotDest = (dummy.destination?.icao_code || '').toUpperCase();
                         return !(rotOrig === dOrig && rotDest === dDest);
                     });
-                    
+
                     window.plannedDummyLegs.forEach(dummy => {
                         const dummyOrig = (dummy.origin?.icao_code || '').toUpperCase();
                         const dummyDest = (dummy.destination?.icao_code || '').toUpperCase();
-                        
+
                         const exists = window.allRotations.some(r => {
                             if (!r.data?.isDummy) return false;
                             const rOrig = (r.data?.origin?.icao_code || '').toUpperCase();
@@ -3394,26 +3470,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (let i = 1; i < window.allRotations.length; i++) {
                     const prevLeg = window.allRotations[i - 1].data;
                     const currLeg = window.allRotations[i].data;
-                    
+
                     if (prevLeg.times?.sched_in) {
                         const tatSeconds = 35 * 60; // 35 min average turnaround
                         const prevSibt = parseInt(prevLeg.times.sched_in);
                         let currSobt = parseInt(currLeg.times?.sched_out || '0');
-                        
+
                         // If it's a dummy leg OR if the fetched SimBrief leg overlaps or is too tight (< 35 min turnaround)
                         if (currLeg.isDummy || isNaN(currSobt) || currSobt < prevSibt + tatSeconds) {
                             // Automatically cascade the sequence
                             currLeg.times.sched_out = (prevSibt + tatSeconds).toString();
-                            
+
                             const eteSeconds = parseInt(currLeg.times.est_time_enroute || '3600');
                             currLeg.times.sched_in = (parseInt(currLeg.times.sched_out) + eteSeconds).toString();
                         }
                     }
                 }
 
-                
+
                 // Briefing Tab Rendering Engine (Navigation Shift)
-                
+
                 // Trigger render
                 window.renderBriefingTabs();
 
@@ -3432,7 +3508,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (dhFlight) dhFlight.innerText = `Flight ${d.general?.icao_airline || ''}${d.general?.flight_number || ''}`;
                 if (dhAirline) dhAirline.innerText = d.general?.airline_name || d.general?.icao_airline || 'Unknown';
 
-                if (payload.manifest) {
+                if (payload.manifest && !window.manifest) {
                     window.manifest = payload.manifest;
                     if (window.renderManifest) window.renderManifest(payload.manifest);
                 }
@@ -3461,6 +3537,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             window.setBriefingTab(activeViewIndex);
                         }
                     }
+                }
+                break;
+            case 'manifestUpdate':
+                if (payload.manifest) {
+                    window.manifest = payload.manifest;
+                    if (window.renderManifest) window.renderManifest(payload.manifest);
                 }
                 break;
             case 'groundOps':
@@ -3528,7 +3610,7 @@ const GO_ICONS = {
     'Refueling': '<span class="material-symbols-outlined text-[18px] text-orange-500">local_gas_station</span>',
     'Boarding': '<span class="material-symbols-outlined text-[18px] text-sky-400">group</span>',
     'Deboarding': '<span class="material-symbols-outlined text-[18px] text-sky-300">directions_run</span>',
-    'Cargo/Luggage': '<span class="material-symbols-outlined text-[18px] text-amber-500">luggage</span>',
+    'Cargo': '<span class="material-symbols-outlined text-[18px] text-amber-500">luggage</span>',
     'Catering': '<span class="material-symbols-outlined text-[18px] text-pink-400">restaurant</span>',
     'Cleaning': '<span class="material-symbols-outlined text-[18px] text-fuchsia-400">cleaning_services</span>',
     'Cabin Clean (PNC)': '<span class="material-symbols-outlined text-[18px] text-indigo-400">dry_cleaning</span>',
@@ -3642,7 +3724,7 @@ function updateMetaBar(services) {
 
 function renderGroundOps(services) {
     const container = document.getElementById('groundOpsContainer');
-    
+
     if (!services || services.length === 0) {
         container.innerHTML = '<p class="text-slate-500 font-mono text-center delay-fade-in" data-i18n="ground_pending">Ground operations pending SimBrief initialization...</p>';
         return;
@@ -3663,7 +3745,22 @@ function renderGroundOps(services) {
     let isPaxMoving = isDeboardingActive || isBoardingActive;
     let isCrewWorking = isCleaningActive || isCateringActive;
 
-    services.forEach(s => {
+    let deboardingSrv = services.find(s => (s.Name || s.name) === "Deboarding");
+    let boardingSrv = services.find(s => (s.Name || s.name) === "Boarding");
+    let combinedServices = services.filter(s => (s.Name || s.name) !== "Deboarding" && (s.Name || s.name) !== "Boarding");
+
+    if (deboardingSrv && boardingSrv) {
+        let dState = deboardingSrv.State !== undefined ? deboardingSrv.State : deboardingSrv.state;
+        let dIsCompleted = dState === 3 || dState === 4 || deboardingSrv.IsPreServiced || deboardingSrv.isPreServiced;
+        if (!dIsCompleted) combinedServices.push(deboardingSrv);
+        else combinedServices.push(boardingSrv);
+    } else if (deboardingSrv) {
+        combinedServices.push(deboardingSrv);
+    } else if (boardingSrv) {
+        combinedServices.push(boardingSrv);
+    }
+
+    combinedServices.forEach(s => {
         const mLang = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
         const mDict = window.locales && window.locales[mLang] ? window.locales[mLang] : window.locales.en;
 
@@ -3671,7 +3768,17 @@ function renderGroundOps(services) {
         if (locName === "Refueling") locName = mDict.gops_refueling || locName;
         else if (locName === "Boarding") locName = mDict.gops_boarding || locName;
         else if (locName === "Deboarding") locName = mDict.gops_deboarding || locName;
-        else if (locName === "Cargo") locName = mDict.gops_cargo || locName;
+        else if (locName === "Cargo" || locName === "Cargo/Luggage") {
+            locName = mDict.gops_cargo || "Cargo";
+            let nState = s.State !== undefined ? s.State : s.state;
+            if (deboardingSrv) { // Turnaround
+                if (nState === 1 && (s.ProgressPercent || 0) < 50) locName = `${locName} (UNLOADING)`;
+                else if (nState === 1) locName = `${locName} (LOADING)`;
+                else if (nState === 0 || nState === 5) locName = `${locName} (UNLOAD/LOAD)`;
+            } else { // Pristine
+                if (nState === 0 || nState === 1 || nState === 5) locName = `${locName} (LOADING)`;
+            }
+        }
         else if (locName === "Catering") locName = mDict.gops_catering || locName;
         else if (locName === "Cleaning") locName = mDict.gops_cleaning || locName;
         else if (locName === "Cabin Clean (PNC)") locName = "Cabin Clean (PNC)";
@@ -3679,22 +3786,23 @@ function renderGroundOps(services) {
 
         let stateVal = s.State !== undefined ? s.State : s.state;
         const icon = GO_ICONS[s.Name] || '🔹';
-        
+
         let isBlocked = false;
         if ((s.Name === "Deboarding" || s.Name === "Boarding") && isCrewWorking) isBlocked = true;
         if ((s.Name.includes("Clean") || s.Name === "Catering") && isPaxMoving) isBlocked = true;
 
         let isCompleted = stateVal === 3 || stateVal === 4 || s.IsPreServiced || s.isPreServiced;
-        
+
         let buttonText = `START ${locName.toUpperCase()}`;
         let buttonStyles = '';
         let buttonClass = 'transition-all duration-300';
         let isClickable = false;
         let actionName = s.Name === 'Deboarding' ? 'startDeboarding' : 'startService';
-        
+
         if (stateVal === 0 || stateVal === 5) {
             if (isBlocked) {
-                buttonStyles = 'color: #ef4444; opacity: 0.4; cursor: default; pointer-events: none;';
+                buttonStyles = 'color: #64748b; opacity: 0.4; cursor: default; pointer-events: none;';
+                buttonText = `LOCKED (${isPaxMoving ? 'PAX' : 'SVC'})`;
             } else {
                 buttonStyles = 'color: #38bdf8; cursor: pointer;';
                 buttonClass += ' hover:text-white hover:bg-sky-500/10 hover:border hover:border-sky-500/50';
@@ -3725,11 +3833,16 @@ function renderGroundOps(services) {
         let inlineStateHtml = '';
         if (stateVal === 1) inlineStateHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-sky-500/20 shadow-[0_0_10px_rgba(56,189,248,0.1)]"><span class="animate-pulse">●</span> ${smMsg ? smMsg.toUpperCase() : 'IN PROGRESS'}</span>`;
         else if (stateVal === 2) inlineStateHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-orange-500/20 shadow-[0_0_10px_rgba(249,115,22,0.1)]">WAITING (DELAYED)</span>`;
-        else if (stateVal === 5) inlineStateHtml = `<span class="text-yellow-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-yellow-500/20 shadow-[0_0_10px_rgba(250,204,21,0.1)] animate-pulse">WAITING FOR PILOT</span>`;
+        else if (stateVal === 5) inlineStateHtml = `<span class="text-yellow-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-yellow-500/20 shadow-[0_0_10px_rgba(250,204,21,0.1)] animate-pulse">WAITING FOR DRIVER</span>`;
         // if completed, we could show completed, but let's keep it clean
         if (isCompleted) inlineStateHtml = `<span class="text-slate-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-white/5"><span class="material-symbols-outlined text-[10px]">check</span> COMPLETED</span>`;
 
         let extraBadgesHtml = '';
+        if (s.Name === "Catering" || s.Name === "Cleanliness" || s.Name === "Cleaning" || s.Name === "Cabin Clean (PNC)" || s.Name === "Water/Waste") {
+            if (!isCompleted) {
+                extraBadgesHtml += `<button onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'skipService', service: '${(s.Name || s.name)}' });" class="px-2 py-1 ml-2 rounded bg-red-500/10 hover:bg-red-500/30 text-red-500 border border-red-500/20 text-[9px] uppercase font-bold tracking-widest leading-none shadow-[0_0_10px_rgba(239,68,68,0.2)] transition-colors relative z-10 cursor-pointer">SKIP</button>`;
+            }
+        }
         if (window.lastTelemetry && stateVal !== 1 && !isCompleted) {
             if (s.Name === "Catering") {
                 const cr = window.lastTelemetry.cateringRations !== undefined ? window.lastTelemetry.cateringRations : 0;
@@ -3756,7 +3869,7 @@ function renderGroundOps(services) {
         }
         const safeName = (s.Name || s.name).replace(/\s|[^\w]/g, '');
         const clickAction = isClickable ? `onclick="window.chrome.webview.postMessage({action: '${actionName}', service: '${(s.Name || s.name)}'})"` : '';
-        
+
         let barColor = stateVal === 3 ? '#34D399' : (stateVal === 2 ? '#FB923C' : '#4A90E2');
         if (isCompleted && !(s.IsPreServiced || s.isPreServiced)) barColor = '#34D399';
         else if (isCompleted && (s.IsPreServiced || s.isPreServiced)) barColor = '#475569';
@@ -3795,13 +3908,17 @@ function renderGroundOps(services) {
                             </div>`;
                 }
             })()}
-                <button ${clickAction} class="w-full h-full p-5 flex items-center justify-between outline-none border-none relative ${buttonClass}" style="${buttonStyles}">
-                    <div class="flex items-center gap-4 overflow-hidden">
+                <button ${clickAction} class="w-full h-full p-5 flex items-center outline-none border-none relative ${buttonClass}" style="${buttonStyles}">
+                    <div class="flex items-center gap-4 w-[35%] overflow-hidden">
                         <span class="text-2xl shrink-0">${icon}</span>
-                        <strong class="font-headline tracking-widest uppercase text-base truncate">${buttonText}</strong>
-                        ${inlineStateHtml ? `<span class="ml-2 shrink-0">${inlineStateHtml}</span>` : ''}
+                        <strong class="font-headline tracking-widest uppercase text-base truncate" title="${buttonText}">${buttonText}</strong>
                     </div>
-                    ${timeDisplay}
+                    <div class="flex-1 flex justify-center min-w-[120px] shrink-0">
+                        ${inlineStateHtml}
+                    </div>
+                    <div class="w-[35%] flex justify-end">
+                        ${timeDisplay}
+                    </div>
                 </button>
                 ${extraBadgesHtml ? `<div class="absolute top-2 right-2 flex items-center">${extraBadgesHtml}</div>` : ''}
                 
@@ -4342,16 +4459,6 @@ setTimeout(() => {
     }
 }, 500);
 
-document.addEventListener('DOMContentLoaded', () => {
-    const btnPause = document.getElementById('btnSystemPause');
-    if (btnPause) {
-        btnPause.addEventListener('click', () => {
-            window.chrome.webview.postMessage({ action: 'systemPause' });
-        });
-    }
-});
-
-
 // --- TIME SKIP WIDGET LOGIC ---
 let isTimeSkipDragging = false;
 let tsDragStartX = 0;
@@ -4378,7 +4485,7 @@ if (timeSkipModal) {
     });
 }
 
-window.requestTimeSkip = function(minutes) {
+window.requestTimeSkip = function (minutes) {
     if (window.chrome && window.chrome.webview) {
         window.chrome.webview.postMessage({ action: 'requestTimeSkip', minutes: minutes });
         const modal = document.getElementById('timeSkipModal');
@@ -4387,7 +4494,7 @@ window.requestTimeSkip = function(minutes) {
 };
 
 // Expose a method to handle showing hiding based on FlightPhase (from telemetry)
-window.checkTimeSkipVisibility = function(phase) {
+window.checkTimeSkipVisibility = function (phase) {
     if (!timeSkipModal) return;
     if (phase !== 'Turnaround' && phase !== 'AtGate' && phase !== 0 && phase !== 9) {
         timeSkipModal.classList.add('hidden');

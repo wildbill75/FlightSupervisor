@@ -93,6 +93,7 @@ namespace FlightSupervisor.UI.Services
 
         public event Action? OnOpsCompleted;
         public event Action? OnOpsUpdated;
+        public event Action<string>? OnServiceStarted;
         public event Action<string>? OnOpsLog;
         public event Action<int, string>? OnOperationBonusTriggered;
         public event Action<int, string>? OnPenaltyTriggered;
@@ -370,6 +371,7 @@ namespace FlightSupervisor.UI.Services
                 string actor = GetActorForService(s.Name);
                 string startMsg = GetStartMessageForService(s.Name);
                 OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] {startMsg} (Manual Start)", $"[{actor}] {startMsg} (Manuel)"));
+                OnServiceStarted?.Invoke(s.Name);
                 
                 OnOpsUpdated?.Invoke();
             }
@@ -409,13 +411,19 @@ namespace FlightSupervisor.UI.Services
         public void Tick(DateTime? currentZulu)
         {
             if (!_isStarted) return;
-            var now = DateTime.UtcNow;
+            
+            var now = currentZulu ?? DateTime.UtcNow;
+            if (now.Year < 2000) now = DateTime.UtcNow;
+            
+            if (_lastTick.Year < 2000) _lastTick = now;
+            
             var delta = (int)(now - _lastTick).TotalSeconds;
             _lastTick = now; // Update immediately to prevent delta buildup if paused
 
             if (IsPaused || delta <= 0) return;
-            if (delta > 10) delta = 1; // Protect against system sleep / massive lag spikes
-            _lastTick = now;
+            
+            // Note: delta is no longer clamped to > 10 because we want to seamlessly support MSFS Time skips
+            // If the user advances the simulator clock by 30 mins, delta will be 1800s, and operations will correctly batch process.
 
             if (Services.Count == 0) return;
 
@@ -506,6 +514,7 @@ namespace FlightSupervisor.UI.Services
                         string actor = GetActorForService(s.Name);
                         string startMsg = GetStartMessageForService(s.Name);
                         OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] {startMsg}", $"[{actor}] {startMsg}"));
+                        OnServiceStarted?.Invoke(s.Name);
                     }
                     else
                     {

@@ -650,7 +650,7 @@ namespace FlightSupervisor.UI.Services
 
             // Thermal monitoring still runs before boarding, so we don't completely return.
             // Progressive Boarding Logic (Phase 3)
-            if (phase == FlightPhase.AtGate && HasBoardingStarted && !isBoarded)
+            if ((phase == FlightPhase.AtGate || phase == FlightPhase.Turnaround) && HasBoardingStarted && !isBoarded)
             {
                 if (_lastBoardingTick == DateTime.MaxValue) 
                 {
@@ -775,7 +775,7 @@ namespace FlightSupervisor.UI.Services
             {
                 if (_rnd.NextDouble() < 0.05) ModifyAnxiety(_rnd.NextDouble() * 0.2);
             }
-            else if (phase != FlightPhase.AtGate && phase != FlightPhase.TaxiOut && phase != FlightPhase.TaxiIn)
+            else if (phase != FlightPhase.AtGate && phase != FlightPhase.Turnaround && phase != FlightPhase.TaxiOut && phase != FlightPhase.TaxiIn)
             {
                 if ((DateTime.Now - _lastTurbulenceNotice).TotalSeconds > 120 && !isCrisisActive) 
                 {
@@ -784,11 +784,11 @@ namespace FlightSupervisor.UI.Services
             }
 
             // --- MORALE PASSIVE AURA ---
-            if (CrewMorale >= 80.0 && phase != FlightPhase.AtGate)
+            if (CrewMorale >= 80.0 && phase != FlightPhase.AtGate && phase != FlightPhase.Turnaround)
             {
                 DecreaseAnxiety(0.01); // Smiling proactive crew gently reassures passengers continuously
             }
-            else if (CrewMorale < 40.0 && phase != FlightPhase.AtGate)
+            else if (CrewMorale < 40.0 && phase != FlightPhase.AtGate && phase != FlightPhase.Turnaround)
             {
                 DecreaseComfort(0.01); // Stressed, overwhelmed or grumpy crew passively annoys passengers
             }
@@ -1132,7 +1132,7 @@ namespace FlightSupervisor.UI.Services
             }
 
             // --- Crisis & Silence Penalty Logic ---
-            bool isSevereTurbulence = phase != FlightPhase.AtGate && isCrisisActive; 
+            bool isSevereTurbulence = phase != FlightPhase.AtGate && phase != FlightPhase.Turnaround && isCrisisActive; 
             
             if (isCrisisActive)
             {
@@ -1216,7 +1216,7 @@ namespace FlightSupervisor.UI.Services
                 foreach (var g in _gForceHistory) { if(g < gMin) gMin=g; if(g > gMax) gMax=g; }
             }
             
-            if (phase != FlightPhase.AtGate && (gMax - gMin > 0.6))
+            if (phase != FlightPhase.AtGate && phase != FlightPhase.Turnaround && (gMax - gMin > 0.6))
             {
                 IncreaseAnxiety(0.5, phase, isCrisisActive); 
                 DecreaseComfort(0.5); // B.1 task: Turbulence vibrates cabin, dropping comfort
@@ -1255,7 +1255,7 @@ namespace FlightSupervisor.UI.Services
                 }
             }
             
-            if (phase != FlightPhase.AtGate && Math.Abs(bankAngle) > 33.0)
+            if (phase != FlightPhase.AtGate && phase != FlightPhase.Turnaround && Math.Abs(bankAngle) > 33.0)
             {
                 if ((DateTime.Now - _lastCabinBankPenalty).TotalSeconds > 5)
                 {
@@ -1672,6 +1672,15 @@ namespace FlightSupervisor.UI.Services
             _hasAppliedDepartureWeatherAnxiety = false;
             _hasAppliedArrivalWeatherAnxiety = false;
             _hasPlayedDescentPA = false;
+            _hasPlayedSeatbeltOffPA = false;
+            _hasWarnedToiletsFull = false;
+            _hasWarnedTempHot = false;
+            _hasWarnedTempCold = false;
+            _hasWarnedPushbackNoSeatbelts = false;
+            _hasPenalizedTurbulenceReaction = false;
+            _hasTriggeredThrustReductionAnxiety = false;
+            HasPenalizedRefuelingSeatbelts = false;
+            _actualTakeoffTime = null;
             if (SessionFlightsCompleted == 0 && FirstFlightClean)
             {
                 CateringCompletion = 100.0;

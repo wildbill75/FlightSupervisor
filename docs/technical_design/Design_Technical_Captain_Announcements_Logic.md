@@ -17,3 +17,10 @@ Implements a context-aware PA system that pulls data from SimBrief, Live Weather
 ## 🏆 Anxiety Logic
 - **`ReassuranceBonus`**: A temporary multiplier (e.g., 0.5x) applied to anxiety spikes for 10 minutes following an informative PA.
 - **`SilenceMultiplier`**: If a crisis is active and `PA_Crisis_Timer > 120s`, the `AnxietyIncrement` in `CabinManager.cs` is multiplied by 2.0.
+
+## CHANGES/TO DO : Change the way the announcements are displayed for the player.
+  1. Get rid of the dropdown list. 
+  2. Instead, have a list of buttons that are enabled or disabled based on the flight phase. But only the relevant buttons should be visible. For example, during taxi out, only the Welcome PA button should be visible. During descent, only the Descent PA button should be visible. During a crisis, only the Crisis PA button should be visible.
+  3.  Player cannot press a button if a PA or PNC or any other is already being broadcasted. 
+  4. For each button do not display the full text of the announcement. Instead, display a short title for the announcement. For example, for the Welcome PA, display "Welcome PA" instead of the full text of the announcement. For the Descent PA, display "Descent PA" instead of the full text of the announcement. For the Crisis PA, display "Crisis PA" instead of the full text of the announcement.
+  5. Don not display any prefixe like INT, EXT, etc. Just the title of the announcement.

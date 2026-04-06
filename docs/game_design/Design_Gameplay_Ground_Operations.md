@@ -81,3 +81,12 @@ Ground operations must follow a logical and realistic order. The following stric
   - **Tier B** (Méga Hubs / Fort Trafic) : Pas de pénalité de temps de base (leurs immenses moyens logistiques compensent leur taille). **Cependant**, la probabilité d'événements aléatoires (traffic jam sur le tarmac, équipe envoyée au mauvais terminal) est augmentée de 20%. (ex: `LFPG` CDG, `EGLL` Heathrow, `EDDF` Frankfurt).
   - **Tier C/F** (Congestion chronique / Sous-effectifs) : Pénalité de temps de +30%. Fort risque d'incident et de délai permanent. (ex: `EHAM` Amsterdam l'été, `KEWR` Newark, `LIRF` Rome).
   - *Design* : Afficher subtilement ce rating dans le Header de l'UI et afficher une Modale/Panel descriptif en haut de la page Ground Operations avec lettre en couleur et description du profil d'infrastructure.
+
+- [ ] **TICKET 39 : Séquençage Semi-Auto des Opérations (Piloté par la Politique Compagnie)**
+  - Développer un mode "Semi-Auto" pour les Ground Ops permettant de lancer des *groupes* d'opérations logiques par phases, plutôt que de cliquer sur chaque service manuellement, respectant ainsi les politiques IATA/IGOM et de la compagnie.
+  - **Concept UI** : Un bouton principal intelligent (Primary Action) qui évolue : "START PREPARATION PHASE" -> "START BOARDING PHASE" -> "START FINALIZATION".
+  - **Logique des Groupes / Politique Compagnie** :
+    - *Phase 1 (Preparation)* : Lance systématiquement le Cargo/Baggage, le Cleaning et le Catering. Si la politique de la compagnie **interdit** l'avitaillement pendant l'embarquement (Legacy Carriers), cette phase lance également le **Fueling**.
+    - *Phase 2 (Boarding)* : Se déverrouille une fois Cleaning et Catering terminés (conflits d'allées obligent). Lance l'Embarquement. Si la politique de la compagnie **autorise/force** l'avitaillement pendant l'embarquement (Low-Cost), le **Fueling** est lancé en parallèle ici.
+  - **Gameplay & Pénalités (Risk Management)** :
+    - Si le Fueling tourne en même temps que le Boarding (parce que c'est la politique Low-Cost), le joueur **doit** avoir fait l'annonce "Refueling in progress" (No Smoking / Ceintures détachées) ou le jeu infligera une forte augmentation d'Anxiété et potentiellement une pénalité de "Safety Violation".

@@ -780,8 +780,11 @@ namespace FlightSupervisor.UI.Services
                     _hasTriggeredGearLate = false;
                     _hasTriggeredGearOverspeed = false;
                     _hasTriggeredGearUpBonus = false;
+                    _hasTriggered10kClimbBonus = false;
                     _hasTriggeredAbnormalGear = false;
                     _hasTriggeredEngineFailure = false;
+                    _hasTriggeredOverspeedPenalty = false;
+                    _overspeedSeconds = 0;
                     
                     _hasFoWarnedGearUp = false;
                     _hasFoWarnedGearDown = false;
@@ -790,6 +793,12 @@ namespace FlightSupervisor.UI.Services
                     _hasFoWarnedSeatbeltDesc = false;
                     _hasFoWarnedLights10kClimb = false;
                     _hasFoWarnedLights10kDesc = false;
+
+                    _lastPitchPenalty = DateTime.MinValue;
+                    _lastBankPenalty = DateTime.MinValue;
+                    _lastGForcePenalty = DateTime.MinValue;
+                    _lastLightPenalty = DateTime.MinValue;
+                    _lastApuPenalty = DateTime.MinValue;
                 }
                 else if (CurrentPhase == FlightPhase.Descent || CurrentPhase == FlightPhase.Approach)
                 {
@@ -872,6 +881,7 @@ namespace FlightSupervisor.UI.Services
             _vsHistory.Clear();
             _gForceHistory.Clear();
             TurbulenceSeverity = TurbulenceSeverityLevel.None;
+            TargetCruiseAltitude = 10000;
         }
     }
 }

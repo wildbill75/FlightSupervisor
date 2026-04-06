@@ -2,7 +2,7 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Collections.Generic;
-
+.
 public class TestClass {
     [JsonPropertyName("known_prop")]
     public string Expected { get; set; } = "test1";

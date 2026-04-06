@@ -1,0 +1,16 @@
+# Flight Supervisor - Product Backlog (Macro)
+
+> **Légende :**
+> - **Story (Macro)** : Un grand ensemble de fonctionnalités métier.
+> - **Sprint (Micro)** : Un document de tickets techniques précis situé dans `docs/sprints/`.
+> - **Status** : `[x]` Fini, `[/]` En cours, `[ ]` À faire.
+
+## DESCRIPTION
+
+The slot logic implementaion is designed to reflect the real life slot logic for airports.
+Therefore we have to imagine and adapte this system to the game. This feature will be available for airports with a slot logic. This feature will be enabled or disaabled by the user in the settings menu to avoid conflicting with ATC Online or other features.
+
+## GAMEPLAY
+
+### 1. When a leg is created, the slot time is set to the current time. For example if the flight is scheduled to depart at 12:00, the slot time will be set to 12:00. If I pass the slot time, I will get a penalty and another slot time will be assigned to me. 
+### 2. 

@@ -32,7 +32,7 @@ namespace FlightSupervisor.UI.Models
                 if (hours < 200) return "Senior First Officer";
                 if (hours < 500) return "Captain";
                 if (hours < 1000) return "Senior Captain";
-                return "Commander";
+                return "Chief Pilot";
             }
         }
         

@@ -198,6 +198,7 @@
     <header class="fixed top-0 right-0 left-64 z-30 flex items-center justify-between px-8 bg-background/50 backdrop-blur-lg w-full h-16 border-b border-white/5 font-manrope font-semibold uppercase tracking-widest text-[10px] pt-4 pointer-events-none">
         <div class="flex items-center gap-8">
             <span id="topPhase" class="text-sky-400">Off</span>
+            <span class="text-slate-500">Date: <span id="topDate" class="text-slate-300">--/--/----</span></span>
             <span class="text-slate-500">Zulu: <span id="topZulu" class="text-slate-300">--:--Z</span></span>
             <span class="text-slate-500 flex items-center gap-2">Tier: <span id="topAirlineTier" class="text-slate-400 font-bold bg-slate-500/10 px-2 py-0.5 rounded border border-slate-500/20">N/A</span></span>
             <span class="text-slate-500 font-bold flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span> <span id="topFlight" class="text-sky-400 font-black">CONNECTED</span></span>
@@ -227,10 +228,6 @@
                                 <div style="display: flex; align-items: baseline; gap: 20px; width: 100%;">
                                     <h1 id="flightPhase" class="text-7xl font-black font-headline text-sky-400 tracking-tighter neon-glow" style="text-transform: capitalize;">Off</h1>
                                     <div id="flightCountdown" class="text-lg text-slate-400 font-bold" style="font-family: monospace;"></div>
-                                    <button id="btnSystemPause" class="ml-auto w-12 h-12 flex items-center justify-center rounded-xl bg-slate-800 text-sky-400 border border-slate-700 hover:bg-slate-700 hover:text-sky-300 transition-all shadow-md" style="align-self: center;" title="Pause Simulator">
-                                        <svg id="iconPause" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                                        <svg id="iconPlay" class="w-6 h-6 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -367,28 +364,36 @@
                                 </thead>
                                 <tbody class="text-sm font-medium">
                                     <tr class="border-t border-white/5">
-                                        <td class="py-4 text-slate-300"><span data-i18n="dash_td_sobt">SOBT (Off-Block)</span></td>
-                                        <td class="py-4 font-mono text-slate-400" id="bdSobt">--:--Z</td>
-                                        <td class="py-4 font-mono text-slate-300" id="actualOff">--:--</td>
-                                        <td class="py-4 text-right" id="sobtStatus"><span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider" data-i18n="dash_status_standby">Standby</span></td>
+                                        <td class="py-4">
+                                            <div class="flex items-center">
+                                                <span class="text-xl mr-3">🛫</span>
+                                                <div class="flex flex-col">
+                                                    <span class="text-slate-200 font-bold tracking-wide">DEPARTURE</span>
+                                                    <span class="text-[9px] text-slate-500 font-mono">OFF-BLOCK / SOBT</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="py-4 font-mono text-slate-400" id="ttSchedDep">--:--Z</td>
+                                        <td class="py-4 font-mono text-sky-400 font-bold" id="ttActDep">--:--Z</td>
+                                        <td class="py-4 text-right" id="ttDepBadgeContainer">
+                                            <span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider" id="ttDepStatus">STANDBY</span>
+                                        </td>
                                     </tr>
                                     <tr class="border-t border-white/5">
-                                        <td class="py-4 text-slate-300"><span data-i18n="dash_td_aobt">AOBT (Actual Off)</span></td>
-                                        <td class="py-4 font-mono text-slate-500" id="bdAobt">--:--</td>
-                                        <td class="py-4 font-mono text-sky-400" id="actualOff2">PENDING</td>
-                                        <td class="py-4 text-right" id="actualOffStatus"><span class="px-2 py-0.5 rounded bg-sky-500/10 text-[10px] text-sky-400 uppercase font-bold tracking-wider" data-i18n="dash_status_active">Active</span></td>
-                                    </tr>
-                                    <tr class="border-t border-white/5">
-                                        <td class="py-4 text-slate-300"><span data-i18n="dash_td_sibt">SIBT (In-Block)</span></td>
-                                        <td class="py-4 font-mono text-slate-400" id="bdSibt">--:--Z</td>
-                                        <td class="py-4 font-mono text-slate-300" id="actualIn">--:--</td>
-                                        <td class="py-4 text-right" id="sibtStatus"><span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider" data-i18n="dash_status_standby">Standby</span></td>
-                                    </tr>
-                                    <tr class="border-t border-white/5">
-                                        <td class="py-4 text-slate-300"><span data-i18n="dash_td_aibt">AIBT (Actual In)</span></td>
-                                        <td class="py-4 font-mono text-slate-500" id="bdAibt">--:--</td>
-                                        <td class="py-4 font-mono text-slate-500" id="actualIn2">--:--</td>
-                                        <td class="py-4 text-right" id="actualInStatus"><span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider" data-i18n="dash_status_standby">Standby</span></td>
+                                        <td class="py-4">
+                                            <div class="flex items-center">
+                                                <span class="text-xl mr-3">🛬</span>
+                                                <div class="flex flex-col">
+                                                    <span class="text-slate-200 font-bold tracking-wide">ARRIVAL</span>
+                                                    <span class="text-[9px] text-slate-500 font-mono">IN-BLOCK / SIBT</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="py-4 font-mono text-slate-400" id="ttSchedArr">--:--Z</td>
+                                        <td class="py-4 font-mono text-sky-400 font-bold" id="ttActArr">--:--Z</td>
+                                        <td class="py-4 text-right" id="ttArrBadgeContainer">
+                                            <span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider" id="ttArrStatus">STANDBY</span>
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -1342,6 +1347,14 @@
             
             if(document.getElementById('topPhase') && p) document.getElementById('topPhase').innerText = p.innerText;
             if(document.getElementById('topZulu') && z) document.getElementById('topZulu').innerText = z.innerText;
+            
+            if(document.getElementById('topDate')) {
+                const now = new Date();
+                const d = now.getDate().toString().padStart(2, '0');
+                const m = (now.getMonth() + 1).toString().padStart(2, '0');
+                const y = now.getFullYear();
+                document.getElementById('topDate').innerText = `${d}/${m}/${y}`;
+            }
             
             const origin = document.getElementById('dhOrigin')?.innerText || '---';
             const dest = document.getElementById('dhDest')?.innerText || '---';
