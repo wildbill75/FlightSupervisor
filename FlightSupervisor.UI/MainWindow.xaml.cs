@@ -218,17 +218,17 @@ namespace FlightSupervisor.UI
 
                 if (_hasReceivedFenixLvars) 
                 {
-                    // The Fenix LVARs (A_OH_PNEUMATIC_FWD_TEMP and AFT_TEMP) provide the ACTUAL zone temperatures in Celsius
-                    double fwd = _phaseManager.FenixCabinTempFwd;
-                    double aft = _phaseManager.FenixCabinTempAft;
+                    // The Fenix LVARs (A_OH_PNEUMATIC_FWD_TEMP and AFT_TEMP) represent the selector knob position.
+                    // A value of 0.5 represents the 12 o'clock position (24°C). The range is strictly 0.0 to 1.0.
+                    // We map the 0.0-1.0 range to 18-30°C.
+                    
+                    double normFwd = Math.Min(1.0, Math.Max(0.0, _phaseManager.FenixCabinTempFwd));
+                    double normAft = Math.Min(1.0, Math.Max(0.0, _phaseManager.FenixCabinTempAft));
 
-                    // Clamping to avoid crazy duct temperatures during bleed changes
-                    if (fwd < -20.0) fwd = 22.0;
-                    if (fwd > 50.0) fwd = 22.0; 
-                    if (aft < -20.0) aft = 22.0;
-                    if (aft > 50.0) aft = 22.0;
+                    double mappedTempFwd = 18.0 + (normFwd * 12.0);
+                    double mappedTempAft = 18.0 + (normAft * 12.0);
 
-                    targetTemp = ((fwd + aft) / 2.0) + variance;
+                    targetTemp = ((mappedTempFwd + mappedTempAft) / 2.0) + variance;
                 }
                 else 
                 {
@@ -756,12 +756,6 @@ namespace FlightSupervisor.UI
             };
 
             _simConnectService.OnAmbientTemperatureReceived += temp => {
-                // MSFS anomaly: Ambient temperature is sometimes received directly in Fahrenheit instead of Celsius, e.g. 48.7.
-                if (temp > 45.0 && temp < 130.0) 
-                {
-                    temp = (temp - 32.0) * (5.0 / 9.0);
-                }
-                
                 _cabinManager.CurrentAmbientTemperature = temp;
             };
 
