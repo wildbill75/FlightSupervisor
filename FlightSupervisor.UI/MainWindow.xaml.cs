@@ -210,29 +210,33 @@ namespace FlightSupervisor.UI
 
                 double targetTemp = _cabinManager.CurrentAmbientTemperature;
                 double variance = (_currentSimTime.Second % 10) / 20.0; // 0.0 to 0.45 pseudo-random drift
-                bool hasAcPower = _phaseManager.Eng1Combustion || _phaseManager.Eng2Combustion || _phaseManager.FenixApuBleed;
 
                 if (_phaseManager.FenixCabinTempFwd > 0.01 || _phaseManager.FenixCabinTempAft > 0.01) 
                 {
                     _hasReceivedFenixLvars = true; // Latch so we know the data link is active!
                 }
 
-                if (_hasReceivedFenixLvars && hasAcPower) 
+                if (_hasReceivedFenixLvars) 
                 {
-                    // Fenix Cabin Temp Fwd/Aft expose the rotary knob position (usually 0 to 100 scale, sometimes 0 to 1.0). 
-                    // We map this into an empirical A320 range of 18°C to 30°C.
-                    double normFwd = _phaseManager.FenixCabinTempFwd > 1.5 ? Math.Min(100.0, _phaseManager.FenixCabinTempFwd) / 100.0 : _phaseManager.FenixCabinTempFwd;
-                    double normAft = _phaseManager.FenixCabinTempAft > 1.5 ? Math.Min(100.0, _phaseManager.FenixCabinTempAft) / 100.0 : _phaseManager.FenixCabinTempAft;
+                    // The Fenix LVARs (A_OH_PNEUMATIC_FWD_TEMP and AFT_TEMP) provide the ACTUAL zone temperatures in Celsius
+                    double fwd = _phaseManager.FenixCabinTempFwd;
+                    double aft = _phaseManager.FenixCabinTempAft;
 
-                    double mappedTempFwd = 18.0 + (normFwd * 12.0);
-                    double mappedTempAft = 18.0 + (normAft * 12.0);
+                    // Clamping to avoid crazy duct temperatures during bleed changes
+                    if (fwd < -20.0) fwd = 22.0;
+                    if (fwd > 50.0) fwd = 22.0; 
+                    if (aft < -20.0) aft = 22.0;
+                    if (aft > 50.0) aft = 22.0;
 
-                    targetTemp = ((mappedTempFwd + mappedTempAft) / 2.0) + variance;
+                    targetTemp = ((fwd + aft) / 2.0) + variance;
                 }
-                else if (hasAcPower)
+                else 
                 {
-                    // Without explicit Fenix LVar, we gently trend towards a comfortable 22.5 +/- 0.5
-                    targetTemp = 22.0 + variance;
+                    // Without explicit Fenix LVar, we gently trend towards a comfortable 22.5 +/- 0.5 if engines/APU provide conditioning
+                    if (_phaseManager.Eng1Combustion || _phaseManager.Eng2Combustion || _phaseManager.FenixApuBleed)
+                    {
+                        targetTemp = 22.0 + variance;
+                    }
                 }
 
                 _cabinManager.Tick(_phaseManager.GForce, _lastKnownBank, isBoardingComplete,
@@ -752,6 +756,12 @@ namespace FlightSupervisor.UI
             };
 
             _simConnectService.OnAmbientTemperatureReceived += temp => {
+                // MSFS anomaly: Ambient temperature is sometimes received directly in Fahrenheit instead of Celsius, e.g. 48.7.
+                if (temp > 45.0 && temp < 130.0) 
+                {
+                    temp = (temp - 32.0) * (5.0 / 9.0);
+                }
+                
                 _cabinManager.CurrentAmbientTemperature = temp;
             };
 

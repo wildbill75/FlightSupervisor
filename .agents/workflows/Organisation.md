@@ -14,3 +14,4 @@ Chaque conversation mentionnant la création du nouveau "Design" doit faire l'ob
 8. A chaque modification ou création d'un document design, l'agent doit l'afficher dans la fenêtre principale.
 9. Ne jamais démarrer des modifications de code sans avoir demander l'autorisation à l'utilisateur.
 10. La progression des tâches (tickets) doit OBLIGATOIREMENT être traquée de manière claire et visuelle dans un document "task.md" généré sous forme d'Artifact. Cette méthode permet à l'utilisateur de bien suivre visuellement la progression (usage de [ ] et [x]).
+11. Règle d'or de Test : Lorsque l'utilisateur annonce qu'il teste le jeu, l'agent ne doit **absolument pas** coder ou modifier des fichiers. L'agent doit uniquement écouter les retours, les noter scrupuleusement, et mettre à jour le fichier `task.md`. Toute modification de code pendant une session de test est interdite pour éviter de désynchroniser l'utilisateur.

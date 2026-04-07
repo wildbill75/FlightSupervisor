@@ -179,9 +179,9 @@ namespace FlightSupervisor.UI.Services
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_ENG_MASTER_1,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_ENG_MASTER_2,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_MIP_PARKING_BRAKE,Number)");
-                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_OH_PNEUMATIC_COCKPIT_TEMP,Number)");
-                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_OH_PNEUMATIC_FWD_TEMP,Number)");
-                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_OH_PNEUMATIC_AFT_TEMP,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:A_OH_PNEUMATIC_COCKPIT_TEMP,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:A_OH_PNEUMATIC_FWD_TEMP,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:A_OH_PNEUMATIC_AFT_TEMP,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_OH_PNEUMATIC_ENG1_BLEED,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_OH_PNEUMATIC_ENG2_BLEED,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_OH_PNEUMATIC_PACK_1,Number)");
@@ -210,9 +210,9 @@ namespace FlightSupervisor.UI.Services
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_ENG_MASTER_1,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_ENG_MASTER_2,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_MIP_PARKING_BRAKE,Number)");
-                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_OH_PNEUMATIC_COCKPIT_TEMP,Number)");
-                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_OH_PNEUMATIC_FWD_TEMP,Number)");
-                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_OH_PNEUMATIC_AFT_TEMP,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:A_OH_PNEUMATIC_COCKPIT_TEMP,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:A_OH_PNEUMATIC_FWD_TEMP,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:A_OH_PNEUMATIC_AFT_TEMP,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_OH_PNEUMATIC_ENG1_BLEED,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_OH_PNEUMATIC_ENG2_BLEED,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_OH_PNEUMATIC_PACK_1,Number)");

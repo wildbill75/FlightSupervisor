@@ -1811,6 +1811,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     btnFail.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> START OPS';
                 }
                 break;
+            case 'manifest':
+                window.manifest = payload.manifest;
+                if (window.manifest && document.getElementById('cabin') && document.getElementById('cabin').classList.contains('active')) {
+                    if (typeof window.renderManifest === 'function') {
+                        window.renderManifest(window.manifest);
+                    }
+                }
+                break;
             case 'briefingUpdate':
                 if (typeof window.parseBriefing === 'function') {
                     const parsedHtml = window.parseBriefing(payload.briefing);
@@ -2116,9 +2124,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     const tNeedle = document.getElementById('thermalNeedle');
 
                     if (tVal && tNeedle) {
-                        tVal.innerHTML = `${payload.cabinTemp.toFixed(1)}<span class="text-[10px] text-slate-500 font-light ml-1">Â°C</span>`;
+                        tVal.innerHTML = `${payload.cabinTemp.toFixed(1)}<span class="text-[10px] text-slate-500 font-light ml-1">°C</span>`;
 
-                        // Map 18-30Â°C to 0-100% position
+                        // Map 18-30°C to 0-100% position
                         let mappedPercent = ((payload.cabinTemp - 18.0) / 12.0) * 100.0;
                         if (mappedPercent < 0) mappedPercent = 0;
                         if (mappedPercent > 100) mappedPercent = 100;
@@ -3911,7 +3919,7 @@ function renderGroundOps(services) {
                 <button ${clickAction} class="w-full h-full p-5 flex items-center outline-none border-none relative ${buttonClass}" style="${buttonStyles}">
                     <div class="flex items-center gap-4 w-[35%] overflow-hidden">
                         <span class="text-2xl shrink-0">${icon}</span>
-                        <strong class="font-headline tracking-widest uppercase text-base truncate" title="${buttonText}">${buttonText}</strong>
+                        <strong class="font-headline tracking-widest uppercase text-[11px] md:text-[13px] whitespace-normal leading-tight break-words text-left" title="${buttonText}">${buttonText}</strong>
                     </div>
                     <div class="flex-1 flex justify-center min-w-[120px] shrink-0">
                         ${inlineStateHtml}

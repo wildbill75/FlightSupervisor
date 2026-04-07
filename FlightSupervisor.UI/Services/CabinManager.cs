@@ -42,7 +42,23 @@ namespace FlightSupervisor.UI.Services
                 public CabinState State { get; private set; } = CabinState.Idle;
         public DateTime CurrentSimLocalTime { get; set; } = DateTime.MinValue;
         public DateTime CurrentSimZuluTime { get; set; } = DateTime.MinValue;
-        public double CurrentAmbientTemperature { get; set; } = 15.0;
+        
+        private bool _isTempInitialized = false;
+        private double _currentAmbientTemperature = 15.0;
+        public double CurrentAmbientTemperature 
+        { 
+            get => _currentAmbientTemperature; 
+            set 
+            {
+                _currentAmbientTemperature = value;
+                if (!_isTempInitialized) 
+                {
+                    // Initialization starts at a standard 22.0°C instead of pure ambient to match ready-for-flight states
+                    LastKnownCabinTemp = 22.0;
+                    _isTempInitialized = true;
+                }
+            } 
+        }
 
         private Random _renderRnd = new Random();
 
@@ -215,11 +231,27 @@ namespace FlightSupervisor.UI.Services
         public double BaggageCompletion { get; set; } = 100.0;
 
         public int MaxCateringRations { get; set; } = 165;
-        public int CateringRations { get; set; } = 165;
+        
+        private int _cateringRations = 165;
+        public int CateringRations 
+        { 
+            get { return _cateringRations; } 
+            set 
+            { 
+                _cateringRations = Math.Max(0, Math.Min(MaxCateringRations, value));
+                _cateringCompletion = MaxCateringRations > 0 ? ((double)_cateringRations / MaxCateringRations) * 100.0 : 0.0;
+            } 
+        }
+        
+        private double _cateringCompletion = 100.0;
         public double CateringCompletion 
         { 
-            get { return MaxCateringRations > 0 ? ((double)CateringRations / MaxCateringRations) * 100.0 : 0.0; } 
-            set { CateringRations = (int)(MaxCateringRations * (value / 100.0)); } 
+            get { return _cateringCompletion; } 
+            set 
+            { 
+                _cateringCompletion = Math.Max(0.0, Math.Min(100.0, value));
+                _cateringRations = (int)Math.Round(MaxCateringRations * (_cateringCompletion / 100.0)); 
+            } 
         }
 
         public double CabinCleanliness { get; set; } = 100.0;
@@ -602,12 +634,6 @@ namespace FlightSupervisor.UI.Services
                 WaterLevel = Math.Max(0, WaterLevel - (baseDrainRate * deltaSeconds));
                 WasteLevel = Math.Min(100, WasteLevel + (baseDrainRate * deltaSeconds * 1.5));
                 CabinCleanliness = Math.Max(0, CabinCleanliness - (baseDrainRate * deltaSeconds * 0.5));
-                
-                // Adjust rations if we served during this jump
-                if (phase == FlightPhase.Cruise && CateringRations > 0)
-                {
-                    CateringRations = Math.Max(0, CateringRations - PassengerManifest.Count);
-                }
             }
 
             if (deltaSeconds >= 300)
@@ -660,20 +686,7 @@ namespace FlightSupervisor.UI.Services
 
                 if (boardingProgress >= 0)
                 {
-                    int totalPax = PassengerManifest.Count;
-                    int targetBoarded = (int)Math.Round(totalPax * boardingProgress);
-                    int currentBoarded = PassengerManifest.Count(p => p.IsBoarded);
-                    
-                    if (targetBoarded > currentBoarded)
-                    {
-                        var unboarded = PassengerManifest.Where(p => !p.IsBoarded).ToList();
-                        int toBoard = targetBoarded - currentBoarded;
-                        for(int i = 0; i < Math.Min(toBoard, unboarded.Count); i++)
-                        {
-                            unboarded[i].IsBoarded = true;
-                            unboarded[i].IsSeatbeltFastened = _seatbeltsOn ? (_rnd.Next(100) < 98) : (_rnd.Next(100) < 33);
-                        }
-                    }
+                    // Boarding is orchestrated by GroundOpsResourceService via BoardPassenger()
                 }
                 else
                 {
@@ -684,12 +697,7 @@ namespace FlightSupervisor.UI.Services
                         var unboarded = PassengerManifest.Where(p => !p.IsBoarded).ToList();
                         if (unboarded.Count > 0)
                         {
-                            int toBoard = _rnd.Next(1, 4);
-                            for(int i = 0; i < Math.Min(toBoard, unboarded.Count); i++)
-                            {
-                                unboarded[i].IsBoarded = true;
-                                unboarded[i].IsSeatbeltFastened = _seatbeltsOn ? (_rnd.Next(100) < 98) : (_rnd.Next(100) < 33);
-                            }
+                            BoardPassenger(_rnd.Next(1, 4));
                         }
                     }
                 }
@@ -711,6 +719,17 @@ namespace FlightSupervisor.UI.Services
                 _hasAnnouncedBoardingComplete = true;
                 _audio?.SpeakAsPurser("Boarding is complete Captain.");
                 OnCrewMessage?.Invoke("cyan", LocalizationService.Translate("PA: Boarding is complete.", "PA: Embarquement terminé."), null);
+            }
+
+            // --- THERMAL COMFORT (Physical Simulation) ---
+            if (cabinTemperature > 0.0) 
+            {
+                double inertiaRate = 0.04 * deltaTimeSeconds; // ~2.5 degrees per minute
+                if (LastKnownCabinTemp < cabinTemperature) {
+                    LastKnownCabinTemp += Math.Min(inertiaRate, cabinTemperature - LastKnownCabinTemp);
+                } else if (LastKnownCabinTemp > cabinTemperature) {
+                    LastKnownCabinTemp -= Math.Min(inertiaRate, LastKnownCabinTemp - cabinTemperature);
+                }
             }
 
             // GATING CONDITION: Disable all stress, comfort, and thermal decay while boarding is in progress.
@@ -793,17 +812,6 @@ namespace FlightSupervisor.UI.Services
                 DecreaseComfort(0.01); // Stressed, overwhelmed or grumpy crew passively annoys passengers
             }
 
-            // --- THERMAL COMFORT ---
-            if (cabinTemperature > 0.0) 
-            {
-                // Thermal Inertia (Lag): Cabin temperature shifts smoothly towards the target sensor inputs
-                double inertiaRate = 0.04 * deltaTimeSeconds; // ~2.5 degrees per minute
-                if (LastKnownCabinTemp < cabinTemperature) {
-                    LastKnownCabinTemp += Math.Min(inertiaRate, cabinTemperature - LastKnownCabinTemp);
-                } else if (LastKnownCabinTemp > cabinTemperature) {
-                    LastKnownCabinTemp -= Math.Min(inertiaRate, LastKnownCabinTemp - cabinTemperature);
-                }
-            }
 
             // Removed old `if (!isBoarded...)` thermal bypass as we already return earlier.
             if (cabinTemperature > 0.0) // Valid sensor data
@@ -1957,7 +1965,11 @@ namespace FlightSupervisor.UI.Services
             foreach (var p in unboarded)
             {
                 p.IsBoarded = true;
-                if (IsSeatbeltsOn) p.IsSeatbeltFastened = true;
+                if (IsSeatbeltsOn) 
+                {
+                    // 90% chance to put seatbelt on immediately during boarding, leaving 10% for the crew to hound later
+                    p.IsSeatbeltFastened = _rnd.NextDouble() < 0.90;
+                }
             }
         }
     }
