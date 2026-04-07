@@ -2573,13 +2573,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('flightPhase').innerText = `${payload.phase}`;
                 if (payload.aobtUnix) {
                     window.finalAobtUnix = payload.aobtUnix;
-                    document.getElementById('bdAobt').innerText = getFormattedTime(payload.aobtUnix);
-                } else if (payload.aobt) document.getElementById('bdAobt').innerText = payload.aobt;
+                    let el = document.getElementById('bdAobt') || document.getElementById('ttActDep');
+                    if (el) el.innerText = getFormattedTime(payload.aobtUnix);
+                } else if (payload.aobt) {
+                    let el = document.getElementById('bdAobt') || document.getElementById('ttActDep');
+                    if (el) el.innerText = payload.aobt;
+                }
 
                 if (payload.aibtUnix) {
                     window.finalAibtUnix = payload.aibtUnix;
-                    document.getElementById('bdAibt').innerText = getFormattedTime(payload.aibtUnix);
-                } else if (payload.aibt) document.getElementById('bdAibt').innerText = payload.aibt;
+                    let el = document.getElementById('bdAibt') || document.getElementById('ttActArr');
+                    if (el) el.innerText = getFormattedTime(payload.aibtUnix);
+                } else if (payload.aibt) {
+                    let el = document.getElementById('bdAibt') || document.getElementById('ttActArr');
+                    if (el) el.innerText = payload.aibt;
+                }
                 break;
             case 'logbookData':
                 renderLogbook(payload.history);
