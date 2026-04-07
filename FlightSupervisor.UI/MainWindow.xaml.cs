@@ -743,7 +743,8 @@ namespace FlightSupervisor.UI
                 _currentSimTime = time;
                 _cabinManager.CurrentSimZuluTime = time;
                 var locTimeStr = _cabinManager.CurrentSimLocalTime != DateTime.MinValue ? _cabinManager.CurrentSimLocalTime.ToString("HH:mm") : "--:--";
-                Dispatcher.Invoke(() => SendToWeb(new { type = "simTime", time = time.ToString("HH:mm") + "z", localTime = locTimeStr, rawUnix = ((DateTimeOffset)time).ToUnixTimeSeconds() }));
+                var locDateStr = _cabinManager.CurrentSimLocalTime != DateTime.MinValue ? _cabinManager.CurrentSimLocalTime.ToString("dd/MM/yyyy") : "--/--/----";
+                Dispatcher.Invoke(() => SendToWeb(new { type = "simTime", time = time.ToString("HH:mm") + "z", localTime = locTimeStr, date = time.ToString("dd/MM/yyyy"), localDate = locDateStr, rawUnix = ((DateTimeOffset)time).ToUnixTimeSeconds() }));
             };
 
             _simConnectService.OnSimLocalTimeReceived += localTime => {
@@ -1652,6 +1653,8 @@ namespace FlightSupervisor.UI
             var manifestData = passengerService.GenerateManifest(response);
 
             _cabinManager.InitializeFlightDemographics(CurrentAirline, manifestData);
+            
+            SendToWeb(new { type = "manifest", manifest = manifestData });
 
             if (CurrentAirline != null)
             {
