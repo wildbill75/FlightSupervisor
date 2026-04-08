@@ -1,7 +1,7 @@
 <Window x:Class="FlightSupervisor.UI.BriefingTesterWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Weather Briefing Simulator" Height="600" Width="800" Background="#1E1E1E" Foreground="White">
+        Title="Weather Briefing Simulator" Height="600" Width="800" Background="#141414" Foreground="White">
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>

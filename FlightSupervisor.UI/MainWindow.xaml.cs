@@ -76,6 +76,8 @@ namespace FlightSupervisor.UI
         private NoaaWeatherService _noaaWeatherService;
         private System.Windows.Threading.DispatcherTimer _weatherUpdateTimer;
 
+        private Microsoft.Web.WebView2.Wpf.WebView2 _manifestWebView;
+        private Window _manifestWindow;
         public MainWindow()
         {
             InitializeComponent();
@@ -805,6 +807,62 @@ namespace FlightSupervisor.UI
                         SendMessage(helper.Handle, 0xA1, 2, 0);
                     });
                 }
+                else if (action == "openManifestWindow")
+                {
+                    try
+                    {
+                        var manifestWin = new Window
+                        {
+                            Title = "Flight & Cabin Manifest (Standalone)",
+                            Width = 1000,
+                            Height = 800,
+                            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                            Owner = this,
+                            Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#141414")
+                        };
+                        
+                        manifestWin.Closed += (s, e) => {
+                            _manifestWebView = null;
+                            _manifestWindow = null;
+                        };
+
+                        var webView = new Microsoft.Web.WebView2.Wpf.WebView2();
+                        _manifestWebView = webView;
+                        _manifestWindow = manifestWin;
+                        manifestWin.Content = webView;
+                        manifestWin.Show();
+
+                        _ = System.Threading.Tasks.Task.Run(async () =>
+                        {
+                            await Dispatcher.InvokeAsync(async () =>
+                            {
+                                var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, System.IO.Path.Combine(System.IO.Path.GetTempPath(), "FlightSupervisorManifest"));
+                                await webView.EnsureCoreWebView2Async(env);
+
+                                string localPath = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "wwwroot", "manifest.html");
+                                webView.Source = new System.Uri(localPath);
+
+                                webView.CoreWebView2.WebMessageReceived += (s, e) => {
+                                    try {
+                                        var msg = JsonDocument.Parse(e.TryGetWebMessageAsString());
+                                        var actionProp = msg.RootElement.GetProperty("action").GetString();
+                                        if (actionProp == "requestManifest") {
+                                            var cMan = _cabinManager;
+                                            if (cMan?.CurrentManifest != null) {
+                                                var payload = new { type = "manifestUpdate", manifest = cMan.CurrentManifest };
+                                                webView.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(payload));
+                                            }
+                                        }
+                                    } catch { }
+                                };
+                            });
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Windows.MessageBox.Show("Error opening Manifest Window: " + ex.Message);
+                    }
+                }
                 else if (action == "openSimbriefWindow")
                 {
                     try
@@ -816,7 +874,7 @@ namespace FlightSupervisor.UI
                             Height = 900,
                             WindowStartupLocation = WindowStartupLocation.CenterOwner,
                             Owner = this,
-                            Background = System.Windows.Media.Brushes.Black
+                            Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#141414")
                         };
                         simbriefWin.Closed += (s, e) => {
                             SendToWeb(new { type = "simbriefWindowClosed" });
@@ -1562,9 +1620,16 @@ namespace FlightSupervisor.UI
 
         private void SendToWeb(object data)
         {
+            string json = JsonSerializer.Serialize(data);
+            
             if (MainWebView?.CoreWebView2 != null)
             {
-                MainWebView.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(data));
+                MainWebView.CoreWebView2.PostWebMessageAsJson(json);
+            }
+            
+            if (_manifestWindow != null && _manifestWebView?.CoreWebView2 != null)
+            {
+                _manifestWebView.CoreWebView2.PostWebMessageAsJson(json);
             }
         }
 
@@ -1654,7 +1719,7 @@ namespace FlightSupervisor.UI
             CurrentAirline = _airlineDb.GetProfileFor(response.General?.Airline ?? "");
 
             var passengerService = new FlightSupervisor.UI.Services.PassengerManifestService();
-            var manifestData = passengerService.GenerateManifest(response);
+            var manifestData = passengerService.GenerateManifest(response, _profileManager.CurrentProfile);
 
             _cabinManager.InitializeFlightDemographics(CurrentAirline, manifestData);
             
@@ -1844,7 +1909,7 @@ namespace FlightSupervisor.UI
                     var briefingData = weatherService.GenerateBriefing(response);
 
                     var passengerService = new FlightSupervisor.UI.Services.PassengerManifestService();
-                    var manifestData = passengerService.GenerateManifest(response);
+                    var manifestData = passengerService.GenerateManifest(response, _profileManager.CurrentProfile);
 
                     var aProfile = _airlineDb.GetProfileFor(response.General?.Airline ?? "");
 
@@ -2083,4 +2148,5 @@ namespace FlightSupervisor.UI
         }
     }
 }
+
 

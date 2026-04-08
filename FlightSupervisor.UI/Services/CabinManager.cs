@@ -151,6 +151,7 @@ namespace FlightSupervisor.UI.Services
         public bool IsSilencePenaltyActive { get; private set; } = false;
 
         public List<PassengerState> PassengerManifest { get; private set; } = new List<PassengerState>();
+        public FlightSupervisor.UI.Services.ManifestData CurrentManifest { get; private set; }
         public bool IsCrewSeated { get; private set; } = false;
         public double SecuringProgress { get; private set; } = 0.0;
 
@@ -384,6 +385,8 @@ namespace FlightSupervisor.UI.Services
             _hasAnnouncedBoardingComplete = false;
             _hasWarnedPushbackNoSeatbelts = false;
             HasPenalizedRefuelingSeatbelts = false;
+
+            CurrentManifest = manifestData;
 
             if (profile == null) return;
             
@@ -1974,5 +1977,6 @@ namespace FlightSupervisor.UI.Services
         }
     }
 }
+
 
 

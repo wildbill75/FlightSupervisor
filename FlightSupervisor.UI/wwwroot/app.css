@@ -21,8 +21,8 @@ body {
 /* Left Sidebar */
 #sidebar {
     width: 200px;
-    background-color: #161A25;
-    border-right: 1px solid #2B3347;
+    background-color: #1d1d1d;
+    border-right: none;
     display: flex;
     flex-direction: column;
     padding-top: 20px;
@@ -94,8 +94,8 @@ body {
 /* Top Drag Bar */
 #top-bar {
     height: 50px;
-    background-color: #1B1F2D;
-    border-bottom: 1px solid #2B3347;
+    background-color: #1d1d1d;
+    border-bottom: none;
     display: flex;
     align-items: center;
     padding: 0 20px;
@@ -251,14 +251,14 @@ button:hover:not(:disabled) {
     font-family: inherit;
     line-height: 1.6;
     color: #cbd5e1;
-    background: #161A25;
+    background: #1d1d1d;
     padding: 20px;
     border-radius: 8px;
     border: 1px solid #2B3347;
 }
 
 .go-accordion {
-    background: #161A25;
+    background: #1d1d1d;
     border-radius: 6px;
     border: 1px solid #2B3347;
     margin-bottom: 12px;
@@ -306,7 +306,7 @@ button:hover:not(:disabled) {
     transition: width 1s linear, background-color 0.5s;
 }
 .go-acc-content {
-    background: #161A25;
+    background: #1d1d1d;
     padding: 15px 20px;
     border-top: 1px solid #1E2433;
 }
@@ -321,7 +321,7 @@ button:hover:not(:disabled) {
     margin-bottom: 20px;
 }
 .card {
-    background: #161A25;
+    background: #1d1d1d;
     border: 1px solid #2B3347;
     border-radius: 8px;
     padding: 15px;
@@ -412,7 +412,7 @@ button:hover:not(:disabled) {
 
 /* Flight Report Modal */
 .report-modal {
-    background: #161A25;
+    background: #1d1d1d;
     border: 1px solid #2B3347;
     border-top: 4px solid #4A90E2;
     border-radius: 12px;

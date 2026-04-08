@@ -118,6 +118,146 @@ window.parseBriefing = (data, rd) => {
 };
 
 
+window.dashboardActiveLegIndex = 0;
+
+window.navigateDashboardLeg = (dir) => {
+    if (!window.allRotations || window.allRotations.length === 0) return;
+    window.dashboardActiveLegIndex += dir;
+    if (window.dashboardActiveLegIndex < 0) window.dashboardActiveLegIndex = 0;
+    if (window.dashboardActiveLegIndex >= window.allRotations.length) window.dashboardActiveLegIndex = window.allRotations.length - 1;
+    window.populateDashboardActiveLeg(window.dashboardActiveLegIndex);
+};
+window.AIRLINES = {
+    'AFR': 'Air France', 'BAW': 'British Airways', 'EZY': 'easyJet', 'RYR': 'Ryanair',
+    'DLH': 'Lufthansa', 'UAE': 'Emirates', 'QTR': 'Qatar Airways', 'DAL': 'Delta',
+    'AAL': 'American Airlines', 'UAL': 'United', 'SWA': 'Southwest'
+};
+
+window.populateDashboardActiveLeg = (index = 0) => {
+    const emptyContainer = document.getElementById('dashFlightVisualEmpty');
+    const activeContainer = document.getElementById('dashFlightVisualActive');
+    
+    if (!window.allRotations || window.allRotations.length === 0) {
+        if (emptyContainer) emptyContainer.style.display = 'block';
+        if (activeContainer) activeContainer.style.display = 'none';
+        return;
+    }
+    
+    if (emptyContainer) emptyContainer.style.display = 'none';
+    if (activeContainer) {
+        activeContainer.style.display = 'flex';
+        
+        const rd = window.allRotations[index].data;
+        if (!rd) return;
+
+        const icao = rd.general?.icao_airline || '---';
+        const fn = (rd.general?.icao_airline || '') + (rd.general?.flight_number || '---');
+        const ac = window.AIRLINES[icao] || rd.general?.airline_name || icao;
+        
+        let ete = '--H--';
+        if (rd.times?.est_time_enroute) {
+            ete = Math.floor(rd.times.est_time_enroute / 3600).toString().padStart(2, '0') + 'H' + Math.floor((rd.times.est_time_enroute % 3600) / 60).toString().padStart(2, '0');
+        }
+
+        const flRaw = rd.general?.initial_altitude || rd.general?.initial_alti || '---';
+        const fl = flRaw !== '---' ? 'FL' + flRaw.toString().substring(0, 3) : '---';
+
+        const depQnh = window.allRotations[index].briefing?.Stations?.find(s => s.Id.toLowerCase() === 'origin' || s.Id.toLowerCase() === 'departure')?.Qnh || '---';
+        const arrQnh = window.allRotations[index].briefing?.Stations?.find(s => s.Id.toLowerCase() === 'destination')?.Qnh || '---';
+
+        const leftOpacity = index === 0 ? 'opacity-20 pointer-events-none' : 'opacity-100 hover:bg-white/10 cursor-pointer';
+        const rightOpacity = index === window.allRotations.length - 1 ? 'opacity-20 pointer-events-none' : 'opacity-100 hover:bg-white/10 cursor-pointer';
+
+        activeContainer.innerHTML = `
+            <div class="w-full flex flex-col gap-2 animate-fade-in">
+                <!-- Top Row: Banner -->
+                <div class="flex items-stretch justify-between w-full bg-[#2a2a2b] rounded-[14px] border border-white/5 py-4 px-2 shadow-lg mb-2">
+                    <div class="flex flex-col flex-1 items-center justify-center border-r border-white/10 px-4">
+                        <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Airline</div>
+                        <div class="text-[20px] font-black text-white tracking-widest mt-1 uppercase text-center">${ac}</div>
+                    </div>
+                    <div class="flex flex-col flex-1 items-center justify-center border-r border-white/10 px-4">
+                        <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Flight N&deg;</div>
+                        <div class="text-[20px] font-black text-white tracking-widest mt-1 uppercase">${fn}</div>
+                    </div>
+                    <div class="flex flex-col flex-[1.5] items-center justify-center border-r border-white/10 px-4">
+                        <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Airframe</div>
+                        <div class="text-[20px] font-black text-white tracking-widest mt-1 whitespace-nowrap text-ellipsis">${(rd.aircraft?.name || rd.aircraft?.base_type || '---').replace(/Airbus /gi, '').replace(/FENIX /gi, '').replace(/VNAV /gi, '')}</div>
+                    </div>
+                    <div class="flex flex-col flex-1 items-center justify-center px-4">
+                        <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Registration</div>
+                        <div class="text-[20px] font-black text-white tracking-widest mt-1 uppercase">${rd.aircraft?.reg || '---'}</div>
+                    </div>
+                </div>
+
+                <!-- Bottom Row: Leg Pill + Add Button -->
+                <div class="flex items-stretch w-full gap-2">
+                    
+                    <!-- Main Leg Pill -->
+                    <div class="flex-1 bg-[#2a2a2b] rounded-[14px] border border-white/5 flex shadow-lg overflow-hidden h-[164px]">
+                        
+                        <!-- Left Arrow Button -->
+                        <div role="button" tabindex="0" onclick="window.navigateDashboardLeg(-1)" class="px-6 flex items-center justify-center transition-colors group ${leftOpacity}">
+                           <svg viewBox="0 0 24 24" class="w-10 h-10 fill-white group-hover:scale-110 transition-transform"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg> 
+                        </div>
+
+                        <!-- Clickable Leg Content Area -->
+                        <div role="button" tabindex="-1" class="flex-1 border-x border-solid border-white/10 flex justify-between items-center py-4 px-10 relative cursor-default text-left">
+                            
+                            <!-- Left: FROM -->
+                            <div class="flex flex-col z-10 w-[25%] pointer-events-none">
+                                <div class="text-[10px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">From</div>
+                                <div class="text-[44px] font-black text-[#58586c] tracking-widest mt-1 leading-none uppercase">${rd.origin?.icao_code || '---'}</div>
+                                <div class="text-[11px] font-bold text-[#7b7b7b] uppercase mt-3 tracking-wider whitespace-nowrap">RWY:${rd.origin?.plan_rwy || '---'} / QNH:${depQnh}</div>
+                                <div class="text-[14px] font-bold text-white uppercase mt-1 tracking-widest">${rd.times?.sched_out ? new Date(parseInt(rd.times.sched_out) * 1000).toISOString().substr(11, 5) + 'Z' : '--:--'}</div>
+                            </div>
+
+                            <!-- Center: ROUTE & ETE -->
+                            <div class="flex flex-col items-center flex-1 px-8 z-10 w-full overflow-hidden pointer-events-none">
+                                <div class="text-[12px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase text-center">ETE ${ete}</div>
+                                <div class="text-[16px] font-bold text-white tracking-widest uppercase mt-1 text-center">${fl}</div>
+                                
+                                <div class="w-full flex items-center justify-center my-4 relative pointer-events-none">
+                                    <svg class="w-full h-4 text-white drop-shadow-md" preserveAspectRatio="none" viewBox="0 0 100 10">
+                                        <line x1="2" y1="5" x2="98" y2="5" stroke="currentColor" stroke-width="1.5" />
+                                        <polyline points="5,2 1,5 5,8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                        <polyline points="95,2 99,5 95,8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    <span class="material-symbols-outlined text-[#7b7b7b] absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#2a2a2b] px-2" style="top:50%; transform: translate(-50%, -50%) rotate(90deg) scale(1.3);">flight</span>
+                                </div>
+                                
+                                <div class="text-[10px] font-mono tracking-[0.2em] text-[#7b7b7b] uppercase text-center w-[120%] px-2 mt-2" style="line-height:1.2;">
+                                    ${rd.general?.route || 'CLEARED FOR DEPARTURE'}
+                                </div>
+                            </div>
+
+                            <!-- Right: TO -->
+                            <div class="flex flex-col text-right items-end z-10 w-[25%] pointer-events-none">
+                                <div class="text-[10px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">To</div>
+                                <div class="text-[44px] font-black text-[#58586c] tracking-widest mt-1 leading-none uppercase">${rd.destination?.icao_code || '---'}</div>
+                                <div class="text-[11px] font-bold text-[#7b7b7b] uppercase mt-3 tracking-wider whitespace-nowrap">RWY:${rd.destination?.plan_rwy || '---'} / QNH:${arrQnh}</div>
+                                <div class="text-[14px] font-bold text-white uppercase mt-1 tracking-widest">${rd.times?.sched_in ? new Date(parseInt(rd.times.sched_in) * 1000).toISOString().substr(11, 5) + 'Z' : '--:--'}</div>
+                            </div>
+                        </div>
+
+                        <!-- Right Arrow Button -->
+                        <div role="button" tabindex="0" onclick="window.navigateDashboardLeg(1)" class="px-6 flex items-center justify-center transition-colors group ${rightOpacity}">
+                            <svg viewBox="0 0 24 24" class="w-10 h-10 fill-white group-hover:scale-110 transition-transform"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+                        </div>
+                    </div>
+
+                    <!-- Add Leg Button -->
+                    <div role="button" tabindex="0" onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' })" class="bg-[#2a2a2b] w-24 flex shrink-0 rounded-[14px] border border-white/5 hover:border-white/20 flex-col items-center justify-center hover:bg-white/10 cursor-pointer transition-colors shadow-lg group relative" title="Add Next Leg">
+                        <div class="w-12 h-12 border-[3px] border-white/50 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <span class="material-symbols-outlined text-[#7b7b7b] text-[32px] font-black">add</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+};
+
 window.renderBriefingTabs = () => {
     const pillsContainer = document.getElementById('briefingPills');
     const viewsContainer = document.getElementById('briefingViewsContainer');
@@ -148,11 +288,6 @@ window.renderBriefingTabs = () => {
                                     <button onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' })" class="w-full bg-gradient-to-r from-sky-500 to-sky-400 hover:brightness-110 text-slate-900 font-bold px-8 py-5 rounded-xl shadow-[0_0_20px_rgba(14,165,233,0.3)] transition-all uppercase tracking-widest text-[12px] flex items-center justify-center gap-3">
                                         <span class="material-symbols-outlined text-xl">download</span>
                                         FETCH SIMBRIEF
-                                    </button>
-                                    <div id="simbriefLoadingState" class="hidden flex items-center justify-center p-4 bg-sky-900/10 border border-sky-500/20 rounded-xl w-full">
-                                        <div class="w-5 h-5 border-2 border-sky-500/30 border-t-sky-400 rounded-full animate-spin mr-3"></div>
-                                        <span id="simbriefLoadingLabel" class="text-sky-400 font-label tracking-widest text-[10px] uppercase animate-pulse">Contacting Dispatch...</span>
-                                    </div>
                                 </div>
                             </div>
                         `;
@@ -188,12 +323,6 @@ window.renderBriefingTabs = () => {
         return Math.round(val);
     };
 
-    const AIRLINES = {
-        'AFR': 'Air France', 'BAW': 'British Airways', 'EZY': 'easyJet', 'RYR': 'Ryanair',
-        'DLH': 'Lufthansa', 'UAE': 'Emirates', 'QTR': 'Qatar Airways', 'DAL': 'Delta',
-        'AAL': 'American Airlines', 'UAL': 'United', 'SWA': 'Southwest'
-    };
-
     const setActiveTab = (index) => {
         document.querySelectorAll('.btn-brief-pill').forEach((btn, i) => {
             if (i === index) {
@@ -218,7 +347,7 @@ window.renderBriefingTabs = () => {
                                 <span class="material-symbols-outlined text-6xl text-sky-400 opacity-80">flight</span>
                                 <div>
                                     <h3 class="text-[10px] uppercase tracking-[0.3em] font-bold text-slate-500 mb-1">Flight Briefing</h3>
-                                    <h2 class="text-4xl font-black text-white font-headline tracking-widest uppercase">${AIRLINES[window.allRotations[0].data?.general?.icao_airline] || window.allRotations[0].data?.general?.airline_name || window.allRotations[0].data?.general?.icao_airline || 'AIRLINE'}</h2>
+                                    <h2 class="text-4xl font-black text-white font-headline tracking-widest uppercase">${window.AIRLINES[window.allRotations[0].data?.general?.icao_airline] || window.allRotations[0].data?.general?.airline_name || window.allRotations[0].data?.general?.icao_airline || 'AIRLINE'}</h2>
                                 </div>
                             </div>
                             <div class="flex-1 bg-[#1C1F26] p-8 rounded-xl border border-white/5 shadow-xl flex items-center justify-between">
@@ -318,10 +447,6 @@ window.renderBriefingTabs = () => {
                                         </button>
                                         
                                         <div class="flex items-center gap-6">
-                                            <div id="simbriefLoadingState" class="hidden flex flex-row items-center border border-sky-500/20 bg-sky-900/10 px-4 py-2 rounded-lg">
-                                                <div class="w-4 h-4 border-2 border-sky-500/30 border-t-sky-400 rounded-full animate-spin mr-3"></div>
-                                                <span id="simbriefLoadingLabel" class="text-sky-400 text-[10px] font-bold uppercase tracking-widest animate-pulse">FETCHING...</span>
-                                            </div>
                                         </div>
                                    </div>
                                </div>`;
@@ -3296,6 +3421,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 break;
             case 'flightData':
+                try {
                 const d = payload.data;
                 const manifest = payload.manifest;
 
@@ -3344,12 +3470,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </button>
                                 `;
 
-                                dispatchContainer.innerHTML = (window.simbriefSavedLegsNodes ? window.simbriefSavedLegsNodes.join('') : '') + prevLegHTML + `
-                                    <div id="simbriefLoadingState" class="hidden items-center justify-center p-6 bg-sky-900/10 border border-sky-500/20 rounded-xl mt-2">
-                                        <div class="w-6 h-6 border-2 border-sky-500/30 border-t-sky-400 rounded-full animate-spin mr-4"></div>
-                                        <span id="simbriefLoadingLabel" class="text-sky-400 font-label tracking-widest text-xs uppercase animate-pulse">Downloading OFP into Application...</span>
-                                    </div>
-                                `;
+                                dispatchContainer.innerHTML = (window.simbriefSavedLegsNodes ? window.simbriefSavedLegsNodes.join('') : '') + prevLegHTML;
                                 alert(errorMsg);
                                 return;
                             }
@@ -3394,12 +3515,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             `;
                         }
 
-                        dispatchContainer.innerHTML = window.simbriefSavedLegsNodes.join('') + nextButtonHtml + `
-                            <div id="simbriefLoadingState" class="hidden items-center justify-center p-6 bg-sky-900/10 border border-sky-500/20 rounded-xl mt-2">
-                                <div class="w-6 h-6 border-2 border-sky-500/30 border-t-sky-400 rounded-full animate-spin mr-4"></div>
-                                <span id="simbriefLoadingLabel" class="text-sky-400 font-label tracking-widest text-xs uppercase animate-pulse">Downloading OFP into Application...</span>
-                            </div>
-                        `;
+                        dispatchContainer.innerHTML = window.simbriefSavedLegsNodes.join('') + nextButtonHtml;
 
                         // Enforce FINISH BRIEFING
                         const btnFinishDispatch = document.getElementById('btnFinishDispatch');
@@ -3491,6 +3607,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const tatSeconds = 35 * 60; // 35 min average turnaround
                         const prevSibt = parseInt(prevLeg.times.sched_in);
                         let currSobt = parseInt(currLeg.times?.sched_out || '0');
+                        if (!currLeg.times) currLeg.times = {};
 
                         // If it's a dummy leg OR if the fetched SimBrief leg overlaps or is too tight (< 35 min turnaround)
                         if (currLeg.isDummy || isNaN(currSobt) || currSobt < prevSibt + tatSeconds) {
@@ -3508,6 +3625,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Trigger render
                 window.renderBriefingTabs();
+                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
 
                 // Dashboard Header Logic (Metadata) - Only update to the newest leg payload
                 const dashFlightHeader = document.getElementById('dashFlightHeader');
@@ -3540,6 +3658,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const weatherElem = document.getElementById('weatherContent');
                     if (weatherElem) weatherElem.innerText = wTxt.trim();
                 }
+
+                } catch (flightDataError) {
+                    console.error("Crash processing flightData:", flightDataError);
+                    alert("UI parsing error: " + flightDataError.message);
+                }
                 break;
             case 'briefingUpdate':
                 if (window.allRotations && window.allRotations.length > 0) {
@@ -3549,6 +3672,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Store the current tab index so we don't jump back to the last tab when re-rendering
                         const activeViewIndex = Array.from(document.querySelectorAll('.briefing-view')).findIndex(v => v.style.display !== 'none');
                         window.renderBriefingTabs();
+                        if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
                         if (activeViewIndex >= 0 && window.setBriefingTab) {
                             window.setBriefingTab(activeViewIndex);
                         }

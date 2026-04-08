@@ -5,13 +5,13 @@
         Title="Flight Supervisor"
         Height="1020" Width="1850"
         WindowStyle="None"
-        Background="#0F111A"
+        Background="#141414"
         ResizeMode="CanResize"
         WindowStartupLocation="CenterScreen">
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="8" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
-    <Border Background="#0F111A" BorderThickness="1" BorderBrush="#3F4C5E" Margin="3">
+    <Border Background="#141414" BorderThickness="0" Margin="4">
         <Grid>
             <wv2:WebView2 x:Name="MainWebView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
         </Grid>
