@@ -848,7 +848,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // INTERCEPTION : Ground Operations ouvre maintenant la fenêtre indépendante
             if (targetId === 'groundops') {
                 if (window.chrome && window.chrome.webview) {
-                    window.chrome.webview.postMessage({ action: 'openManifestWindow' });
+                    window.chrome.webview.postMessage({ action: 'openGroundOpsWindow' });
                 }
                 return; // Ne pas changer d'onglet
             }
@@ -1838,8 +1838,9 @@ document.addEventListener('DOMContentLoaded', () => {
         btnSmartConnect.addEventListener('click', () => {
             window.chrome.webview.postMessage({ action: isSimConnected ? 'disconnectSim' : 'connectSim' });
             if (!isSimConnected) {
-                btnSmartConnect.innerText = 'Connecting...';
-                btnSmartConnect.className = 'text-[10px] font-bold py-4 px-8 tracking-widest uppercase rounded-xl bg-orange-900/20 text-orange-400 border border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.1)] transition-colors w-full';
+                btnSmartConnect.innerHTML = '<span class="material-symbols-outlined text-[18px]">wifi_find</span>';
+                btnSmartConnect.title = 'Connecting...';
+                btnSmartConnect.className = 'flex items-center justify-center w-10 h-10 rounded-xl bg-orange-900/20 text-orange-400 border border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.1)] transition-colors cursor-wait';
                 btnSmartConnect.style.color = '';
             }
         });
@@ -1996,14 +1997,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (isSimConnected) {
                     if (smartBtn) {
-                        smartBtn.innerText = payload.status.includes('Linked') ? 'Linked' : 'Connected';
-                        smartBtn.className = 'text-[10px] font-bold py-4 px-8 tracking-widest uppercase rounded-xl bg-emerald-900/20 text-emerald-400 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)] hover:bg-emerald-900/40 transition-colors w-full';
+                        smartBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">wifi</span>';
+                        smartBtn.title = payload.status.includes('Linked') ? 'Linked' : 'Connected';
+                        smartBtn.className = 'flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-900/20 text-emerald-400 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)] hover:bg-emerald-900/40 transition-colors cursor-pointer';
                         smartBtn.style.color = '';
                     }
                 } else {
                     if (smartBtn) {
-                        smartBtn.innerText = dictSim ? dictSim.btn_not_connected : 'Not Connected';
-                        smartBtn.className = 'text-[10px] font-bold py-4 px-8 tracking-widest uppercase rounded-xl bg-red-900/20 text-red-500 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:bg-red-900/40 transition-colors w-full';
+                        smartBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">wifi_off</span>';
+                        smartBtn.title = dictSim ? dictSim.btn_not_connected : 'Not Connected';
+                        smartBtn.className = 'flex items-center justify-center w-10 h-10 rounded-xl bg-red-900/20 text-red-500 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:bg-red-900/40 transition-colors cursor-pointer';
                         smartBtn.style.color = '';
                     }
                 }

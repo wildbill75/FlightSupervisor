@@ -94,29 +94,29 @@
     </script>
 </head>
 <body class="bg-background">
-    <div id="top-bar" class="window-drag-area flex items-center justify-between pl-4 pr-2 py-1" onmousedown="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify({action:'drag'}));">
+    <div id="top-bar" class="window-drag-area fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-4 h-10 bg-[#1d1d1d] border-b border-white/5" onmousedown="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify({action:'drag'}));">
         <!-- Logo / Title -->
-        <div class="text-[10px] font-label tracking-[0.4em] text-[#7b7b7b] uppercase pointer-events-none select-none mt-1" style="flex: 1;">TRUE AIRMANSHIP</div>
+        <div class="text-[10px] font-label tracking-[0.4em] text-[#7b7b7b] uppercase pointer-events-none select-none flex-1">TRUE AIRMANSHIP</div>
         
         <!-- CENTERED INLINE CLOCK -->
-        <div class="flex items-center justify-center gap-4 text-[13px] font-bold text-[#b6b6b6] font-mono tracking-wider pointer-events-none select-none" style="flex: 1;">
+        <div class="flex items-center justify-center gap-6 text-[12px] font-bold text-[#b6b6b6] font-mono tracking-wider pointer-events-none select-none flex-1">
             <span id="zuluDate">--/--/----</span>
             <span id="zuluTime">--:-- UTC / --:-- LOCAL</span>
         </div>
 
         <!-- Right Side Icons -->
-        <div class="flex items-center gap-1 justify-end" style="flex: 1;">
-            <button class="no-drag w-10 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" id="btnPin" title="Toggle Always on Top" style="opacity: 0.4;">
-                <span class="material-symbols-outlined text-[16px]">push_pin</span>
+        <div class="flex items-center gap-2 justify-end flex-1">
+            <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" id="btnPin" title="Toggle Always on Top" style="opacity: 0.4;">
+                <span class="material-symbols-outlined text-[14px]">push_pin</span>
             </button>
-            <button class="no-drag w-10 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" id="btnMin" title="Minimize to Tray">
-                <span class="material-symbols-outlined text-[16px]">remove</span>
+            <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" id="btnMin" title="Minimize">
+                <span class="material-symbols-outlined text-[14px]">remove</span>
             </button>
-            <button class="no-drag w-10 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" id="btnMax" title="Maximize or Restore Window">
-                <span class="material-symbols-outlined text-[16px]">crop_square</span>
+            <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" id="btnMax" title="Maximize">
+                <span class="material-symbols-outlined text-[14px]">crop_square</span>
             </button>
-            <button class="no-drag w-10 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" id="btnClose" title="Quit">
-                <span class="material-symbols-outlined text-[16px]">close</span>
+            <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" id="btnClose" title="Close">
+                <span class="material-symbols-outlined text-[14px]">close</span>
             </button>
         </div>
     </div>
@@ -128,7 +128,7 @@
     </div>
 
     <!-- GLOBAL CRISIS BANNER -->
-    <div id="crisisBanner" class="fixed top-0 left-0 w-full z-[100] bg-red-600/90 backdrop-blur-xl text-white border-b border-red-400 shadow-[0_10px_50px_rgba(220,38,38,0.5)] flex flex-col items-center justify-center py-4 transform -translate-y-full transition-transform duration-500 drop-shadow-2xl no-drag pt-8">
+    <div id="crisisBanner" class="fixed top-0 left-0 w-full z-[100] bg-red-600/90 backdrop-blur-xl text-white flex flex-col items-center justify-center py-4 transform translate-y-[-500px] transition-transform duration-500 no-drag pt-8">
         <div class="flex items-center gap-6">
             <span class="material-symbols-outlined text-[48px] animate-pulse drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">emergency</span>
             <div>
@@ -144,37 +144,31 @@
     </div>
 
     <!-- SIDE NAV BAR (Aviation Logistics Layout) -->
-    <aside id="sidebar" class="fixed left-0 top-0 h-full z-40 bg-[#1d1d1d] w-64 flex flex-col pt-8">
+    <aside id="sidebar" class="fixed left-0 top-0 h-full z-40 bg-[#1d1d1d] w-16 flex flex-col pt-8 items-center border-r border-[#141414]">
         <!-- Logo Container (More obvious, centered perfectly) -->
 
-        <ul class="menu flex-1 px-4 mt-2 font-manrope text-sm tracking-wide">
-            <li class="active no-drag" data-target="dashboard">
-                <span class="material-symbols-outlined shrink-0">dashboard</span>
-                <span data-i18n="nav_dashboard">Dashboard</span>
+        <ul class="menu flex-1 w-full flex flex-col items-center mt-2 font-manrope text-sm tracking-wide gap-4">
+            <li class="active no-drag flex justify-center w-full" data-target="dashboard" title="Dashboard">
+                <span class="material-symbols-outlined shrink-0 text-xl">dashboard</span>
             </li>
-            <li class="no-drag" data-target="briefing">
-                <span class="material-symbols-outlined shrink-0">assignment</span>
-                <span data-i18n="nav_briefing">Briefing</span>
-            </li>
-            <li class="no-drag" data-target="groundops">
-                <span class="material-symbols-outlined shrink-0">flight_takeoff</span>
-                <span data-i18n="nav_groundops">Ground Operations</span>
+            <li class="no-drag flex justify-center w-full" data-target="briefing" title="Briefing">
+                <span class="material-symbols-outlined shrink-0 text-xl">assignment</span>
             </li>
             <li style="display:none;" data-target="logbook"></li>
-            <li class="no-drag mt-auto" data-target="options">
-                <span class="material-symbols-outlined shrink-0">settings</span>
-                <span data-i18n="nav_settings">Settings</span>
+            <li class="no-drag mt-auto flex justify-center w-full mb-4" data-target="options" title="Settings">
+                <span class="material-symbols-outlined shrink-0 text-xl">settings</span>
             </li>
         </ul>
         
         <!-- USER PROFILE MINI -->
-        <div class="px-4 pb-4 shrink-0 border-b border-transparent">
-            <div class="flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 cursor-pointer transition-colors border border-transparent hover:border-white/10 no-drag menu-profile-btn" onclick="document.querySelector('[data-target=\'profile\']').click()">
+        <div class="w-full flex justify-center pb-4 shrink-0 border-b border-transparent">
+            <div class="flex items-center justify-center p-2 rounded-xl hover:bg-white/10 cursor-pointer transition-colors border border-transparent hover:border-white/10 no-drag menu-profile-btn" onclick="document.querySelector('[data-target=\'profile\']').click()" title="Pilot Profile">
                 <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-600 shadow-inner overflow-hidden flex items-center justify-center shrink-0">
                     <img id="sbProfileImg" src="" alt="Pilot" class="w-full h-full object-cover hidden" />
                     <span id="sbProfileIcon" class="material-symbols-outlined text-[#b6b6b6] text-xl">person</span>
                 </div>
-                <div class="flex flex-col overflow-hidden">
+                <!-- Texts are hidden for narrow sidebar -->
+                <div class="hidden flex-col overflow-hidden">
                     <span id="sbProfileCallsign" class="text-xs font-bold text-slate-200 truncate font-headline tracking-wide">MAVERICK</span>
                     <span id="sbProfileRank" class="text-[9px] text-sky-400 font-label tracking-widest uppercase truncate">Trainee</span>
                 </div>
@@ -184,48 +178,37 @@
         </div>
 
         <!-- SIDEBAR FOOTER (Aligned with main footer) -->
-        <div class="h-[90px] border-t border-white/5 flex flex-col items-center justify-center px-[10px] gap-2">
-        <button id="btnSmartConnect" data-i18n="btn_not_connected" class="text-[10px] font-bold py-3 tracking-widest uppercase rounded-xl bg-red-900/20 text-red-500 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:bg-red-900/40 transition-colors w-full">Not Connected</button>
-        <div class="flex items-center gap-4">
-            <span id="appBuildString" class="text-[9px] text-slate-700 font-mono font-bold tracking-widest uppercase" title="Build Version">BUILD ---</span>
-            <span class="text-[9px] text-red-900/40 hover:text-red-500/80 cursor-pointer font-black tracking-widest transition-colors font-mono" onclick="document.querySelector('li[data-target=\'options\']').click()">DEV</span>
+        <div class="h-[90px] border-t border-white/5 flex flex-col items-center justify-center px-1 gap-2 w-full">
+            <button id="btnSmartConnect" title="Not Connected" class="flex items-center justify-center w-10 h-10 rounded-xl bg-red-900/20 text-red-500 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:bg-red-900/40 transition-colors">
+                <span class="material-symbols-outlined text-[18px]">wifi_off</span>
+            </button>
+            <div class="flex flex-col items-center gap-1">
+                <span class="text-[8px] text-red-900/40 hover:text-red-500/80 cursor-pointer font-black tracking-widest transition-colors font-mono" onclick="document.querySelector('li[data-target=\'options\']').click()">DEV</span>
+            </div>
+            <!-- Hidden build string to preserve logic -->
+            <span id="appBuildString" class="hidden">BUILD ---</span>
         </div>
-    </div>
     </aside>
 
-    <!-- TOP NAV BAR -->
-    <header class="fixed top-0 right-0 left-64 z-30 flex items-center justify-between px-8 bg-transparent h-16 font-manrope font-semibold uppercase tracking-widest text-[10px] pt-4">
-        <!-- Hiding duplicate header data per user request but keeping DOM elements for backend logic -->
-        <div class="hidden items-center gap-8">
-            <span id="topPhase" class="text-sky-400">Off</span>
-            <span class="text-[#7b7b7b]">Date: <span id="topDate" class="text-[#b6b6b6]">--/--/----</span></span>
-            <span class="text-[#7b7b7b]">Zulu: <span id="topZulu" class="text-[#b6b6b6]">--:--Z</span></span>
-            <span class="text-[#7b7b7b] flex items-center gap-2">Tier: <span id="topAirlineTier" class="text-[#b6b6b6] font-bold bg-slate-500/10 px-2 py-0.5 rounded border border-slate-500/20">N/A</span></span>
-            <span class="text-[#7b7b7b] font-bold flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span> <span id="topFlight" class="text-sky-400 font-black">CONNECTED</span></span>
-        </div>
-        <div class="flex items-center gap-6">
-            <span class="material-symbols-outlined text-[#b6b6b6]">notifications</span>
-            <span class="material-symbols-outlined text-[#b6b6b6]">account_circle</span>
-        </div>
-    </header>
+
 
     <!-- MAIN CONTENT CANVAS -->
-    <main id="main-content" class="ml-64 pt-20 h-screen overflow-y-auto p-12 bg-[#141414] relative">
+    <main id="main-content" class="ml-16 pt-14 h-screen overflow-y-auto px-12 py-10 bg-[#141414] relative block w-[calc(100%-64px)]">
         <div class="w-full pb-36">
             
             <!-- DASHBOARD TAB -->
-            <section id="dashboard" class="tab-content active space-y-6">
+            <section id="dashboard" class="tab-content active space-y-4 w-full">
                 <!-- HERO BENTO SECTION -->
-                <div class="grid grid-cols-12 gap-6 relative">
+                <div class="grid grid-cols-12 gap-4 relative w-full">
                     <!-- HERO METADATA -->
-                    <div class="col-span-12 lg:col-span-12 pt-2 flex flex-col justify-center min-h-[250px] relative">
+                    <div class="col-span-12 lg:col-span-12 flex flex-col justify-center min-h-[250px] relative">
 
-                        <div id="dashFlightVisualContainer" class="flex flex-col gap-6 relative z-10 w-full mb-8">
+                        <div id="dashFlightVisualContainer" class="flex flex-col gap-4 relative z-10 w-full mb-0">
                             <!-- Default Empty State -->
                             <div id="dashFlightVisualEmpty" class="w-full relative transition-all duration-500">
-                                <div class="w-full flex flex-col gap-2">
+                                <div class="w-full flex flex-col gap-4">
                                     <!-- Top Row: Banner -->
-                                    <div class="flex items-stretch justify-between w-full bg-[#2a2a2b] rounded-[14px] border border-white/5 py-4 px-2 shadow-lg mb-2">
+                                    <div class="flex items-stretch justify-between w-full bg-[#2a2a2b] rounded-[14px] border border-white/5 py-4 px-2 shadow-lg">
                                         <div class="flex flex-col flex-1 items-center justify-center border-r border-white/10 px-4">
                                             <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Airline</div>
                                             <div class="text-[20px] font-black text-white tracking-widest mt-1 uppercase">---</div>
@@ -342,7 +325,7 @@
                     <!-- AIRLINE IDENTITY CARD COMPLETELY REMOVED PER TRUE AIRMANSHIP DIRECTIVE -->
 
                     <!-- FULL ROW WRAPPER FOR SIDE-BY-SIDE PANELS -->
-                    <div class="col-span-12 grid grid-cols-12 gap-8 mb-8 pb-8 border-b border-white/5">
+                    <div class="col-span-12 grid grid-cols-12 gap-8 mb-8 pb-8 border-b border-white/5 w-full">
 
                         <div class="col-span-4 bg-[#2a2a2b] rounded-xl overflow-hidden flex flex-col border border-white/5 shadow-lg">
                         <div class="px-6 py-6 flex flex-col items-center justify-center">
@@ -350,7 +333,7 @@
                             <div id="flightCountdown" class="text-[10px] text-[#7b7b7b] font-bold uppercase tracking-widest" style="font-family: 'Manrope', sans-serif;"></div>
                         </div>
                         
-                        <div id="dashMetaBar" class="px-8 py-4 border-b border-white/5 bg-black/20 cursor-pointer hover:bg-white/5 transition-colors" onclick="window.chrome.webview.postMessage({action: 'openManifestWindow'})" style="display: none;" title="Open Manifest">
+                        <div id="dashMetaBar" class="px-8 py-4 border-b border-white/5 bg-black/20 cursor-pointer hover:bg-white/5 transition-colors" onclick="window.chrome.webview.postMessage({action: 'openGroundOpsWindow'})" style="display: none;" title="Open Ground Operations Panel">
                             <div class="flex justify-between items-center mb-2">
                                 <span class="text-[9px] font-bold uppercase tracking-[0.3em] text-[#7b7b7b]">Ground Operations</span>
                                 <span id="dashMetaText" class="text-[9px] text-[#b6b6b6] uppercase font-bold tracking-widest">Standing By.</span>
@@ -443,7 +426,7 @@
                         </div>
                     </div>
 
-                        <div class="col-span-4 bg-[#2a2a2b] rounded-xl p-6 flex flex-col border border-white/5 shadow-lg">
+                        <div class="col-span-4 bg-[#2a2a2b] rounded-xl p-6 flex flex-col border border-white/5 shadow-lg cursor-pointer hover:bg-white/5 transition-all" onclick="window.chrome.webview.postMessage({action: 'openManifestWindow'})" title="Open Manifest View">
                         <div class="mb-6 flex flex-col items-center justify-center">
                             <span class="text-xs font-label tracking-[0.4em] text-[#b6b6b6] font-bold uppercase" data-i18n="dash_cabin_exp">Cabin Experience</span>
                         </div>

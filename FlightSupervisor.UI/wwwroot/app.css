@@ -18,16 +18,7 @@ body {
    We'll use a specific header for dragging.
 */
 
-/* Left Sidebar */
-#sidebar {
-    width: 200px;
-    background-color: #1d1d1d;
-    border-right: none;
-    display: flex;
-    flex-direction: column;
-    padding-top: 20px;
-}
-
+/* Left Sidebar controlled by tailwind classes */
 .logo {
     font-size: 24px;
     font-weight: 800;
@@ -84,21 +75,8 @@ body {
 .smart-connect.success:hover span { display: none; }
 .smart-connect.success:hover::after { content: "Disconnect MSFS"; }
 
-/* Main Content */
-#main-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-/* Top Drag Bar */
+/* Main layout controlled by Tailwind classes */
 #top-bar {
-    height: 50px;
-    background-color: #1d1d1d;
-    border-bottom: none;
-    display: flex;
-    align-items: center;
-    padding: 0 20px;
     cursor: grab;
     user-select: none;
 }
