@@ -843,6 +843,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Update Active Section
             const targetId = item.getAttribute('data-target');
+            if (!targetId) return;
+
+            // INTERCEPTION : Ground Operations ouvre maintenant la fenêtre indépendante
+            if (targetId === 'groundops') {
+                if (window.chrome && window.chrome.webview) {
+                    window.chrome.webview.postMessage({ action: 'openManifestWindow' });
+                }
+                return; // Ne pas changer d'onglet
+            }
             if (targetId === 'logbook') {
                 window.chrome.webview.postMessage({ action: 'fetchLogbook' });
             }

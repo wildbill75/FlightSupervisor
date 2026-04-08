@@ -328,10 +328,21 @@ window.renderManifest = function (manifest) {
         }
 
         let displayRole = c.Role;
-        if (c.Role.toLowerCase().includes("captain") || c.Role === "CDB") displayRole = mDict.crew_capt || c.Role;
-        else if (c.Role.toLowerCase().includes("officer") || c.Role === "OPL") displayRole = mDict.crew_fo || c.Role;
+        let cName = c.Name;
+        
+        // Règle Bug 14 : Le nom du Captain doit être celui du profil joueur
+        if (c.Role.toLowerCase().includes("captain") || c.Role === "CDB") {
+            displayRole = mDict.crew_capt || c.Role;
+            const profileName = localStorage.getItem('sbProfileCallsign');
+            if (profileName && profileName !== 'MAVERICK') {
+                cName = profileName;
+            }
+        } else if (c.Role.toLowerCase().includes("officer") || c.Role === "OPL") {
+            displayRole = mDict.crew_fo || c.Role;
+        }
 
-        html += `<li><strong style="color: #60A5FA;">${displayRole}:</strong> ${c.Name}</li>`;
+        html += `<li><strong style="color: #60A5FA;">${displayRole}:</strong> ${cName}</li>`;
+
     });
 
     const paxListLabel = mDict.manifest_list || "LIST";
