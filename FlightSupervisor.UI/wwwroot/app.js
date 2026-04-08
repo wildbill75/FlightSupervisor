@@ -133,6 +133,101 @@ window.AIRLINES = {
     'AAL': 'American Airlines', 'UAL': 'United', 'SWA': 'Southwest'
 };
 
+window.resetDashboardWidgets = () => {
+    // 1. Ground Ops Milestone Table
+    const milestoneIds = ['ttSchedDep', 'ttActDep', 'ttSchedArr', 'ttActArr'];
+    milestoneIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = '--:--Z';
+    });
+    
+    const statuses = ['ttDepStatus', 'ttArrStatus'];
+    statuses.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.innerText = 'STANDBY';
+            el.className = 'px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-[#7b7b7b] uppercase font-bold tracking-wider';
+        }
+    });
+
+    // 2. Cabin Experience
+    const paxValues = {
+        'paxComfortValue': '--%',
+        'paxAnxietyValue': '--%',
+        'paxSatisfactionValue': '--%',
+        'cleanlinessVal': '100%',
+        'cateringRationsVal': '--',
+        'waterLevelVal': '100%',
+        'wasteLevelVal': '0%',
+        'turbSeverityValue': 'NONE',
+        'thermalValue': '22.0°C'
+    };
+    for (const [id, val] of Object.entries(paxValues)) {
+        const el = document.getElementById(id);
+        if (el) {
+            if (id.includes('Value')) {
+                 el.innerHTML = `${val.replace('%', '')}<span class="text-sm text-slate-600 font-light ml-1">%</span>`;
+            } else {
+                 el.innerText = val;
+            }
+            // Color coding for pristine state
+            if (id === 'cleanlinessVal' || id === 'waterLevelVal' || id === 'cateringRationsVal') {
+                el.style.color = '#34D399'; // Emerald-400 (Ready/Pristine)
+            } else if (id === 'wasteLevelVal') {
+                el.style.color = '#34D399'; // Empty waste is good
+            } else {
+                el.style.color = '#7b7b7b';
+            }
+            el.style.textShadow = 'none';
+        }
+    }
+
+    const bars = ['paxComfortBar', 'paxAnxietyBar', 'paxSatisfactionBar', 'turbSeverityBar', 'cateringBar', 'pncProgressBar', 'dashMetaFill'];
+    bars.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.width = '0%';
+            el.style.backgroundColor = '#64748b';
+            el.style.boxShadow = 'none';
+        }
+    });
+
+    const needle = document.getElementById('thermalNeedle');
+    if (needle) needle.style.left = '50%';
+
+    // 3. PNC Comms
+    const pncStatusLabel = document.getElementById('pncStatusLabel');
+    if (pncStatusLabel) pncStatusLabel.innerText = 'Standing By';
+    const pncStatusDot = document.getElementById('pncStatusDot');
+    if (pncStatusDot) pncStatusDot.className = 'w-2 h-2 rounded-full bg-slate-500 animate-pulse';
+
+    const pncStats = ['crewProactivityLabel', 'crewEfficiencyLabel', 'crewMoraleLabel'];
+    pncStats.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = '--';
+    });
+
+    // 4. Meta / Score / Phase
+    const dashMetaText = document.getElementById('dashMetaText');
+    if (dashMetaText) dashMetaText.innerText = 'Standing By.';
+    
+    // Hide meta bar if it was visible
+    const dashMetaBar = document.getElementById('dashMetaBar');
+    if (dashMetaBar) dashMetaBar.style.display = 'none';
+
+    const flightPhase = document.getElementById('flightPhase');
+    if (flightPhase) flightPhase.innerText = 'OFF';
+
+    const mainScore = document.getElementById('mainScoreValue');
+    if (mainScore) mainScore.innerText = '1000';
+
+    const puncBar = document.getElementById('puncBarContainer');
+    if (puncBar) puncBar.style.display = 'none';
+
+    const liveLog = document.getElementById('liveScoreLog');
+    if (liveLog) liveLog.innerHTML = '<li class="text-[10px] font-mono text-[#7b7b7b] text-center tracking-widest mt-8">AWAITING EVENTS...</li>';
+};
+
 window.populateDashboardActiveLeg = (index = 0) => {
     const emptyContainer = document.getElementById('dashFlightVisualEmpty');
     const activeContainer = document.getElementById('dashFlightVisualActive');
@@ -246,16 +341,72 @@ window.populateDashboardActiveLeg = (index = 0) => {
                         </div>
                     </div>
 
-                    <!-- Add Leg Button -->
-                    <div role="button" tabindex="0" onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' })" class="bg-[#2a2a2b] w-24 flex shrink-0 rounded-[14px] border border-white/5 hover:border-white/20 flex-col items-center justify-center hover:bg-white/10 cursor-pointer transition-colors shadow-lg group relative" title="Add Next Leg">
-                        <div class="w-12 h-12 border-[3px] border-white/50 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <span class="material-symbols-outlined text-[#7b7b7b] text-[32px] font-black">add</span>
+                    <!-- CONTROLS COLUMN (Add, Clear, Reset) -->
+                    <div class="flex flex-col gap-2 w-16 shrink-0 h-[164px]">
+                        <!-- Add Leg Button -->
+                        <div role="button" tabindex="0" onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' })" 
+                             class="bg-[#2a2a2b] flex-1 flex rounded-[14px] border border-white/5 hover:border-white/20 items-center justify-center hover:bg-white/10 cursor-pointer transition-all shadow-lg group relative" 
+                             title="Add Next Leg">
+                            <span class="material-symbols-outlined text-[#b6b6b6] group-hover:text-white transition-colors group-hover:scale-110">add_circle</span>
+                        </div>
+                        
+                        <!-- Clear Current Leg -->
+                        <div role="button" tabindex="0" onclick="window.clearCurrentLeg()" 
+                             class="bg-[#2a2a2b] flex-1 flex rounded-[14px] border border-white/5 ${index === 0 ? 'opacity-40' : 'hover:border-white/20 hover:bg-white/10'} items-center justify-center cursor-pointer transition-all shadow-lg group" 
+                             title="${index === 0 ? 'Active Leg Protection' : 'Remove Selected Leg'}">
+                            <span class="material-symbols-outlined ${index === 0 ? 'text-slate-600' : 'text-[#b6b6b6] group-hover:text-white'} transition-colors">delete</span>
+                        </div>
+
+                        <!-- Clear All Legs -->
+                        <div role="button" tabindex="0" onclick="window.clearAllLegs()" 
+                             class="bg-[#2a2a2b] flex-1 flex rounded-[14px] border border-white/5 hover:border-white/20 items-center justify-center hover:bg-white/10 cursor-pointer transition-all shadow-lg group" 
+                             title="Clear All Legs / Reset Rotation">
+                            <span class="material-symbols-outlined text-[#b6b6b6] group-hover:text-white transition-colors">keyboard_return</span>
                         </div>
                     </div>
                 </div>
             </div>
         `;
     }
+};
+
+window.clearCurrentLeg = function() {
+    const idx = window.dashboardActiveLegIndex || 0;
+    
+    if (idx === 0) {
+        // Block deleting index 0 (Active Leg)
+        window.showSystemConfirm({
+            title: "Action Restricted",
+            message: "The active flight leg cannot be removed individually. Use 'CLEAR ALL LEGS' if you wish to reset the entire rotation and start over.",
+            icon: "warning",
+            confirmText: "Understood",
+            isAlertOnly: true
+        });
+        return;
+    }
+
+    // Allow deleting index > 0
+    window.showSystemConfirm({
+        title: "Remove Upcoming Leg",
+        message: "Are you sure you want to remove this leg from your rotation? This action cannot be undone.",
+        icon: "delete",
+        confirmText: "Remove Leg",
+        onConfirm: () => {
+            window.chrome.webview.postMessage({ action: "deleteLegAtIndex", index: idx });
+        }
+    });
+};
+
+window.clearAllLegs = function() {
+    window.showSystemConfirm({
+        title: "Factory Reset Rotation",
+        message: "This will clear ALL loaded flight plans and reset your progress. Are you absolutely sure? All progress will be lost.",
+        icon: "keyboard_return",
+        confirmText: "Reset All",
+        onConfirm: () => {
+            window.chrome.webview.postMessage({ action: "removeAllLegs" });
+        }
+    });
 };
 
 window.renderBriefingTabs = () => {
@@ -1833,6 +1984,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Connect to Simulator
     let isSimConnected = false;
+    var lastSimTime = null;
+    window.locationMismatchModalShown = false;
     const btnSmartConnect = document.getElementById('btnSmartConnect');
     if (btnSmartConnect) {
         btnSmartConnect.addEventListener('click', () => {
@@ -1964,6 +2117,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 break;
+            case 'flightReset':
+                window.currentFlight = null;
+                window.manifest = null;
+                window.activeLegIndex = 0;
+                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg();
+                if (window.resetDashboardWidgets) window.resetDashboardWidgets();
+                break;
+            case 'rotationCleared':
+                window.allRotations = [];
+                window.dashboardActiveLegIndex = 0;
+                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg();
+                if (window.resetDashboardWidgets) window.resetDashboardWidgets();
+                break;
+            case 'removeLegAtIndex':
+                if (window.allRotations && payload.index !== undefined) {
+                    window.allRotations.splice(payload.index, 1);
+                    // Reset view to active leg if we were viewing the deleted one or if indices shifted
+                    window.dashboardActiveLegIndex = 0; 
+                    if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg();
+                }
+                break;
             case 'phaseChanged':
                 console.log(`[IPC] Phase changed to ${payload.phase || msg.phase}`);
                 if (payload.phase === 'GroundOps' || msg.phase === 'GroundOps') {
@@ -2018,6 +2192,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (payload.isDelayed === true) flightHasExperiencedDelay = true;
                 if (payload.turbulenceSeverity > 1) flightHasExperiencedTurbulence = true; // Moderate, Severe or Extreme
+
+                // Airport Location Gatekeeper (Proactive Warning)
+                const locWarning = document.getElementById('locationMismatchWarning');
+                const locModal = document.getElementById('locationMismatchModal');
+                if (locWarning) {
+                    if (payload.isAtWrongAirport) {
+                        locWarning.classList.remove('hidden');
+                        locWarning.title = `Current position is > 3 NM from planned origin (${payload.plannedOriginIcao}). Distance: ${payload.originDistanceNM} NM`;
+                        
+                        // Show modal if not already shown for this occurrence AND a plan is loaded
+                        if (locModal && locModal.classList.contains('hidden') && !window.locationMismatchModalShown && payload.plannedOriginIcao) {
+                            const modalIcao = document.getElementById('modalOriginIcao');
+                            const modalDist = document.getElementById('modalOriginDistance');
+                            if (modalIcao) modalIcao.innerText = payload.plannedOriginIcao || '----';
+                            if (modalDist) modalDist.innerText = payload.originDistanceNM !== -1 ? payload.originDistanceNM : '--';
+                            locModal.classList.remove('hidden');
+                            window.locationMismatchModalShown = true;
+                        }
+                    } else {
+                        locWarning.classList.add('hidden');
+                        if (locModal) locModal.classList.add('hidden');
+                        window.locationMismatchModalShown = false; // Reset if they get back in range
+                    }
+                }
 
                 updateIntercomButtons(payload);
                 document.getElementById('flightPhase').innerText = `${payload.phase}`;
@@ -2558,10 +2756,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         let m = Math.floor((absDiff % 3600) / 60);
                         let s = absDiff % 60;
                         let timeStr = (h > 0 ? `${h}h ` : '') + `${m}m ${s}s`;
-                        const mLoc = window.locales ? window.locales[(localStorage.getItem('selLanguage') || 'EN').toLowerCase()] : null;
-                        let lblDelay = mLoc && mLoc.dash_delayed_by ? mLoc.dash_delayed_by : 'Delayed by';
-                        let lblSobt = mLoc && mLoc.dash_sobt_in ? mLoc.dash_sobt_in : 'SOBT in';
-                        cd.innerText = isLate ? `${lblDelay}: ${timeStr}` : `${lblSobt}: ${timeStr}`;
+                        let prefix = isLate ? '+' : '-';
+                        cd.innerText = prefix + timeStr;
                         let cCol = '#10b981';
                         if (d < -300) cCol = '#3b82f6';
                         else if (d <= 180) cCol = '#10b981';
@@ -2571,27 +2767,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         cd.style.color = cCol;
                         let aobtSp = document.getElementById('bdAobt');
                         if (aobtSp) aobtSp.style.color = '#FACC15';
-                    }
-
-                    // Update Gradient Pointer
-                    let pb = document.getElementById('puncBarContainer');
-                    if (pb) {
-                        pb.style.display = 'block';
-                        let pct = 0;
-                        if (d <= -900) pct = 0;
-                        else if (d < 0) pct = 30 - (Math.abs(d) / 900) * 30; // Blue: 0-30%
-                        else if (d <= 180) pct = 30 + (d / 180) * 20; // Green: 30-50%
-                        else if (d <= 600) pct = 50 + ((d - 180) / 420) * 30; // Yellow-Orange: 50-80%
-                        else pct = Math.min(100, 80 + ((d - 600) / 600) * 20); // Red: 80-100%
-
-                        document.getElementById('puncPointer').style.left = pct + '%';
-                        let lbl = document.getElementById('puncLabel');
-                        lbl.style.left = pct + '%';
-                        let dMin = Math.round(d / 60);
-                        lbl.innerText = (dMin > 0 ? `+${dMin}m` : `${dMin}m`);
-                        if (pct < 10) lbl.style.transform = 'translateX(0)';
-                        else if (pct > 90) lbl.style.transform = 'translateX(-100%)';
-                        else lbl.style.transform = 'translateX(-50%)';
                     }
 
                     // --- Global Rotation Timer Logic ---
@@ -3842,15 +4017,20 @@ function updateMetaBar(services) {
     const metaBar = document.getElementById('dashMetaBar');
 
     if (!metaBar) return;
-    if (metaBar.style.display === 'none') metaBar.style.display = 'block';
 
     if (metaFill) metaFill.style.width = percent + '%';
+    
+    const metaTitle = document.getElementById('dashMetaTitle');
+    if (metaTitle) metaTitle.innerHTML = "GROUND OPERATIONS";
+
     if (metaText) {
         if (isFinished && totalDuration > 0) {
+            metaBar.style.display = 'block';
             metaText.innerText = mDict.gops_meta_completed || "Ground Operations Completed";
             metaText.style.color = "#34D399";
             if (metaFill) metaFill.style.backgroundColor = "#34D399";
         } else if (blockingService) {
+            metaBar.style.display = 'block';
             let color = getSeverityColor(blockingService.DelayAddedSec);
             let mins = Math.round(blockingService.DelayAddedSec / 60);
             metaText.innerText = `⚠️ ${blockingService.Name.toUpperCase()} : ${blockingService.ActiveDelayEvent} (+${mins}m)`;
@@ -3858,18 +4038,18 @@ function updateMetaBar(services) {
             if (metaFill) { metaFill.style.backgroundColor = color; metaFill.style.boxShadow = `0 0 10px ${color}`; }
             setTimeout(() => { if (metaFill) metaFill.style.boxShadow = 'none'; }, 1000);
         } else if (window.recentlyCompleted && (Date.now() - window.recentlyCompletedTime < 15000)) {
+            metaBar.style.display = 'block';
             const icon = GO_ICONS[window.recentlyCompleted.Name] || '✅';
             metaText.innerHTML = `${icon} <span style="font-weight:bold">${window.recentlyCompleted.Name.toUpperCase()} TERMINÉ</span>`;
             metaText.style.color = "#34D399";
             if (metaFill) metaFill.style.backgroundColor = "#34D399";
         } else if (isActive) {
-            metaText.innerText = `${mDict.gops_meta_progress || "Ground Operations in Progress"} (${Math.round(percent)}%)`;
-            metaText.style.color = "#FACC15";
+            metaBar.style.display = 'block';
+            metaText.innerText = "";
+            if (metaTitle) metaTitle.innerHTML = `GROUND OPERATIONS IN PROGRESS (${Math.round(percent)}%)`;
             if (metaFill) metaFill.style.backgroundColor = "#4A90E2";
         } else {
-            metaText.innerText = mDict.gops_meta_standby || "Ground Operations Standing By";
-            metaText.style.color = "#94A3B8";
-            if (metaFill) metaFill.style.backgroundColor = "#334155";
+            metaBar.style.display = 'none';
         }
     }
 }
@@ -4654,3 +4834,43 @@ window.checkTimeSkipVisibility = function (phase) {
     }
 };
 
+// --- SYSTEM MODAL HELPER ---
+window.showSystemConfirm = function(options) {
+    const modal = document.getElementById('systemConfirmModal');
+    if (!modal) return;
+
+    const titleEl = document.getElementById('modalTitle');
+    const messageEl = document.getElementById('modalMessage');
+    const iconEl = document.getElementById('modalIcon');
+    const btnConfirm = document.getElementById('btnModalConfirm');
+    const btnCancel = document.getElementById('btnModalCancel');
+
+    titleEl.innerText = options.title || 'Confirmation';
+    messageEl.innerText = options.message || '';
+    iconEl.innerText = options.icon || 'help_outline';
+    btnConfirm.innerText = options.confirmText || 'Confirm';
+    
+    if (options.isAlertOnly) {
+        btnCancel.classList.add('hidden');
+    } else {
+        btnCancel.classList.remove('hidden');
+    }
+
+    const close = () => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    };
+
+    btnConfirm.onclick = () => {
+        close();
+        if (options.onConfirm) options.onConfirm();
+    };
+
+    btnCancel.onclick = () => {
+        close();
+        if (options.onCancel) options.onCancel();
+    };
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+};

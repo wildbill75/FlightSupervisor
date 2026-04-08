@@ -278,8 +278,7 @@ namespace FlightSupervisor.UI.Services
                     s.ElapsedSec += secondsToAdd;
                 }
             }
-            // Trigger tick to evaluate completions
-            Tick(null);
+            // The next real MSFS UI tick will evaluate completions correctly
             OnOpsUpdated?.Invoke();
         }
 
@@ -539,7 +538,7 @@ namespace FlightSupervisor.UI.Services
                 }
                 else
                 {
-                    double chance = EventProbabilityPercent * 0.000005 * delta;
+                    double chance = 0.0; // EventProbabilityPercent * 0.000005 * delta; // Bug 23: Debranch events
                     if (!s.HasBeenDelayed && s.State != GroundServiceState.Delayed && chance > 0 && _rnd.NextDouble() < chance) 
                     {
                         s.State = GroundServiceState.Delayed;

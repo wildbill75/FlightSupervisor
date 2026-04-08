@@ -85,7 +85,8 @@ function renderGroundOps(services) {
         if ((s.Name === "Deboarding" || s.Name === "Boarding") && isCrewWorking) isBlocked = true;
         if ((s.Name.includes("Clean") || s.Name === "Catering") && isPaxMoving) isBlocked = true;
 
-        let isCompleted = stateVal === 3 || stateVal === 4 || s.IsPreServiced || s.isPreServiced;
+        let isCompleted = stateVal === 3 || s.IsPreServiced || s.isPreServiced;
+        let isSkipped = stateVal === 4;
 
         let buttonText = `START ${locName.toUpperCase()}`;
         let buttonStyles = '';
@@ -99,19 +100,19 @@ function renderGroundOps(services) {
                 buttonText = `LOCKED (${isPaxMoving ? 'PAX' : 'SVC'})`;
             } else {
                 buttonStyles = 'color: #38bdf8; cursor: pointer;';
-                buttonClass += ' hover:text-white hover:bg-sky-500/10 hover:border hover:border-sky-500/50';
+                buttonClass += ' hover:text-white hover:bg-white/5';
                 isClickable = true;
             }
         } else if (stateVal === 1 || stateVal === 2) {
             buttonText = locName.toUpperCase();
             if (stateVal === 2) {
                 buttonStyles = 'color: #f97316; cursor: default; pointer-events: none;';
-                buttonClass += ' animate-pulse';
+                buttonClass += ' opacity-80';
             } else {
                 buttonStyles = 'color: #34d399; cursor: default; pointer-events: none;';
-                buttonClass += ' shadow-[0_0_15px_rgba(52,211,153,0.2)] bg-emerald-500/5 animate-pulse';
+                buttonClass += ' bg-emerald-500/5';
             }
-        } else if (isCompleted) {
+        } else if (isCompleted || isSkipped) {
             buttonStyles = 'color: #64748b; opacity: 0.5; cursor: default; pointer-events: none;';
         }
 
@@ -125,15 +126,16 @@ function renderGroundOps(services) {
 
         let smMsg = s.StatusMessage !== undefined ? s.StatusMessage : s.statusMessage;
         let inlineStateHtml = '';
-        if (stateVal === 1) inlineStateHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-sky-500/20 shadow-[0_0_10px_rgba(56,189,248,0.1)]"><span class="animate-pulse">●</span> ${smMsg ? smMsg.toUpperCase() : 'IN PROGRESS'}</span>`;
-        else if (stateVal === 2) inlineStateHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-orange-500/20 shadow-[0_0_10px_rgba(249,115,22,0.1)]">WAITING (DELAYED)</span>`;
-        else if (stateVal === 5) inlineStateHtml = `<span class="text-yellow-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-yellow-500/20 shadow-[0_0_10px_rgba(250,204,21,0.1)] animate-pulse">WAITING FOR DRIVER</span>`;
+        if (stateVal === 1) inlineStateHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-sky-500/20"><span class="animate-pulse">●</span> ${smMsg ? smMsg.toUpperCase() : 'IN PROGRESS'}</span>`;
+        else if (stateVal === 2) inlineStateHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-orange-500/20">WAITING (DELAYED)</span>`;
+        else if (stateVal === 5) inlineStateHtml = `<span class="text-yellow-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-yellow-500/20"><span class="animate-pulse">●</span> WAITING FOR DRIVER</span>`;
         if (isCompleted) inlineStateHtml = `<span class="text-slate-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-white/5"><span class="material-symbols-outlined text-[10px]">check</span> COMPLETED</span>`;
+        else if (isSkipped) inlineStateHtml = `<span class="text-slate-500 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-white/5"><span class="material-symbols-outlined text-[10px]">close</span> SKIPPED</span>`;
 
         let extraBadgesHtml = '';
         if (s.Name === "Catering" || s.Name === "Cleanliness" || s.Name === "Cleaning" || s.Name === "Cabin Clean (PNC)" || s.Name === "Water/Waste") {
-            if (!isCompleted) {
-                extraBadgesHtml += `<button onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'skipService', service: '${(s.Name || s.name)}' });" class="px-2 py-1 ml-2 rounded bg-red-500/10 hover:bg-red-500/30 text-red-500 border border-red-500/20 text-[9px] uppercase font-bold tracking-widest leading-none shadow-[0_0_10px_rgba(239,68,68,0.2)] transition-colors relative z-10 cursor-pointer">SKIP</button>`;
+            if (!isCompleted && !isSkipped) {
+                extraBadgesHtml += `<button onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'skipService', service: '${(s.Name || s.name)}' });" class="px-2 py-1 ml-2 rounded text-[#7b7b7b] text-[9px] uppercase font-bold tracking-widest leading-none hover:text-white hover:bg-white/5 transition-colors duration-300 relative z-10 cursor-pointer">SKIP</button>`;
             }
         }
         // Telemetry badges (might need to fetch lastTelemetry from window or C#)
@@ -146,19 +148,21 @@ function renderGroundOps(services) {
         else if (isCompleted && (s.IsPreServiced || s.isPreServiced)) barColor = '#475569';
 
         html += `
-            <div class="bg-[#12141A] rounded-xl border border-white/5 overflow-hidden flex flex-col justify-center h-full min-h-[90px] relative">
+            <div class="bg-[#1C1F26] rounded-xl border border-white/5 overflow-hidden flex flex-col justify-center h-full min-h-[90px] relative">
                 ${(() => {
                     if (s.Name === "Water/Waste") {
                         let waterLvl = s.State === 1 ? s.ProgressPercent : 100;
                         let wasteLvl = s.State === 1 ? s.ProgressPercent : 0;
+                        if (isSkipped) { waterLvl = 0; wasteLvl = 0; }
                         return `
                             <div class="absolute bottom-0 left-0 w-full flex flex-col gap-[1px] bg-black/40 h-2">
                                 <div class="h-1"><div class="h-full transition-all duration-1000 bg-sky-500" style="width: ${waterLvl}%"></div></div>
                                 <div class="h-1"><div class="h-full transition-all duration-1000 bg-emerald-500" style="width: ${wasteLvl}%"></div></div>
                             </div>`;
                     } else {
+                        let displayProgress = isSkipped ? 0 : s.ProgressPercent;
                         return `<div class="absolute bottom-0 left-0 w-full h-[3px] bg-black/40">
-                                    <div class="h-full transition-all duration-1000 ease-out" style="width: ${s.ProgressPercent}%; background-color: ${barColor}; opacity: 0.8"></div>
+                                    <div class="h-full transition-all duration-1000 ease-out" style="width: ${displayProgress}%; background-color: ${barColor}; opacity: 0.8"></div>
                                 </div>`;
                     }
                 })()}

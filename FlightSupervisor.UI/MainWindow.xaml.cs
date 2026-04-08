@@ -246,17 +246,28 @@ namespace FlightSupervisor.UI
 
                 if (_hasReceivedFenixLvars) 
                 {
-                    // The Fenix LVARs (A_OH_PNEUMATIC_FWD_TEMP and AFT_TEMP) represent the selector knob position.
-                    // A value of 0.5 represents the 12 o'clock position (24°C). The range is strictly 0.0 to 1.0.
-                    // We map the 0.0-1.0 range to 18-30°C.
-                    
-                    double normFwd = Math.Min(1.0, Math.Max(0.0, _phaseManager.FenixCabinTempFwd));
-                    double normAft = Math.Min(1.0, Math.Max(0.0, _phaseManager.FenixCabinTempAft));
+                    bool isBleedFlowing = _phaseManager.FenixApuBleed || _phaseManager.Eng1Combustion || _phaseManager.Eng2Combustion;
+                    bool isPackRunning = _phaseManager.FenixPack1 || _phaseManager.FenixPack2;
+                    bool isAcRunning = isBleedFlowing && isPackRunning;
 
-                    double mappedTempFwd = 18.0 + (normFwd * 12.0);
-                    double mappedTempAft = 18.0 + (normAft * 12.0);
+                    if (isAcRunning)
+                    {
+                        // The Fenix LVARs (A_OH_PNEUMATIC_FWD_TEMP and AFT_TEMP) represent the selector knob position.
+                        // A value of 0.5 represents the 12 o'clock position (24°C). The range is strictly 0.0 to 1.0.
+                        // We map the 0.0-1.0 range to 18-30°C.
+                        double normFwd = Math.Min(1.0, Math.Max(0.0, _phaseManager.FenixCabinTempFwd));
+                        double normAft = Math.Min(1.0, Math.Max(0.0, _phaseManager.FenixCabinTempAft));
 
-                    targetTemp = ((mappedTempFwd + mappedTempAft) / 2.0) + variance;
+                        double mappedTempFwd = 18.0 + (normFwd * 12.0);
+                        double mappedTempAft = 18.0 + (normAft * 12.0);
+
+                        targetTemp = ((mappedTempFwd + mappedTempAft) / 2.0) + variance;
+                    }
+                    else
+                    {
+                        // Without AC running, cabin slowly gravitates towards the outside ambient temperature!
+                        targetTemp = _cabinManager.CurrentAmbientTemperature;
+                    }
                 }
                 else 
                 {
@@ -265,6 +276,15 @@ namespace FlightSupervisor.UI
                     {
                         targetTemp = 22.0 + variance;
                     }
+                    else
+                    {
+                        targetTemp = _cabinManager.CurrentAmbientTemperature;
+                    }
+                }
+                
+                // THERMAL DEBUG
+                if (_currentSimTime.Second % 5 == 0 && _currentSimTime.Millisecond < 500) {
+                    SendToWeb(new { type = "log", message = $"DEBUG THERMO - Target: {targetTemp:F1}°C | Ambient: {_cabinManager.CurrentAmbientTemperature:F1}°C | Cabin: {_cabinManager.LastKnownCabinTemp:F1}°C" });
                 }
 
                 _cabinManager.Tick(_phaseManager.GForce, _lastKnownBank, isBoardingComplete,
@@ -291,7 +311,7 @@ namespace FlightSupervisor.UI
                         _cabinManager.WaterLevel = 100.0;
                         _cabinManager.WasteLevel = 0.0;
                     }
-                    if (_groundOpsManager.Services.FirstOrDefault(s => s.Name == "Cleaning" || s.Name == "Light Cleaning" || s.Name == "Deep Cleaning")?.State == GroundServiceState.Completed)
+                    if (_groundOpsManager.Services.FirstOrDefault(s => s.Name == "Cabin Cleaning" || s.Name == "Cleaning" || s.Name == "Light Cleaning" || s.Name == "Deep Cleaning")?.State == GroundServiceState.Completed)
                     {
                         _cabinManager.CabinCleanliness = 100.0;
                     }
@@ -1651,24 +1671,7 @@ namespace FlightSupervisor.UI
 
                         if (minutes > 0) 
                         {
-                            _currentSimTime = _currentSimTime.AddMinutes(minutes); // Advance global tracking time
-                            
-                            // Let the CabinManager consume resources (water, waste, temperatures, etc.)
-                            if (_cabinManager != null)
-                            {
-                                int simAdvanceSec = minutes * 60;
-                                _cabinManager.CurrentSimLocalTime = _cabinManager.CurrentSimLocalTime.AddSeconds(simAdvanceSec);
-                                _cabinManager.FastForward(simAdvanceSec, _phaseManager.CurrentPhase);
-                            }
-
-                            _groundOpsManager.TimeSkip(minutes); // Advance ground ops progress
-                            
-                            // Send to MSFS
-                            if (_simConnectService != null && _simConnectService.IsConnected)
-                            {
-                                _simConnectService.SendTimeWarpCommand(_currentSimTime);
-                                SendToWeb(new { type = "log", message = $"[SYSTEM] Dispatched SimConnect TimeWarp to {_currentSimTime:HH:mm}Z" });
-                            }
+                            ExecuteTimeSkip(minutes);
 
                             SendToWeb(new { type = "log", message = $"[CAPTAIN] Time advanced by {minutes} minutes." });
                             SendTelemetryToWeb();
@@ -1954,7 +1957,7 @@ namespace FlightSupervisor.UI
 
             _cabinManager.CurrentFlight = _currentResponse;
 
-            bool isTurnaroundPhase = !(_cabinManager.SessionFlightsCompleted == 0 && _cabinManager.FirstFlightClean);
+            bool isTurnaroundPhase = _cabinManager.SessionFlightsCompleted > 0;
             _phaseManager.Reset(isTurnaroundPhase); // false = AtGate (Pristine), true = Turnaround
             _scoreManager.Reset();
             _cabinManager.Reset();
@@ -2377,9 +2380,27 @@ namespace FlightSupervisor.UI
 
         public void ExecuteTimeSkip(int minutes)
         {
-            if (_currentSimTime != DateTime.MinValue)
+            if (minutes > 0)
             {
-                _currentSimTime = _currentSimTime.AddMinutes(minutes);
+                DateTime newSimTime = _currentSimTime.AddMinutes(minutes);
+
+                if (_cabinManager != null)
+                {
+                    int simAdvanceSec = minutes * 60;
+                    _cabinManager.CurrentSimLocalTime = _cabinManager.CurrentSimLocalTime.AddSeconds(simAdvanceSec);
+                    _cabinManager.FastForward(simAdvanceSec, _phaseManager.CurrentPhase);
+                }
+
+                if (_simConnectService != null && _simConnectService.IsConnected && _currentSimTime.Year > 2000)
+                {
+                    _simConnectService.SendTimeWarpCommand(newSimTime);
+                    SendToWeb(new { type = "log", message = $"[SYSTEM] Dispatched MSFS TimeWarp to {newSimTime:HH:mm}Z" });
+                }
+                else 
+                {
+                    _currentSimTime = newSimTime;
+                    _groundOpsManager.TimeSkip(minutes); 
+                }
             }
         }
 

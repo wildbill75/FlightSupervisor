@@ -15,13 +15,21 @@ namespace FlightSupervisor.UI.Services
             _units = units ?? new UnitPreferences();
         }
 
-        public BriefingData GenerateBriefing(SimBriefResponse? response)
+        public BriefingData GenerateBriefing(SimBriefResponse? response, bool isAtWrongAirport = false)
         {
             var data = new BriefingData();
             if (response == null) 
             {
                 data.HeaderText = LocalizationService.Translate("No flight data available for briefing.", "Aucune donnée de vol disponible pour le briefing.");
                 return data;
+            }
+
+            if (isAtWrongAirport)
+            {
+                data.AlertMessages.Add(LocalizationService.Translate(
+                    $"CRITICAL: Aircraft location mismatch. You are currently too far from {response.Origin?.IcaoCode}. Ground operations are restricted.",
+                    $"CRITICAL : Erreur de localisation. Vous êtes trop éloigné de {response.Origin?.IcaoCode}. Les opérations au sol sont restreintes."
+                ));
             }
             var weather = response.Weather;
             var gen = response.General;

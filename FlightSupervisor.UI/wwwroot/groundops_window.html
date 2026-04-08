@@ -53,7 +53,7 @@
         ::-webkit-scrollbar-thumb:hover { background: rgba(62, 72, 82, 0.6); }
     </style>
 </head>
-<body class="bg-[#141414] text-white overflow-hidden select-none">
+<body class="bg-[#141414] text-[#b6b6b6] overflow-hidden select-none">
     <div class="h-screen w-screen flex flex-col disable-drag">
         <!-- Title Bar -->
         <div id="top-bar" class="window-drag-area flex-none flex items-center justify-between px-4 h-10 bg-[#1d1d1d] border-b border-white/5" onmousedown="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action:'drag'});">
@@ -75,7 +75,7 @@
                 <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" title="Maximize" onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'maximizeApp'});">
                     <span class="material-symbols-outlined text-[14px]">crop_square</span>
                 </button>
-                <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" title="Close" onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'closeApp'});">
+                <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-rose-500 rounded transition-colors" title="Close" onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'closeApp'});">
                     <span class="material-symbols-outlined text-[14px]">close</span>
                 </button>
             </div>

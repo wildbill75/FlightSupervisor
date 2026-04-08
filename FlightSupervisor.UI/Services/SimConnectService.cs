@@ -72,6 +72,8 @@ namespace FlightSupervisor.UI.Services
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
         struct PlaneDataStruct
         {
+            public double Latitude;
+            public double Longitude;
             public double Altitude;
             public double GroundSpeed;
             public double IndicatedAirspeed;
@@ -108,8 +110,6 @@ namespace FlightSupervisor.UI.Services
             public double TimeZoneDeviation;
             public double AmbientTemperature;
             public double FuelTotalMass;
-            public double Latitude;
-            public double Longitude;
             
             // Native MSFS Time Variables
             public double ZuluYear;
@@ -148,6 +148,8 @@ namespace FlightSupervisor.UI.Services
                 _wasmClient.OnFenixLVarsReceived += WasmClient_OnFenixLVarsReceived;
                 _wasmClient.Initialize();
 
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "PLANE LATITUDE", "Radians", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "PLANE LONGITUDE", "Radians", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "INDICATED ALTITUDE", "Feet", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GROUND VELOCITY", "Knots", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AIRSPEED INDICATED", "Knots", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
@@ -182,10 +184,8 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "ACCELERATION BODY Z", "Feet per second squared", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "VELOCITY BODY Z", "Feet per second", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "TIME ZONE DEVIATION", "Seconds", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AMBIENT TEMPERATURE", "Celsius", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "TOTAL AIR TEMPERATURE", "Celsius", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "FUEL TOTAL QUANTITY WEIGHT", "Kilograms", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "PLANE LATITUDE", "Degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "PLANE LONGITUDE", "Degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 
                 // Add native Time Variables exactly matching the PlaneDataStruct
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "ZULU YEAR", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
@@ -301,7 +301,7 @@ namespace FlightSupervisor.UI.Services
                 OnEngineCombustionReceived?.Invoke(planeData.Eng1Combustion > 0.5, planeData.Eng2Combustion > 0.5);
                 OnHeadingReceived?.Invoke(planeData.Heading);
                 OnWindReceived?.Invoke(planeData.WindDirection, planeData.WindVelocity);
-                OnPositionReceived?.Invoke(planeData.Latitude, planeData.Longitude);
+                OnPositionReceived?.Invoke(planeData.Latitude * (180.0 / Math.PI), planeData.Longitude * (180.0 / Math.PI));
                 OnNavigationReceived?.Invoke(planeData.NavLocalizerError, planeData.GpsCrossTrackError, planeData.HasLocalizer > 0.5);
                 OnAirframeDynamicsReceived?.Invoke(planeData.VelocityBodyZ, planeData.AccelerationBodyZ);
 

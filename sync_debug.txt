@@ -40,3 +40,19 @@
 [DEBUG] Calling LoadNextLeg()!
 [DEBUG] Time Offset Locked: 901 seconds.
 [DEBUG] StartOps() complete.
+
+[8 Apr 2026 18:45:13] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560387...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 18:56:34] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560387...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.

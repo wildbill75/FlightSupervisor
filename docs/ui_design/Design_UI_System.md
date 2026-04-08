@@ -1,76 +1,95 @@
-# Flight Supervisor UI Design System
+# Charte Graphique & UI System - Flight Supervisor (V1.1.0)
 
-This document outlines the visual language, typography, and component specifications used across the Flight Supervisor application. Future agents and developers MUST respect these guidelines to maintain a cohesive, high-density, and professional aviation aesthetic.
+Ce document formalise les règles de design et de styling tirées de l'interface principale (Dashboard "True Airmanship") de Flight Supervisor. Il sert de référence unique (Single Source of Truth) pour tout le développement futur du projet.
 
-## 1. Color Palette
+## 1. Philosophie Générale
+L'approche visuelle du dashboard est celle d'un **système avionique moderne** et d'un outil de télémétrie "Cyber-Aviation".
+- **Lisibilité avant tout :** Les données en surbrillance guident l'œil. L'interface reste très aérée pour ne jamais agresser la vision, même de nuit.
+- **Minimalisme et "Glassmorphism" sombre :** Les modales et les blocs flottent sur un fond quasi-noir, délimités par des bordures extrêmement subtiles.
+- **Signification par la couleur :** Les couleurs vives ne sont pas utilisées pour la décoration, mais comme indicateurs de statut strict.
 
-The application uses a dark mode, high-contrast, professional scheme inspired by modern avionics.
+---
 
-*   **App Background:** `#030712` (Tailwind `gray-950`) or `#0F111A`
-*   **Panel / Card Background:** `#1C1F26` (often combined with `bg-gradient-to-br from-[#1C1F26] to-[#12141A]`)
-*   **Borders:** Soft translucent white borders (`border border-white/5` or `border-slate-800`).
-*   **Primary Accent:** Tailwind `sky-400` (`#38bdf8`) to `sky-500` (`#0ea5e9`). Used for active states, primary headers, highlights, and primary action buttons.
-*   **Secondary Text (Labels/Hint):** Tailwind `slate-400` (`#94a3b8`) or `slate-500`.
-*   **Primary Text:** Tailwind `slate-200` (`#e2e8f0`) or `white`.
+## 2. Palette de Couleurs (Couleurs Tailwind)
 
-### Status Colors
-*   **Success/Good:** `emerald-400` (`#34D399`)
-*   **Warning/Delay:** `amber-400` (`#FBBF24`) or `orange-500`
-*   **Danger/Penalty:** `red-400` (`#F87171`) or `rose-500`
-*   **Info:** `sky-400`
+### A. Fonds (Backgrounds)
+Les fonds utilisent des tons très froids et sombres, pour maximiser le contraste sans éblouir l'utilisateur.
 
-## 2. Typography
+| Utilisation | Code Hexadécimal | Équivalence Tailwind | Description |
+| :--- | :--- | :--- | :--- |
+| **Fond Global (Body)** | `#141414` | N/A (Custom) | Noir profond pur/légèrement gris mat. Absolument pas de `#000000`. |
+| **Fonds des Sous-Panneaux** | `#1C1F26` | N/A (Custom) | Un gris-bleu très sombre, utilisé pour les cartes ("Cabin Experience", "Turnaround"). |
+| **Highlight Rapide (Hover/Active)** | `#1e293b` | `bg-slate-800` | Pour les boutons et éléments listés au survol. |
+| **Bordures et Séparateurs**| `rgba(255,255,255,0.05)` | `border-white/5` | Séparation ultra discrète. Utilisé systématiquement sur tous les `<hr>` et contours de panneaux. |
 
-We rely on three core typefaces to build hierarchy and a "chic" dashboard feel. 
-(Fonts are declared in `index.html` via Google Fonts and Tailwind config).
+### B. Typographie & Contrastes Globaux
+| Utilisation | Code Hexadécimal | Équivalence Tailwind | Description |
+| :--- | :--- | :--- | :--- |
+| **Valeurs Majeures** | `#ffffff` | `text-white` | Utilisé pour la télémétrie brute, les chiffres massifs (ex: Score 1000). |
+| **Titres & Labels (Inactifs)** | `#7b7b7b` / `#b6b6b6` | `text-[#7b7b7b]` / `text-[#b6b6b6]` | Utilisé pour les en-têtes (ex: `TURNAROUND`, `COMFORT`), les légendes et le texte standard. |
 
-*   **Headlines / Titles (`font-headline`):** (e.g., Mona Sans or similar strong sans-serif).
-*   **Data / Code (`font-mono`):** (e.g., JetBrains Mono). Used for all aviation data (altitudes, speeds, fuel, ICAO codes).
-*   **Labels / Caps (`font-label`):** Used for section headers and small labels.
-*   **Standard Text (`font-body`):** (e.g., Inter).
+### C. La Palette Sémantique (Sémantique des Indicateurs)
+**Règle d'or absolue : AUCUNE couleur vive n'est utilisée pour de la décoration.**
+Les couleurs s'utilisent *strictement* pour marquer des états sémantiques (retards, alertes, succès, intégrité). De plus, les teintes doivent être **douces/pastels** (les séries `300` ou `400` de Tailwind) et surtout pas "criardes" ou fluo.
 
-### Shared Title Styling
-*   **Window/Panel Titles (Settings, Manifest, Ground Ops):**
-    *   Classes: `text-sky-400 font-label tracking-[0.4em] uppercase text-xs opacity-80 mb-6`.
-    *   *Rule:* ALL panel titles and section subheadings must feature wide tracking (`tracking-widest` or `tracking-[0.4em]`) and be uppercase to give a premium, spacious feel.
+| État | Couleur Tailwind | Code Hex | Emploi Technique |
+| :--- | :--- | :--- | :--- |
+| 🔵 **Primaire / Focus** | `text-sky-300` / `400` | `#7dd3fc` | Noms des aéroports (LFPO), boutons actifs (Menu, Pin), données de statut neutre mais actives. |
+| 🟢 **Succès / Pristine** | `text-emerald-300` / `400` | `#6ee7b7` | Horaires dans les temps (`ON TIME`), cabine impeccable (100% propre), réserves OK. |
+| 🟠 **Avertissement / Moyen** | `text-amber-300` / `400` | `#fcd34d` | Retard mineur, scores moyens (50-79), avertissement météo. |
+| 🔴 **Critique / Erreur** | `text-red-400` / `500` | `#f87171` | Dégradation de score, retard critique, bannières d'urgence (Crisis Banner). |
 
-## 3. UI Components
+---
 
-### Buttons
-*   **Primary Settings Save Button:** 
-    *   Design: Fully rounded (pill shape).
-    *   Classes: `rounded-full bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs uppercase tracking-widest px-8 py-3`.
-*   **Bottom Action Bar Buttons (e.g., START OPS) & Modals:** 
-    *   Design: Squared-off corners (rounded-xl) - also referred to as "Design Carré".
-    *   Classes: `rounded-xl uppercase font-bold text-[11px] tracking-widest`.
-    *   *Rule:* All action buttons must be explicitly uppercase in the HTML and JS logic (e.g. `START OPS`, `FETCH PLAN`, `CANCEL FLIGHT`, `CONTINUE`).
+## 3. Typographie Spécifique
 
-### Cards & Containers
-*   **Standard Layout Grid:** Layout grids should prefer CSS Flexbox in columns for aligning components vertically perfectly (e.g., Settings screen uses two distinct flex columns to avoid vertical gaps).
+**Polices utilisées :**
+1. **Manrope :** Typographie stylisée "Headline", utilisée spécifiquement pour les bannières majeures, le logo (`TRUE AIRMANSHIP`), ou les modes d'urgence.
+2. **Inter :** Police système pour toutes les sections de données, les étiquettes et les UI.
 
-#### Anatomie d'une "Dashboard Card" Stratifiée (Standard Master Layout)
-Pour garantir la cohérence visuelle entre les différents widgets (ex: *Flight Timetable* vs *Cabin Experience*), toutes les cartes complexes doivent adopter une structure bicolore séparant l'en-tête du contenu :
+**Règle des Labels / Titres de Section (`<h2>`, `<h3>`...) :**
+- Toujours en majuscules : `uppercase`
+- Extrêmement espacés (Tracking important) : `tracking-widest` ou `tracking-[0.4em]`
+- Petite taille de police relative : `text-xs` ou `text-sm`
+- Opacité réduite pour ne pas voler la vedette à la donnée : `text-[#7b7b7b]`
+- **Exemple :** `CABIN EXPERIENCE`, `PAX MANIFEST`
 
-1.  **Main Container (Wrapper) :** 
-    *   Classes : `rounded-xl border border-white/5 shadow-xl overflow-hidden flex flex-col`
-2.  **Card Header (Titre & Actions) :** 
-    *   Background plus clair pour faire ressortir le titre.
-    *   Classes : `bg-[#1C1F26] p-4 border-b border-white/5 flex items-center justify-between`
-    *   Typographie du titre : `text-sky-400 font-label tracking-wide uppercase text-xs font-semibold`
-3.  **Card Body (Listes & Contenu) :** 
-    *   Background légèrement plus sombre/creusé pour accueillir les données.
-    *   Classes : `bg-[#12141A] p-4 flex-1` (ou `bg-slate-900/50` selon le contraste souhaité).
-    *   *Règle :* Ne pas utiliser de fonds unis plats (`bg-[#1C1F26]`) pour l'intégralité d'un widget Data lourd. Toujours utiliser cette dichotomie Header/Body.
+**Règle des Valeurs de Données :**
+- Grandes, lisibles et épaisses : `text-lg` à `text-2xl`.
+- Pour les chiffres précis (timers, indicateurs de carburant), souvent en `font-bold` ou parfois mis en évidence via des `shadow-inner` ou glows subtils.
 
-### Icons
-*   Library: **Google Material Symbols Outlined**.
-*   Size: Usually `text-[18px]` to `text-[24px]`.
-*   Ground Ops styling: Custom coloring per service (Refuel: orange, Boarding: sky, Catering: pink, Water/Waste: emerald). 
+---
 
-## 4. Window Metrics
-*   **Default Window Size:** `1850 x 1020`. The UI is designed to be spacious and readable in a windowed state without requiring maximum screen utilization. Use large fonts to prevent "squinting".
+## 4. Composants et Styles UI
 
-## 5. Development Principles
-1.  **Don't reinvent the wheel:** If a new panel is needed, duplicate the layout structure, borders, and typography of an existing one (e.g., Manifest or Settings).
-2.  **No gaps / Ragged edges:** Ensure sections align vertically. Use flex columns if grid elements vary significantly in height.
-3.  **Caps & Tracking:** When in doubt for a UI label or title, use uppercase with wide tracking for immediate "dashboard" credibility.
+### A. Les Panneaux (Cards)
+Les "widgets" principaux (comme Turnover, Cabin Experience) partagent une fondation commune stricte :
+- **Background :** `bg-[#1C1F26]`
+- **Angles (Border Radius) :** Très arrondis, souvent `rounded-xl` ou `rounded-2xl`
+- **Bordures :** `border border-white/5`
+- **Ombres :** `shadow-xl` pour marquer le détachement avec l'arrière-plan le plus sombre.
+- **Padding intérieur (Aération) :** Le design "Flight Supervisor" _n'est jamais compact_. L'espace vide fait partie du design. Utilisation massive de `p-6` ou `p-8`.
+
+### B. Boutons et Pilules (Pills)
+- **Minimalisme des Encadrements :** Éviter à tout prix de surcharger les nouveaux éléments en les encadrant de bordures épaisses ou en abusant d'effets de luminosité (`shadow`/`glow`). Les éléments doivent reposer naturellement sur le fond en utilisant simplement la couleur de leur texte.
+- **Styles de pilule :** Utilisées pour résumer une information textuelle (ex: Event). Fond très translucide avec bordure minime (ex: `text-sky-300 bg-sky-600/10 border border-sky-500/20`) et un arrondi extrême `rounded-full`.
+- **Interactions & Mouse Over unifiés :** Les comportements au survol (`hover:`) doivent être strictement unifiés dans toute l'application. La norme est d'utiliser une variation d'opacité ou un voile blanc ultra-léger (`hover:bg-white/5`, `hover:text-white` avec `transition-colors duration-300`). Il ne faut **jamais** faire apparaître un fond de couleur vive au survol d'un élément neutre.
+
+### C. Fenêtres Autonomes (Windows)
+Pour le Manifest, Ground Ops et Logs :
+- Titre très discret avec barre de poigne activée pour le système d'exploitation Windows (`-webkit-app-region: drag`).
+- Contrôles minimalistes en haut à droite avec les boutons Minimiser, Épingler (`push_pin`) et Fermer (`X`), fonctionnant via IPC `WebView2`. La punaise active prend la couleur `text-sky-400`.
+
+### D. Progress Bars & Slides
+- Le conteneur "Background" (vide) est stylisé pour se fondre : `bg-slate-600` (`#64748b`).
+- La jauge intérieure utilise strictement les couleurs Sémantiques définies ci-dessus (Vert pour confort, Rouge/Orange pour anxiété ou poubelles).
+
+---
+
+## 5. Synthèse "Checklist" pour le Développement Frontend
+Lors de la création d'un nouveau bloc UI, posez-vous ces questions :
+- [ ] Le fond du conteneur est-il bien `#1C1F26` avec un `border-white/5` ?
+- [ ] Le titre du sous-menu est-il bien en `uppercase` + `tracking-widest` + gris clair (par ex. `#7b7b7b`) ?
+- [ ] Les valeurs importantes (numériques ou les scores) sont-elles visuellement détachées du texte brut (blanches ou de couleur sémantique et épaisses) ?
+- [ ] L'espace (padding) est-il suffisant pour conserver l'aspect d'un tableau de bord de luxe (au moins `gap-6` ou `p-6`) ?
+- [ ] Ai-je utilisé les bonnes teintes Sémantiques (Sky Blue = Information/Focus, Emerald = OK/Prêt, Red = Erreur) ?

@@ -48,32 +48,30 @@
         ::-webkit-scrollbar-thumb:hover { background: rgba(62, 72, 82, 0.6); }
     </style>
 </head>
-<body class="bg-[#141414] text-white overflow-hidden select-none">
+<body class="bg-[#141414] text-[#b6b6b6] overflow-hidden select-none">
     <div class="h-screen w-screen flex flex-col disable-drag">
         <!-- Title Bar -->
         <div id="top-bar" class="window-drag-area flex-none flex items-center justify-between px-4 h-10 bg-[#1d1d1d] border-b border-white/5" onmousedown="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action:'drag'});">
             <!-- Logo / Title -->
-            <div class="flex items-center gap-3">
-                <div class="flex items-center justify-center p-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                    <span class="material-symbols-outlined text-[16px] text-emerald-400">receipt_long</span>
-                </div>
-                <!-- Standardized Title -->
-                <h1 class="text-xs font-headline tracking-[0.2em] uppercase text-white/90 whitespace-nowrap truncate max-w-[200px]">FLIGHT LOGS</h1>
+            <div class="text-[10px] font-label tracking-[0.4em] text-[#7b7b7b] uppercase pointer-events-none select-none whitespace-nowrap truncate flex-1">TRUE AIRMANSHIP | FLIGHT LOGS</div>
+            
+            <!-- CENTERED -->
+            <div class="flex items-center justify-center gap-6 text-[12px] font-bold text-[#b6b6b6] font-mono tracking-wider pointer-events-none select-none whitespace-nowrap truncate flex-1">
             </div>
 
-            <!-- Window Controls -->
-             <div class="flex items-center pl-2 ml-2 border-l border-white/5 space-x-1 no-drag">
-                <button onmousedown="event.stopPropagation()" onclick="this.classList.toggle('text-slate-400'); this.classList.toggle('text-sky-400'); if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'togglePinApp'});" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 rounded transition-colors no-drag" title="Always on Top">
-                    <span class="material-symbols-outlined text-[16px]">push_pin</span>
+            <!-- Right Side Icons -->
+            <div class="flex items-center gap-2 justify-end flex-1">
+                <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" title="Always on Top" onmousedown="event.stopPropagation()" onclick="this.classList.toggle('text-[#b6b6b6]'); this.classList.toggle('text-sky-400'); if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'togglePinApp'});">
+                    <span class="material-symbols-outlined text-[14px]">push_pin</span>
                 </button>
-                <button onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'minimizeLogsWindow'});" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 rounded transition-colors no-drag" title="Minimize">
-                    <span class="material-symbols-outlined text-[18px]">remove</span>
+                <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" title="Minimize" onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'minimizeLogsWindow'});">
+                    <span class="material-symbols-outlined text-[14px]">remove</span>
                 </button>
-                <button onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'maximizeLogsWindow'});" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 rounded transition-colors no-drag">
-                    <span class="material-symbols-outlined text-[16px]">crop_square</span>
+                <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" title="Maximize" onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'maximizeLogsWindow'});">
+                    <span class="material-symbols-outlined text-[14px]">crop_square</span>
                 </button>
-                <button onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'closeLogsWindow'});" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-rose-500 rounded transition-colors no-drag">
-                    <span class="material-symbols-outlined text-[18px]">close</span>
+                <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-rose-500 rounded transition-colors" title="Close" onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'closeLogsWindow'});">
+                    <span class="material-symbols-outlined text-[14px]">close</span>
                 </button>
             </div>
         </div>
@@ -84,7 +82,7 @@
             <div class="bg-black/40 rounded-xl p-6 border border-sky-500/20 text-center mb-6 shrink-0 relative overflow-hidden group">
                 <div class="absolute inset-0 bg-sky-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <p class="text-[9px] text-sky-400/60 uppercase tracking-[0.4em] font-bold mb-2">SUPER SCORE</p>
-                <span id="topScoreValue" class="text-6xl font-black text-white font-mono tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]">---</span>
+                <span id="topScoreValue" class="text-6xl font-black text-white font-headline tracking-tight drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]">---</span>
             </div>
             
             <!-- Log List -->

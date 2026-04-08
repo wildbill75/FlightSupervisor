@@ -63,6 +63,21 @@ namespace FlightSupervisor.UI.Services
                     _cabinManager.BoardPassenger(expectedBoarded - currentlyBoarded);
                 }
             }
+
+            var deboardSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Deboarding");
+            if (deboardSvc != null && (deboardSvc.State == GroundServiceState.InProgress || deboardSvc.State == GroundServiceState.Completed))
+            {
+                int expectedRemaining = deboardSvc.State == GroundServiceState.Completed 
+                    ? 0 
+                    : (int)(_cabinManager.PassengerManifest.Count * (1.0 - ((double)deboardSvc.ElapsedSec / Math.Max(1, deboardSvc.TotalDurationSec))));
+                
+                int currentlyBoarded = _cabinManager.PassengerManifest.Count(p => p.IsBoarded);
+                
+                if (currentlyBoarded > expectedRemaining)
+                {
+                    _cabinManager.DeboardPassenger(currentlyBoarded - expectedRemaining);
+                }
+            }
         }
     }
 }

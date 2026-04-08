@@ -50,7 +50,10 @@ namespace FlightSupervisor.UI.Services
             get => _currentAmbientTemperature; 
             set 
             {
-                _currentAmbientTemperature = value;
+                // Protect against MSFS Fahrenheit bug or crazy tarmac boundary thermal layers
+                double safeTemp = Math.Max(-30.0, Math.Min(32.0, value));
+                
+                _currentAmbientTemperature = safeTemp;
                 if (!_isTempInitialized) 
                 {
                     // Initialization starts at a standard 22.0°C instead of pure ambient to match ready-for-flight states
@@ -828,10 +831,10 @@ namespace FlightSupervisor.UI.Services
                         double delta = currentTemp - 30.0;
                         agitationIncrement = (1.0 + (delta * 0.5)) * deltaTimeSeconds * 0.1;
                     }
-                    else if (currentTemp > 24.0)
+                    else if (currentTemp > 26.0)
                     {
                         // Chaud graduel
-                        double delta = currentTemp - 24.0;
+                        double delta = currentTemp - 26.0;
                         agitationIncrement = delta * deltaTimeSeconds * 0.08;
                     }
                     else if (currentTemp < 18.0)
@@ -840,15 +843,15 @@ namespace FlightSupervisor.UI.Services
                         double delta = 18.0 - currentTemp;
                         agitationIncrement = (1.0 + (delta * 0.5)) * deltaTimeSeconds * 0.1;
                     }
-                    else if (currentTemp < 21.0)
+                    else if (currentTemp < 19.5)
                     {
                         // Froid graduel
-                        double delta = 21.0 - currentTemp;
+                        double delta = 19.5 - currentTemp;
                         agitationIncrement = delta * deltaTimeSeconds * 0.08;
                     }
                     else
                     {
-                        // Zone de confort Idéale (21.0 - 24.0)
+                        // Zone de confort Idéale (19.5 - 26.0)
                         agitationIncrement = -deltaTimeSeconds * 2.0; // Drainage plus rapide quand corrigé
                     }
 
@@ -862,7 +865,7 @@ namespace FlightSupervisor.UI.Services
                     {
                         _hasWarnedThermal = true;
                         
-                        if (LastKnownCabinTemp > 24.0) 
+                        if (LastKnownCabinTemp > 26.0) 
                         {
                             string msg = "Captain, it's getting really hot back here, passengers are complaining. Can you adjust the temperature?";
                             _audio?.SpeakAsPurser(msg);
@@ -1863,12 +1866,12 @@ namespace FlightSupervisor.UI.Services
             {
                 if (_thermalDissatisfactionGauge > 30.0)
                 {
-                    if (LastKnownCabinTemp > 24)
+                    if (LastKnownCabinTemp > 26)
                     {
                         reportEn += " It's getting a bit warm in the back.";
                         reportFr += " Ça commence à chauffer à l'arrière.";
                     }
-                    else if (LastKnownCabinTemp < 21)
+                    else if (LastKnownCabinTemp < 19)
                     {
                         reportEn += " A few complaints about the cold.";
                         reportFr += " Quelques plaintes concernant le froid.";
@@ -1973,6 +1976,16 @@ namespace FlightSupervisor.UI.Services
                     // 90% chance to put seatbelt on immediately during boarding, leaving 10% for the crew to hound later
                     p.IsSeatbeltFastened = _rnd.NextDouble() < 0.90;
                 }
+            }
+        }
+
+        public void DeboardPassenger(int count)
+        {
+            var boarded = PassengerManifest.Where(p => p.IsBoarded).TakeLast(count).ToList();
+            foreach (var p in boarded)
+            {
+                p.IsBoarded = false;
+                p.IsSeatbeltFastened = false; // They definitely unfasten to leave
             }
         }
     }

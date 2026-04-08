@@ -367,12 +367,17 @@
                         </div>
                         
                         <div id="dashMetaBar" class="px-8 py-4 border-b border-white/5 bg-black/20" style="display: none;">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-[9px] font-bold uppercase tracking-[0.3em] text-[#7b7b7b]">Ground Operations</span>
+                            <div class="flex justify-between items-center px-1">
+                                <span id="dashMetaTitle" class="text-[9px] font-bold uppercase tracking-[0.3em] text-[#7b7b7b]">Ground Operations</span>
                                 <span id="dashMetaText" class="text-[9px] text-[#b6b6b6] uppercase font-bold tracking-widest">Standing By.</span>
                             </div>
-                            <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5 shadow-inner">
+                            <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5 shadow-inner mt-2">
                                 <div id="dashMetaFill" class="h-full bg-sky-500 w-0 transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(14,165,233,0.5)]"></div>
+                            </div>
+                            <div class="flex justify-end gap-2 mt-3">
+                                <button onclick="event.stopPropagation(); window.requestTimeSkip(1)" class="px-2 py-0.5 bg-white/5 hover:bg-white/10 text-[#7b7b7b] hover:text-white rounded border border-white/5 text-[9px] font-bold font-mono transition-colors tracking-widest">+1m</button>
+                                <button onclick="event.stopPropagation(); window.requestTimeSkip(5)" class="px-2 py-0.5 bg-white/5 hover:bg-white/10 text-[#7b7b7b] hover:text-white rounded border border-white/5 text-[9px] font-bold font-mono transition-colors tracking-widest">+5m</button>
+                                <button onclick="event.stopPropagation(); window.requestTimeSkip(10)" class="px-2 py-0.5 bg-white/5 hover:bg-white/10 text-[#7b7b7b] hover:text-white rounded border border-white/5 text-[9px] font-bold font-mono transition-colors tracking-widest">+10m</button>
                             </div>
                         </div>
                         <div id="globalRotationBanner" class="hidden bg-[#2a2a2b]/60 border-b border-white/5 py-4 px-8 flex items-center justify-between shadow-[inset_0_-10px_20px_rgba(0,0,0,0.2)] gap-4">
@@ -1465,26 +1470,7 @@
         }
     </script>
     
-    <!-- Draggable Time Skip Modal -->
-    <div id="timeSkipModal" class="fixed z-[100] hidden bg-[#14161C] border border-white/10 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.8)]" style="top: 100px; left: calc(50% - 150px); width: 300px; cursor: default;">
-        <div id="timeSkipModalHeader" class="bg-black/40 px-4 py-2 border-b border-white/5 rounded-t-xl flex justify-between items-center select-none" style="cursor: grab;">
-            <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-amber-500 text-sm">schedule</span>
-                <span class="text-xs font-bold uppercase tracking-widest text-[#b6b6b6]">Time Warp</span>
-            </div>
-            <button onclick="document.getElementById('timeSkipModal').classList.add('hidden')" class="text-[#7b7b7b] hover:text-white transition-colors">
-                <span class="material-symbols-outlined text-sm">close</span>
-            </button>
-        </div>
-        <div class="p-4 flex flex-col gap-3">
-            <p class="text-xs text-[#b6b6b6] font-mono text-center mb-1">Fast-forward ground operations & turnaround time.</p>
-            <div class="grid grid-cols-3 gap-2">
-                <button onclick="window.requestTimeSkip(5)" class="py-2 bg-slate-800 hover:bg-amber-600/30 border border-slate-700 hover:border-amber-500/50 rounded font-mono text-white text-sm font-bold transition-all shadow-inner">+5m</button>
-                <button onclick="window.requestTimeSkip(10)" class="py-2 bg-slate-800 hover:bg-amber-600/40 border border-slate-700 hover:border-amber-500/60 rounded font-mono text-white text-sm font-bold transition-all shadow-inner">+10m</button>
-                <button onclick="window.requestTimeSkip(20)" class="py-2 bg-slate-800 hover:bg-amber-600/50 border border-slate-700 hover:border-amber-500/70 rounded font-mono text-white text-sm font-bold transition-all shadow-inner">+20m</button>
-            </div>
-        </div>
-    </div>
+
     
     <script>
         window.requestTimeSkip = function(minutes) {
