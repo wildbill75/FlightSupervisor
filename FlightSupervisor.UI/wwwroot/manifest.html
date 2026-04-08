@@ -35,7 +35,7 @@
             padding: 0;
             height: 100vh;
         }
-        .custom-drag { -webkit-app-region: drag; }
+        .window-drag-area { -webkit-app-region: drag; }
         .no-drag { -webkit-app-region: no-drag; }
 
         /* Zoom & Pan Container */
@@ -155,10 +155,26 @@
 <body class="bg-[#141414] text-[#b6b6b6] overflow-hidden select-none">
     <div class="h-screen w-screen flex flex-col">
         <!-- Title Bar -->
-        <div class="h-10 border-b border-white/5 flex items-center justify-between px-4 bg-[#1C1F26] custom-drag">
-            <span class="text-[9px] font-bold uppercase tracking-[0.3em] text-[#64748b]">Flight & Cabin Manifest (Standalone)</span>
-            <div class="flex items-center gap-2 no-drag">
-                <button onclick="window.close()" class="px-2 hover:bg-red-500/20 text-[#64748b] transition-colors rounded">
+        <div id="top-bar" class="window-drag-area flex-none flex items-center justify-between px-4 h-10 bg-[#1d1d1d] border-b border-white/5" onmousedown="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action:'drag'});">
+            <!-- Logo / Title -->
+            <div class="text-[10px] font-label tracking-[0.4em] text-[#7b7b7b] uppercase pointer-events-none select-none whitespace-nowrap truncate flex-1">TRUE AIRMANSHIP | FLIGHT & CABIN MANIFEST</div>
+            
+            <!-- CENTERED -->
+            <div class="flex items-center justify-center gap-6 text-[12px] font-bold text-[#b6b6b6] font-mono tracking-wider pointer-events-none select-none whitespace-nowrap truncate flex-1">
+            </div>
+
+            <!-- Right Side Icons -->
+            <div class="flex items-center gap-2 justify-end flex-1">
+                <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" title="Always on Top" onmousedown="event.stopPropagation()" onclick="this.classList.toggle('text-[#b6b6b6]'); this.classList.toggle('text-sky-400'); if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'togglePinApp'});">
+                    <span class="material-symbols-outlined text-[14px]">push_pin</span>
+                </button>
+                <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" title="Minimize" onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'minimizeApp'});">
+                    <span class="material-symbols-outlined text-[14px]">remove</span>
+                </button>
+                <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" title="Maximize" onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'maximizeApp'});">
+                    <span class="material-symbols-outlined text-[14px]">crop_square</span>
+                </button>
+                <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" title="Close" onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'closeApp'});">
                     <span class="material-symbols-outlined text-[14px]">close</span>
                 </button>
             </div>

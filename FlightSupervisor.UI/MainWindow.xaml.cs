@@ -16,7 +16,7 @@ namespace FlightSupervisor.UI
         private SimConnectService _simConnectService;
         private FlightPhaseManager _phaseManager;
         private SimBriefResponse? _currentResponse = null;
-        private Queue<SimBriefResponse> _rotationQueue = new();
+        private List<SimBriefResponse> _rotationQueue = new();
         
         private double _lastKnownGroundSpeed = 0;
         private double _lastKnownAirspeed = 0;
@@ -78,6 +78,32 @@ namespace FlightSupervisor.UI
 
         private Microsoft.Web.WebView2.Wpf.WebView2 _manifestWebView;
         private Window _manifestWindow;
+        private Microsoft.Web.WebView2.Wpf.WebView2 _groundOpsWebView;
+        private Window _groundOpsWindow;
+        
+        private Microsoft.Web.WebView2.Wpf.WebView2 _logsWebView;
+        private Window _logsWindow;
+        private string _cachedLogsScore = "";
+        private string _cachedLogsHtml = "";
+
+        private bool _isAtWrongAirport = false;
+
+        private bool IsAircraftAtOrigin()
+        {
+            // Safety gate: If sim data is not yet available (initial state 0,0), don't trigger mismatch
+            if (Math.Abs(_phaseManager.Latitude) < 0.001 && Math.Abs(_phaseManager.Longitude) < 0.001)
+                return true;
+
+            if (_currentResponse?.Origin == null) return true;
+            
+            if (double.TryParse(_currentResponse.Origin.PosLat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double expLat) &&
+                double.TryParse(_currentResponse.Origin.PosLong, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double expLon))
+            {
+                double dist = CalculateHaversineDistanceNM(_phaseManager.Latitude, _phaseManager.Longitude, expLat, expLon);
+                return dist < 3.0; // 3 NM safety threshold
+            }
+            return true;
+        }
         public MainWindow()
         {
             InitializeComponent();
@@ -793,33 +819,60 @@ namespace FlightSupervisor.UI
 
         private async void CoreWebView2_WebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
+            await ProcessWebMessage(e.WebMessageAsJson, MainWebView.CoreWebView2, this);
+        }
+
+        private async Task ProcessWebMessage(string json, Microsoft.Web.WebView2.Core.CoreWebView2 senderWebView, Window parentWindow)
+        {
             try 
             {
-                var msg = e.WebMessageAsJson;
-                var doc = JsonDocument.Parse(msg);
+                var doc = JsonDocument.Parse(json);
                 var action = doc.RootElement.GetProperty("action").GetString();
                 
                 if (action == "drag") 
                 {
                     Dispatcher.Invoke(() => {
-                        var helper = new WindowInteropHelper(this);
+                        var helper = new WindowInteropHelper(parentWindow);
                         ReleaseCapture();
                         SendMessage(helper.Handle, 0xA1, 2, 0);
                     });
                 }
+                else if (action == "requestManifest")
+                {
+                    var cMan = _cabinManager;
+                    if (cMan?.CurrentManifest != null) {
+                        var payload = new { type = "manifestUpdate", manifest = cMan.CurrentManifest };
+                        senderWebView.PostWebMessageAsJson(JsonSerializer.Serialize(payload));
+                    }
+                }
+                else if (action == "requestGroundOps")
+                {
+                    var gMan = _groundOpsManager;
+                    if (gMan?.Services != null) {
+                        var payload = new { type = "groundOps", services = gMan.Services };
+                        senderWebView.PostWebMessageAsJson(JsonSerializer.Serialize(payload));
+                    }
+                }
                 else if (action == "openManifestWindow")
                 {
+                    if (_manifestWindow != null)
+                    {
+                        _manifestWindow.Activate();
+                        return;
+                    }
                     try
                     {
                         var manifestWin = new Window
                         {
-                            Title = "Flight & Cabin Manifest (Standalone)",
-                            Width = 1000,
-                            Height = 800,
+                            Title = "Flight & Cabin Manifest",
+                            Width = 1150,
+                            Height = 850,
                             WindowStartupLocation = WindowStartupLocation.CenterOwner,
                             Owner = this,
-                            Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#141414")
+                            Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#141414"),
+                            WindowStyle = WindowStyle.None
                         };
+                        System.Windows.Shell.WindowChrome.SetWindowChrome(manifestWin, new System.Windows.Shell.WindowChrome { CaptionHeight = 0, ResizeBorderThickness = new System.Windows.Thickness(8), GlassFrameThickness = new System.Windows.Thickness(0), CornerRadius = new System.Windows.CornerRadius(0), UseAeroCaptionButtons = false });
                         
                         manifestWin.Closed += (s, e) => {
                             _manifestWebView = null;
@@ -827,6 +880,7 @@ namespace FlightSupervisor.UI
                         };
 
                         var webView = new Microsoft.Web.WebView2.Wpf.WebView2();
+                        webView.Margin = new System.Windows.Thickness(6, 0, 6, 6);
                         _manifestWebView = webView;
                         _manifestWindow = manifestWin;
                         manifestWin.Content = webView;
@@ -839,28 +893,160 @@ namespace FlightSupervisor.UI
                                 var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, System.IO.Path.Combine(System.IO.Path.GetTempPath(), "FlightSupervisorManifest"));
                                 await webView.EnsureCoreWebView2Async(env);
 
-                                string localPath = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "wwwroot", "manifest.html");
-                                webView.Source = new System.Uri(localPath);
-
-                                webView.CoreWebView2.WebMessageReceived += (s, e) => {
-                                    try {
-                                        var msg = JsonDocument.Parse(e.TryGetWebMessageAsString());
-                                        var actionProp = msg.RootElement.GetProperty("action").GetString();
-                                        if (actionProp == "requestManifest") {
-                                            var cMan = _cabinManager;
-                                            if (cMan?.CurrentManifest != null) {
-                                                var payload = new { type = "manifestUpdate", manifest = cMan.CurrentManifest };
-                                                webView.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(payload));
-                                            }
-                                        }
-                                    } catch { }
+                                webView.CoreWebView2.SetVirtualHostNameToFolderMapping("app.local", System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot"), Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+                                
+                                webView.CoreWebView2.WebMessageReceived += async (s, e) => {
+                                    await ProcessWebMessage(e.WebMessageAsJson, webView.CoreWebView2, manifestWin);
                                 };
+
+                                webView.CoreWebView2.Navigate("https://app.local/manifest.html");
                             });
                         });
                     }
                     catch (Exception ex)
                     {
                         System.Windows.MessageBox.Show("Error opening Manifest Window: " + ex.Message);
+                    }
+                }
+                else if (action == "openLogsWindow")
+                {
+                    if (_logsWindow != null)
+                    {
+                        _logsWindow.Activate();
+                        return;
+                    }
+                    try
+                    {
+                        if (doc.RootElement.TryGetProperty("payload", out var pl))
+                        {
+                            if (pl.TryGetProperty("score", out var sProp)) _cachedLogsScore = sProp.GetString();
+                            if (pl.TryGetProperty("history", out var hProp)) _cachedLogsHtml = hProp.GetString();
+                        }
+
+                        var logsWin = new Window
+                        {
+                            Title = "Flight Logs",
+                            Width = 500,
+                            Height = 750,
+                            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                            Owner = this,
+                            Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#141414"),
+                            WindowStyle = WindowStyle.None
+                        };
+                        System.Windows.Shell.WindowChrome.SetWindowChrome(logsWin, new System.Windows.Shell.WindowChrome { CaptionHeight = 0, ResizeBorderThickness = new System.Windows.Thickness(8), GlassFrameThickness = new System.Windows.Thickness(0), CornerRadius = new System.Windows.CornerRadius(0), UseAeroCaptionButtons = false });
+                        
+                        logsWin.Closed += (s, e) => {
+                            _logsWebView = null;
+                            _logsWindow = null;
+                        };
+
+                        var webView = new Microsoft.Web.WebView2.Wpf.WebView2();
+                        webView.Margin = new System.Windows.Thickness(6, 0, 6, 6);
+                        _logsWebView = webView;
+                        _logsWindow = logsWin;
+                        logsWin.Content = webView;
+                        logsWin.Show();
+
+                        _ = System.Threading.Tasks.Task.Run(async () =>
+                        {
+                            await Dispatcher.InvokeAsync(async () =>
+                            {
+                                var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, System.IO.Path.Combine(System.IO.Path.GetTempPath(), "FlightSupervisorLogs"));
+                                await webView.EnsureCoreWebView2Async(env);
+
+                                webView.CoreWebView2.SetVirtualHostNameToFolderMapping("app.local", System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot"), Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+                                
+                                webView.CoreWebView2.WebMessageReceived += async (s, e) => {
+                                    await ProcessWebMessage(e.WebMessageAsJson, webView.CoreWebView2, logsWin);
+                                };
+
+                                webView.CoreWebView2.Navigate("https://app.local/logs_window.html");
+                            });
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error opening Logs Window: {ex.Message}");
+                    }
+                }
+                else if (action == "logsWindowReady")
+                {
+                    if (_logsWebView?.CoreWebView2 != null)
+                    {
+                        _logsWebView.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new { 
+                            type = "initLogs", 
+                            score = _cachedLogsScore, 
+                            history = _cachedLogsHtml 
+                        }));
+                    }
+                }
+                else if (action == "minimizeLogsWindow")
+                {
+                    Dispatcher.Invoke(() => { if (_logsWindow != null) _logsWindow.WindowState = WindowState.Minimized; });
+                }
+                else if (action == "maximizeLogsWindow")
+                {
+                    Dispatcher.Invoke(() => { 
+                        if (_logsWindow != null) _logsWindow.WindowState = _logsWindow.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized; 
+                    });
+                }
+                else if (action == "closeLogsWindow")
+                {
+                    Dispatcher.Invoke(() => { if (_logsWindow != null) _logsWindow.Close(); });
+                }
+                else if (action == "openGroundOpsWindow")
+                {
+                    if (_groundOpsWindow != null)
+                    {
+                        _groundOpsWindow.Activate();
+                        return;
+                    }
+                    try
+                    {
+                        var groundOpsWin = new Window
+                        {
+                            Title = "Ground Operations",
+                            Width = 1200,
+                            Height = 800,
+                            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                            Owner = this,
+                            Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#141414"),
+                            WindowStyle = WindowStyle.None
+                        };
+                        System.Windows.Shell.WindowChrome.SetWindowChrome(groundOpsWin, new System.Windows.Shell.WindowChrome { CaptionHeight = 0, ResizeBorderThickness = new System.Windows.Thickness(8), GlassFrameThickness = new System.Windows.Thickness(0), CornerRadius = new System.Windows.CornerRadius(0), UseAeroCaptionButtons = false });
+                        
+                        groundOpsWin.Closed += (s, e) => {
+                            _groundOpsWebView = null;
+                            _groundOpsWindow = null;
+                        };
+
+                        var webView = new Microsoft.Web.WebView2.Wpf.WebView2();
+                        webView.Margin = new System.Windows.Thickness(6, 0, 6, 6);
+                        _groundOpsWebView = webView;
+                        _groundOpsWindow = groundOpsWin;
+                        groundOpsWin.Content = webView;
+                        groundOpsWin.Show();
+
+                        _ = System.Threading.Tasks.Task.Run(async () =>
+                        {
+                            await Dispatcher.InvokeAsync(async () =>
+                            {
+                                var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, System.IO.Path.Combine(System.IO.Path.GetTempPath(), "FlightSupervisorGroundOps"));
+                                await webView.EnsureCoreWebView2Async(env);
+
+                                webView.CoreWebView2.SetVirtualHostNameToFolderMapping("app.local", System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot"), Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+
+                                webView.CoreWebView2.WebMessageReceived += async (s, e) => {
+                                    await ProcessWebMessage(e.WebMessageAsJson, webView.CoreWebView2, groundOpsWin);
+                                };
+
+                                webView.CoreWebView2.Navigate("https://app.local/groundops_window.html");
+                            });
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Windows.MessageBox.Show("Error opening Ground Ops Window: " + ex.Message);
                     }
                 }
                 else if (action == "openSimbriefWindow")
@@ -910,9 +1096,7 @@ namespace FlightSupervisor.UI
                 {
                     if (_rotationQueue.Count > 0)
                     {
-                        var list = _rotationQueue.ToList();
-                        list.RemoveAt(list.Count - 1);
-                        _rotationQueue = new System.Collections.Generic.Queue<SimBriefResponse>(list);
+                        _rotationQueue.RemoveAt(_rotationQueue.Count - 1);
                     }
                 }
                 else if (action == "intercomQuery")
@@ -1261,24 +1445,42 @@ namespace FlightSupervisor.UI
                 else if (action == "minimizeApp")
                 {
                     Dispatcher.Invoke(() => {
-                        this.Hide();
-                        _notifyIcon.Visible = true;
+                        if (parentWindow == this) {
+                            this.Hide();
+                            if (_notifyIcon != null) _notifyIcon.Visible = true;
+                        } else {
+                            if (parentWindow != null) parentWindow.WindowState = WindowState.Minimized;
+                        }
                     });
                 }
                 else if (action == "maximizeApp")
                 {
                     Dispatcher.Invoke(() => {
-                        if (this.WindowState == WindowState.Maximized)
-                            this.WindowState = WindowState.Normal;
-                        else
-                            this.WindowState = WindowState.Maximized;
+                        if (parentWindow != null) {
+                            if (parentWindow.WindowState == WindowState.Maximized)
+                                parentWindow.WindowState = WindowState.Normal;
+                            else
+                                parentWindow.WindowState = WindowState.Maximized;
+                        }
+                    });
+                }
+                else if (action == "togglePinApp")
+                {
+                    Dispatcher.Invoke(() => {
+                        if (parentWindow != null) {
+                            parentWindow.Topmost = !parentWindow.Topmost;
+                        }
                     });
                 }
                 else if (action == "closeApp")
                 {
                     Dispatcher.Invoke(() => {
-                        if (_notifyIcon != null) _notifyIcon.Dispose();
-                        System.Windows.Application.Current.Shutdown();
+                        if (parentWindow == this) {
+                            if (_notifyIcon != null) _notifyIcon.Dispose();
+                            System.Windows.Application.Current.Shutdown();
+                        } else {
+                            parentWindow?.Close();
+                        }
                     });
                 }
                 else if (action == "skipService")
@@ -1331,34 +1533,8 @@ namespace FlightSupervisor.UI
 
                     Dispatcher.Invoke(() => {
                         bool isMoteursEteints = !_phaseManager.Eng1Combustion && !_phaseManager.Eng2Combustion;
-                        bool isAtRightAirport = true; 
                         string failReason = "";
-
-                        if (!string.IsNullOrEmpty(expectedLatStr) && !string.IsNullOrEmpty(expectedLonStr) &&
-                            double.TryParse(expectedLatStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double expLat) &&
-                            double.TryParse(expectedLonStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double expLon))
-                        {
-                            double currentLat = _phaseManager.Latitude;
-                            double currentLon = _phaseManager.Longitude;
-
-                            // Only check if SimConnect has populated the vars (not 0,0 or denormalized garbage)
-                            if (Math.Abs(currentLat) > 0.0001 || Math.Abs(currentLon) > 0.0001)
-                            {
-                                double distanceNM = CalculateHaversineDistanceNM(currentLat, currentLon, expLat, expLon);
-                                
-                                // Check if within 5 Nautical Miles
-                                if (distanceNM > 5.0)
-                                {
-                                    isAtRightAirport = false;
-                                    failReason = $"Wrong Airport! Expected {expectedIcao} but you are {Math.Round(distanceNM, 1)} nm away. (You are at {currentLat}, {currentLon})";
-                                    SendToWeb(new { type = "log", message = $"[Gatekeeper] Expected {expectedIcao}. Too far (Dist: {Math.Round(distanceNM, 1)} nm). Rejected." });
-                                }
-                                else 
-                                {
-                                    SendToWeb(new { type = "log", message = $"[Gatekeeper] Expected {expectedIcao} (Dist: {Math.Round(distanceNM, 1)} nm). Accepted." });
-                                }
-                            }
-                        }
+                        _isAtWrongAirport = !IsAircraftAtOrigin();
 
                         if (!_simConnectService.IsConnected) {
                             failReason = "Flight Simulator is not connected.";
@@ -1366,9 +1542,12 @@ namespace FlightSupervisor.UI
                             failReason = "Both engines must be OFF to start Ground Ops.";
                         } else if (!_phaseManager.IsOnGround) {
                             failReason = "Aircraft must be ON THE GROUND to start Ground Ops.";
+                        } else if (_isAtWrongAirport) {
+                            string expectedIcao = _currentResponse?.Origin?.IcaoCode ?? "Unknown";
+                            failReason = $"Wrong Airport! You are too far from {expectedIcao} to start Ground Operations.";
                         }
 
-                        if (!_simConnectService.IsConnected || !isMoteursEteints || !_phaseManager.IsOnGround || !isAtRightAirport)
+                        if (!_simConnectService.IsConnected || !isMoteursEteints || !_phaseManager.IsOnGround || _isAtWrongAirport)
                         {
                             if (string.IsNullOrEmpty(failReason)) failReason = "Action Denied by Gatekeeper system.";
                             SendToWeb(new { type = "gatekeeperFailed", reason = failReason });
@@ -1403,7 +1582,7 @@ namespace FlightSupervisor.UI
                                     var response = System.Text.Json.JsonSerializer.Deserialize<SimBriefResponse>(item.GetRawText(), new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                                     if (response != null)
                                     {
-                                        _rotationQueue.Enqueue(response);
+                                        _rotationQueue.Add(response);
                                         System.IO.File.AppendAllText(logPath, $"[DEBUG] Enqueued flight {response.Origin?.IcaoCode} -> {response.Destination?.IcaoCode}.\n");
                                     }
                                 }
@@ -1557,7 +1736,7 @@ namespace FlightSupervisor.UI
                     var cmd = doc.RootElement.GetProperty("command").GetString();
                     if (cmd != null) _cabinManager.HandleCommand(cmd);
                 }
-                else if (action == "cancelFlight")
+                else if (action == "removeCurrentLeg" || action == "cancelFlight")
                 {
                     _phaseManager.Reset();
                     _scoreManager.Reset();
@@ -1567,7 +1746,39 @@ namespace FlightSupervisor.UI
                     _groundOpsManager.Services.Clear();
                     _aobt = null;
                     _aibt = null;
+                    _isAtWrongAirport = false;
                     SendToWeb(new { type = "flightReset" });
+                }
+                else if (action == "removeAllLegs")
+                {
+                    _rotationQueue.Clear();
+                    _phaseManager.Reset();
+                    _scoreManager.Reset();
+                    _cabinManager.FirstFlightClean = true;
+                    _cabinManager.SessionFlightsCompleted = 0;
+                    _cabinManager.Reset();
+                    _currentResponse = null;
+                    _groundOpsManager.AbortAllOperations();
+                    _groundOpsManager.Services.Clear();
+                    _aobt = null;
+                    _aibt = null;
+                    _isAtWrongAirport = false;
+                    _sessionArchives.Clear();
+                    SendToWeb(new { type = "flightReset" });
+                    SendToWeb(new { type = "rotationCleared" }); 
+                }
+                else if (action == "deleteLegAtIndex")
+                {
+                    if (doc.RootElement.TryGetProperty("index", out var idxProp))
+                    {
+                        int idx = idxProp.GetInt32();
+                        // index 0 in dashboard is _currentResponse, index 1 is _rotationQueue[0], etc.
+                        if (idx > 0 && idx <= _rotationQueue.Count)
+                        {
+                            _rotationQueue.RemoveAt(idx - 1);
+                            SendToWeb(new { type = "removeLegAtIndex", index = idx });
+                        }
+                    }
                 }
                 else if (action == "acarsWeatherRequest")
                 {
@@ -1581,7 +1792,7 @@ namespace FlightSupervisor.UI
                     if (_currentResponse != null)
                     {
                         var weatherService = new FlightSupervisor.UI.Services.WeatherBriefingService(new FlightSupervisor.UI.Models.UnitPreferences());
-                        var briefingData = weatherService.GenerateBriefing(_currentResponse);
+                        var briefingData = weatherService.GenerateBriefing(_currentResponse, _isAtWrongAirport);
                         SendToWeb(new { type = "briefingUpdate", briefing = briefingData });
                     }
                 }
@@ -1631,6 +1842,14 @@ namespace FlightSupervisor.UI
             {
                 _manifestWebView.CoreWebView2.PostWebMessageAsJson(json);
             }
+            if (_groundOpsWindow != null && _groundOpsWebView?.CoreWebView2 != null)
+            {
+                _groundOpsWebView.CoreWebView2.PostWebMessageAsJson(json);
+            }
+            if (_logsWindow != null && _logsWebView?.CoreWebView2 != null)
+            {
+                _logsWebView.CoreWebView2.PostWebMessageAsJson(json);
+            }
         }
 
         private void OnGroundEventTriggered(FlightSupervisor.UI.Models.GroundEventDTO evt)
@@ -1642,19 +1861,42 @@ namespace FlightSupervisor.UI
 
         private void SendTelemetryToWeb()
         {
-            SendToWeb(new 
-            {
-                type = "telemetry",
-                phase = _phaseManager.GetLocalizedPhaseName(),
-                phaseEnum = _phaseManager.CurrentPhase.ToString(),
-                altitude = _lastKnownAltitude,
-                groundSpeed = _lastKnownGroundSpeed,
-                radioHeight = _lastKnownRadioHeight,
-                sessionFlightsCompleted = _cabinManager.SessionFlightsCompleted,
-                isGearDown = _isGearDown,
-                seatbeltsOn = _cabinManager.IsSeatbeltsOn,
-                isDelayed = _groundOpsManager.TargetSobt != null && (_aobt != null ? _aobt.Value > _groundOpsManager.TargetSobt.Value.AddMinutes(5) : _currentSimTime > _groundOpsManager.TargetSobt.Value.AddMinutes(5)),
-                isBoardingComplete = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Boarding")?.State == GroundServiceState.Completed,
+            _isAtWrongAirport = _currentResponse != null && !IsAircraftAtOrigin();
+            
+            // Only flag as 'wrong airport' for UI if in preparation phases
+            bool uiMismatch = _isAtWrongAirport && (_phaseManager.CurrentPhase == FlightPhase.AtGate || _phaseManager.CurrentPhase == FlightPhase.Turnaround);
+
+                bool latParsed = false;
+                bool lonParsed = false;
+                double lat = 0, lon = 0;
+                
+                if (_currentResponse?.Origin != null)
+                {
+                    latParsed = double.TryParse(_currentResponse.Origin.PosLat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out lat);
+                    lonParsed = double.TryParse(_currentResponse.Origin.PosLong, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out lon);
+                }
+
+                double calcDist = -1;
+                if (latParsed && lonParsed && _currentResponse?.Origin != null) {
+                    calcDist = Math.Round(CalculateHaversineDistanceNM(_phaseManager.Latitude, _phaseManager.Longitude, lat, lon), 2);
+                }
+
+                SendToWeb(new 
+                {
+                    type = "telemetry",
+                    phase = _phaseManager.GetLocalizedPhaseName(),
+                    phaseEnum = _phaseManager.CurrentPhase.ToString(),
+                    altitude = _lastKnownAltitude,
+                    groundSpeed = _lastKnownGroundSpeed,
+                    radioHeight = _lastKnownRadioHeight,
+                    sessionFlightsCompleted = _cabinManager.SessionFlightsCompleted,
+                    isGearDown = _isGearDown,
+                    seatbeltsOn = _cabinManager.IsSeatbeltsOn,
+                    isDelayed = _groundOpsManager.TargetSobt != null && (_aobt != null ? _aobt.Value > _groundOpsManager.TargetSobt.Value.AddMinutes(5) : _currentSimTime > _groundOpsManager.TargetSobt.Value.AddMinutes(5)),
+                    isBoardingComplete = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Boarding")?.State == GroundServiceState.Completed,
+                    originDistanceNM = calcDist,
+                    isAtWrongAirport = uiMismatch,
+                plannedOriginIcao = _currentResponse?.Origin?.IcaoCode ?? "",
                 anxiety = Math.Round(_cabinManager.PassengerAnxiety, 1),
                 comfort = Math.Round(_cabinManager.ComfortLevel, 1),
                 satisfaction = Math.Round(_cabinManager.Satisfaction, 1),
@@ -1701,7 +1943,8 @@ namespace FlightSupervisor.UI
         {
             if (_rotationQueue.Count == 0) return;
 
-            var response = _rotationQueue.Dequeue();
+            var response = _rotationQueue[0];
+            _rotationQueue.RemoveAt(0);
             _currentResponse = response;
             
             if (_cabinManager.SessionFlightsCompleted == 0)
@@ -1723,7 +1966,7 @@ namespace FlightSupervisor.UI
 
             _cabinManager.InitializeFlightDemographics(CurrentAirline, manifestData);
             
-            SendToWeb(new { type = "manifest", manifest = manifestData });
+            SendToWeb(new { type = "manifestUpdate", manifest = manifestData });
 
             if (CurrentAirline != null)
             {
@@ -1903,10 +2146,10 @@ namespace FlightSupervisor.UI
                         }
                     }
 
-                    _rotationQueue.Enqueue(response);
+                    _rotationQueue.Add(response);
                     
                     var weatherService = new WeatherBriefingService(units);
-                    var briefingData = weatherService.GenerateBriefing(response);
+                    var briefingData = weatherService.GenerateBriefing(response, _isAtWrongAirport);
 
                     var passengerService = new FlightSupervisor.UI.Services.PassengerManifestService();
                     var manifestData = passengerService.GenerateManifest(response, _profileManager.CurrentProfile);
@@ -1920,6 +2163,8 @@ namespace FlightSupervisor.UI
                         manifest = manifestData,
                         airlineProfile = aProfile
                     });
+
+                    SendToWeb(new { type = "manifestUpdate", manifest = manifestData });
                     
                     SendToWeb(new { type = "fetchStatus", status = "success", message = "Flight plan parsed and added to rotation." });
                 }
@@ -2108,7 +2353,7 @@ namespace FlightSupervisor.UI
             if (weatherSource == "activesky" || weatherSource == "noaa")
             {
                 var weatherService = new FlightSupervisor.UI.Services.WeatherBriefingService();
-                var briefingData = weatherService.GenerateBriefing(_currentResponse);
+                var briefingData = weatherService.GenerateBriefing(_currentResponse, _isAtWrongAirport);
                 SendToWeb(new { type = "briefingUpdate", briefing = briefingData });
             }
         }
