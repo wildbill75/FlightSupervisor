@@ -535,7 +535,7 @@ window.renderBriefingTimeline = () => {
         // Arrow (Subtle)
         html += `
             <div class="flex items-center justify-center">
-                <span class="material-symbols-outlined text-white/5 text-2xl">arrow_forward</span>
+                <span class="material-symbols-outlined text-white text-2xl">arrow_forward</span>
             </div>
         `;
     });
@@ -554,10 +554,10 @@ window.renderBriefingTimeline = () => {
         for (let i = rotations.length + 1; i < maxSlots; i++) {
             html += `
                 <div class="flex items-center justify-center flex-shrink-0">
-                    <span class="material-symbols-outlined text-white/5 text-xl">arrow_forward</span>
+                    <span class="material-symbols-outlined text-white text-2xl">arrow_forward</span>
                 </div>
-                <div class="w-60 md:w-72 h-[130px] bg-black/5 rounded-2xl border border-dashed border-white/5 flex items-center justify-center opacity-10 flex-shrink-0">
-                    <span class="material-symbols-outlined text-2xl md:text-3xl text-zinc-600">flight_takeoff</span>
+                <div class="w-60 md:w-72 h-[130px] bg-black/20 rounded-2xl border border-dashed border-white/20 flex items-center justify-center flex-shrink-0">
+                    <span class="material-symbols-outlined text-3xl md:text-4xl text-white">flight_takeoff</span>
                 </div>
             `;
         }
