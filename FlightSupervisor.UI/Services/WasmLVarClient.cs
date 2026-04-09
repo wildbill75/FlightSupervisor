@@ -69,6 +69,8 @@ namespace FlightSupervisor.UI.Services
             public float Eng2Bleed;       // Offset 92
             public float Pack1;           // Offset 96
             public float Pack2;           // Offset 100
+            public float GsxBoardingState; // Offset 104
+            public float GsxDeboardingState; // Offset 108
         }
 
         public WasmLVarClient(SimConnect simConnect)
@@ -217,6 +219,8 @@ namespace FlightSupervisor.UI.Services
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_OH_PNEUMATIC_ENG2_BLEED,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_OH_PNEUMATIC_PACK_1,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_OH_PNEUMATIC_PACK_2,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:FSDT_GSX_BOARDING_STATE,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:FSDT_GSX_DEBOARDING_STATE,Number)");
             }
             catch (Exception ex)
             {

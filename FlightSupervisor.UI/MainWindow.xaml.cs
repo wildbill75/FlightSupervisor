@@ -142,7 +142,7 @@ namespace FlightSupervisor.UI
             _groundOpsResourceService = new GroundOpsResourceService(_groundOpsManager, _cabinManager);
             _cabinManager.OnCrewMessage += (level, msg, audioSeq) => SendToWeb(new { type = "cabinLog", level = level, message = msg, audioSequence = audioSeq });
             _cabinManager.OnPenaltyTriggered += (points, reason) => {
-                if (_scoreManager != null) _scoreManager.AddScore(points, reason, ScoreCategory.Comfort);
+                if (_scoreManager != null) _scoreManager.AddScore(points, reason, ScoreCategory.Safety);
             };
             _cabinManager.OnPncStatusChanged += (status, state) => {
                 Dispatcher.Invoke(() => SendToWeb(new { type = "pncStatus", status = status, state = state.ToString() }));
@@ -185,6 +185,24 @@ namespace FlightSupervisor.UI
             _uiTimer.Interval = TimeSpan.FromSeconds(1);
             _uiTimer.Tick += (s, e) => {
                 if (_phaseManager.IsPaused) return;
+
+                if (_phaseManager.IsSimulationMode)
+                {
+                    if (_currentSimTime == DateTime.MinValue || _currentSimTime.Year < 2000) 
+                    {
+                        _currentSimTime = DateTime.UtcNow;
+                        _cabinManager.CurrentSimLocalTime = DateTime.Now;
+                    }
+                    _currentSimTime = _currentSimTime.AddSeconds(1);
+                    if (_cabinManager.CurrentSimLocalTime != DateTime.MinValue)
+                        _cabinManager.CurrentSimLocalTime = _cabinManager.CurrentSimLocalTime.AddSeconds(1);
+                    
+                    // Always disconnect FSUIPC if we turned on Simulation Mode so it doesn't fight.
+                    if (_simConnectService != null && _simConnectService.IsConnected)
+                    {
+                        _simConnectService.Disconnect();
+                    }
+                }
                 
                 _groundOpsManager.Tick(_currentSimTime);
 
@@ -565,9 +583,41 @@ namespace FlightSupervisor.UI
                         }
                         else
                         {
+                            // Bug 30: Location Mismatch during Turnaround without a pending leg.
+                            // We construct a "Dummy" next leg so the UI knows we are at our new origin.
+                            if (_currentResponse != null && _currentResponse.Destination != null)
+                            {
+                                _currentResponse.Origin = _currentResponse.Destination;
+                                _currentResponse.Destination = new FlightSupervisor.UI.Models.SimBrief.AirportInfo { IcaoCode = "----", Name = "AWAITING NEW PLAN" };
+                                if (_currentResponse.General != null)
+                                {
+                                    _currentResponse.General.Route = "WAITING FOR SIMBRIEF DATA";
+                                    _currentResponse.General.FlightNumber = "XXXX";
+                                }
+                            }
+
                             _groundOpsManager.PrepareNextLeg(_currentFobKg);
                             // Pass into Turnaround immediately so the UI unlocks the "Deboarding" and ground ops
                             _phaseManager.ForcePhase(FlightPhase.Turnaround);
+
+                            // Let the UI know about the dummy flight plan to update the banner and location
+                            SendToWeb(new
+                            {
+                                type = "flightPlan",
+                                hasSimBrief = true,
+                                flightPlan = new
+                                {
+                                    origin = _currentResponse?.Origin?.IcaoCode ?? "----",
+                                    destination = "----",
+                                    airline = _currentResponse?.General?.Airline ?? "",
+                                    flightNumber = _currentResponse?.General?.FlightNumber ?? "",
+                                    aircraft = _currentResponse?.Aircraft?.IcaoCode ?? "",
+                                    pax = _currentResponse?.Weights?.PaxCount ?? "0",
+                                    blockFuel = _currentResponse?.Weights?.BlockFuel ?? "0",
+                                    initialAlt = _currentResponse?.General?.InitialAlt ?? "",
+                                    route = "AWAITING SIMBRIEF DATA"
+                                }
+                            });
                         }
                     }
                     SendToWeb(new { type = "phaseUpdate", phase = phase.ToString(), 
@@ -578,9 +628,7 @@ namespace FlightSupervisor.UI
                                     aibtUnix = _aibt != null ? new DateTimeOffset(_aibt.Value).ToUnixTimeSeconds() : (long?)null });
                 });
             };
-            _phaseManager.OnPenaltyTriggered += msg => {
-                Dispatcher.Invoke(() => SendToWeb(new { type = "penalty", message = msg }));
-            };
+            // _phaseManager.OnPenaltyTriggered enlevé d'ici car déjà géré par SuperScoreManager (OnScoreChanged)
             _phaseManager.OnFoMessage += msg => {
                 Dispatcher.Invoke(() => {
                     _audioEngine?.SpeakAsFO(msg);
@@ -659,7 +707,8 @@ namespace FlightSupervisor.UI
             };
             _simConnectService.OnGearDownReceived += gd => { 
                 _isGearDown = gd; 
-                if (_lastLogGearDown != null && _lastLogGearDown != gd) SendToWeb(new { type = "log", message = gd ? "Landing Gear DOWN" : "Landing Gear UP" });
+                if (_lastLogGearDown != null && _lastLogGearDown != gd) 
+                    _scoreManager?.AddScore(0, gd ? "Landing Gear DOWN" : "Landing Gear UP", ScoreCategory.Operations);
                 _lastLogGearDown = gd;
             };
             _simConnectService.OnRadioHeightReceived += rh => { _lastKnownRadioHeight = rh; };
@@ -667,20 +716,24 @@ namespace FlightSupervisor.UI
             _simConnectService.OnAirspeedReceived += ias => { _lastKnownAirspeed = ias; };
             _simConnectService.OnParkingBrakeReceived += pb => { 
                 _isParkingBrakeSet = pb; 
-                if (_lastLogParkingBrake != null && _lastLogParkingBrake != pb) SendToWeb(new { type = "log", message = pb ? "Parking Brake SET" : "Parking Brake RELEASED" });
+                if (_lastLogParkingBrake != null && _lastLogParkingBrake != pb) 
+                    _scoreManager?.AddScore(0, pb ? "Parking Brake SET" : "Parking Brake RELEASED", ScoreCategory.Operations);
                 _lastLogParkingBrake = pb;
             };
             _simConnectService.OnFlapsReceived += flaps => {
-                if (_lastLogFlaps != null && _lastLogFlaps != flaps) SendToWeb(new { type = "log", message = $"Flaps Position Changed -> {flaps}" });
+                if (_lastLogFlaps != null && _lastLogFlaps != flaps) 
+                    _scoreManager?.AddScore(0, $"Flaps Position Changed -> {flaps}", ScoreCategory.Operations);
                 _lastLogFlaps = flaps;
             };
             _simConnectService.OnAutopilotReceived += ap => {
-                if (_lastLogAutopilot != null && _lastLogAutopilot != ap) SendToWeb(new { type = "log", message = ap ? "Autopilot ENGAGED" : "Autopilot DISENGAGED" });
+                if (_lastLogAutopilot != null && _lastLogAutopilot != ap) 
+                    _scoreManager?.AddScore(0, ap ? "Autopilot ENGAGED" : "Autopilot DISENGAGED", ScoreCategory.Operations);
                 _lastLogAutopilot = ap;
                 _phaseManager.UpdateAutopilot(ap);
             };
             _simConnectService.OnAutothrustReceived += at => {
-                if (_lastLogAutothrust != null && _lastLogAutothrust != at) SendToWeb(new { type = "log", message = at ? "Autothrust ARMED" : "Autothrust DISENGAGED" });
+                if (_lastLogAutothrust != null && _lastLogAutothrust != at) 
+                    _scoreManager?.AddScore(0, at ? "Autothrust ARMED" : "Autothrust DISENGAGED", ScoreCategory.Operations);
                 _lastLogAutothrust = at;
                 _phaseManager.UpdateAutothrust(at);
             };
@@ -695,13 +748,13 @@ namespace FlightSupervisor.UI
                     SendToWeb(new { type = "log", message = $"Spoilers Handle: {spl:F0}%" });
                 _lastLogSpoilers = spl;
             };
-            _simConnectService.OnLightBeaconReceived += l => { if (_lastLogLightBeacon != null && _lastLogLightBeacon != l) SendToWeb(new { type = "log", message = l ? "Beacon Lights ON" : "Beacon Lights OFF" }); _lastLogLightBeacon = l; };
-            _simConnectService.OnLightStrobeReceived += l => { _phaseManager.IsStrobeLightOn = l; if (_lastLogLightStrobe != null && _lastLogLightStrobe != l) SendToWeb(new { type = "log", message = l ? "Strobe Lights ON" : "Strobe Lights OFF" }); _lastLogLightStrobe = l; };
+            _simConnectService.OnLightBeaconReceived += l => { _phaseManager.IsBeaconLightOn = l; if (_lastLogLightBeacon != null && _lastLogLightBeacon != l) _scoreManager?.AddScore(0, l ? "Beacon Lights ON" : "Beacon Lights OFF", ScoreCategory.Operations); _lastLogLightBeacon = l; };
+            _simConnectService.OnLightStrobeReceived += l => { _phaseManager.IsStrobeLightOn = l; if (_lastLogLightStrobe != null && _lastLogLightStrobe != l) _scoreManager?.AddScore(0, l ? "Strobe Lights ON" : "Strobe Lights OFF", ScoreCategory.Operations); _lastLogLightStrobe = l; };
             _simConnectService.OnFenixStrobeStateChanged += s => { _phaseManager.FenixStrobeLight = s; };
-            _simConnectService.OnLightNavReceived += l => { if (_lastLogLightNav != null && _lastLogLightNav != l) SendToWeb(new { type = "log", message = l ? "Nav Lights ON" : "Nav Lights OFF" }); _lastLogLightNav = l; };
+            _simConnectService.OnLightNavReceived += l => { if (_lastLogLightNav != null && _lastLogLightNav != l) _scoreManager?.AddScore(0, l ? "Nav Lights ON" : "Nav Lights OFF", ScoreCategory.Operations); _lastLogLightNav = l; };
             _simConnectService.OnLightTaxiReceived += l => { 
                 _phaseManager.IsTaxiLightOn = l;
-                if (_lastLogLightTaxi != null && _lastLogLightTaxi != l) SendToWeb(new { type = "log", message = l ? "Taxi Lights ON" : "Taxi Lights OFF" }); 
+                if (_lastLogLightTaxi != null && _lastLogLightTaxi != l) _scoreManager?.AddScore(0, l ? "Taxi Lights ON" : "Taxi Lights OFF", ScoreCategory.Operations); 
                 _lastLogLightTaxi = l; 
             };
             _simConnectService.OnSimOnGroundReceived += g => { _phaseManager.IsOnGround = g; };
@@ -714,9 +767,22 @@ namespace FlightSupervisor.UI
             _simConnectService.OnEngineCombustionReceived += (eng1, eng2) => {
                 _phaseManager.UpdateEngineCombustion(eng1, eng2);
             };
+            _simConnectService.OnEngineN1Received += (eng1n1, eng2n1) => {
+                _phaseManager.Eng1N1 = eng1n1;
+                _phaseManager.Eng2N1 = eng2n1;
+            };
+            _simConnectService.OnDoorsReceived += (mainDoor, jetway) => {
+                _phaseManager.IsMainDoorOpen = mainDoor;
+                _phaseManager.IsJetwayConnected = jetway;
+            };
+            _simConnectService.OnGsxBoardingStateReceived += (b, db) => {
+                _phaseManager.GsxBoardingState = b;
+                _phaseManager.GsxDeboardingState = db;
+            };
             _simConnectService.OnLightLandingReceived += l => { 
                 _phaseManager.IsLandingLightOn = l;
-                if (_lastLogLightLanding != null && _lastLogLightLanding != l) SendToWeb(new { type = "log", message = l ? "Landing Lights ON" : "Landing Lights OFF" }); 
+                if (_lastLogLightLanding != null && _lastLogLightLanding != l) 
+                    _scoreManager?.AddScore(0, l ? "Landing Lights ON" : "Landing Lights OFF", ScoreCategory.Operations); 
                 _lastLogLightLanding = l; 
             };
             _simConnectService.OnPitchReceived += p => { _lastKnownPitch = p; };
@@ -736,7 +802,10 @@ namespace FlightSupervisor.UI
                     }
                 }
 
-                if (_lastLogSeatbelts != null && _lastLogSeatbelts != sb) SendToWeb(new { type = "log", message = sb ? "Fasten Seatbelts ON" : "Fasten Seatbelts OFF" });
+                if (_lastLogSeatbelts != null && _lastLogSeatbelts != sb) 
+                {
+                    _scoreManager?.AddScore(0, sb ? "Fasten Seatbelts ON" : "Fasten Seatbelts OFF", ScoreCategory.Operations);
+                }
                 _lastLogSeatbelts = sb;
             };
             _simConnectService.OnApuStateChanged += (mst, start, bleed) => {
@@ -744,9 +813,14 @@ namespace FlightSupervisor.UI
                 _phaseManager.FenixApuStart = start;
                 _phaseManager.FenixApuBleed = bleed;
                 
-                if (_lastLogApuMaster != null && _lastLogApuMaster != mst) SendToWeb(new { type = "log", message = mst ? "APU Master SW ON" : "APU Master SW OFF" });
-                if (_lastLogApuStart != null && _lastLogApuStart != start) SendToWeb(new { type = "log", message = start ? "APU Start SW ON" : "APU Start SW OFF" });
-                if (_lastLogApuBleed != null && _lastLogApuBleed != bleed) SendToWeb(new { type = "log", message = bleed ? "APU Bleed SW ON" : "APU Bleed SW OFF" });
+                if (_lastLogApuMaster != null && _lastLogApuMaster != mst) 
+                    _scoreManager?.AddScore(0, mst ? "APU Master SW ON" : "APU Master SW OFF", ScoreCategory.Operations);
+                    
+                if (_lastLogApuStart != null && _lastLogApuStart != start) 
+                    _scoreManager?.AddScore(0, start ? "APU Start SW ON" : "APU Start SW OFF", ScoreCategory.Operations);
+                    
+                if (_lastLogApuBleed != null && _lastLogApuBleed != bleed)
+                    _scoreManager?.AddScore(0, bleed ? "APU Bleed SW ON" : "APU Bleed SW OFF", ScoreCategory.Operations);
                 
                 _lastLogApuMaster = mst;
                 _lastLogApuStart = start;
@@ -827,6 +901,19 @@ namespace FlightSupervisor.UI
             if (!System.IO.Directory.Exists(appDataFolder)) System.IO.Directory.CreateDirectory(appDataFolder);
             MainWebView.CoreWebView2.SetVirtualHostNameToFolderMapping("fsv.local", appDataFolder, CoreWebView2HostResourceAccessKind.Allow);
             MainWebView.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
+            
+            // --- SIMBRIEF INTEGRATION: HEADER BYPASS & NAVIGATION MONITORING ---
+            MainWebView.CoreWebView2.AddWebResourceRequestedFilter("https://dispatch.simbrief.com/*", CoreWebView2WebResourceContext.All);
+            MainWebView.CoreWebView2.WebResourceRequested += CoreWebView2_WebResourceRequested;
+            
+            MainWebView.CoreWebView2.FrameNavigationStarting += (s, args) => {
+                CheckSimbriefNavigation(args.Uri);
+            };
+            MainWebView.CoreWebView2.NavigationStarting += (s, args) => {
+                CheckSimbriefNavigation(args.Uri);
+            };
+            // ------------------------------------------------------------------
+
             MainWebView.CoreWebView2.Navigate("https://app.local/index.html");
 
             // Navigation completed is now handled securely inside uiReady IPC message
@@ -836,6 +923,75 @@ namespace FlightSupervisor.UI
         public static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
         [DllImport("user32.dll")]
         public static extern bool ReleaseCapture();
+
+        private void CheckSimbriefNavigation(string uri)
+        {
+            if (string.IsNullOrEmpty(uri)) return;
+            if (uri.Contains("dispatch.simbrief.com/options/briefing") || uri.Contains("/briefing"))
+            {
+                Dispatcher.Invoke(() => {
+                    SendToWeb(new { type = "simbriefPlanReady" });
+                });
+            }
+        }
+
+        private async void CoreWebView2_WebResourceRequested(object sender, CoreWebView2WebResourceRequestedEventArgs e)
+        {
+            if (e.Request.Uri.Contains("dispatch.simbrief.com"))
+            {
+                var deferral = e.GetDeferral();
+                try 
+                {
+                    using (var client = new System.Net.Http.HttpClient())
+                    {
+                        var request = new System.Net.Http.HttpRequestMessage(new System.Net.Http.HttpMethod(e.Request.Method), e.Request.Uri);
+                        
+                        // Copy headers
+                        foreach (var header in e.Request.Headers)
+                        {
+                            if (!header.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase))
+                                request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                        }
+
+                        if (e.Request.Content != null)
+                        {
+                            var ms = new System.IO.MemoryStream();
+                            e.Request.Content.CopyTo(ms);
+                            ms.Position = 0;
+                            request.Content = new System.Net.Http.StreamContent(ms);
+                            foreach (var header in e.Request.Headers.Where(h => h.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase)))
+                                request.Content.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                        }
+
+                        var response = await client.SendAsync(request);
+                        var responseStream = await response.Content.ReadAsStreamAsync();
+                        
+                        var headersString = "";
+                        foreach (var header in response.Headers)
+                        {
+                            if (header.Key.Equals("X-Frame-Options", StringComparison.OrdinalIgnoreCase) || 
+                                header.Key.Equals("Content-Security-Policy", StringComparison.OrdinalIgnoreCase))
+                                continue;
+                            headersString += $"{header.Key}: {string.Join(", ", header.Value)}\r\n";
+                        }
+                        foreach (var header in response.Content.Headers)
+                        {
+                            headersString += $"{header.Key}: {string.Join(", ", header.Value)}\r\n";
+                        }
+
+                        e.Response = MainWebView.CoreWebView2.Environment.CreateWebResourceResponse(responseStream, (int)response.StatusCode, response.ReasonPhrase, headersString);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Simbrief Proxy Error: {ex.Message}");
+                }
+                finally
+                {
+                    deferral.Complete();
+                }
+            }
+        }
 
         private async void CoreWebView2_WebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
@@ -1271,7 +1427,27 @@ namespace FlightSupervisor.UI
                     var serviceName = doc.RootElement.GetProperty("service").GetString();
                     if (!string.IsNullOrEmpty(serviceName))
                     {
-                        _groundOpsManager.StartManualService(serviceName);
+                        bool engOn = (_phaseManager.Eng1N1 >= 5 || _phaseManager.Eng2N1 >= 5);
+                        bool beaconOn = _phaseManager.IsBeaconLightOn;
+                        bool doorOpen = _phaseManager.IsMainDoorOpen || _phaseManager.IsJetwayConnected;
+                        bool canStart = true;
+                        
+                        if (serviceName.Equals("Deboarding", StringComparison.OrdinalIgnoreCase) || 
+                            serviceName.Equals("Boarding", StringComparison.OrdinalIgnoreCase) || 
+                            serviceName.Contains("Cargo", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (engOn || beaconOn || ((serviceName.Equals("Deboarding", StringComparison.OrdinalIgnoreCase) || serviceName.Equals("Boarding", StringComparison.OrdinalIgnoreCase)) && !doorOpen)) 
+                                canStart = false;
+                        }
+                        else 
+                        {
+                            if (engOn || beaconOn) canStart = false;
+                        }
+
+                        if (canStart)
+                        {
+                            _groundOpsManager.StartManualService(serviceName);
+                        }
                     }
                 }
                     // Duplicated "startDeboarding" removed. Kept secondary block.
@@ -1317,9 +1493,19 @@ namespace FlightSupervisor.UI
                             SendToWeb(new { type = "cabinLog", level = "orange", message = $"[DEBUG] Simulated Time Jump: +{simAdvanceSec/60}m." });
                         }
 
-                        _phaseManager.ForcePhase(targetPhase);
+                        _phaseManager.SetSimulationState(targetPhase);
                         SendToWeb(new { type = "cabinLog", level = "cyan", message = $"[DEBUG] Force transitioned phase to: {targetPhase}" });
                     }
+                }
+                else if (action == "debugToggleSimulation")
+                {
+                    _phaseManager.IsSimulationMode = doc.RootElement.GetProperty("enabled").GetBoolean();
+                    if (_phaseManager.IsSimulationMode)
+                    {
+                        // Set the aircraft to a safe parked state immediately so Ground Ops can begin
+                        _phaseManager.SetSimulationState(FlightPhase.AtGate);
+                    }
+                    SendToWeb(new { type = "cabinLog", level = "purple", message = $"[SYSTEM] SIMULATION MODE: {(_phaseManager.IsSimulationMode ? "ENABLED" : "DISABLED")}" });
                 }
                 else if (action == "uiReady")
                 {
@@ -1511,22 +1697,46 @@ namespace FlightSupervisor.UI
                         _groundOpsManager.SkipService(srvName!);
                     }
                 }
-                else if (action == "startService")
+                else if (action == "startService" || action == "startDeboarding" || action == "startBoarding")
                 {
-                    var srvName = doc.RootElement.GetProperty("service").GetString();
+                    var srvName = doc.RootElement.TryGetProperty("service", out var svcProp) ? svcProp.GetString() : null;
+                    if (action == "startDeboarding") srvName = "Deboarding";
+                    if (action == "startBoarding") srvName = "Boarding";
+
                     if (!string.IsNullOrEmpty(srvName))
                     {
-                        _groundOpsManager.StartManualService(srvName!);
+                        bool engOn = (_phaseManager.Eng1N1 >= 5 || _phaseManager.Eng2N1 >= 5);
+                        bool beaconOn = _phaseManager.IsBeaconLightOn;
+                        bool doorOpen = _phaseManager.IsMainDoorOpen || _phaseManager.IsJetwayConnected;
+
+                        bool canStart = true;
+                        string failReason = "";
+
+                        if (srvName.Equals("Deboarding", StringComparison.OrdinalIgnoreCase) || 
+                            srvName.Equals("Boarding", StringComparison.OrdinalIgnoreCase) || 
+                            srvName.Contains("Cargo", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (engOn) { canStart = false; failReason = "Engines Running"; }
+                            else if (beaconOn) { canStart = false; failReason = "Beacon ON"; }
+                            else if ((srvName.Equals("Deboarding", StringComparison.OrdinalIgnoreCase) || srvName.Equals("Boarding", StringComparison.OrdinalIgnoreCase)) && !doorOpen) 
+                            { canStart = false; failReason = "Doors Closed"; }
+                        }
+                        else
+                        {
+                            if (engOn) { canStart = false; failReason = "Engines Running"; }
+                            else if (beaconOn) { canStart = false; failReason = "Beacon ON"; }
+                        }
+
+                        if (canStart)
+                        {
+                            if (srvName == "Deboarding") _cabinManager.StartDeboarding();
+                            _groundOpsManager.StartManualService(srvName);
+                        }
+                        else
+                        {
+                            SendToWeb(new { type = "log", message = $"[SYSTEM] Rejected {srvName} start: Physical safety violation ({failReason})." });
+                        }
                     }
-                }
-                else if (action == "startDeboarding")
-                {
-                    _cabinManager.StartDeboarding();
-                    _groundOpsManager.StartManualService("Deboarding");
-                }
-                else if (action == "startBoarding")
-                {
-                    _groundOpsManager.StartManualService("Boarding");
                 }
                 else if (action == "updateGroundSpeed")
                 {
@@ -1884,13 +2094,18 @@ namespace FlightSupervisor.UI
                     calcDist = Math.Round(CalculateHaversineDistanceNM(_phaseManager.Latitude, _phaseManager.Longitude, lat, lon), 2);
                 }
 
+                // Bug fix: As long as there are boarded passengers from the previous leg, we show them on the UI.
+                // We don't wait for "Deboarding" to be explicitly InProgress, otherwise they disappear instantly upon arrival when the new Leg is loaded.
+                bool hasPreviousPassengersStillBoarded = _cabinManager.PreviousLegManifest.Any(p => p.IsBoarded);
+                var activeManifest = hasPreviousPassengersStillBoarded ? _cabinManager.PreviousLegManifest : _cabinManager.PassengerManifest;
+
                 SendToWeb(new 
                 {
                     type = "telemetry",
                     phase = _phaseManager.GetLocalizedPhaseName(),
                     phaseEnum = _phaseManager.CurrentPhase.ToString(),
-                    altitude = _lastKnownAltitude,
-                    groundSpeed = _lastKnownGroundSpeed,
+                    altitude = _phaseManager.IsSimulationMode ? _phaseManager.Altitude : _lastKnownAltitude,
+                    groundSpeed = _phaseManager.IsSimulationMode ? _phaseManager.GroundSpeed : _lastKnownGroundSpeed,
                     radioHeight = _lastKnownRadioHeight,
                     sessionFlightsCompleted = _cabinManager.SessionFlightsCompleted,
                     isGearDown = _isGearDown,
@@ -1928,8 +2143,17 @@ namespace FlightSupervisor.UI
                 baggageCompletion = Math.Round(_cabinManager.BaggageCompletion, 1),
                 isSilencePenaltyActive = _cabinManager.IsSilencePenaltyActive,
                 crisisElapsed = _crisisManager.CrisisStartTimeSeconds > 0 ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _crisisManager.CrisisStartTimeSeconds : 0,
-                passengers = _cabinManager.PassengerManifest,
-                turbulenceSeverity = (int)_phaseManager.TurbulenceSeverity
+                passengers = activeManifest,
+                turbulenceSeverity = (int)_phaseManager.TurbulenceSeverity,
+                
+                // Advanced Ground Ops Telemetry
+                eng1N1 = Math.Round(_phaseManager.Eng1N1, 1),
+                eng2N1 = Math.Round(_phaseManager.Eng2N1, 1),
+                isMainDoorOpen = _phaseManager.IsMainDoorOpen,
+                isJetwayConnected = _phaseManager.IsJetwayConnected,
+                isBeaconOn = _phaseManager.IsBeaconLightOn,
+                gsxBoardingState = _phaseManager.GsxBoardingState,
+                gsxDeboardingState = _phaseManager.GsxDeboardingState
             });
             
             if (_groundOpsManager.Services.Count > 0)

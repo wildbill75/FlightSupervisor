@@ -141,6 +141,13 @@ namespace FlightSupervisor.UI.Services
         public bool FenixApuBleed { get; set; } = false;
         public bool FenixPack1 { get; set; } = false;
         public bool FenixPack2 { get; set; } = false;
+        public bool IsBeaconLightOn { get; set; } = false;
+        public bool IsMainDoorOpen { get; set; } = false;
+        public bool IsJetwayConnected { get; set; } = false;
+        public double Eng1N1 { get; set; } = 0.0;
+        public double Eng2N1 { get; set; } = 0.0;
+        public double GsxBoardingState { get; set; } = 0.0;
+        public double GsxDeboardingState { get; set; } = 0.0;
         
         public float FenixCabinTempCockpit { get; set; } = 0f;
         public float FenixCabinTempFwd { get; set; } = 0f;
@@ -205,13 +212,98 @@ namespace FlightSupervisor.UI.Services
 
         public void UpdateAutothrust(bool isActive)
         {
+            if (IsSimulationMode) return;
             _isAutothrustActive = isActive;
         }
 
+        public bool IsSimulationMode { get; set; } = false;
+
+        public void SetSimulationState(FlightPhase phase)
+        {
+            if (!IsSimulationMode) return;
+
+            // Reset flags
+            Eng1Combustion = true;
+            Eng2Combustion = true;
+            IsBeaconLightOn = true;
+            IsSeatbeltsOn = true;
+            IsMainDoorOpen = false;
+            GroundSpeed = 0;
+            VerticalSpeed = 0;
+            IsOnGround = false;
+
+            switch (phase)
+            {
+                case FlightPhase.AtGate:
+                case FlightPhase.Turnaround:
+                    Eng1Combustion = false;
+                    Eng2Combustion = false;
+                    IsBeaconLightOn = false;
+                    IsSeatbeltsOn = false;
+                    IsMainDoorOpen = true;
+                    IsOnGround = true;
+                    Altitude = 100; // default elevation
+                    break;
+                case FlightPhase.Pushback:
+                case FlightPhase.TaxiOut:
+                    IsOnGround = true;
+                    GroundSpeed = 15;
+                    Altitude = 100;
+                    break;
+                case FlightPhase.Takeoff:
+                    IsOnGround = true;
+                    GroundSpeed = 140;
+                    Altitude = 100;
+                    break;
+                case FlightPhase.InitialClimb:
+                case FlightPhase.Climb:
+                    GroundSpeed = 250;
+                    Altitude = 5000;
+                    VerticalSpeed = 2000;
+                    break;
+                case FlightPhase.Cruise:
+                    GroundSpeed = 450;
+                    Altitude = TargetCruiseAltitude > 0 ? TargetCruiseAltitude : 35000;
+                    break;
+                case FlightPhase.Descent:
+                    GroundSpeed = 280;
+                    Altitude = 15000;
+                    VerticalSpeed = -1500;
+                    break;
+                case FlightPhase.Approach:
+                    GroundSpeed = 160;
+                    Altitude = 3000;
+                    VerticalSpeed = -800;
+                    break;
+                case FlightPhase.Landing:
+                case FlightPhase.TaxiIn:
+                    GroundSpeed = 20;
+                    Altitude = 100;
+                    IsOnGround = true;
+                    break;
+                case FlightPhase.Arrived:
+                    Eng1Combustion = false;
+                    Eng2Combustion = false;
+                    IsBeaconLightOn = false;
+                    IsSeatbeltsOn = false;
+                    IsMainDoorOpen = true;
+                    IsOnGround = true;
+                    Altitude = 100;
+                    break;
+            }
+
+            ForcePhase(phase);
+        }
+
+        // We make Altitude a property so it can be controlled natively
+        public double Altitude { get; set; } = 0.0;
+
         public void UpdateTelemetry(double groundSpeed, double indicatedAirspeed, double altitude, double radioHeight, bool isParkingBrakeSet, bool isGearDown, double throttle, double pitch, double bank)
         {
+            if (IsSimulationMode) return;
             if (IsPaused || DateTime.Now < _immunityEndTime) return;
 
+            Altitude = altitude;
             GroundSpeed = groundSpeed;
 
             // Calculate Turn Rate (degrees per second)

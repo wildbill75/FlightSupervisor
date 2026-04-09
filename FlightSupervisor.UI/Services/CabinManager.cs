@@ -154,6 +154,7 @@ namespace FlightSupervisor.UI.Services
         public bool IsSilencePenaltyActive { get; private set; } = false;
 
         public List<PassengerState> PassengerManifest { get; private set; } = new List<PassengerState>();
+        public List<PassengerState> PreviousLegManifest { get; private set; } = new List<PassengerState>();
         public FlightSupervisor.UI.Services.ManifestData CurrentManifest { get; private set; }
         public bool IsCrewSeated { get; private set; } = false;
         public double SecuringProgress { get; private set; } = 0.0;
@@ -203,6 +204,7 @@ namespace FlightSupervisor.UI.Services
         private DateTime _lastRandomEvent = DateTime.Now;
         private DateTime _lastReportRequest = DateTime.MinValue;
         private DateTime? _strategicPenaltyEndTime = null;
+        private DateTime _lastPncCleanlinessComplaint = DateTime.MinValue;
 
         private bool _hasPlayedSeatbeltOffPA = false;
         private bool _hasPlayedDescentPA = false;
@@ -395,6 +397,11 @@ namespace FlightSupervisor.UI.Services
             
             ActiveAirlineId = profile.Name;
             
+            if (SessionFlightsCompleted > 0 && PassengerManifest.Count > 0)
+            {
+                PreviousLegManifest.Clear();
+                PreviousLegManifest.AddRange(PassengerManifest);
+            }
             PassengerManifest.Clear();
             
             double baseComfort = 50.0 + (profile.HardProductScore * 5.0);
@@ -610,7 +617,9 @@ namespace FlightSupervisor.UI.Services
         public void StartBoarding()
         {
             HasBoardingStarted = true;
+            State = CabinState.Boarding;
             _hasAnnouncedBoardingComplete = false;
+            OnPncStatusChanged?.Invoke("Boarding...", State);
         }
 
         public void StartDeboarding()
@@ -627,6 +636,7 @@ namespace FlightSupervisor.UI.Services
             // French: PNC aux portes, désarmement des toboggans et vérification de la porte opposée
             // English: Cabin Crew, disarm doors and cross check
             OnCrewMessage?.Invoke("cyan", LocalizationService.Translate("Cabin Crew, disarm doors and cross check.", "PNC aux portes, désarmement des toboggans et vérification de la porte opposée."), new List<string> { "intercom_ding", "pa_chime" });
+            OnPncStatusChanged?.Invoke("Deboarding...", State);
         }
 
         public void FastForward(double deltaSeconds, FlightPhase phase)
@@ -675,6 +685,7 @@ namespace FlightSupervisor.UI.Services
                         HasBoardingStarted = false;
                         OnCrewMessage?.Invoke("cyan", LocalizationService.Translate("Cabin makes are complete. All passengers have disembarked.", "La cabine est débarrassée. Tous les passagers ont débarqué."), null);
                         OnDeboardingComplete?.Invoke();
+                        OnPncStatusChanged?.Invoke("Standing By", State);
                     }
                 }
                 return;
@@ -725,6 +736,7 @@ namespace FlightSupervisor.UI.Services
                 _hasAnnouncedBoardingComplete = true;
                 _audio?.SpeakAsPurser("Boarding is complete Captain.");
                 OnCrewMessage?.Invoke("cyan", LocalizationService.Translate("PA: Boarding is complete.", "PA: Embarquement terminé."), null);
+                OnPncStatusChanged?.Invoke("Standing By", State);
             }
 
             // --- THERMAL COMFORT (Physical Simulation) ---
@@ -916,8 +928,9 @@ namespace FlightSupervisor.UI.Services
                     double dirtyFactor = (50.0 - CabinCleanliness) / 50.0;
                     DecreaseComfort(0.01 * dirtyFactor * deltaTimeSeconds);
                     
-                    if (CabinCleanliness < 40.0 && _rnd.NextDouble() < (0.001 * deltaTimeSeconds))
+                    if (CabinCleanliness < 40.0 && _rnd.NextDouble() < (0.001 * deltaTimeSeconds) && (DateTime.Now - _lastPncCleanlinessComplaint).TotalMinutes > 20)
                     {
+                        _lastPncCleanlinessComplaint = DateTime.Now;
                         OnCrewMessage?.Invoke("orange", LocalizationService.Translate("Captain, passengers are complaining about the disgusting state of the cabin...", "Commandant, les passagers se plaignent de l'état absolument dégoûtant de la cabine..."), null);
                         ModifySatisfaction(-2.0);
                     }
@@ -1981,7 +1994,8 @@ namespace FlightSupervisor.UI.Services
 
         public void DeboardPassenger(int count)
         {
-            var boarded = PassengerManifest.Where(p => p.IsBoarded).TakeLast(count).ToList();
+            var targetManifest = PreviousLegManifest.Any(p => p.IsBoarded) ? PreviousLegManifest : PassengerManifest;
+            var boarded = targetManifest.Where(p => p.IsBoarded).TakeLast(count).ToList();
             foreach (var p in boarded)
             {
                 p.IsBoarded = false;

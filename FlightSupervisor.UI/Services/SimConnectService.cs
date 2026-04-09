@@ -59,6 +59,8 @@ namespace FlightSupervisor.UI.Services
         public event Action<bool, bool>? OnPacksChanged;
         public event Action<bool, bool, bool>? OnAntiIceChanged;
         public event Action<int, bool, bool>? OnEngineSwitchesChanged;
+        public event Action<double, double>? OnEngineN1Received;
+        public event Action<bool, bool>? OnDoorsReceived; // MainDoor, Jetway
         public event Action<float, float, float>? OnCabinTemperatureTargetsChanged;
         public event Action<int>? OnNoseLightChanged;
         public event Action<bool>? OnRunwayTurnoffChanged;
@@ -110,6 +112,12 @@ namespace FlightSupervisor.UI.Services
             public double TimeZoneDeviation;
             public double AmbientTemperature;
             public double FuelTotalMass;
+            
+            // Engines & Doors native
+            public double Eng1N1;
+            public double Eng2N1;
+            public double InteractivePoint0; // Main Door
+            public double InteractivePoint12; // Jetway / Stairs usually
             
             // Native MSFS Time Variables
             public double ZuluYear;
@@ -174,6 +182,10 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "G FORCE", "GForce", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GENERAL ENG COMBUSTION:1", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GENERAL ENG COMBUSTION:2", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "ENG N1 RPM:1", "Percent", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "ENG N1 RPM:2", "Percent", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "INTERACTIVE POINT OPEN:0", "Percent", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "INTERACTIVE POINT OPEN:12", "Percent", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "PLANE HEADING DEGREES TRUE", "Degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AMBIENT WIND DIRECTION", "Degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AMBIENT WIND VELOCITY", "Knots", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
@@ -305,6 +317,9 @@ namespace FlightSupervisor.UI.Services
                 OnNavigationReceived?.Invoke(planeData.NavLocalizerError, planeData.GpsCrossTrackError, planeData.HasLocalizer > 0.5);
                 OnAirframeDynamicsReceived?.Invoke(planeData.VelocityBodyZ, planeData.AccelerationBodyZ);
 
+                OnEngineN1Received?.Invoke(planeData.Eng1N1, planeData.Eng2N1);
+                OnDoorsReceived?.Invoke(planeData.InteractivePoint0 > 0.5, planeData.InteractivePoint12 > 0.5);
+
                 if (!IsWasmOverriding)
                 {
                     OnCabinSeatbeltsChanged?.Invoke(planeData.CabinSeatbelts > 0.5);
@@ -349,8 +364,11 @@ namespace FlightSupervisor.UI.Services
                 OnLightNavReceived?.Invoke(data.NavLight > 0.5);
                 OnLightTaxiReceived?.Invoke(data.NoseLight == 1); // 1 = Taxi, 2 = TO
                 OnLightLandingReceived?.Invoke(data.LandingLightL > 0.5 || data.LandingLightR > 0.5);
+                OnGsxBoardingStateReceived?.Invoke(data.GsxBoardingState, data.GsxDeboardingState);
             }
         }
+
+        public event Action<double, double>? OnGsxBoardingStateReceived;
     }
 }
 

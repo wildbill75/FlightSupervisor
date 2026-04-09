@@ -262,7 +262,7 @@ namespace FlightSupervisor.UI.Services
         {
             if (_isStarted) return;
             _isStarted = true;
-            _lastTick = DateTime.UtcNow;
+            _lastTick = DateTime.MinValue; // Force sync on first tick to avoid massive jumps from sim offsets
             
             OnOpsUpdated?.Invoke();
         }

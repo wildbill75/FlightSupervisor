@@ -106,40 +106,41 @@
     </script>
 </head>
 <body class="bg-background">
-    <div id="top-bar" class="window-drag-area fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-4 h-10 bg-[#1d1d1d] border-b border-white/5" onmousedown="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action:'drag'});">
+    <div id="top-bar" class="window-drag-area fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-6 h-12 bg-[#14161a]/85 backdrop-blur-xl border-b border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)]" onmousedown="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action:'drag'});">
         <!-- Logo / Title -->
-        <div class="text-[10px] font-label tracking-[0.4em] text-[#7b7b7b] uppercase pointer-events-none select-none flex-1">TRUE AIRMANSHIP</div>
+        <div class="text-[11px] font-label tracking-[0.5em] text-white/50 uppercase pointer-events-none select-none flex-1 drop-shadow-md">TRUE AIRMANSHIP</div>
         <div id="locationMismatchWarning" class="hidden flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 animate-pulse cursor-help overflow-hidden no-drag">
             <span class="material-symbols-outlined text-[14px]">location_off</span>
             <span class="text-[9px] font-black uppercase tracking-widest">Location Mismatch</span>
         </div>
         
         <!-- CENTERED INLINE CLOCK -->
-        <div class="flex items-center justify-center gap-6 text-[12px] font-bold text-[#b6b6b6] font-mono tracking-wider pointer-events-none select-none flex-1">
+        <div class="flex items-center justify-center gap-6 text-[11px] font-bold text-sky-100/60 font-mono tracking-[0.2em] pointer-events-none select-none flex-1 drop-shadow-md">
             <span id="zuluDate">--/--/----</span>
             <span id="zuluTime">--:-- UTC / --:-- LOCAL</span>
         </div>
 
         <!-- Right Side Icons -->
-        <div class="flex items-center gap-2 justify-end flex-1">
-            <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" id="btnPin" title="Toggle Always on Top" onmousedown="event.stopPropagation();" style="opacity: 0.4;">
-                <span class="material-symbols-outlined text-[14px]">push_pin</span>
+        <div class="flex items-center gap-1 justify-end flex-1">
+            <button class="no-drag w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-white/5" id="btnPin" title="Toggle Always on Top" onmousedown="event.stopPropagation();" style="opacity: 0.4;">
+                <span class="material-symbols-outlined text-[16px] font-light">push_pin</span>
             </button>
-            <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" id="btnMin" title="Minimize" onmousedown="event.stopPropagation();">
-                <span class="material-symbols-outlined text-[14px]">remove</span>
+            <button class="no-drag w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-white/5" id="btnMin" title="Minimize" onmousedown="event.stopPropagation();">
+                <span class="material-symbols-outlined text-[16px] font-light">remove</span>
             </button>
-            <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" id="btnMax" title="Maximize" onmousedown="event.stopPropagation();">
-                <span class="material-symbols-outlined text-[14px]">crop_square</span>
+            <button class="no-drag w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-white/5" id="btnMax" title="Maximize" onmousedown="event.stopPropagation();">
+                <span class="material-symbols-outlined text-[16px] font-light">crop_square</span>
             </button>
-            <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" title="Close" onmousedown="event.stopPropagation();" onclick="document.getElementById('quitConfirmModal').classList.replace('opacity-0', 'opacity-100'); document.getElementById('quitConfirmModal').classList.remove('pointer-events-none'); document.getElementById('quitConfirmModal').children[0].classList.replace('scale-95', 'scale-100');">
-                <span class="material-symbols-outlined text-[14px]">close</span>
+            <div class="w-[1px] h-4 bg-white/10 mx-1"></div>
+            <button class="no-drag w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500/20 rounded-lg transition-colors border border-transparent hover:border-red-500/30 group" title="Close" onmousedown="event.stopPropagation();" onclick="document.getElementById('quitConfirmModal').classList.replace('opacity-0', 'opacity-100'); document.getElementById('quitConfirmModal').classList.remove('pointer-events-none'); document.getElementById('quitConfirmModal').children[0].classList.replace('scale-95', 'scale-100');">
+                <span class="material-symbols-outlined text-[16px] group-hover:text-red-400 font-light">close</span>
             </button>
         </div>
     </div>
 
     <!-- GLOBAL TOP PROGRESS BAR (For Ground Ops Flow) -->
-    <div id="globalProgressContainer" class="fixed top-0 left-0 w-full h-[4px] bg-[#141414] z-50 overflow-hidden" style="display: none;">
-        <div id="globalProgressBar" class="h-full bg-gradient-to-r from-orange-400 to-orange-500 shadow-[0_0_15px_rgba(249,115,22,1)] rounded-r-full transition-all duration-1000 ease-out w-[0%]">
+    <div id="globalProgressContainer" class="fixed top-[48px] left-0 w-full h-[3px] bg-transparent z-50 overflow-hidden" style="display: none;">
+        <div id="globalProgressBar" class="h-full bg-gradient-to-r from-sky-400 to-emerald-400 shadow-[0_0_15px_rgba(56,189,248,0.8)] rounded-r-full transition-all duration-1000 ease-out w-[0%]">
         </div>
     </div>
 
@@ -160,21 +161,26 @@
     </div>
 
     <!-- SIDE NAV BAR (Aviation Logistics Layout) -->
-    <aside id="sidebar" class="fixed left-0 top-0 h-full z-40 bg-[#1d1d1d] w-16 flex flex-col pt-8 items-center border-r border-[#141414]">
+    <aside id="sidebar" class="fixed left-0 top-0 h-full z-40 bg-[#14161a]/95 backdrop-blur-2xl w-16 flex flex-col pt-16 items-center border-r border-white/5 shadow-[5px_0_30px_rgba(0,0,0,0.5)]">
         <!-- Logo Container (More obvious, centered perfectly) -->
 
-        <ul class="menu flex-1 w-full flex flex-col items-center mt-2 font-manrope text-sm tracking-wide gap-4">
-            <li class="active no-drag flex justify-center w-full" data-target="dashboard" title="Dashboard">
-                <span class="material-symbols-outlined shrink-0 text-xl">dashboard</span>
+        <ul class="menu flex-1 w-full flex flex-col items-center mt-4 font-manrope text-sm tracking-wide gap-3">
+            <li id="navDashboardBtn" class="no-drag flex justify-center items-center w-12 h-12 rounded-xl opacity-30 cursor-not-allowed pointer-events-none transition-all duration-300" data-target="dashboard" title="Locked: Select a flight and sign off dispatch first">
+                <span class="material-symbols-outlined shrink-0 text-[20px] font-light">dashboard</span>
             </li>
-            <li id="navBriefingBtn" class="no-drag flex justify-center w-full opacity-30 pointer-events-none cursor-not-allowed" data-target="briefing" title="Briefing">
-                <span class="material-symbols-outlined shrink-0 text-xl">assignment</span>
+            <li id="navBriefingBtn" class="active no-drag flex justify-center items-center w-12 h-12 rounded-xl cursor-pointer hover:bg-sky-500/10 hover:text-sky-300 transition-all duration-300 text-slate-400 relative group" data-target="briefing" title="Briefing">
+                <div class="absolute inset-0 rounded-xl bg-sky-400/0 group-[.active]:bg-sky-500/20 group-[.active]:shadow-[0_0_15px_rgba(56,189,248,0.2)] transition-all duration-500"></div>
+                <div class="absolute left-[-8px] h-8 w-1 bg-sky-400 rounded-r-full opacity-0 group-[.active]:opacity-100 shadow-[0_0_10px_rgba(56,189,248,0.8)] transition-all duration-500"></div>
+                <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-[.active]:text-sky-400">assignment</span>
             </li>
-            <li class="no-drag flex justify-center w-full cursor-pointer hover:text-white transition-colors text-[#b6b6b6]" onclick="if(window.chrome && window.chrome.webview) { const score = document.getElementById('topScoreValue')?.innerText || '1000'; const history = document.getElementById('penaltyLogs')?.innerHTML || ''; window.chrome.webview.postMessage({action: 'openLogsWindow', payload: {score, history}}); }" title="Flight Logs">
-                <span class="material-symbols-outlined shrink-0 text-xl">receipt_long</span>
+            <li class="no-drag flex justify-center items-center w-12 h-12 rounded-xl cursor-pointer text-slate-400 hover:bg-white/5 hover:text-sky-300 transition-all duration-300 group" onclick="if(window.chrome && window.chrome.webview) { const score = document.getElementById('topScoreValue')?.innerText || '1000'; const history = document.getElementById('penaltyLogs')?.innerHTML || ''; window.chrome.webview.postMessage({action: 'openLogsWindow', payload: {score, history}}); }" title="Flight Logs">
+                <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">receipt_long</span>
             </li>
-            <li class="no-drag mt-auto flex justify-center w-full mb-4" data-target="options" title="Settings">
-                <span class="material-symbols-outlined shrink-0 text-xl">settings</span>
+            <li class="no-drag flex justify-center items-center w-12 h-12 rounded-xl mt-4 cursor-pointer text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition-all duration-300 group" onclick="document.getElementById('sandboxModal').classList.remove('opacity-0', 'pointer-events-none'); document.getElementById('sandboxModal').classList.add('opacity-100');" title="Sandbox Controls">
+                <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(2fb,113,133,0.5)]">science</span>
+            </li>
+            <li class="no-drag mt-auto flex justify-center items-center w-12 h-12 rounded-xl mb-4 text-slate-500 hover:bg-white/5 hover:text-slate-300 transition-all duration-300 group" data-target="options" title="Settings">
+                <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:rotate-45 transition-transform duration-500">settings</span>
             </li>
         </ul>
         
@@ -208,11 +214,11 @@
 
 
     <!-- MAIN CONTENT CANVAS -->
-    <main id="main-content" class="ml-16 pt-14 h-screen overflow-y-auto px-12 py-10 bg-[#141414] relative block w-[calc(100%-64px)]">
+    <main id="main-content" class="ml-16 pt-12 h-screen overflow-y-auto px-12 py-10 bg-[#0d0e12] relative block w-[calc(100%-64px)] selection:bg-sky-500/30">
         <div class="w-full pb-36">
             
             <!-- DASHBOARD TAB -->
-            <section id="dashboard" class="tab-content active space-y-4 w-full">
+            <section id="dashboard" class="tab-content space-y-4 w-full">
                 <!-- HERO BENTO SECTION -->
                 <div class="grid grid-cols-12 gap-4 relative w-full">
                     <!-- HERO METADATA -->
@@ -298,29 +304,6 @@
                                             </div>
                                         </div>
 
-                                        <!-- CONTROLS COLUMN (Add, Clear, Reset) -->
-                                        <div class="flex flex-col gap-2 w-16 shrink-0 h-[164px]">
-                                            <!-- Add Leg Button -->
-                                            <div role="button" tabindex="0" onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' })" 
-                                                 class="bg-[#2a2a2b] flex-1 flex rounded-[14px] border border-white/5 hover:border-white/20 items-center justify-center hover:bg-white/10 cursor-pointer transition-all shadow-lg group relative" 
-                                                 title="Add First Leg">
-                                                <span class="material-symbols-outlined text-[#b6b6b6] group-hover:text-white transition-colors group-hover:scale-110">add_circle</span>
-                                            </div>
-                                            
-                                            <!-- Clear Current Leg (Grayed out) -->
-                                            <div role="button" tabindex="-1" 
-                                                 class="bg-[#2a2a2b] flex-1 flex rounded-[14px] border border-white/5 items-center justify-center opacity-20 pointer-events-none" 
-                                                 title="Clear Current Leg">
-                                                <span class="material-symbols-outlined text-[#b6b6b6]">delete</span>
-                                            </div>
-
-                                            <!-- Clear All Legs (Grayed out) -->
-                                            <div role="button" tabindex="-1" 
-                                                 class="bg-[#2a2a2b] flex-1 flex rounded-[14px] border border-white/5 items-center justify-center opacity-20 pointer-events-none" 
-                                                 title="Clear All Legs">
-                                                <span class="material-symbols-outlined text-[#b6b6b6]">keyboard_return</span>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -644,72 +627,68 @@
             </section>
 
             <!-- BRIEFING TAB -->
-            <section id="briefing" class="tab-content" style="padding-bottom: 50px;">
-                <div class="mb-4 flex items-center justify-between">
-                    <div class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80" data-i18n="brief_title">Flight Briefing</div>
-                    <div class="flex gap-4">
-                        <button onclick="window.cancelRotations()" id="btnCancelRotations" class="border border-red-500/30 bg-[#141414] hover:bg-red-900/40 text-red-400 px-4 py-2 rounded-lg text-[10px] uppercase font-bold tracking-widest flex items-center gap-2 transition-colors shadow-lg" style="display: none;">
-                            <span class="material-symbols-outlined text-[16px]">cancel</span>
-                            RESET LEGS
+            <section id="briefing" class="tab-content active" style="padding-bottom: 50px;">
+                <!-- Timeline de Rotation (Dynamique) -->
+                <div class="flex flex-col items-center gap-6 mb-12">
+                    <div id="briefing-timeline" class="flex items-center gap-4 p-8 bg-black/20 rounded-3xl border border-white/5 shadow-inner w-full justify-center overflow-x-auto min-h-[220px]">
+                        <!-- Généré dynamiquement par app.js -->
+                    </div>
+                    
+                    <!-- Validation Button Area -->
+                    <div id="briefing-validation-area" class="flex items-center gap-6 pt-2">
+                        <button onclick="window.unlockDashboard();" class="relative overflow-hidden px-8 py-3 rounded-full border border-sky-400/20 bg-gradient-to-r from-sky-900/40 to-[#14161a] backdrop-blur-xl shadow-[0_0_15px_rgba(56,189,248,0.05)] hover:shadow-[0_0_20px_rgba(56,189,248,0.15)] hover:border-sky-400/50 transition-all duration-500 flex items-center gap-3 group">
+                            <div class="absolute inset-0 bg-sky-400/0 group-hover:bg-sky-400/5 transition-colors duration-500"></div>
+                            <span class="material-symbols-outlined text-sky-500/70 group-hover:text-sky-400 font-light transition-colors relative z-10 text-lg">flight_land</span>
+                            <span class="text-[11px] font-bold tracking-[0.2em] text-sky-100/90 group-hover:text-white transition-colors relative z-10 uppercase">Validate Rotation</span>
                         </button>
-                        <button onclick="window.requestAcarsUpdate()" id="btnAcarsReqTrigger" class="border border-sky-500/30 bg-[#141414] hover:bg-sky-900/40 text-sky-400 px-4 py-2 rounded-lg text-[10px] uppercase font-bold tracking-widest flex items-center gap-2 transition-colors shadow-lg">
-                            <span class="material-symbols-outlined text-[16px]">print</span>
-                            ACARS REQ
+                        
+                        <button onclick="window.chrome.webview.postMessage({ action: 'clearAllRotations' });" class="px-6 py-3 rounded-full border border-white/5 bg-white/5 hover:bg-white/10 backdrop-blur-md hover:border-red-500/20 transition-all duration-300 flex items-center gap-2 group">
+                            <span class="text-[10px] font-bold tracking-[0.15em] text-slate-500 group-hover:text-red-400/80 transition-colors uppercase">Clear</span>
                         </button>
                     </div>
-                </div>
-                
-                <!-- LIVE SCORE & SUB-SCORES BAR -->
-                <div class="hidden mb-4 flex items-center justify-between bg-[#141414] p-4 rounded-xl border border-white/5 shadow-inner">
-                    <div class="flex flex-col lg:flex-row items-start lg:items-center gap-6 w-full">
-                        <div class="flex flex-col shrink-0 pr-6 border-r border-white/5">
-                            <span class="text-[9px] font-label tracking-widest text-[#7b7b7b] uppercase mb-1">Leg SuperScore</span>
-                            <span id="briefingScoreValue" class="text-3xl font-black font-headline text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]">1000</span>
-                        </div>
-                        <div class="flex gap-6 w-full lg:w-auto flex-wrap">
-                            <div class="flex flex-col w-32">
-                                <div class="flex justify-between text-[9px] uppercase tracking-widest text-sky-400/80 mb-1 font-bold">
-                                    <span>Safety</span><span id="b_safetyPts">+0</span>
+
+                    <!-- Integrated SimBrief Section -->
+                    <div id="simbrief-integrated-container" class="hidden w-full max-w-[1240px] animate-fade-in">
+                        <div class="bg-[#1C1F26]/80 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden mt-6">
+                            <div class="flex items-center justify-between p-4 bg-[#14161a]/60 border-b border-white/5">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/20 shadow-inner">
+                                        <span class="material-symbols-outlined text-[16px] text-sky-400 font-light">flight_takeoff</span>
+                                    </div>
+                                    <div class="flex flex-col leading-tight">
+                                        <span class="text-[10px] font-bold tracking-[0.2em] uppercase text-white/80">SimBrief Engine</span>
+                                        <span class="text-[8px] tracking-[0.15em] text-sky-400/60 uppercase">Native Dispatch Platform</span>
+                                    </div>
                                 </div>
-                                <div class="h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5 shadow-inner"><div id="b_safetyBar" class="h-full bg-sky-400 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(56,189,248,0.5)]" style="width: 50%"></div></div>
+                                <div class="flex items-center gap-4">
+                                    <button onclick="window.triggerSimBriefImport();" class="text-[9px] font-bold uppercase tracking-[0.15em] text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 rounded-full border border-emerald-500/30 hover:border-emerald-400/50 shadow-[0_0_10px_rgba(16,185,129,0.05)]">
+                                        <span class="material-symbols-outlined text-[14px]">sync</span>
+                                        Import OFP
+                                    </button>
+                                    <div class="w-[1px] h-4 bg-white/10"></div>
+                                    <button onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' }); window.closeIntegratedSimBrief();" class="text-[9px] font-bold uppercase tracking-[0.15em] text-sky-400/60 hover:text-sky-400 transition-colors flex items-center gap-2 px-4 py-1.5 bg-sky-500/5 rounded-full border border-sky-500/10 hover:border-sky-500/30">
+                                        <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+                                        External
+                                    </button>
+                                    <button onclick="window.closeIntegratedSimBrief();" class="w-7 h-7 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 border border-white/5 transition-colors group">
+                                        <span class="material-symbols-outlined text-[14px] text-slate-400 group-hover:text-white transition-colors">close</span>
+                                    </button>
+                                </div>
                             </div>
-                            <div class="flex flex-col w-32">
-                                <div class="flex justify-between text-[9px] uppercase tracking-widest text-emerald-400/80 mb-1 font-bold">
-                                    <span>Comfort</span><span id="b_comfortPts">+0</span>
+                            <div class="relative w-full h-[600px] 2xl:h-[700px] bg-[#141414]">
+                                <div id="simbrief-iframe-loader" class="absolute inset-0 flex flex-col items-center justify-center bg-[#141414] z-10">
+                                    <div class="w-12 h-12 border-4 border-sky-500/20 border-t-sky-500 rounded-full animate-spin mb-4"></div>
+                                    <p class="text-xs font-mono text-sky-400 tracking-widest animate-pulse">ESTABLISHING SECURE TUNNEL...</p>
+                                    <p class="text-[10px] text-slate-500 mt-2">Bypassing security headers...</p>
                                 </div>
-                                <div class="h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5 shadow-inner"><div id="b_comfortBar" class="h-full bg-emerald-400 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(52,211,153,0.5)]" style="width: 50%"></div></div>
-                            </div>
-                            <div class="flex flex-col w-32">
-                                <div class="flex justify-between text-[9px] uppercase tracking-widest text-amber-400/80 mb-1 font-bold">
-                                    <span>Maintenance</span><span id="b_maintPts">+0</span>
-                                </div>
-                                <div class="h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5 shadow-inner"><div id="b_maintBar" class="h-full bg-amber-400 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(251,191,36,0.5)]" style="width: 50%"></div></div>
-                            </div>
-                            <div class="flex flex-col w-32">
-                                <div class="flex justify-between text-[9px] uppercase tracking-widest text-purple-400/80 mb-1 font-bold">
-                                    <span>Operations</span><span id="b_opsPts">+0</span>
-                                </div>
-                                <div class="h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5 shadow-inner"><div id="b_opsBar" class="h-full bg-purple-400 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(192,132,252,0.5)]" style="width: 50%"></div></div>
+                                <iframe id="simbrief-iframe" class="w-full h-full border-none" src="about:blank"></iframe>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <div id="briefingPills" class="flex flex-wrap items-center gap-3 mb-8 transition-opacity duration-300">
-                        <div class="px-4 py-2 bg-[#2a2a2b] text-[#7b7b7b] rounded-full text-xs font-bold tracking-widest border border-white/5 opacity-50">
-                            WAITING FOR ROTATION...
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Briefing Views Container -->
-                <div id="briefingViewsContainer" class="relative w-full min-h-[500px]">
-                    <!-- Default Empty State -->
-                    <div class="w-full flex-shrink-0 flex flex-col items-center justify-center text-[#7b7b7b] text-sm font-label tracking-widest uppercase mt-32">
-                        <span class="material-symbols-outlined text-4xl mb-4 opacity-50">flight_takeoff</span>
-                        Awaiting SimBrief OFP...
-                    </div>
+                <div id="briefing-content" class="min-h-[500px]">
+                    <!-- Contenu de la Loading Sheet (Future étape) -->
                 </div>
             </section>
 
@@ -1079,20 +1058,7 @@
                             </div>
                         </div>
 
-                        <!-- Developer Tools / Flight Flow Simulator -->
-                        <div class="bg-rose-900/10 p-8 rounded-xl border border-rose-500/20 shadow-[0_0_30px_rgba(225,29,72,0.1)] mt-2">
-                            <h3 class="text-[11px] font-label tracking-[0.4em] text-rose-400 uppercase opacity-80 mb-2 font-bold">Dev Tools (Phase Sim)</h3>
-                            <p class="text-[10px] text-rose-200/60 mb-6 leading-relaxed">Force phase transitions offline. Automatically manipulates logical time blocks for multi-leg consumption. <br/><b>Do not use while connected to MSFS.</b></p>
-
-                            <div class="grid grid-cols-2 lg:grid-cols-3 gap-2">
-                                <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Boarding'})" class="bg-black/50 border border-rose-500/20 text-rose-300 py-3 px-1 rounded-md hover:bg-rose-500/20 hover:border-rose-500/50 transition-colors uppercase font-mono text-[9px] tracking-tighter font-bold flex items-center justify-center">BOARDING</button>
-                                <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Pushback'})" class="bg-black/50 border border-rose-500/20 text-rose-300 py-3 px-1 rounded-md hover:bg-rose-500/20 hover:border-rose-500/50 transition-colors uppercase font-mono text-[9px] tracking-tighter font-bold flex items-center justify-center">PUSHBACK</button>
-                                <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Takeoff'})" class="bg-black/50 border border-rose-500/20 text-rose-300 py-3 px-1 rounded-md hover:bg-rose-500/20 hover:border-rose-500/50 transition-colors uppercase font-mono text-[9px] tracking-tighter font-bold flex items-center justify-center">TAKEOFF (+15m)</button>
-                                <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Cruise'})" class="bg-black/50 border border-sky-500/20 text-sky-400 py-3 px-1 rounded-md hover:bg-sky-500/20 hover:border-sky-500/50 transition-colors uppercase font-mono text-[9px] tracking-tighter font-bold flex items-center justify-center">CRUISE (+30m)</button>
-                                <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Descent'})" class="bg-black/50 border border-amber-500/20 text-amber-400 py-3 px-1 rounded-md hover:bg-amber-500/20 hover:border-amber-500/50 transition-colors uppercase font-mono text-[9px] tracking-tighter font-bold flex items-center justify-center">DESCENT (+ETE)</button>
-                                <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Arrived'})" class="bg-black/50 border border-emerald-500/40 text-emerald-400 py-3 px-1 rounded-md hover:bg-emerald-500/30 hover:border-emerald-400 transition-colors uppercase font-mono text-[9px] tracking-tighter font-bold shadow-[0_0_15px_rgba(16,185,129,0.1)] flex items-center justify-center">ARRIVED (+15m)</button>
-                            </div>
-                        </div>
+                        <!-- Sandbox Modal Moved -->
                         
                     </div>
 
@@ -1326,50 +1292,71 @@
 
     <!-- ACARS MCDU Request Modal -->
     <div id="acarsModal" class="fixed inset-0 bg-black/80 z-[60] p-4 flex items-center justify-center animate-fade-in" style="display: none;">
-        <div class="bg-[#141414] w-[400px] border border-sky-500/30 rounded shadow-[0_0_50px_rgba(56,189,248,0.15)] flex flex-col font-mono text-white tracking-widest relative overflow-hidden">
-            <div class="h-1 bg-gradient-to-r from-sky-500/20 to-sky-500"></div>
-            <div class="p-6">
-                <!-- Header -->
-                <div class="flex justify-between items-center mb-8 border-b-2 border-slate-700/50 pb-2">
-                    <span class="text-sm font-bold text-[#b6b6b6]">AOC WX REQ</span>
-                    <span class="text-xs text-sky-400 font-bold">1/1</span>
-                </div>
+        <div class="bg-[#1C1C1C] w-[450px] border-[12px] border-[#2A2A2A] rounded-[40px] shadow-[0_0_80px_rgba(0,0,0,0.8)] flex flex-col font-mono text-white tracking-widest relative overflow-hidden ring-1 ring-white/10">
+            
+            <!-- Screen Area -->
+            <div class="bg-[#0A1A0A] m-4 p-6 rounded-lg border-2 border-[#151515] flex flex-col min-h-[400px] shadow-inner relative">
                 
-                <!-- Body Lines -->
-                <div class="flex flex-col gap-6 text-xl my-8">
-                    <div class="flex justify-between items-center mb-6">
-                        <span class="text-[#7b7b7b] text-sm">&lt; ORIGIN</span>
-                        <span id="acarsOrigin" class="text-sky-400 font-bold">----</span>
+                <!-- Status Bar Top -->
+                <div class="flex justify-between items-center mb-6 text-sm">
+                    <span class="text-emerald-500 font-bold">AOC WX REQ</span>
+                    <span class="text-emerald-500/60">1/1</span>
+                </div>
+
+                <!-- MCDU Content Rows -->
+                <div class="flex-1 flex flex-col gap-8">
+                    <!-- Origin Row -->
+                    <div class="flex flex-col">
+                        <span class="text-[#38BDF8] text-[10px] uppercase font-bold mb-1">Origin</span>
+                        <div class="flex justify-between items-end border-b border-emerald-500/10 pb-1">
+                            <span class="text-[#7b7b7b] text-base">< LSK 1L</span>
+                            <span id="acarsOrigin" class="text-emerald-400 text-2xl font-black tracking-[4px]">----</span>
+                        </div>
                     </div>
-                    <div class="flex justify-between items-center mb-6">
-                        <span class="text-[#7b7b7b] text-sm">&lt; DESTIN</span>
-                        <span id="acarsDest" class="text-sky-400 font-bold">----</span>
+
+                    <!-- Destination Row -->
+                    <div class="flex flex-col">
+                        <span class="text-[#38BDF8] text-[10px] uppercase font-bold mb-1">Destination</span>
+                        <div class="flex justify-between items-end border-b border-emerald-500/10 pb-1">
+                            <span class="text-[#7b7b7b] text-base">< LSK 2L</span>
+                            <span id="acarsDest" class="text-emerald-400 text-2xl font-black tracking-[4px]">----</span>
+                        </div>
                     </div>
-                    <div class="flex justify-between items-center mb-10">
-                        <span class="text-[#7b7b7b] text-sm">&lt; ALTN</span>
-                        <span id="acarsAltn" class="text-sky-400 font-bold">----</span>
+
+                    <!-- Alternate Row -->
+                    <div class="flex flex-col">
+                        <span class="text-[#38BDF8] text-[10px] uppercase font-bold mb-1">Alternate</span>
+                        <div class="flex justify-between items-end border-b border-emerald-500/10 pb-1">
+                            <span class="text-[#7b7b7b] text-base">< LSK 3L</span>
+                            <span id="acarsAltn" class="text-emerald-400 text-2xl font-black tracking-[4px]">----</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Footer / Status / Action -->
-                <div class="mt-8 pt-4 border-t border-slate-700/50 flex flex-col gap-4">
-                    <div id="acarsStatus" class="text-emerald-400 text-sm animate-pulse w-full text-center tracking-[0.2em] font-bold" style="display:none;">SENDING...</div>
-                    <div class="flex justify-between items-end mt-4">
-                        <button id="btnAcarsClose" onclick="document.getElementById('acarsModal').style.display='none'" class="hover:text-rose-400 transition-colors whitespace-nowrap text-lg text-[#7b7b7b]">
-                            &lt; CLOSE
+                <!-- Status / Message Area -->
+                <div class="mt-auto pt-6">
+                    <div id="acarsStatus" class="text-amber-500 text-sm animate-pulse w-full text-center tracking-[0.2em] font-bold h-6" style="display:none;">SENDING...</div>
+                    
+                    <!-- Prompt / Action Buttons Row -->
+                    <div class="flex justify-between items-center mt-4">
+                        <button id="btnAcarsClose" onclick="document.getElementById('acarsModal').style.display='none'" class="text-[#7b7b7b] hover:text-white transition-colors text-lg font-bold flex items-center gap-2">
+                            < RETURN
                         </button>
-                        <button id="btnAcarsSend" onclick="window.sendAcarsReq()" class="hover:text-emerald-400 transition-colors whitespace-nowrap text-lg text-[#b6b6b6] ml-auto flex items-center gap-2">
+                        <button id="btnAcarsSend" onclick="window.sendAcarsReq()" class="text-emerald-400 hover:text-emerald-300 transition-all text-xl font-black tracking-widest flex items-center gap-2 group">
                             SEND REQ *
                         </button>
                     </div>
                 </div>
+
+                <!-- Scratchpad -->
+                <div class="absolute bottom-4 left-6 right-6 flex items-center gap-2 text-sky-400 text-sm font-bold border-t border-emerald-500/5 pt-2 mt-4">
+                    <span id="acarsScratchpad" class="flex-1"></span>
+                    <span class="w-3 h-5 bg-sky-400/80 animate-pulse"></span>
+                </div>
             </div>
-            
-            <!-- Scratchpad fake -->
-            <div class="bg-black/60 p-4 border-t border-slate-700/50 flex justify-end gap-2 outline-none">
-                <span id="acarsScratchpad" class="text-sky-400 text-sm"></span>
-                <span class="w-2 h-4 bg-sky-500 animate-pulse"></span>
-            </div>
+
+            <!-- Hardware Bezel Accents -->
+            <div class="absolute top-8 left-1/2 -translate-x-1/2 w-20 h-1.5 bg-[#1a1a1a] rounded-full opacity-50"></div>
         </div>
     </div>
 
@@ -1515,11 +1502,13 @@
         
         // Initialize dragging
         setTimeout(() => {
-            const modal = document.getElementById('timeSkipModal');
-            const header = document.getElementById('timeSkipModalHeader');
-            if (modal && header) {
-                dragElement(modal, header);
-            }
+            const timeSkipModal = document.getElementById('timeSkipModal');
+            const timeSkipHeader = document.getElementById('timeSkipModalHeader');
+            if (timeSkipModal && timeSkipHeader) dragElement(timeSkipModal, timeSkipHeader);
+
+            const sandboxModal = document.getElementById('sandboxModal');
+            const sandboxHeader = document.getElementById('sandboxModalHeader');
+            if (sandboxModal && sandboxHeader) dragElement(sandboxModal, sandboxHeader);
         }, 1000);
     </script>
     <!-- Location Mismatch Warning Modal -->
@@ -1601,6 +1590,45 @@
         <span id="topScoreValue">1000</span>
         <ul id="penaltyLogs"></ul>
     </div>
+
+    <!-- Sandbox Modal -->
+    <div id="sandboxModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-[#141414] border border-rose-500/30 rounded-xl w-full max-w-xl shadow-[0_0_40px_rgba(225,29,72,0.15)] flex flex-col font-manrope">
+            <!-- Header -->
+            <div id="sandboxModalHeader" class="p-4 border-b border-rose-500/20 flex justify-between items-center cursor-move bg-rose-900/10 rounded-t-xl">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-rose-400">science</span>
+                    <h2 class="text-sm font-label tracking-widest text-rose-400 uppercase font-black drop-shadow-md">Simulator Sandbox Mode</h2>
+                </div>
+                <button onclick="document.getElementById('sandboxModal').classList.remove('opacity-100'); document.getElementById('sandboxModal').classList.add('opacity-0', 'pointer-events-none');" class="text-[#7b7b7b] hover:text-white transition-colors">
+                    <span class="material-symbols-outlined text-[18px]">close</span>
+                </button>
+            </div>
+            <!-- Body -->
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <p class="text-[11px] text-rose-200/70 leading-relaxed max-w-sm font-semibold">Mock telemetry offline to test game loops without MSFS. Easily manipulate physical limits and phase transitions.</p>
+                        <p class="text-[10px] py-1 px-2 border border-rose-500/30 text-rose-300 uppercase inline-block mt-2 font-bold tracking-widest">⚠️ Do not use while actively flying in MSFS</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer ml-4">
+                        <input type="checkbox" id="chkSimMode" class="sr-only peer" onchange="window.chrome.webview.postMessage({action: 'debugToggleSimulation', enabled: this.checked});">
+                        <div class="w-11 h-6 bg-rose-950 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-500"></div>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 pb-2 border-t border-white/5 pt-6">
+                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'AtGate'})" class="bg-black/50 border border-rose-500/20 text-rose-300 py-3 px-1 rounded-md hover:bg-rose-500/30 transition-colors uppercase font-mono text-[10px] tracking-widest font-black">AT GATE</button>
+                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Pushback'})" class="bg-black/50 border border-rose-500/20 text-rose-300 py-3 px-1 rounded-md hover:bg-rose-500/30 transition-colors uppercase font-mono text-[10px] tracking-widest font-black">PUSHBACK</button>
+                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Takeoff'})" class="bg-black/50 border border-rose-500/20 text-rose-300 py-3 px-1 rounded-md hover:bg-rose-500/30 transition-colors uppercase font-mono text-[10px] tracking-widest font-black">TAKEOFF (+15m)</button>
+                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Cruise'})" class="bg-black/50 border border-sky-500/20 text-sky-400 py-3 px-1 rounded-md hover:bg-sky-500/30 transition-colors uppercase font-mono text-[10px] tracking-widest font-black shadow-[0_0_15px_rgba(14,165,233,0.1)]">CRUISE (+30m)</button>
+                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Descent'})" class="bg-black/50 border border-amber-500/20 text-amber-400 py-3 px-1 rounded-md hover:bg-amber-500/30 transition-colors uppercase font-mono text-[10px] tracking-widest font-black">DESCENT (+ETE)</button>
+                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Arrived'})" class="bg-black/50 border border-emerald-500/40 text-emerald-400 py-3 px-1 rounded-md hover:bg-emerald-500/40 transition-colors uppercase font-mono text-[10px] tracking-widest font-black shadow-[0_0_15px_rgba(16,185,129,0.1)]">ARRIVED (+15m)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
 

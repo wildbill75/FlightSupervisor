@@ -28,8 +28,11 @@ window.parseBriefing = (data, rd) => {
             if (station.Id.toLowerCase() === "origin") {
                 let flightLevel = rd?.general?.initial_alt || rd?.general?.initial_altitude || '';
                 if (flightLevel) {
-                    flightLevel = flightLevel.replace(/^0+/, '');
-                    if (flightLevel.length === 5 && flightLevel.endsWith('00')) flightLevel = flightLevel.substring(0, 3);
+                    let flNum = parseInt(flightLevel.toString().replace(/[^0-9]/g, ''), 10);
+                    if (!isNaN(flNum)) {
+                        if (flNum > 1000) flNum = Math.floor(flNum / 100);
+                        flightLevel = flNum.toString().padStart(3, '0');
+                    }
                     stnFlHtml += `<span class="bg-black/40 px-2 py-1 rounded text-sky-400 font-bold ml-2">FL${flightLevel}</span>`;
                 }
             }
@@ -119,6 +122,7 @@ window.parseBriefing = (data, rd) => {
 
 
 window.dashboardActiveLegIndex = 0;
+window.isDispatchSignedOff = false;
 
 window.navigateDashboardLeg = (dir) => {
     if (!window.allRotations || window.allRotations.length === 0) return;
@@ -126,6 +130,7 @@ window.navigateDashboardLeg = (dir) => {
     if (window.dashboardActiveLegIndex < 0) window.dashboardActiveLegIndex = 0;
     if (window.dashboardActiveLegIndex >= window.allRotations.length) window.dashboardActiveLegIndex = window.allRotations.length - 1;
     window.populateDashboardActiveLeg(window.dashboardActiveLegIndex);
+    if (window.renderBriefingTimeline) window.renderBriefingTimeline();
 };
 window.AIRLINES = {
     'AFR': 'Air France', 'BAW': 'British Airways', 'EZY': 'easyJet', 'RYR': 'Ryanair',
@@ -255,7 +260,16 @@ window.populateDashboardActiveLeg = (index = 0) => {
         }
 
         const flRaw = rd.general?.initial_altitude || rd.general?.initial_alti || '---';
-        const fl = flRaw !== '---' ? 'FL' + flRaw.toString().substring(0, 3) : '---';
+        let fl = '---';
+        if (flRaw !== '---') {
+            let flNum = parseInt(flRaw.toString().replace(/[^0-9]/g, ''), 10);
+            if (!isNaN(flNum)) {
+                if (flNum > 1000) flNum = Math.floor(flNum / 100);
+                fl = 'FL' + flNum.toString().padStart(3, '0');
+            } else {
+                fl = 'FL' + flRaw.toString().substring(0, 3);
+            }
+        }
 
         const depQnh = window.allRotations[index].briefing?.Stations?.find(s => s.Id.toLowerCase() === 'origin' || s.Id.toLowerCase() === 'departure')?.Qnh || '---';
         const arrQnh = window.allRotations[index].briefing?.Stations?.find(s => s.Id.toLowerCase() === 'destination')?.Qnh || '---';
@@ -341,28 +355,6 @@ window.populateDashboardActiveLeg = (index = 0) => {
                         </div>
                     </div>
 
-                    <!-- CONTROLS COLUMN (Add, Clear, Reset) -->
-                    <div class="flex flex-col gap-2 w-16 shrink-0 h-[164px]">
-                        <!-- Add Leg Button -->
-                        <div role="button" tabindex="0" onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' })" 
-                             class="bg-[#2a2a2b] flex-1 flex rounded-[14px] border border-white/5 hover:border-white/20 items-center justify-center hover:bg-white/10 cursor-pointer transition-all shadow-lg group relative" 
-                             title="Add Next Leg">
-                            <span class="material-symbols-outlined text-[#b6b6b6] group-hover:text-white transition-colors group-hover:scale-110">add_circle</span>
-                        </div>
-                        
-                        <!-- Clear Current Leg -->
-                        <div role="button" tabindex="0" onclick="window.clearCurrentLeg()" 
-                             class="bg-[#2a2a2b] flex-1 flex rounded-[14px] border border-white/5 ${index === 0 ? 'opacity-40' : 'hover:border-white/20 hover:bg-white/10'} items-center justify-center cursor-pointer transition-all shadow-lg group" 
-                             title="${index === 0 ? 'Active Leg Protection' : 'Remove Selected Leg'}">
-                            <span class="material-symbols-outlined ${index === 0 ? 'text-slate-600' : 'text-[#b6b6b6] group-hover:text-white'} transition-colors">delete</span>
-                        </div>
-
-                        <!-- Clear All Legs -->
-                        <div role="button" tabindex="0" onclick="window.clearAllLegs()" 
-                             class="bg-[#2a2a2b] flex-1 flex rounded-[14px] border border-white/5 hover:border-white/20 items-center justify-center hover:bg-white/10 cursor-pointer transition-all shadow-lg group" 
-                             title="Clear All Legs / Reset Rotation">
-                            <span class="material-symbols-outlined text-[#b6b6b6] group-hover:text-white transition-colors">keyboard_return</span>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -407,6 +399,223 @@ window.clearAllLegs = function() {
             window.chrome.webview.postMessage({ action: "removeAllLegs" });
         }
     });
+};
+
+// ---- SIMBRIEF NATIVE INTEGRATION ----
+window.openIntegratedSimBrief = () => {
+    const container = document.getElementById('simbrief-integrated-container');
+    const iframe = document.getElementById('simbrief-iframe');
+    const loader = document.getElementById('simbrief-iframe-loader');
+
+    if (!container || !iframe) return;
+
+    // Reset visibility
+    container.classList.remove('hidden');
+    loader.classList.remove('hidden');
+    
+    // Load SimBrief
+    iframe.src = "https://dispatch.simbrief.com/options/custom";
+    
+    // Hide loader when iframe finishes loading
+    iframe.onload = () => {
+        loader.classList.add('hidden');
+    };
+
+    // Smooth scroll to container
+    container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+
+window.closeIntegratedSimBrief = () => {
+    const container = document.getElementById('simbrief-integrated-container');
+    const iframe = document.getElementById('simbrief-iframe');
+    if (container) container.classList.add('hidden');
+    if (iframe) iframe.src = "about:blank";
+    
+    // Automatically attempt to fetch the generated OFP when the user closes the window,
+    // mirroring the behavior of the external window mode.
+    window.triggerSimBriefImport();
+};
+
+window.triggerSimBriefImport = () => {
+    const user = localStorage.getItem('sbUsername') || '';
+    let ffCln = localStorage.getItem('firstFlightClean') === "true";
+    if (typeof currentDutyState !== 'undefined' && currentDutyState) {
+        ffCln = (currentDutyState === 'pristine');
+        localStorage.setItem('firstFlightClean', ffCln);
+    }
+
+    const loaderSt = document.getElementById('simbriefLoadingState');
+    if (loaderSt) {
+        loaderSt.style.display = 'flex';
+        const lbl = document.getElementById('simbriefLoadingLabel');
+        if (lbl) lbl.innerText = 'Downloading OFP into Application...';
+    }
+
+    window.chrome.webview.postMessage({
+        action: 'fetch',
+        username: user,
+        remember: true,
+        syncMsfsTime: document.getElementById('chkSyncTime') ? document.getElementById('chkSyncTime').checked : false,
+        options: {
+            groundSpeed: localStorage.getItem('groundSpeed') || 'Realistic',
+            groundProb: localStorage.getItem('groundProb') || '25',
+            firstFlightClean: ffCln,
+            units: {
+                weight: localStorage.getItem('selUnitWeight') || 'LBS',
+                temp: localStorage.getItem('selUnitTemp') || 'C',
+                alt: localStorage.getItem('selUnitAlt') || 'FT',
+                speed: localStorage.getItem('selUnitSpeed') || 'KTS',
+                press: localStorage.getItem('selUnitPress') || 'HPA',
+                time: localStorage.getItem('selTimeFormat') || '24H'
+            }
+        }
+    });
+};
+// --------------------------------------
+
+window.renderBriefingTimeline = () => {
+    const container = document.getElementById('briefing-timeline');
+    const valArea = document.getElementById('briefing-validation-area');
+    if (!container) return;
+
+    let html = '';
+    const rotations = window.allRotations || [];
+    const currentIndex = window.dashboardActiveLegIndex || 0;
+    const maxSlots = 6;
+
+    // 1. Render filled slots (Vols)
+    rotations.forEach((rot, i) => {
+        if (i >= maxSlots) return;
+
+        const rd = rot.data;
+        const from = rd?.origin?.icao_code || '---';
+        const to = rd?.destination?.icao_code || '---';
+        const isActive = (i === currentIndex);
+
+        html += `
+            <div class="w-44 h-44 bg-[#2a2a2b] rounded-2xl border ${isActive ? 'border-zinc-500 shadow-[0_0_40px_rgba(255,255,255,0.03)]' : 'border-white/5'} flex flex-col items-center justify-center p-4 relative overflow-hidden group cursor-pointer hover:border-white/10 transition-all"
+                 onclick="window.dashboardActiveLegIndex = ${i}; window.renderBriefingTimeline(); window.populateDashboardActiveLeg(${i});">
+                
+                <!-- Permanent Delete Button -->
+                <div class="absolute bottom-3 right-3">
+                    <button onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'removeLeg', payload: { index: ${i} } });" 
+                            class="text-zinc-600 hover:text-zinc-100 p-1 transition-colors" title="Remove Leg">
+                        <span class="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                </div>
+
+                <div class="text-[10px] uppercase tracking-[0.2em] text-[#7b7b7b] mb-3 font-bold">Leg ${i+1}</div>
+                <div class="text-2xl font-black text-white tracking-[0.1em] leading-tight">${from}</div>
+                <div class="h-px w-10 bg-white/10 my-2"></div>
+                <div class="text-2xl font-black text-white tracking-[0.1em] leading-tight">${to}</div>
+                
+                <!-- Silver Active Indicator (Top Left, No Pulse) -->
+                ${isActive ? '<div class="absolute top-3 left-3 w-2.5 h-2.5 bg-zinc-400 rounded-full shadow-[0_0_10px_rgba(255,255,255,0.2)]"></div>' : ''}
+                
+                <!-- Bottom Hover Bar (Monochrome) -->
+                <div class="absolute inset-x-0 bottom-0 h-1 bg-zinc-600 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-center"></div>
+            </div>
+        `;
+
+        // Arrow (Subtle)
+        html += `
+            <div class="flex items-center justify-center">
+                <span class="material-symbols-outlined text-white/5 text-2xl">arrow_forward</span>
+            </div>
+        `;
+    });
+
+    // 2. Render "Add Flight" button in the next available slot
+    if (rotations.length < maxSlots) {
+        html += `
+            <div class="w-44 h-44 bg-white/5 rounded-2xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center p-4 group hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer shadow-inner"
+                 onclick="window.openIntegratedSimBrief()">
+                <span class="material-symbols-outlined text-5xl text-zinc-400 group-hover:scale-110 transition-transform mb-2">add_circle</span>
+                <span class="text-[10px] font-bold tracking-[0.2em] uppercase text-zinc-500 group-hover:text-zinc-200 transition-colors">Add Flight</span>
+            </div>
+        `;
+
+        // Following Placeholders
+        for (let i = rotations.length + 1; i < maxSlots; i++) {
+            html += `
+                <div class="flex items-center justify-center">
+                    <span class="material-symbols-outlined text-white/5 text-2xl">arrow_forward</span>
+                </div>
+                <div class="w-44 h-44 bg-black/5 rounded-2xl border border-dashed border-white/5 flex items-center justify-center opacity-10">
+                    <span class="material-symbols-outlined text-3xl text-zinc-600">flight_takeoff</span>
+                </div>
+            `;
+        }
+    } else {
+        // If 6 flights reached, just close the timeline nicely
+        // (Removing the last extra arrow from the loop above if needed, 
+        // but here the loop handles it by not adding an arrow after the last element)
+        if (html.endsWith('arrow_forward</span>\n            </div>\n        ')) {
+            html = html.substring(0, html.lastIndexOf('<div class="flex items-center justify-center">'));
+        }
+    }
+
+    container.innerHTML = html;
+
+    // Check persistence
+    if (localStorage.getItem('isDispatchSignedOff') === 'true') {
+        window.unlockDashboard(true); // silent unlock
+    }
+
+    // Toggle validation buttons active state instead of hiding them
+    if (valArea) {
+        const valBtn = valArea.querySelector('button[onclick="window.unlockDashboard();"]');
+        const clearBtn = valArea.querySelector('button[onclick="window.chrome.webview.postMessage({ action: \'clearAllRotations\' });"]');
+        
+        if (rotations.length > 0 && !window.isDispatchSignedOff) {
+            if (valBtn) {
+                valBtn.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+            }
+            if (clearBtn) {
+                clearBtn.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+            }
+        } else {
+            if (valBtn) {
+                valBtn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+            }
+            if (clearBtn) {
+                clearBtn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+            }
+        }
+    }
+};
+
+window.unlockDashboard = (silent = false) => {
+    window.isDispatchSignedOff = true;
+    localStorage.setItem('isDispatchSignedOff', 'true');
+    
+    const dashBtn = document.getElementById('navDashboardBtn');
+    if (dashBtn) {
+        dashBtn.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+        dashBtn.classList.add('cursor-pointer', 'hover:text-white', 'text-[#b6b6b6]');
+        dashBtn.title = "Dashboard"; 
+    }
+
+    // Keep validation area visible, but disable buttons
+    const valArea = document.getElementById('briefing-validation-area');
+    if (valArea) {
+        const valBtn = valArea.querySelector('button[onclick="window.unlockDashboard();"]');
+        const clearBtn = valArea.querySelector('button[onclick="window.chrome.webview.postMessage({ action: \'clearAllRotations\' });"]');
+        if (valBtn) valBtn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+        if (clearBtn) clearBtn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+    }
+
+    if (!silent && window.Swal) {
+        Swal.fire({
+            title: 'DISPATCH SIGNED OFF',
+            text: 'Flight rotation validated. Dashboard is now accessible.',
+            icon: 'success',
+            background: '#1C1F26',
+            color: '#f8fafc',
+            confirmButtonColor: '#0ea5e9',
+            timer: 2000
+        });
+    }
 };
 
 window.renderBriefingTabs = () => {
@@ -623,8 +832,11 @@ window.renderBriefingTabs = () => {
             if (parts.length > 1) flightLevel = parts[parts.length - 1];
         }
         if (flightLevel) {
-            flightLevel = flightLevel.replace(/^0+/, '');
-            if (flightLevel.length === 5 && flightLevel.endsWith('00')) flightLevel = flightLevel.substring(0, 3);
+            let flNum = parseInt(flightLevel.toString().replace(/[^0-9]/g, ''), 10);
+            if (!isNaN(flNum)) {
+                if (flNum > 1000) flNum = Math.floor(flNum / 100);
+                flightLevel = flNum.toString().padStart(3, '0');
+            }
         }
 
         let eteSec = parseInt(rd.times?.est_time_enroute || '0');
@@ -983,19 +1195,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
+    window.isAppBooting = true; // BOOT GUARD V3: Strict lock for 5 seconds
     const menuItems = document.querySelectorAll('.menu li, li[data-target="profile"]');
     const sections = document.querySelectorAll('section');
 
+    // Force initial state directly in DOM to avoid race conditions
+    sections.forEach(sec => {
+        if (sec.id === 'briefing') sec.classList.add('active');
+        else sec.classList.remove('active');
+    });
+    menuItems.forEach(m => {
+        if (m.getAttribute('data-target') === 'briefing') m.classList.add('active');
+        else m.classList.remove('active');
+    });
+
     menuItems.forEach(item => {
         item.addEventListener('click', () => {
+            const targetId = item.getAttribute('data-target');
+            if (!targetId) return;
+
+            // Dashboard Protection Guard
+            if (targetId === 'dashboard' && !window.isDispatchSignedOff) {
+                // Already greyed out and pointer-events-none in HTML, 
+                // but adding JS guard just in case or for dynamic updates
+                return;
+            }
+
             // Update Active Menu
             menuItems.forEach(m => m.classList.remove('active'));
             item.classList.add('active');
 
             // Update Active Section
-            const targetId = item.getAttribute('data-target');
-            if (!targetId) return;
-
             // INTERCEPTION : Ground Operations ouvre maintenant la fenêtre indépendante
             if (targetId === 'groundops') {
                 if (window.chrome && window.chrome.webview) {
@@ -1007,11 +1237,50 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.chrome.webview.postMessage({ action: 'fetchLogbook' });
             }
             sections.forEach(sec => {
-                if (sec.id === targetId) sec.classList.add('active');
+                if (sec.id === targetId) {
+                    sec.classList.add('active');
+                    if (targetId === 'briefing') {
+                        window.renderBriefingTimeline();
+                    }
+                }
                 else sec.classList.remove('active');
             });
         });
     });
+
+    // Initial load: force briefing tab activation to sync UI state
+    const navBriefing = document.getElementById('navBriefingBtn');
+    if (navBriefing) {
+        navBriefing.click();
+    } else if (window.renderBriefingTimeline) {
+        window.renderBriefingTimeline();
+    }
+
+    // V3: Safety Reset - If no rotations arrive within 2s of boot, clear signed-off state
+    setTimeout(() => {
+        if ((!window.allRotations || window.allRotations.length === 0) && window.isDispatchSignedOff) {
+            console.log("[SYSTEM] No active rotation detected. Resetting sign-off state.");
+            window.isDispatchSignedOff = false;
+            localStorage.removeItem('isDispatchSignedOff');
+            const dashBtn = document.getElementById('navDashboardBtn');
+            if (dashBtn) {
+                dashBtn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+                dashBtn.classList.remove('cursor-pointer', 'hover:text-white', 'text-[#b6b6b6]');
+            }
+        }
+    }, 2000);
+
+    // Release Boot Guard after 5 seconds to allow normal operational auto-switching
+    setTimeout(() => {
+        window.isAppBooting = false;
+        console.log("[SYSTEM] Boot Guard V3 released. Auto-navigation enabled.");
+        
+        // Final enforce of Briefing if we are still starting up without legs
+        if (!window.allRotations || window.allRotations.length === 0) {
+            const navBriefing = document.getElementById('navBriefingBtn');
+            if (navBriefing) navBriefing.click();
+        }
+    }, 5000);
 
     // Load airports data
     window.airportsDb = {};
@@ -1121,19 +1390,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btn) btn.style.display = 'none'; // hide send button
 
         const statusStr = document.getElementById('acarsStatus');
+        const scratchpad = document.getElementById('acarsScratchpad');
+
         if (statusStr) {
             statusStr.style.display = 'block';
             statusStr.innerText = 'SENDING...';
-            statusStr.classList.add('text-sky-400');
-            statusStr.classList.remove('text-emerald-400', 'text-amber-400');
+            statusStr.className = 'text-amber-500 text-sm animate-pulse w-full text-center tracking-[0.2em] font-bold h-6';
         }
+
+        if (scratchpad) scratchpad.innerText = 'COMM ESTABLISHED...';
 
         acarsTimeouts.push(setTimeout(() => {
             if (statusStr) {
                 statusStr.innerText = 'UPLINK IN PROGRESS';
-                statusStr.classList.replace('text-sky-400', 'text-amber-400');
+                statusStr.classList.replace('text-amber-500', 'text-sky-400');
             }
-            document.getElementById('acarsScratchpad').innerText = 'AOC MSG RCV...';
+            if (scratchpad) scratchpad.innerText = 'AOC MSG RCV...';
 
             acarsTimeouts.push(setTimeout(() => {
                 if (window.chrome && window.chrome.webview) {
@@ -1141,14 +1413,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (statusStr) {
-                    statusStr.innerText = '';
-                    statusStr.classList.replace('text-amber-400', 'text-emerald-400');
-                    statusStr.classList.remove('animate-pulse');
+                    statusStr.innerText = 'UPLINK COMPLETE';
+                    statusStr.className = 'text-emerald-400 text-sm w-full text-center tracking-[0.2em] font-bold h-6';
                 }
-                document.getElementById('acarsScratchpad').innerText = '';
+                if (scratchpad) scratchpad.innerText = 'WX DATA RECEIVED';
 
                 const btnClose = document.getElementById('btnAcarsClose');
-                if (btnClose) btnClose.innerHTML = '&lt; EXIT';
+                if (btnClose) btnClose.innerHTML = '< EXIT';
 
             }, 3000));
         }, 2000));
@@ -1265,7 +1536,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const paOptions = [];
 
         if (!used.includes('PA_Welcome')) {
-            const ok = ['AtGate', 'Pushback', 'TaxiOut'].includes(phase) && payload.isBoardingComplete;
+            const boardingFinished = payload.passengers && payload.passengers.length > 0 ? payload.passengers.every(p => (p.IsBoarded !== undefined ? p.IsBoarded : p.isBoarded)) : false;
+            const ok = ['AtGate', 'Pushback', 'TaxiOut'].includes(phase) && boardingFinished;
             paOptions.push({ val: 'Welcome', text: 'PA: Welcome Aboard', disabled: !ok, reason: 'Embarquement requis' });
         }
         if (!used.includes('PA_Approach') && ['Approach', 'FinalApproach'].includes(phase)) {
@@ -2032,40 +2304,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         switch (payload.type) {
             case 'simbriefWindowClosed':
-                // Auto-fetch flight plan! No validation step needed.
-                const user = localStorage.getItem('sbUsername') || '';
-                let ffCln = localStorage.getItem('firstFlightClean') === "true";
-                if (typeof currentDutyState !== 'undefined' && currentDutyState) {
-                    ffCln = (currentDutyState === 'pristine');
-                    localStorage.setItem('firstFlightClean', ffCln);
-                }
-
-                const loaderSt = document.getElementById('simbriefLoadingState');
-                if (loaderSt) {
-                    loaderSt.style.display = 'flex';
-                    const lbl = document.getElementById('simbriefLoadingLabel');
-                    if (lbl) lbl.innerText = 'Downloading OFP into Application...';
-                }
-
-                window.chrome.webview.postMessage({
-                    action: 'fetch',
-                    username: user,
-                    remember: true,
-                    syncMsfsTime: document.getElementById('chkSyncTime') ? document.getElementById('chkSyncTime').checked : false,
-                    options: {
-                        groundSpeed: localStorage.getItem('groundSpeed') || 'Realistic',
-                        groundProb: localStorage.getItem('groundProb') || '25',
-                        firstFlightClean: ffCln,
-                        units: {
-                            weight: localStorage.getItem('selUnitWeight') || 'LBS',
-                            temp: localStorage.getItem('selUnitTemp') || 'C',
-                            alt: localStorage.getItem('selUnitAlt') || 'FT',
-                            speed: localStorage.getItem('selUnitSpeed') || 'KTS',
-                            press: localStorage.getItem('selUnitPress') || 'HPA',
-                            time: localStorage.getItem('selTimeFormat') || '24H'
-                        }
-                    }
-                });
+                window.triggerSimBriefImport();
+                break;
+            case 'simbriefPlanReady':
+                if (window.showSimbriefStatus) window.showSimbriefStatus('OFP Generation Detected. Waiting for SimBrief...', 'emerald');
+                
+                // Add a 6-second delay to allow SimBrief's backend to finish generating the OFP
+                // before our application fetches it via the API.
+                setTimeout(() => {
+                    window.triggerSimBriefImport();
+                }, 6000);
                 break;
             case 'gatekeeperPassed':
                 window.chrome.webview.postMessage({
@@ -2110,25 +2358,45 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'briefingUpdate':
                 if (typeof window.parseBriefing === 'function') {
                     const parsedHtml = window.parseBriefing(payload.briefing);
-                    const briefingElem = document.getElementById('briefingContent');
+                    const briefingElem = document.getElementById('briefing-content');
                     if (briefingElem && briefingElem.dataset.lastBriefingHtml !== parsedHtml) {
                         briefingElem.innerHTML = parsedHtml;
                         briefingElem.dataset.lastBriefingHtml = parsedHtml;
                     }
                 }
+                // Refresh Timeline whenever we get briefing data
+                if (window.renderBriefingTimeline) window.renderBriefingTimeline();
+
+                // Unlock Dashboard if not already unlocked (User requested unlock as soon as data is entered)
+                if (!window.isDispatchSignedOff && payload.briefing) {
+                    // Manual sign-off is now required via button, but we ensure logic is ready
+                    // window.unlockDashboard(); // Keep locked until manual signoff
+                }
                 break;
             case 'flightReset':
                 window.currentFlight = null;
                 window.manifest = null;
-                window.activeLegIndex = 0;
-                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg();
-                if (window.resetDashboardWidgets) window.resetDashboardWidgets();
-                break;
-            case 'rotationCleared':
-                window.allRotations = [];
                 window.dashboardActiveLegIndex = 0;
                 if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg();
                 if (window.resetDashboardWidgets) window.resetDashboardWidgets();
+                if (window.renderBriefingTimeline) window.renderBriefingTimeline();
+                break;
+            case 'rotationCleared':
+                window.allRotations = [];
+                window.activeLegIndex = 0;
+                window.dashboardActiveLegIndex = 0;
+                window.isDispatchSignedOff = false;
+                localStorage.removeItem('isDispatchSignedOff');
+                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg();
+                if (window.resetDashboardWidgets) window.resetDashboardWidgets();
+                if (window.renderBriefingTimeline) window.renderBriefingTimeline();
+                
+                // Re-lock dashboard
+                const dashBtn = document.getElementById('navDashboardBtn');
+                if (dashBtn) {
+                    dashBtn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+                    dashBtn.classList.remove('cursor-pointer', 'hover:text-white', 'text-[#b6b6b6]');
+                }
                 break;
             case 'removeLegAtIndex':
                 if (window.allRotations && payload.index !== undefined) {
@@ -2141,8 +2409,12 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'phaseChanged':
                 console.log(`[IPC] Phase changed to ${payload.phase || msg.phase}`);
                 if (payload.phase === 'GroundOps' || msg.phase === 'GroundOps') {
-                    const navDashboard = document.getElementById('navDashboard');
-                    if (navDashboard) navDashboard.click(); // Switch to the dashboard
+                    // ONLY switch to dashboard automatically if dispatch is signed off AND we are NOT booting
+                    if (window.isDispatchSignedOff && !window.isAppBooting) {
+                        const navDashboard = document.getElementById('navDashboardBtn');
+                        if (navDashboard) navDashboard.click(); // Switch to the dashboard
+                    }
+                    
                     if (window.populateActiveFlightDetails) {
                         window.populateActiveFlightDetails();
                     }
@@ -2192,6 +2464,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (payload.isDelayed === true) flightHasExperiencedDelay = true;
                 if (payload.turbulenceSeverity > 1) flightHasExperiencedTurbulence = true; // Moderate, Severe or Extreme
+
+                // Debug GroundOps changes:
+                if (window._prevGsxBoarding !== payload.gsxBoardingState || window._prevMainDoor !== payload.isMainDoorOpen || window._prevBeacon !== payload.isBeaconOn || window._prevEngN1 !== payload.eng1N1) {
+                    console.log(`[GroundOps Telemetry] Beacon: ${payload.isBeaconOn} | MainDoor: ${payload.isMainDoorOpen} | Jetway: ${payload.isJetwayConnected} | GSX Bdg: ${payload.gsxBoardingState} | ENG1: ${payload.eng1N1}`);
+                    window._prevGsxBoarding = payload.gsxBoardingState;
+                    window._prevMainDoor = payload.isMainDoorOpen;
+                    window._prevBeacon = payload.isBeaconOn;
+                    window._prevEngN1 = payload.eng1N1;
+                }
 
                 // Airport Location Gatekeeper (Proactive Warning)
                 const locWarning = document.getElementById('locationMismatchWarning');
@@ -2504,7 +2785,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (payload.sessionFlightsCompleted !== undefined) {
                     if (window.activeLegIndex !== payload.sessionFlightsCompleted) {
                         window.activeLegIndex = payload.sessionFlightsCompleted;
+                        // BUG 21 FIX: Sync dashboard view with active leg
+                        window.dashboardActiveLegIndex = window.activeLegIndex;
+                        window.manifest = null; // Clear manifest to force reload for new leg
                         if (window.renderBriefingTabs) window.renderBriefingTabs();
+                        if (window.renderBriefingTimeline) window.renderBriefingTimeline();
+                        if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex);
                     }
                 }
                 const dashDetails = document.getElementById('dashFlightDetails');
@@ -2883,19 +3169,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'phaseUpdate':
                 document.getElementById('flightPhase').innerText = `${payload.phase}`;
-                if (payload.aobtUnix) {
+                
+                if (payload.hasOwnProperty('aobtUnix')) {
                     window.finalAobtUnix = payload.aobtUnix;
                     let el = document.getElementById('bdAobt') || document.getElementById('ttActDep');
-                    if (el) el.innerText = getFormattedTime(payload.aobtUnix);
+                    if (el) {
+                        if (payload.aobtUnix) el.innerText = getFormattedTime(payload.aobtUnix);
+                        else {
+                            el.innerText = '--:--z';
+                            const ts = document.getElementById('ttDepStatus');
+                            if (ts) { ts.innerText = 'WAITING'; ts.className = 'px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider'; }
+                        }
+                    }
                 } else if (payload.aobt) {
                     let el = document.getElementById('bdAobt') || document.getElementById('ttActDep');
                     if (el) el.innerText = payload.aobt;
                 }
 
-                if (payload.aibtUnix) {
+                if (payload.hasOwnProperty('aibtUnix')) {
                     window.finalAibtUnix = payload.aibtUnix;
                     let el = document.getElementById('bdAibt') || document.getElementById('ttActArr');
-                    if (el) el.innerText = getFormattedTime(payload.aibtUnix);
+                    if (el) {
+                        if (payload.aibtUnix) el.innerText = getFormattedTime(payload.aibtUnix);
+                        else {
+                            el.innerText = '--:--z';
+                            const ts = document.getElementById('ttArrStatus');
+                            if (ts) { ts.innerText = 'WAITING'; ts.className = 'px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider'; }
+                        }
+                    }
                 } else if (payload.aibt) {
                     let el = document.getElementById('bdAibt') || document.getElementById('ttActArr');
                     if (el) el.innerText = payload.aibt;
@@ -2960,8 +3261,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         rotSummary.style.display = 'none';
                     }
 
-                    document.getElementById('frFlightNo').innerText = `${rep.Airline}${rep.FlightNo}`;
-                    document.getElementById('frRoute').innerText = `${rep.Dep} âž” ${rep.Arr}`;
+                    document.getElementById('frFlightNo').innerText = `${rep.Airline || rep.airline || ''}${rep.FlightNo || rep.flightNo || ''}`;
+                    document.getElementById('frRoute').innerText = `${rep.Dep || rep.dep || 'UNK'} -> ${rep.Arr || rep.arr || 'UNK'}`;
 
                     const mainScoreEl = document.getElementById('frScore');
                     mainScoreEl.innerText = rep.Score;
@@ -2980,10 +3281,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         else el.classList.add('text-white');
                     };
 
-                    setSubScore('frSafetyScore', rep.safetyPoints || 0);
-                    setSubScore('frComfortScore', rep.comfortPoints || 0);
-                    setSubScore('frMaintScore', rep.maintenancePoints || 0);
-                    setSubScore('frOpsScore', rep.operationsPoints || 0);
+                    setSubScore('frSafetyScore', rep.SafetyPoints ?? rep.safetyPoints ?? 0);
+                    setSubScore('frComfortScore', rep.ComfortPoints ?? rep.comfortPoints ?? 0);
+                    setSubScore('frMaintScore', rep.MaintenancePoints ?? rep.maintenancePoints ?? 0);
+                    setSubScore('frOpsScore', rep.OperationsPoints ?? rep.operationsPoints ?? 0);
 
                     let btHours = Math.floor(rep.blockTime ? rep.blockTime / 60 : 0);
                     let btMins = (rep.blockTime || 0) % 60;
@@ -2992,20 +3293,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const puncBadge = document.getElementById('frPunc');
                     if (puncBadge) {
+                        let repDelaySec = rep.DelaySec ?? rep.delaySec ?? 0;
+                        let repRawDelaySec = rep.RawDelaySec ?? rep.rawDelaySec ?? 0;
                         puncBadge.innerText = puncText;
                         puncBadge.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'bg-red-500/20', 'text-red-400', 'bg-orange-500/20', 'text-orange-400', 'bg-sky-500/20', 'text-sky-400');
                         if (isLate) puncBadge.classList.add('bg-red-500/20', 'text-red-400');
                         else if (isEarly) puncBadge.classList.add('bg-sky-500/20', 'text-sky-400');
-                        else if (rep.delaySec <= 300 && rep.rawDelaySec > 300) puncBadge.classList.add('bg-orange-500/20', 'text-orange-400');
+                        else if (repDelaySec <= 300 && repRawDelaySec > 300) puncBadge.classList.add('bg-orange-500/20', 'text-orange-400');
                         else puncBadge.classList.add('bg-emerald-500/20', 'text-emerald-400');
                     }
 
                     let frFuel = document.getElementById('frFuel');
-                    if (frFuel) frFuel.innerText = rep.blockFuel || 0;
+                    if (frFuel) frFuel.innerText = rep.blockFuel ?? rep.BlockFuel ?? 0;
 
                     const fpmEl = document.getElementById('frFpm');
                     if (fpmEl) {
-                        let tzFpm = rep.touchdownFpm || 0;
+                        let tzFpm = rep.TouchdownFpm ?? rep.touchdownFpm ?? 0;
                         fpmEl.innerText = `${tzFpm.toFixed(0)} fpm`;
                         fpmEl.classList.remove('text-emerald-400', 'text-red-500', 'text-slate-200');
                         if (tzFpm < -400) fpmEl.classList.add('text-red-500');
@@ -3015,7 +3318,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const gEl = document.getElementById('frGForce');
                     if (gEl) {
-                        let tzG = rep.touchdownGForce || 1.0;
+                        let tzG = rep.TouchdownGForce ?? rep.touchdownGForce ?? 1.0;
                         gEl.innerText = `${tzG.toFixed(2)} G`;
                         gEl.classList.remove('text-red-500', 'text-slate-200');
                         if (tzG > 1.4) gEl.classList.add('text-red-500');
@@ -3453,17 +3756,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     elBar.style.width = pct + '%';
                 };
 
-                updateSubBar('b_safetyPts', 'b_safetyBar', payload.safety || 0);
-                updateSubBar('b_comfortPts', 'b_comfortBar', payload.comfort || 0);
-                updateSubBar('b_maintPts', 'b_maintBar', payload.maint || 0);
-                updateSubBar('b_opsPts', 'b_opsBar', payload.ops || 0);
+                const ptsSafety = payload.safety !== undefined ? payload.safety : (payload.Safety !== undefined ? payload.Safety : 0);
+                const ptsComfort = payload.comfort !== undefined ? payload.comfort : (payload.Comfort !== undefined ? payload.Comfort : 0);
+                const ptsMaint = payload.maint !== undefined ? payload.maint : (payload.Maint !== undefined ? payload.Maint : 0);
+                const ptsOps = payload.ops !== undefined ? payload.ops : (payload.Ops !== undefined ? payload.Ops : 0);
+
+                updateSubBar('b_safetyPts', 'b_safetyBar', ptsSafety);
+                updateSubBar('b_comfortPts', 'b_comfortBar', ptsComfort);
+                updateSubBar('b_maintPts', 'b_maintBar', ptsMaint);
+                updateSubBar('b_opsPts', 'b_opsBar', ptsOps);
+
+                const finalScore = payload.score !== undefined ? payload.score : (payload.Score !== undefined ? payload.Score : 1000);
+                const finalDelta = payload.delta !== undefined ? payload.delta : (payload.Delta !== undefined ? payload.Delta : 0);
+                const finalMsg = payload.msg || payload.message || payload.Msg || '';
 
                 const mainScore = document.getElementById('mainScoreValue');
-                if (mainScore) mainScore.innerText = payload.score;
+                if (mainScore) mainScore.innerText = finalScore;
 
-                if (payload.delta !== 0) {
+                if (finalDelta !== 0) {
                     mainScore.classList.remove('text-emerald-400', 'text-red-400');
-                    mainScore.classList.add(payload.delta > 0 ? 'text-emerald-400' : 'text-red-400');
+                    mainScore.classList.add(finalDelta > 0 ? 'text-emerald-400' : 'text-red-400');
                     setTimeout(() => {
                         if (isFlightCancelled) return;
                         mainScore.classList.remove('text-red-400');
@@ -3477,9 +3789,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
 
                         const fli = document.createElement('li');
-                        let deltaStr = payload.delta > 0 ? `+${payload.delta}` : `${payload.delta}`;
-                        let color = payload.delta > 0 ? '#34D399' : '#F87171';
-                        fli.innerHTML = `<span style="color:${color}; font-weight:bold; width: 45px; display:inline-block;">${deltaStr}</span> <span style="color:#cbd5e1;">${payload.msg}</span>`;
+                        let deltaStr = finalDelta > 0 ? `+${finalDelta}` : `${finalDelta}`;
+                        let color = finalDelta > 0 ? '#34D399' : '#F87171';
+                        fli.innerHTML = `<span style="color:${color}; font-weight:bold; width: 45px; display:inline-block;">${deltaStr}</span> <span style="color:#cbd5e1;">${finalMsg}</span>`;
                         fli.style.marginBottom = '5px';
                         fli.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
                         fli.style.paddingBottom = '3px';
@@ -3490,8 +3802,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     const plog = document.getElementById('penaltyLogs');
                     if (plog) {
                         const logLi = document.createElement('li');
-                        logLi.innerText = `[${window.getLocalFormattedTime()}] ${payload.msg} (Total: ${payload.score})`;
-                        logLi.style.color = payload.delta > 0 ? '#A7F3D0' : '#FCA5A5';
+                        logLi.innerText = `[${window.getLocalFormattedTime()}] ${finalMsg} (Total: ${finalScore})`;
+                        if (finalDelta === 0) {
+                            logLi.style.color = '#cbd5e1';
+                        } else {
+                            logLi.style.color = finalDelta > 0 ? '#A7F3D0' : '#FCA5A5';
+                        }
                         logLi.style.marginBottom = '5px';
                         plog.prepend(logLi);
                     }
@@ -3612,11 +3928,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const d = payload.data;
                 const manifest = payload.manifest;
 
+                const loader = document.getElementById('simbriefLoadingState');
+                if (loader) loader.style.display = 'none';
+
                 const dispatchModal = document.getElementById('simbriefDispatchModal');
                 if (dispatchModal && dispatchModal.style.display !== 'none') {
                     // Do not close the modal automatically anymore, display the "Next Leg" prompt
-                    const loader = document.getElementById('simbriefLoadingState');
-                    if (loader) loader.style.display = 'none';
 
                     const dispatchContainer = document.getElementById('dispatchLegsContainer');
                     if (dispatchContainer) {
@@ -3811,7 +4128,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Briefing Tab Rendering Engine (Navigation Shift)
 
                 // Trigger render
-                window.renderBriefingTabs();
+                if (window.renderBriefingTimeline) window.renderBriefingTimeline();
+                if (window.renderBriefingTabs) window.renderBriefingTabs();
                 if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
 
                 // Dashboard Header Logic (Metadata) - Only update to the newest leg payload
@@ -4120,8 +4438,33 @@ function renderGroundOps(services) {
         const icon = GO_ICONS[s.Name] || '🔹';
 
         let isBlocked = false;
-        if ((s.Name === "Deboarding" || s.Name === "Boarding") && isCrewWorking) isBlocked = true;
-        if ((s.Name.includes("Clean") || s.Name === "Catering") && isPaxMoving) isBlocked = true;
+        let blockReason = '';
+        let isPhysicalBlock = false;
+
+        if ((s.Name === "Deboarding" || s.Name === "Boarding") && isCrewWorking) {
+            isBlocked = true;
+            blockReason = 'CREW';
+        }
+        if ((s.Name.includes("Clean") || s.Name === "Catering") && isPaxMoving) {
+            isBlocked = true;
+            blockReason = 'PAX';
+        }
+
+        // TELEMETRY LOCKS
+        const tele = window.lastTelemetry || {};
+        const beaconOn = tele.isBeaconOn === true;
+        const engOn = (tele.eng1N1 >= 5) || (tele.eng2N1 >= 5);
+        const doorOpen = tele.isMainDoorOpen === true || tele.isJetwayConnected === true;
+
+        if (s.Name === "Deboarding" || s.Name === "Boarding" || s.Name === "Cargo" || s.Name === "Cargo/Luggage") {
+            if (engOn) { isBlocked = true; isPhysicalBlock = true; blockReason = 'ENGINES'; }
+            else if (beaconOn) { isBlocked = true; isPhysicalBlock = true; blockReason = 'BEACON'; }
+            else if ((s.Name === "Deboarding" || s.Name === "Boarding") && !doorOpen) { isBlocked = true; isPhysicalBlock = true; blockReason = 'DOORS'; }
+        } else {
+            // Other services (Fuel, Catering, Cleaning, Water)
+            if (engOn) { isBlocked = true; isPhysicalBlock = true; blockReason = 'ENGINES'; }
+            else if (beaconOn) { isBlocked = true; isPhysicalBlock = true; blockReason = 'BEACON'; }
+        }
 
         let isCompleted = stateVal === 3 || stateVal === 4 || s.IsPreServiced || s.isPreServiced;
 
@@ -4133,8 +4476,16 @@ function renderGroundOps(services) {
 
         if (stateVal === 0 || stateVal === 5) {
             if (isBlocked) {
-                buttonStyles = 'color: #64748b; opacity: 0.4; cursor: default; pointer-events: none;';
-                buttonText = `LOCKED (${isPaxMoving ? 'PAX' : 'SVC'})`;
+                if (isPhysicalBlock) {
+                    buttonStyles = 'color: #ef4444; opacity: 0.8; cursor: default; pointer-events: none;';
+                    buttonClass += ' shadow-[0_0_10px_rgba(239,68,68,0.2)] bg-red-500/5';
+                    if (blockReason === 'ENGINES') buttonText = `⚠️ ENGINES ON`;
+                    else if (blockReason === 'BEACON') buttonText = `⚠️ BEACON ON`;
+                    else if (blockReason === 'DOORS') buttonText = `⚠️ DOORS CLSD`;
+                } else {
+                    buttonStyles = 'color: #64748b; opacity: 0.4; cursor: default; pointer-events: none;';
+                    buttonText = `LOCKED (${blockReason})`;
+                }
             } else {
                 buttonStyles = 'color: #38bdf8; cursor: pointer;';
                 buttonClass += ' hover:text-white hover:bg-sky-500/10 hover:border hover:border-sky-500/50';
@@ -4226,6 +4577,12 @@ function renderGroundOps(services) {
                 } else {
                     let mappedProgress = s.ProgressPercent;
                     let mappedColor = barColor;
+                    
+                    // Invert progress for Deboarding (100% full -> 0% empty)
+                    if (s.Name === "Deboarding") {
+                        mappedProgress = 100 - (s.ProgressPercent || 0);
+                    }
+
                     if (s.State !== 1 && window.lastTelemetry && !isCompleted) {
                         if (s.Name === "Catering") {
                             mappedProgress = window.lastTelemetry.cateringCompletion !== undefined ? window.lastTelemetry.cateringCompletion : 100;
@@ -4291,6 +4648,14 @@ window.renderManifest = function (manifest) {
         let boardedCount = 0;
         let fastenedCount = 0;
         let injuredCount = 0;
+
+        // PRE-CLEAR ALL DOM SEATS to avoid "Ghosts" from previous leg if seat assignment changed.
+        const allSeats = existingMap.querySelectorAll('.seat');
+        allSeats.forEach(s => {
+            s.className = 'seat';
+            s.innerHTML = '';
+            s.dataset.initialized = '';
+        });
 
         (manifest.Passengers || manifest.passengers).forEach(p => {
             if (p.IsBoarded === true || p.isBoarded === true) {

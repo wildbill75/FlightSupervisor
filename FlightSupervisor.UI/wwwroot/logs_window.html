@@ -131,6 +131,49 @@
                         document.getElementById('topScoreValue').innerText = payload.score;
                     }
                 }
+                else if (payload.type === 'scoreUpdate') {
+                    const logs = document.getElementById('penaltyLogs');
+                    if (logs) {
+                        const finalScore = payload.score !== undefined ? payload.score : (payload.Score !== undefined ? payload.Score : 1000);
+                        const finalDelta = payload.delta !== undefined ? payload.delta : (payload.Delta !== undefined ? payload.Delta : 0);
+                        const finalMsg = payload.msg || payload.message || payload.Msg || '';
+                        
+                        if (finalMsg) {
+                            const logLi = document.createElement('li');
+                            const now = new Date();
+                            const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}z`;
+                            
+                            logLi.innerText = `[${timeStr}] ${finalMsg} (Total: ${finalScore})`;
+                            
+                            if (finalDelta === 0) {
+                                logLi.className = 'text-[#cbd5e1] font-mono text-sm py-1 border-b border-white/10';
+                            } else {
+                                logLi.className = finalDelta > 0 
+                                    ? 'text-emerald-300 font-mono text-sm py-1 border-b border-emerald-900/30' 
+                                    : 'text-red-400 font-mono text-sm py-1 border-b border-red-900/30';
+                            }
+                            
+                            logs.appendChild(logLi);
+                            logs.scrollTop = logs.scrollHeight;
+                        }
+                        
+                        document.getElementById('topScoreValue').innerText = finalScore;
+                    }
+                }
+                else if (payload.type === 'log') {
+                    const logs = document.getElementById('penaltyLogs');
+                    if (logs && payload.message) {
+                        const logLi = document.createElement('li');
+                        logLi.className = 'text-[#cbd5e1] font-mono text-sm py-1 border-b border-white/10';
+                        
+                        const now = new Date();
+                        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}z`;
+                        
+                        logLi.innerText = `[${timeStr}] ${payload.message}`;
+                        logs.appendChild(logLi);
+                        logs.scrollTop = logs.scrollHeight;
+                    }
+                }
             });
 
             // Signal C# backend that the window has fully loaded
