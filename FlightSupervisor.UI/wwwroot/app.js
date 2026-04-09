@@ -487,25 +487,36 @@ window.renderBriefingTimeline = () => {
 
         const rd = rot.data;
         const from = rd?.origin?.icao_code || '---';
+        const fromName = rd?.origin?.name || '';
         const to = rd?.destination?.icao_code || '---';
+        const toName = rd?.destination?.name || '';
         const isActive = (i === currentIndex);
 
         html += `
-            <div class="w-28 h-28 md:w-32 md:h-32 bg-[#2a2a2b] rounded-[1rem] border ${isActive ? 'border-zinc-500 shadow-[0_0_30px_rgba(255,255,255,0.03)]' : 'border-white/5'} flex flex-col items-center justify-center p-3 relative overflow-hidden group cursor-pointer hover:border-white/10 transition-all flex-shrink-0"
+            <div class="w-40 h-[220px] md:w-48 bg-[#2a2a2b] rounded-2xl border ${isActive ? 'border-zinc-500 shadow-[0_0_30px_rgba(255,255,255,0.03)]' : 'border-white/5'} flex flex-col items-center justify-center p-4 relative overflow-hidden group cursor-pointer hover:border-white/10 transition-all flex-shrink-0"
                  onclick="window.dashboardActiveLegIndex = ${i}; window.renderBriefingTimeline(); window.populateDashboardActiveLeg(${i});">
                 
                 <!-- Permanent Delete Button -->
                 <div class="absolute bottom-2 right-2">
                     <button onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'removeLeg', payload: { index: ${i} } });" 
-                            class="text-zinc-600 hover:text-zinc-100 p-1 transition-colors" title="Remove Leg">
-                        <span class="material-symbols-outlined text-[16px]">delete</span>
+                            class="text-zinc-600 hover:text-white bg-black/20 hover:bg-red-500 rounded-lg p-1.5 transition-colors" title="Remove Leg">
+                        <span class="material-symbols-outlined text-[18px]">delete</span>
                     </button>
                 </div>
 
-                <div class="text-[9px] uppercase tracking-[0.15em] text-[#7b7b7b] mb-2 font-bold">Leg ${i+1}</div>
-                <div class="text-xl md:text-2xl font-black text-white tracking-widest leading-none">${from}</div>
-                <div class="h-px w-6 md:w-8 bg-white/10 my-1.5 md:my-2"></div>
-                <div class="text-xl md:text-2xl font-black text-white tracking-widest leading-none">${to}</div>
+                <div class="text-[10px] uppercase tracking-[0.2em] text-[#b6b6b6] mb-3 font-bold">Leg ${i+1}</div>
+                
+                <div class="flex flex-col items-center max-w-[90%] text-center">
+                    <div class="text-2xl md:text-3xl font-black text-white tracking-widest leading-none mb-1">${from}</div>
+                    <div class="text-[9px] text-[#7b7b7b] uppercase truncate w-full" title="${fromName}">${fromName}</div>
+                </div>
+                
+                <div class="h-px w-8 md:w-12 bg-white/10 my-3"></div>
+                
+                <div class="flex flex-col items-center max-w-[90%] text-center">
+                    <div class="text-2xl md:text-3xl font-black text-white tracking-widest leading-none mb-1">${to}</div>
+                    <div class="text-[9px] text-[#7b7b7b] uppercase truncate w-full" title="${toName}">${toName}</div>
+                </div>
                 
                 <!-- Silver Active Indicator (Top Left, No Pulse) -->
                 ${isActive ? '<div class="absolute top-3 left-3 w-2.5 h-2.5 bg-zinc-400 rounded-full shadow-[0_0_10px_rgba(255,255,255,0.2)]"></div>' : ''}
@@ -526,10 +537,10 @@ window.renderBriefingTimeline = () => {
     // 2. Render "Add Flight" button in the next available slot
     if (rotations.length < maxSlots) {
         html += `
-            <div class="w-28 h-28 md:w-32 md:h-32 bg-white/5 rounded-[1rem] border-2 border-dashed border-white/10 flex flex-col items-center justify-center p-3 group hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer shadow-inner flex-shrink-0"
+            <div class="w-40 h-[220px] md:w-48 bg-white/5 rounded-2xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center p-3 group hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer shadow-inner flex-shrink-0"
                  onclick="window.openIntegratedSimBrief()">
                 <span class="material-symbols-outlined text-4xl md:text-5xl text-zinc-400 group-hover:scale-110 transition-transform mb-1 md:mb-2">add_circle</span>
-                <span class="text-[9px] font-bold tracking-[0.15em] uppercase text-zinc-500 group-hover:text-zinc-200 transition-colors">Add Flight</span>
+                <span class="text-[10px] font-bold tracking-[0.15em] uppercase text-zinc-500 group-hover:text-zinc-200 transition-colors">Add Flight</span>
             </div>
         `;
 
@@ -539,15 +550,13 @@ window.renderBriefingTimeline = () => {
                 <div class="flex items-center justify-center flex-shrink-0">
                     <span class="material-symbols-outlined text-white/5 text-xl">arrow_forward</span>
                 </div>
-                <div class="w-28 h-28 md:w-32 md:h-32 bg-black/5 rounded-[1rem] border border-dashed border-white/5 flex items-center justify-center opacity-10 flex-shrink-0">
-                    <span class="material-symbols-outlined text-2xl md:text-3xl text-zinc-600">flight_takeoff</span>
+                <div class="w-40 h-[220px] md:w-48 bg-black/5 rounded-2xl border border-dashed border-white/5 flex items-center justify-center opacity-10 flex-shrink-0">
+                    <span class="material-symbols-outlined text-3xl md:text-4xl text-zinc-600">flight_takeoff</span>
                 </div>
             `;
         }
     } else {
         // If 6 flights reached, just close the timeline nicely
-        // (Removing the last extra arrow from the loop above if needed, 
-        // but here the loop handles it by not adding an arrow after the last element)
         if (html.endsWith('arrow_forward</span>\n            </div>\n        ')) {
             html = html.substring(0, html.lastIndexOf('<div class="flex items-center justify-center">'));
         }
@@ -558,28 +567,6 @@ window.renderBriefingTimeline = () => {
     // Check persistence
     if (localStorage.getItem('isDispatchSignedOff') === 'true') {
         window.unlockDashboard(true); // silent unlock
-    }
-
-    // Toggle validation buttons active state instead of hiding them
-    if (valArea) {
-        const valBtn = valArea.querySelector('button[onclick="window.unlockDashboard();"]');
-        const clearBtn = valArea.querySelector('button[onclick="window.chrome.webview.postMessage({ action: \'clearAllRotations\' });"]');
-        
-        if (rotations.length > 0 && !window.isDispatchSignedOff) {
-            if (valBtn) {
-                valBtn.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
-            }
-            if (clearBtn) {
-                clearBtn.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
-            }
-        } else {
-            if (valBtn) {
-                valBtn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
-            }
-            if (clearBtn) {
-                clearBtn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
-            }
-        }
     }
 };
 
