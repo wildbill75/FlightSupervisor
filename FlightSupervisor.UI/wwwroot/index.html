@@ -229,7 +229,7 @@
                             <div id="dashFlightVisualEmpty" class="w-full relative transition-all duration-500">
                                 <div class="w-full flex flex-col gap-4">
                                     <!-- Top Row: Banner -->
-                                    <div class="flex items-stretch justify-between w-full bg-[#2a2a2b] rounded-[14px] border border-white/5 py-4 px-2 shadow-lg">
+                                    <div class="flex items-stretch justify-between w-full bg-[#1a1d24]/60 backdrop-blur-md rounded-2xl border border-white/5 py-4 px-2 shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
                                         <div class="flex flex-col flex-1 items-center justify-center border-r border-white/10 px-4">
                                             <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Airline</div>
                                             <div class="text-[20px] font-black text-white tracking-widest mt-1 uppercase">---</div>
@@ -252,7 +252,7 @@
                                     <div class="flex items-stretch w-full gap-2">
                                         
                                         <!-- Main Leg Pill -->
-                                        <div class="flex-1 bg-[#2a2a2b] rounded-[14px] border border-white/5 flex shadow-lg overflow-hidden h-[164px]">
+                                        <div class="flex-1 bg-[#1a1d24]/60 backdrop-blur-md rounded-2xl border border-white/5 flex shadow-[0_8px_30px_rgba(0,0,0,0.5)] overflow-hidden h-[164px]">
                                             
                                             <!-- Left Arrow Button -->
                                             <div role="button" tabindex="-1" class="px-6 flex items-center justify-center opacity-20 transition-colors pointer-events-none group">
@@ -276,12 +276,12 @@
                                                     <div class="text-[16px] font-bold text-white tracking-widest uppercase mt-1 text-center">FL---</div>
                                                     
                                                     <div class="w-full flex items-center justify-center my-4 relative pointer-events-none">
-                                                        <svg class="w-full h-4 text-white drop-shadow-md" preserveAspectRatio="none" viewBox="0 0 100 10">
+                                                        <svg class="w-full h-4 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]" preserveAspectRatio="none" viewBox="0 0 100 10">
                                                             <line x1="2" y1="5" x2="98" y2="5" stroke="currentColor" stroke-width="1.5" />
                                                             <polyline points="5,2 1,5 5,8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                                                             <polyline points="95,2 99,5 95,8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                                                         </svg>
-                                                        <span class="material-symbols-outlined text-[#7b7b7b] absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#2a2a2b] px-2" style="top:50%; transform: translate(-50%, -50%) rotate(90deg) scale(1.3);">flight</span>
+                                                        <span class="material-symbols-outlined text-[#7b7b7b] absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#1a1d24] px-2 shadow-[0_0_10px_rgba(26,29,36,1)]" style="top:50%; transform: translate(-50%, -50%) rotate(90deg) scale(1.3);">flight</span>
                                                     </div>
                                                     
                                                     <div class="text-[10px] font-mono tracking-[0.2em] text-[#7b7b7b] uppercase text-center w-[120%] px-2 mt-2" style="line-height:1.2;">
@@ -340,10 +340,10 @@
                     <!-- AIRLINE IDENTITY CARD COMPLETELY REMOVED PER TRUE AIRMANSHIP DIRECTIVE -->
 
                     <!-- FULL ROW WRAPPER FOR SIDE-BY-SIDE PANELS -->
-                    <div class="col-span-12 grid grid-cols-12 gap-4 mb-8 pb-8 border-b border-white/5 w-full">
+                    <div class="col-span-12 grid grid-cols-12 gap-5 mb-8 pb-8 border-b border-white/5 w-full">
 
-                        <div class="col-span-4 bg-[#2a2a2b] rounded-xl overflow-hidden flex flex-col border border-white/5 shadow-lg cursor-pointer hover:bg-white/5 transition-all" onclick="window.chrome.webview.postMessage({action: 'openGroundOpsWindow'})" title="Open Ground Operations Panel">
-                        <div class="px-6 py-6 flex flex-row items-center justify-center gap-4">
+                        <div class="col-span-4 bg-[#1a1d24]/60 backdrop-blur-xl rounded-2xl overflow-hidden flex flex-col border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.4)] cursor-pointer hover:bg-[#1a1d24]/80 transition-all hover:border-white/10 group" onclick="window.chrome.webview.postMessage({action: 'openGroundOpsWindow'})" title="Open Ground Operations Panel">
+                        <div class="px-6 py-6 flex flex-row items-center justify-center gap-4 bg-gradient-to-b from-white/5 to-transparent">
                             <span id="flightPhase" class="text-lg font-label tracking-[0.4em] text-[#b6b6b6] font-bold uppercase shrink-0">OFF</span>
                             <div class="h-6 w-px bg-white/10 shrink-0"></div>
                             <div id="flightCountdown" class="text-sm text-[#7b7b7b] font-bold tracking-widest shrink-0" style="font-family: 'Manrope', sans-serif;"></div>
@@ -440,7 +440,7 @@
                         </div>
                     </div>
 
-                        <div class="col-span-4 bg-[#2a2a2b] rounded-xl p-6 flex flex-col border border-white/5 shadow-lg cursor-pointer hover:bg-white/5 transition-all" onclick="window.chrome.webview.postMessage({action: 'openManifestWindow'})" title="Open Manifest View">
+                        <div class="col-span-4 bg-[#1a1d24]/60 backdrop-blur-xl rounded-2xl p-6 flex flex-col border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.4)] cursor-pointer hover:bg-[#1a1d24]/80 transition-all hover:border-white/10 group" onclick="window.chrome.webview.postMessage({action: 'openManifestWindow'})" title="Open Manifest View">
                         <div class="mb-6 flex flex-col items-center justify-center">
                             <span class="text-xs font-label tracking-[0.4em] text-[#b6b6b6] font-bold uppercase" data-i18n="dash_cabin_exp">Cabin Experience</span>
                         </div>
@@ -627,29 +627,29 @@
             </section>
 
             <!-- BRIEFING TAB -->
-            <section id="briefing" class="tab-content active" style="padding-bottom: 50px;">
+            <section id="briefing" class="tab-content active flex flex-col min-h-[calc(100vh-120px)] w-full">
                 <!-- Timeline de Rotation (Dynamique) -->
-                <div class="flex flex-col items-center gap-6 mb-12">
-                    <div id="briefing-timeline" class="flex items-center gap-4 p-8 bg-black/20 rounded-3xl border border-white/5 shadow-inner w-full justify-center overflow-x-auto min-h-[220px]">
+                <div class="flex flex-col items-center gap-6 mb-6 flex-none w-full">
+                    <div id="briefing-timeline" class="flex items-center gap-4 p-8 bg-black/20 rounded-3xl border border-white/5 shadow-inner w-full overflow-x-auto min-h-[180px]">
                         <!-- Généré dynamiquement par app.js -->
                     </div>
                     
                     <!-- Validation Button Area -->
                     <div id="briefing-validation-area" class="flex items-center gap-6 pt-2">
-                        <button onclick="window.unlockDashboard();" class="relative overflow-hidden px-8 py-3 rounded-full border border-sky-400/20 bg-gradient-to-r from-sky-900/40 to-[#14161a] backdrop-blur-xl shadow-[0_0_15px_rgba(56,189,248,0.05)] hover:shadow-[0_0_20px_rgba(56,189,248,0.15)] hover:border-sky-400/50 transition-all duration-500 flex items-center gap-3 group">
-                            <div class="absolute inset-0 bg-sky-400/0 group-hover:bg-sky-400/5 transition-colors duration-500"></div>
-                            <span class="material-symbols-outlined text-sky-500/70 group-hover:text-sky-400 font-light transition-colors relative z-10 text-lg">flight_land</span>
-                            <span class="text-[11px] font-bold tracking-[0.2em] text-sky-100/90 group-hover:text-white transition-colors relative z-10 uppercase">Validate Rotation</span>
+                        <button onclick="window.unlockDashboard();" class="relative overflow-hidden px-8 py-3 rounded-full border border-sky-400/20 bg-[#16181c] shadow-[0_0_15px_rgba(56,189,248,0.05)] hover:border-sky-400/50 transition-all duration-500 flex items-center justify-center group flex-1 md:flex-none">
+                            <span class="text-[11px] font-bold tracking-[0.2em] text-sky-100 group-hover:text-white transition-colors relative z-10 uppercase">Validate Rotation</span>
                         </button>
                         
-                        <button onclick="window.chrome.webview.postMessage({ action: 'clearAllRotations' });" class="px-6 py-3 rounded-full border border-white/5 bg-white/5 hover:bg-white/10 backdrop-blur-md hover:border-red-500/20 transition-all duration-300 flex items-center gap-2 group">
-                            <span class="text-[10px] font-bold tracking-[0.15em] text-slate-500 group-hover:text-red-400/80 transition-colors uppercase">Clear</span>
+                        <button onclick="window.chrome.webview.postMessage({ action: 'clearAllRotations' });" class="px-6 py-3 rounded-full border border-white/5 bg-white/5 hover:bg-white/10 hover:border-red-500/20 transition-all duration-300 flex items-center justify-center group">
+                            <span class="text-[10px] font-bold tracking-[0.15em] text-slate-500 group-hover:text-red-400/80 transition-colors uppercase">Clear Rotation</span>
                         </button>
                     </div>
 
-                    <!-- Integrated SimBrief Section -->
-                    <div id="simbrief-integrated-container" class="hidden w-full max-w-[1240px] animate-fade-in">
-                        <div class="bg-[#1C1F26]/80 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden mt-6">
+                </div> <!-- End of Top Elements Container -->
+
+                <!-- Integrated SimBrief Section (Now a direct child of the flex-col section) -->
+                <div id="simbrief-integrated-container" class="hidden w-full flex-1 flex flex-col animate-fade-in pb-4">
+                    <div class="bg-[#1C1F26]/80 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col flex-1 min-h-[500px]">
                             <div class="flex items-center justify-between p-4 bg-[#14161a]/60 border-b border-white/5">
                                 <div class="flex items-center gap-3">
                                     <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/20 shadow-inner">
@@ -675,19 +675,14 @@
                                     </button>
                                 </div>
                             </div>
-                            <div class="relative w-full h-[600px] 2xl:h-[700px] bg-[#141414]">
-                                <div id="simbrief-iframe-loader" class="absolute inset-0 flex flex-col items-center justify-center bg-[#141414] z-10">
-                                    <div class="w-12 h-12 border-4 border-sky-500/20 border-t-sky-500 rounded-full animate-spin mb-4"></div>
-                                    <p class="text-xs font-mono text-sky-400 tracking-widest animate-pulse">ESTABLISHING SECURE TUNNEL...</p>
-                                    <p class="text-[10px] text-slate-500 mt-2">Bypassing security headers...</p>
-                                </div>
-                                <iframe id="simbrief-iframe" class="w-full h-full border-none" src="about:blank"></iframe>
+                            <div class="relative w-full flex-1 min-h-[600px] bg-[#141414]">
+                                <iframe id="simbrief-iframe" class="absolute inset-0 w-full h-full border-none" src="about:blank"></iframe>
                             </div>
                         </div>
                     </div>
-                </div>
+                <!-- End of SimBrief Container -->
 
-                <div id="briefing-content" class="min-h-[500px]">
+                <div id="briefing-content" class="hidden">
                     <!-- Contenu de la Loading Sheet (Future étape) -->
                 </div>
             </section>

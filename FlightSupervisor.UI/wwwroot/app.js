@@ -280,7 +280,7 @@ window.populateDashboardActiveLeg = (index = 0) => {
         activeContainer.innerHTML = `
             <div class="w-full flex flex-col gap-2 animate-fade-in">
                 <!-- Top Row: Banner -->
-                <div class="flex items-stretch justify-between w-full bg-[#2a2a2b] rounded-[14px] border border-white/5 py-4 px-2 shadow-lg mb-2">
+                <div class="flex items-stretch justify-between w-full bg-[#1a1d24]/60 backdrop-blur-md rounded-2xl border border-white/5 py-4 px-2 shadow-[0_8px_30px_rgba(0,0,0,0.5)] mb-2">
                     <div class="flex flex-col flex-1 items-center justify-center border-r border-white/10 px-4">
                         <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Airline</div>
                         <div class="text-[20px] font-black text-white tracking-widest mt-1 uppercase text-center">${ac}</div>
@@ -303,7 +303,7 @@ window.populateDashboardActiveLeg = (index = 0) => {
                 <div class="flex items-stretch w-full gap-2">
                     
                     <!-- Main Leg Pill -->
-                    <div class="flex-1 bg-[#2a2a2b] rounded-[14px] border border-white/5 flex shadow-lg overflow-hidden h-[164px]">
+                    <div class="flex-1 bg-[#1a1d24]/60 backdrop-blur-md rounded-2xl border border-white/5 flex shadow-[0_8px_30px_rgba(0,0,0,0.5)] overflow-hidden h-[164px]">
                         
                         <!-- Left Arrow Button -->
                         <div role="button" tabindex="0" onclick="window.navigateDashboardLeg(-1)" class="px-6 flex items-center justify-center transition-colors group ${leftOpacity}">
@@ -327,12 +327,12 @@ window.populateDashboardActiveLeg = (index = 0) => {
                                 <div class="text-[16px] font-bold text-white tracking-widest uppercase mt-1 text-center">${fl}</div>
                                 
                                 <div class="w-full flex items-center justify-center my-4 relative pointer-events-none">
-                                    <svg class="w-full h-4 text-white drop-shadow-md" preserveAspectRatio="none" viewBox="0 0 100 10">
+                                    <svg class="w-full h-4 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]" preserveAspectRatio="none" viewBox="0 0 100 10">
                                         <line x1="2" y1="5" x2="98" y2="5" stroke="currentColor" stroke-width="1.5" />
                                         <polyline points="5,2 1,5 5,8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                                         <polyline points="95,2 99,5 95,8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                                     </svg>
-                                    <span class="material-symbols-outlined text-[#7b7b7b] absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#2a2a2b] px-2" style="top:50%; transform: translate(-50%, -50%) rotate(90deg) scale(1.3);">flight</span>
+                                    <span class="material-symbols-outlined text-[#7b7b7b] absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#1a1d24] px-2 shadow-[0_0_10px_rgba(26,29,36,1)]" style="top:50%; transform: translate(-50%, -50%) rotate(90deg) scale(1.3);">flight</span>
                                 </div>
                                 
                                 <div class="text-[10px] font-mono tracking-[0.2em] text-[#7b7b7b] uppercase text-center w-[120%] px-2 mt-2" style="line-height:1.2;">
@@ -405,22 +405,13 @@ window.clearAllLegs = function() {
 window.openIntegratedSimBrief = () => {
     const container = document.getElementById('simbrief-integrated-container');
     const iframe = document.getElementById('simbrief-iframe');
-    const loader = document.getElementById('simbrief-iframe-loader');
-
     if (!container || !iframe) return;
 
     // Reset visibility
     container.classList.remove('hidden');
-    loader.classList.remove('hidden');
     
     // Load SimBrief
     iframe.src = "https://dispatch.simbrief.com/options/custom";
-    
-    // Hide loader when iframe finishes loading
-    iframe.onload = () => {
-        loader.classList.add('hidden');
-    };
-
     // Smooth scroll to container
     container.scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
@@ -493,21 +484,21 @@ window.renderBriefingTimeline = () => {
         const isActive = (i === currentIndex);
 
         html += `
-            <div class="w-44 h-44 bg-[#2a2a2b] rounded-2xl border ${isActive ? 'border-zinc-500 shadow-[0_0_40px_rgba(255,255,255,0.03)]' : 'border-white/5'} flex flex-col items-center justify-center p-4 relative overflow-hidden group cursor-pointer hover:border-white/10 transition-all"
+            <div class="w-28 h-28 md:w-32 md:h-32 bg-[#2a2a2b] rounded-[1rem] border ${isActive ? 'border-zinc-500 shadow-[0_0_30px_rgba(255,255,255,0.03)]' : 'border-white/5'} flex flex-col items-center justify-center p-3 relative overflow-hidden group cursor-pointer hover:border-white/10 transition-all flex-shrink-0"
                  onclick="window.dashboardActiveLegIndex = ${i}; window.renderBriefingTimeline(); window.populateDashboardActiveLeg(${i});">
                 
                 <!-- Permanent Delete Button -->
-                <div class="absolute bottom-3 right-3">
+                <div class="absolute bottom-2 right-2">
                     <button onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'removeLeg', payload: { index: ${i} } });" 
                             class="text-zinc-600 hover:text-zinc-100 p-1 transition-colors" title="Remove Leg">
-                        <span class="material-symbols-outlined text-[18px]">delete</span>
+                        <span class="material-symbols-outlined text-[16px]">delete</span>
                     </button>
                 </div>
 
-                <div class="text-[10px] uppercase tracking-[0.2em] text-[#7b7b7b] mb-3 font-bold">Leg ${i+1}</div>
-                <div class="text-2xl font-black text-white tracking-[0.1em] leading-tight">${from}</div>
-                <div class="h-px w-10 bg-white/10 my-2"></div>
-                <div class="text-2xl font-black text-white tracking-[0.1em] leading-tight">${to}</div>
+                <div class="text-[9px] uppercase tracking-[0.15em] text-[#7b7b7b] mb-2 font-bold">Leg ${i+1}</div>
+                <div class="text-xl md:text-2xl font-black text-white tracking-widest leading-none">${from}</div>
+                <div class="h-px w-6 md:w-8 bg-white/10 my-1.5 md:my-2"></div>
+                <div class="text-xl md:text-2xl font-black text-white tracking-widest leading-none">${to}</div>
                 
                 <!-- Silver Active Indicator (Top Left, No Pulse) -->
                 ${isActive ? '<div class="absolute top-3 left-3 w-2.5 h-2.5 bg-zinc-400 rounded-full shadow-[0_0_10px_rgba(255,255,255,0.2)]"></div>' : ''}
@@ -528,21 +519,21 @@ window.renderBriefingTimeline = () => {
     // 2. Render "Add Flight" button in the next available slot
     if (rotations.length < maxSlots) {
         html += `
-            <div class="w-44 h-44 bg-white/5 rounded-2xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center p-4 group hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer shadow-inner"
+            <div class="w-28 h-28 md:w-32 md:h-32 bg-white/5 rounded-[1rem] border-2 border-dashed border-white/10 flex flex-col items-center justify-center p-3 group hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer shadow-inner flex-shrink-0"
                  onclick="window.openIntegratedSimBrief()">
-                <span class="material-symbols-outlined text-5xl text-zinc-400 group-hover:scale-110 transition-transform mb-2">add_circle</span>
-                <span class="text-[10px] font-bold tracking-[0.2em] uppercase text-zinc-500 group-hover:text-zinc-200 transition-colors">Add Flight</span>
+                <span class="material-symbols-outlined text-4xl md:text-5xl text-zinc-400 group-hover:scale-110 transition-transform mb-1 md:mb-2">add_circle</span>
+                <span class="text-[9px] font-bold tracking-[0.15em] uppercase text-zinc-500 group-hover:text-zinc-200 transition-colors">Add Flight</span>
             </div>
         `;
 
         // Following Placeholders
         for (let i = rotations.length + 1; i < maxSlots; i++) {
             html += `
-                <div class="flex items-center justify-center">
-                    <span class="material-symbols-outlined text-white/5 text-2xl">arrow_forward</span>
+                <div class="flex items-center justify-center flex-shrink-0">
+                    <span class="material-symbols-outlined text-white/5 text-xl">arrow_forward</span>
                 </div>
-                <div class="w-44 h-44 bg-black/5 rounded-2xl border border-dashed border-white/5 flex items-center justify-center opacity-10">
-                    <span class="material-symbols-outlined text-3xl text-zinc-600">flight_takeoff</span>
+                <div class="w-28 h-28 md:w-32 md:h-32 bg-black/5 rounded-[1rem] border border-dashed border-white/5 flex items-center justify-center opacity-10 flex-shrink-0">
+                    <span class="material-symbols-outlined text-2xl md:text-3xl text-zinc-600">flight_takeoff</span>
                 </div>
             `;
         }
