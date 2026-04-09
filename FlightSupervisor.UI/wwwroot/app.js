@@ -403,31 +403,25 @@ window.clearAllLegs = function() {
 
 // ---- SIMBRIEF NATIVE INTEGRATION ----
 window.openIntegratedSimBrief = () => {
-    const container = document.getElementById('simbrief-integrated-container');
+    const modal = document.getElementById('simbriefDispatchModal');
     const iframe = document.getElementById('simbrief-iframe');
-    if (!container || !iframe) return;
+    if (!modal || !iframe) return;
 
-    // Reset visibility
-    container.classList.remove('hidden');
-    
-    // Load SimBrief
+    modal.style.display = 'flex';
     iframe.src = "https://dispatch.simbrief.com/options/custom";
-    // Smooth scroll to container
-    container.scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
 
 window.closeIntegratedSimBrief = () => {
-    const container = document.getElementById('simbrief-integrated-container');
+    const modal = document.getElementById('simbriefDispatchModal');
     const iframe = document.getElementById('simbrief-iframe');
-    if (container) container.classList.add('hidden');
+    if (modal) modal.style.display = 'none';
     if (iframe) iframe.src = "about:blank";
-    
-    // Automatically attempt to fetch the generated OFP when the user closes the window,
-    // mirroring the behavior of the external window mode.
-    window.triggerSimBriefImport();
 };
 
 window.triggerSimBriefImport = () => {
+    // Automatically close the modal when importing
+    window.closeIntegratedSimBrief();
+
     const user = localStorage.getItem('sbUsername') || '';
     let ffCln = localStorage.getItem('firstFlightClean') === "true";
     if (typeof currentDutyState !== 'undefined' && currentDutyState) {
@@ -467,12 +461,25 @@ window.triggerSimBriefImport = () => {
 window.renderBriefingTimeline = () => {
     const container = document.getElementById('briefing-timeline');
     const valArea = document.getElementById('briefing-validation-area');
+    const emptyState = document.getElementById('briefing-empty-state');
     if (!container) return;
 
     let html = '';
     const rotations = window.allRotations || [];
     const currentIndex = window.dashboardActiveLegIndex || 0;
     const maxSlots = 6;
+    
+    // Empty state logic
+    if (rotations.length === 0) {
+        if (emptyState) emptyState.classList.remove('hidden');
+        container.classList.add('hidden');
+        if (valArea) valArea.classList.add('hidden');
+        return;
+    } else {
+        if (emptyState) emptyState.classList.add('hidden');
+        container.classList.remove('hidden');
+        if (valArea) valArea.classList.remove('hidden');
+    }
 
     // 1. Render filled slots (Vols)
     rotations.forEach((rot, i) => {

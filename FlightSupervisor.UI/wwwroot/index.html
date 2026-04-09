@@ -648,40 +648,22 @@
 
                 </div> <!-- End of Top Elements Container -->
 
-                <!-- Integrated SimBrief Section (Now a direct child of the flex-col section) -->
-                <div id="simbrief-integrated-container" class="hidden w-full flex-1 flex flex-col animate-fade-in pb-4">
-                    <div class="bg-[#1C1F26]/80 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col flex-1 min-h-[500px]">
-                            <div class="flex items-center justify-between p-4 bg-[#14161a]/60 border-b border-white/5">
-                                <div class="flex items-center gap-3">
-                                    <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/20 shadow-inner">
-                                        <span class="material-symbols-outlined text-[16px] text-sky-400 font-light">flight_takeoff</span>
-                                    </div>
-                                    <div class="flex flex-col leading-tight">
-                                        <span class="text-[10px] font-bold tracking-[0.2em] uppercase text-white/80">SimBrief Engine</span>
-                                        <span class="text-[8px] tracking-[0.15em] text-sky-400/60 uppercase">Native Dispatch Platform</span>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-4">
-                                    <button onclick="window.triggerSimBriefImport();" class="text-[9px] font-bold uppercase tracking-[0.15em] text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 rounded-full border border-emerald-500/30 hover:border-emerald-400/50 shadow-[0_0_10px_rgba(16,185,129,0.05)]">
-                                        <span class="material-symbols-outlined text-[14px]">sync</span>
-                                        Import OFP
-                                    </button>
-                                    <div class="w-[1px] h-4 bg-white/10"></div>
-                                    <button onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' }); window.closeIntegratedSimBrief();" class="text-[9px] font-bold uppercase tracking-[0.15em] text-sky-400/60 hover:text-sky-400 transition-colors flex items-center gap-2 px-4 py-1.5 bg-sky-500/5 rounded-full border border-sky-500/10 hover:border-sky-500/30">
-                                        <span class="material-symbols-outlined text-[14px]">open_in_new</span>
-                                        External
-                                    </button>
-                                    <button onclick="window.closeIntegratedSimBrief();" class="w-7 h-7 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 border border-white/5 transition-colors group">
-                                        <span class="material-symbols-outlined text-[14px] text-slate-400 group-hover:text-white transition-colors">close</span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="relative w-full flex-1 min-h-[600px] bg-[#141414]">
-                                <iframe id="simbrief-iframe" class="absolute inset-0 w-full h-full border-none" src="about:blank"></iframe>
-                            </div>
+                <!-- Empty State (No Flight Plan yet) -->
+                <div id="briefing-empty-state" class="flex-1 flex flex-col items-center justify-center animate-fade-in pb-20 w-full mt-10">
+                    <div class="bg-[#1C1F26]/60 backdrop-blur-xl border border-white/5 rounded-[2rem] p-12 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col items-center max-w-xl text-center">
+                        <div class="w-24 h-24 bg-sky-500/10 rounded-full flex items-center justify-center mb-6 shadow-inner border border-sky-400/20">
+                            <span class="material-symbols-outlined text-[40px] text-sky-400">add_task</span>
                         </div>
+                        <h2 class="text-xl font-bold text-white tracking-[0.2em] uppercase mb-4 font-headline">No Active Rotation</h2>
+                        <p class="text-[12px] text-slate-400 leading-relaxed max-w-md mx-auto mb-10">
+                            Begin your session by establishing an Operational Flight Plan. You can import an existing plan or generate a new one via the integrated SimBrief Dispatch platform.
+                        </p>
+                        <button onclick="window.openIntegratedSimBrief();" class="bg-gradient-to-r from-sky-500 to-sky-400 text-slate-900 px-10 py-5 rounded-2xl hover:brightness-110 transition-all shadow-[0_0_30px_rgba(14,165,233,0.3)] uppercase font-black text-sm tracking-[0.2em] flex items-center gap-4 group cursor-pointer w-full justify-center">
+                            <span class="material-symbols-outlined text-[20px] group-hover:rotate-12 transition-transform">language</span>
+                            Open SimBrief Dispatch
+                        </button>
                     </div>
-                <!-- End of SimBrief Container -->
+                </div>
 
                 <div id="briefing-content" class="hidden">
                     <!-- Contenu de la Loading Sheet (Future étape) -->
@@ -1098,31 +1080,24 @@
                 </div>
             </div>
             
-            <!-- Content (Dynamic List of Legs) -->
-            <div class="flex-grow bg-[#141414] p-8 overflow-y-auto" id="simbriefDispatchContent">
-                <div class="max-w-xl mx-auto flex flex-col gap-4 mt-8" id="dispatchLegsContainer">
-                    <button onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' })" class="bg-[#2a2a2b] border border-sky-500/30 text-white px-8 py-6 rounded-xl hover:bg-sky-500/10 hover:border-sky-500 shadow-xl transition-all font-bold tracking-widest flex items-center justify-between group w-full">
-                        <div class="flex items-center gap-4">
-                            <span class="material-symbols-outlined text-3xl group-hover:scale-110 transition-transform text-sky-400">open_in_new</span>
-                            <div class="text-left">
-                                <div class="text-lg">ADD LEG 1</div>
-                                <div class="text-[#7b7b7b] text-[10px] uppercase mt-1 font-manrope font-normal">Open SimBrief to configure your first flight</div>
-                            </div>
-                        </div>
-                        <span class="material-symbols-outlined text-slate-600">chevron_right</span>
-                    </button>
-
-                </div>
+            <!-- Content (Embedded Iframe) -->
+            <div class="relative w-full flex-1 min-h-[60vh] bg-[#141414]" id="simbriefDispatchContent">
+                <iframe id="simbrief-iframe" class="absolute inset-0 w-full h-full border-none" src="about:blank"></iframe>
             </div>
 
             <!-- Global Footer -->
             <div class="p-6 border-t border-white/5 bg-black/20 flex justify-end gap-4 shrink-0">
-                <button id="btnCancelDispatch" class="bg-[#2a2a2b] border border-white/10 text-[#b6b6b6] px-8 py-3 rounded-lg hover:bg-white/10 transition-all shadow-xl uppercase font-bold text-[12px] tracking-widest shrink-0">
+                <button onclick="window.closeIntegratedSimBrief();" class="bg-[#2a2a2b] border border-white/10 text-[#b6b6b6] px-8 py-3 rounded-lg hover:bg-white/10 transition-all shadow-xl uppercase font-bold text-[12px] tracking-widest shrink-0">
                     CANCEL
                 </button>
-                <button id="btnFinishDispatch" class="bg-emerald-500/20 text-emerald-600 border border-emerald-500/30 px-8 py-3 rounded-lg hover:bg-emerald-500 hover:text-white transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] uppercase font-bold text-[12px] tracking-widest shrink-0 flex items-center gap-2 opacity-50 cursor-not-allowed pointer-events-none">
-                    <span class="material-symbols-outlined text-[16px]">flight_takeoff</span>
-                    FINISH BRIEFING
+                <div class="w-[1px] h-auto bg-white/10 mx-2"></div>
+                <button onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' });" class="text-[#b6b6b6] hover:text-white transition-colors px-6 uppercase font-bold text-[10px] tracking-widest shrink-0 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[16px]">open_in_new</span>
+                    EXTERNAL OUTRIGGER
+                </button>
+                <button onclick="window.triggerSimBriefImport();" class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-8 py-3 rounded-lg hover:bg-emerald-500 hover:text-white transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] uppercase font-bold text-[12px] tracking-widest shrink-0 flex items-center gap-2 cursor-pointer">
+                    <span class="material-symbols-outlined text-[16px]">sync</span>
+                    IMPORT LATEST OFP
                 </button>
             </div>
         </div>
