@@ -100,7 +100,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<int, string>? OnOperationBonusTriggered;
         public event Action<int, string>? OnPenaltyTriggered;
 
-        public void InitializeFromSimBrief(SimBriefResponse? sb, bool firstFlightClean = false, double currentFobKg = 0, DateTime? overrideSobt = null)
+        public void InitializeFromSimBrief(SimBriefResponse? sb, bool firstFlightClean = false, double currentFobKg = 0, double initialCleanliness = 100.0, double initialCatering = 100.0, double initialWater = 100.0, double initialWaste = 0.0, DateTime? overrideSobt = null)
         {
             Services.Clear();
             TargetSobt = null;
@@ -207,14 +207,26 @@ namespace FlightSupervisor.UI.Services
             // LCC: Deboarding(600s), Clean(300s), Cater(300s/Optional), Fuel(600s), Boarding(900s) = ~30m min
             // Legacy: Deboarding(900s), Clean(900s), Cater(900s), Fuel(600s), Boarding(1200s) = ~45m min
             
-            if (IsLowCost) cleanName = "Cabin Clean (PNC)";
+            if (IsLowCost) cleanName = "PNC Chores";
 
+            // TICKET 34 & 38 : REALISTIC DURATIONS SCALED BY METRICS
             int deboardingBase = IsLowCost ? 600 : 900;
             double boardingEfficiencyRatio = Math.Max(50.0, CurrentCrewEfficiency) / 100.0;
             int boardingBase = (int)((IsLowCost ? 900 : 1200) / boardingEfficiencyRatio);
-            int cleaningBase = IsLowCost ? (int)(400 / boardingEfficiencyRatio) : 900;
-            int cateringBase = IsLowCost ? 300 : 900;
             
+            // Cleanliness scale: if 90% clean, only 10% of time needed.
+            double dirtyRatio = Math.Max(0.01, 1.0 - (initialCleanliness / 100.0));
+            int cleaningBase = IsLowCost ? (int)((400 / boardingEfficiencyRatio) * dirtyRatio) : (int)(900 * dirtyRatio);
+
+            // Catering scale: if 90% full, only 10% time needed.
+            double caterRatio = Math.Max(0.01, 1.0 - (initialCatering / 100.0));
+            int cateringBase = (int)((IsLowCost ? 300 : 900) * caterRatio);
+            
+            // Water/Waste scale: time depends on max of water to fill or waste to drain
+            double wwRatio = Math.Max(1.0 - (initialWater / 100.0), initialWaste / 100.0);
+            wwRatio = Math.Max(0.01, wwRatio);
+            int wwBase = (int)(450 * wwRatio);
+
             // Calculate fuel difference. 1 kg/L roughly. PlanRamp is kg. 
             // We assume refueling is 50kg/sec.
             double fuelNeededKg = Math.Max(0, fuel - currentFobKg);
@@ -226,7 +238,7 @@ namespace FlightSupervisor.UI.Services
             Services.Add(new GroundService { Name = "Cargo/Luggage", TotalDurationSec = applyTime(Math.Max(600, pax * 6)), IsOptional = false, RequiresManualStart = true, StartOffsetMinutes = cargoOffset });
             Services.Add(new GroundService { Name = "Catering", TotalDurationSec = applyTime(cateringBase), IsOptional = true, RequiresManualStart = true, StartOffsetMinutes = caterOffset });
             Services.Add(new GroundService { Name = cleanName, TotalDurationSec = applyTime(cleaningBase), IsOptional = true, RequiresManualStart = true, StartOffsetMinutes = cleanOffset });
-            Services.Add(new GroundService { Name = "Water/Waste", TotalDurationSec = applyTime(450), IsOptional = true, RequiresManualStart = true, StartOffsetMinutes = waterOffset });
+            Services.Add(new GroundService { Name = "Water/Waste", TotalDurationSec = applyTime(wwBase), IsOptional = true, RequiresManualStart = true, StartOffsetMinutes = waterOffset });
             
             if (firstFlightClean)
             {
@@ -247,7 +259,7 @@ namespace FlightSupervisor.UI.Services
             IsPaused = false;
         }
 
-        public void PrepareNextLeg(double currentFobKg)
+        public void PrepareNextLeg(double currentFobKg, double currentCleanliness = 100.0, double currentCatering = 100.0)
         {
             // Reset state to allow importing a new flight plan seamlessly
             _isStarted = false;
@@ -617,6 +629,8 @@ namespace FlightSupervisor.UI.Services
         // --- Virtual Actor Data Mapping ---
         private string GetActorForService(string name)
         {
+            if (name.Contains("PNC", StringComparison.OrdinalIgnoreCase)) return "CABIN CREW";
+
             switch (name.ToLower())
             {
                 case "board":
@@ -632,6 +646,8 @@ namespace FlightSupervisor.UI.Services
 
         private string GetStartMessageForService(string name)
         {
+            if (name.Contains("PNC", StringComparison.OrdinalIgnoreCase)) return "Cabin Crew starting turnaround chores.";
+
             switch (name.ToLower())
             {
                 case "boarding": return "We are starting general boarding at the terminal.";
@@ -646,6 +662,8 @@ namespace FlightSupervisor.UI.Services
 
         private string GetEndMessageForService(string name)
         {
+            if (name.Contains("PNC", StringComparison.OrdinalIgnoreCase)) return "Cabin is clean, chores completed.";
+
             switch (name.ToLower())
             {
                 case "boarding": return "Passenger count verified. Cabin is secured.";

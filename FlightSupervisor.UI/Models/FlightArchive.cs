@@ -38,5 +38,6 @@ namespace FlightSupervisor.UI.Models
         
         public long DelaySec { get; set; }
         public long RawDelaySec { get; set; }
+        public int TurnaroundEfficiencySec { get; set; }
     }
 }

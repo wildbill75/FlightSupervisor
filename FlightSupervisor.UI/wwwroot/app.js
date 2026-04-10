@@ -85,6 +85,7 @@ window.populateBriefingView = (index = 0) => {
     let enRouteHtml = '<div class="text-slate-500 font-mono text-xs">No En Route Data</div>';
     let notamsHtml = '<div class="text-slate-500 font-mono text-xs">No Operational Notams</div>';
 
+    let globalOpAlerts = [];
     if (briefingData && briefingData.Stations) {
         briefingData.Stations.forEach(st => {
             let pillsHtml = '';
@@ -93,9 +94,55 @@ window.populateBriefingView = (index = 0) => {
             if (st.Wind) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-slate-300 opacity-80"></div> <span class="text-white font-bold">${st.Wind}</span></div>`;
             if (st.Visibility) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-violet-400 opacity-80"></div> <span class="text-white font-bold">${st.Visibility}</span></div>`;
             if (st.CloudBase) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-slate-500 opacity-80"></div> <span class="text-white font-bold">${st.CloudBase}</span></div>`;
+            
             if (st.RunwayAdvice && st.RunwayAdvice.includes('Runway')) {
                 const rwyMatch = st.RunwayAdvice.match(/Runway\s+([A-Z0-9]+)/i) || st.RunwayAdvice.match(/Piste.*?\s+([A-Z0-9]+)/i);
                 if (rwyMatch) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-emerald-400 opacity-80"></div> <span class="text-white font-bold">RWY ${rwyMatch[1].toUpperCase()}</span></div>`;
+            }
+
+            const rawMetarTaf = ((st.RawMetar || "") + " " + (st.RawTaf || "")).toUpperCase();
+
+            // Wind Analysis (Gusts, Shear, Severe Wind)
+            if (st.Wind) {
+                const speedMatch = st.Wind.match(/(\d{2,3})(?:G(\d{2,3}))?(?:KT|MPS|KMH)/i);
+                if (speedMatch) {
+                    const speed = parseInt(speedMatch[1] || '0', 10);
+                    const gust = parseInt(speedMatch[2] || '0', 10);
+                    if (gust >= 25 || speed >= 35) {
+                        globalOpAlerts.push(`[${st.Icao}] WARNING: High wind/gusts detected. Increased probability of Go-Around.`);
+                    }
+                }
+            }
+            if (rawMetarTaf.includes(" WS ") || rawMetarTaf.includes("WIND SHEAR")) {
+                globalOpAlerts.push(`[${st.Icao}] DANGER: Windshear reported. Expect severe turbulence on short final; brief for immediate Go-Around.`);
+            }
+
+            // Thunderstorms
+            if (rawMetarTaf.match(/\b(TS|TSRA|TSGR|\+TSRA|FC)\b/)) {
+                globalOpAlerts.push(`[${st.Icao}] DANGER: Active Thunderstorms / squall cells in vicinity. Weather avoidance maneuvers mandatory.`);
+            }
+
+            // Freezing/Icing
+            if (rawMetarTaf.match(/\b(FZRA|FZDZ|FZFG|\-FZRA|SN|\+SN|PL|SG|GR)\b/) || (st.TempDew && st.TempDew.includes("M"))) {
+                if (st.Id && (st.Id.toLowerCase() === 'origin' || st.Id.toLowerCase() === 'departure')) {
+                    globalOpAlerts.push(`[${st.Icao}] ALERT: Freezing conditions present. Mandatory Ground De-icing operations required before block out.`);
+                } else {
+                    globalOpAlerts.push(`[${st.Icao}] ALERT: Freezing conditions / Snow reported. Expect severe anti-ice engine load and potential holding for runway sweep.`);
+                }
+            }
+
+            // Low Visibility / CAT III
+            let isLowVis = false;
+            if (st.Visibility) {
+                const visMatch = st.Visibility.match(/\b(\d{2,4})\b/);
+                if (visMatch) {
+                    const vis = parseInt(visMatch[1], 10);
+                    if (vis < 800) isLowVis = true;
+                }
+                if (st.Visibility.includes('1/2SM') || st.Visibility.includes('1/4SM') || st.Visibility.includes('1/8SM')) isLowVis = true;
+            }
+            if (rawMetarTaf.match(/\b(RVR|LVP|FG|VV00)\b/) || isLowVis) {
+                globalOpAlerts.push(`[${st.Icao}] CRITICAL: Low Visibility Procedures (LVP) in force. Autoland CAT II/III approach likely. Verify crew and aircraft qualifications.`);
             }
 
             let htmlBlock = `<div class="flex justify-between items-start mb-3 relative group">
@@ -122,6 +169,13 @@ window.populateBriefingView = (index = 0) => {
         
         // Combine all NOTAMs from all stations for this leg
         let allNotams = '';
+        if (globalOpAlerts.length > 0) {
+            allNotams += `<div class="mb-4 border-l-2 border-rose-500 pl-3 bg-rose-900/10 py-2 rounded-r-lg">
+                            <ul class="list-disc list-inside text-rose-300 text-[11px] font-mono leading-relaxed space-y-1">
+                                ${globalOpAlerts.map(a => `<li>${a}</li>`).join('')}
+                            </ul>
+                         </div>`;
+        }
         briefingData.Stations.forEach(st => {
             if (st.Notams && st.Notams.trim() !== '') {
                 allNotams += `<div class="mb-4 bg-black/20 p-3 rounded-lg border border-white/5"><div class="text-[10px] font-black tracking-widest text-indigo-400 mb-2 border-b border-white/5 pb-1">[${st.Icao}]</div><div class="text-slate-400 text-[10px] font-mono leading-relaxed">${st.Notams.trim().replace(/\\n/g, '<br/>')}</div></div>`;
@@ -3571,6 +3625,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (tzFpm < -400) fpmEl.classList.add('text-red-500');
                         else if (tzFpm > -150) fpmEl.classList.add('text-emerald-400');
                         else fpmEl.classList.add('text-slate-200');
+                    }
+
+                    const effEl = document.getElementById('frTurnaround');
+                    if (effEl) {
+                        let effSec = rep.TurnaroundEfficiencySec ?? rep.turnaroundEfficiencySec ?? 0;
+                        effEl.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'bg-red-500/20', 'text-red-400', 'bg-slate-500/20', 'text-slate-200');
+                        if (effSec > 60) {
+                            effEl.innerText = `-${Math.floor(effSec / 60)}m (Early)`;
+                            effEl.classList.add('bg-emerald-500/20', 'text-emerald-400', 'px-2', 'py-1', 'rounded', 'uppercase', 'tracking-wider');
+                        } else if (effSec < -60) {
+                            effEl.innerText = `+${Math.floor(Math.abs(effSec) / 60)}m (Late)`;
+                            effEl.classList.add('bg-red-500/20', 'text-red-400', 'px-2', 'py-1', 'rounded', 'uppercase', 'tracking-wider');
+                        } else {
+                            effEl.innerText = "Target";
+                            effEl.classList.add('bg-slate-500/20', 'text-slate-200', 'px-2', 'py-1', 'rounded', 'uppercase', 'tracking-wider');
+                        }
                     }
 
                     const gEl = document.getElementById('frGForce');

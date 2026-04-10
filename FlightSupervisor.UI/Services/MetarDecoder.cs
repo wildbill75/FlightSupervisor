@@ -82,13 +82,6 @@ namespace FlightSupervisor.UI.Services
             var enText = new StringBuilder();
             var frText = new StringBuilder();
 
-            bool hasWind = false;
-            bool hasVis = false;
-            bool hasClouds = false;
-            bool hasWeather = false;
-            bool hasTemp = false;
-            bool CAVOK = false;
-
             List<string> rvrEn = new List<string>();
             List<string> rvrFr = new List<string>();
 
@@ -113,7 +106,6 @@ namespace FlightSupervisor.UI.Services
                 var windMatch = Regex.Match(t, @"^(VRB|[0-9]{3})([0-9]{2,3})(?:G([0-9]{2,3}))?(KT|MPS|KMH)$");
                 if (windMatch.Success)
                 {
-                    hasWind = true;
                     string dir = windMatch.Groups[1].Value;
                     int spd = int.Parse(windMatch.Groups[2].Value);
                     bool gusts = windMatch.Groups[3].Success;
@@ -151,9 +143,6 @@ namespace FlightSupervisor.UI.Services
                 // Visibility (CAVOK, meters, SM)
                 if (t == "CAVOK")
                 {
-                    CAVOK = true;
-                    hasVis = true;
-                    hasClouds = true;
                     res.RawVisibility = "CAVOK";
                     res.RawClouds = "CLR";
                     enText.Append("Visibility and clouds are CAVOK, so it's perfectly clear. ");
@@ -163,7 +152,6 @@ namespace FlightSupervisor.UI.Services
 
                 if (Regex.IsMatch(t, @"^[0-9]{4}$") && !t.StartsWith("0000")) 
                 {
-                    hasVis = true;
                     int visMeters = int.Parse(t);
                     res.RawVisibility = $"{visMeters} m";
                     if (visMeters < 800) res.VisibilitySeverity = WeatherSeverity.Danger;
@@ -185,7 +173,6 @@ namespace FlightSupervisor.UI.Services
                 var smMatch = Regex.Match(t, @"^(P|M)?(\d{1,2}|((\d+ )?\d+/\d+))SM$");
                 if (smMatch.Success)
                 {
-                    hasVis = true;
                     res.RawVisibility = t;
                     enText.Append($"Visibility is {t.Replace("SM", " statute miles")}. ");
                     frText.Append($"Visibilité de {t.Replace("SM", " miles terrestres")}. ");
@@ -212,7 +199,6 @@ namespace FlightSupervisor.UI.Services
                 var wxMatch = Regex.Match(t, @"^(-|\+|VC)?(MI|PR|BC|DR|BL|SH|TS|FZ)?(DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PO|SQ|FC|SS|DS)$");
                 if (wxMatch.Success)
                 {
-                    hasWeather = true;
                     string intensity = wxMatch.Groups[1].Value;
                     string desc = wxMatch.Groups[2].Value;
                     string phen = wxMatch.Groups[3].Value;
@@ -235,7 +221,6 @@ namespace FlightSupervisor.UI.Services
                 var cloudMatch = Regex.Match(t, @"^(FEW|SCT|BKN|OVC|VV)([0-9]{3}|///)(CB|TCU)?$");
                 if (cloudMatch.Success)
                 {
-                    hasClouds = true;
                     if (string.IsNullOrEmpty(res.RawClouds)) res.RawClouds = t;
                     else res.RawClouds += $" {t}";
 
@@ -264,7 +249,6 @@ namespace FlightSupervisor.UI.Services
 
                 if (t == "NSC" || t == "SKC" || t == "CLR" || t == "NCD")
                 {
-                    hasClouds = true;
                     res.RawClouds = "CLR";
                     enText.Append("The sky is clear of significant clouds. ");
                     frText.Append("Le ciel est dégagé de nuages significatifs. ");
@@ -275,7 +259,6 @@ namespace FlightSupervisor.UI.Services
                 var tempMatch = Regex.Match(t, @"^(M?[0-9]{2})/(M?[0-9]{2})$");
                 if (tempMatch.Success)
                 {
-                    hasTemp = true;
                     res.RawTempDew = t;
                     string tStr = tempMatch.Groups[1].Value.Replace("M", "-");
                     string dStr = tempMatch.Groups[2].Value.Replace("M", "-");

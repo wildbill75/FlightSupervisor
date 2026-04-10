@@ -53,6 +53,7 @@ namespace FlightSupervisor.UI
         private float? _lastLogTempFwd = null;
         private float? _lastLogTempAft = null;
         private bool _hasReceivedFenixLvars = false;
+        private int _turnaroundEfficiencySec = 0;
         
         private GroundOpsManager _groundOpsManager;
         private System.Windows.Threading.DispatcherTimer _uiTimer;
@@ -118,7 +119,13 @@ namespace FlightSupervisor.UI
             _profileManager = new ProfileManager();
 
             _groundOpsManager = new GroundOpsManager();
-            _groundOpsManager.OnOpsCompleted += () => SendToWeb(new { type = "groundOpsComplete" });
+            _groundOpsManager.OnOpsCompleted += () => {
+                if (_groundOpsManager.TargetSobt.HasValue && _currentSimTime != DateTime.MinValue && _aobt == null)
+                {
+                    _turnaroundEfficiencySec = (int)(_groundOpsManager.TargetSobt.Value - _currentSimTime).TotalSeconds;
+                }
+                SendToWeb(new { type = "groundOpsComplete" });
+            };
             _groundOpsManager.OnOpsLog += msg => SendToWeb(new { type = "log", message = msg });
             _groundOpsManager.OnOpsUpdated += () => {
                 var services = _groundOpsManager.Services;
@@ -321,24 +328,8 @@ namespace FlightSupervisor.UI
                     }
                 }
 
-                // Keep parameters refilled if Ground Services are marked as Completed while at the Gate or Turnaround
-                if (_phaseManager.CurrentPhase == FlightPhase.AtGate || _phaseManager.CurrentPhase == FlightPhase.Turnaround)
-                {
-                    if (_groundOpsManager.Services.FirstOrDefault(s => s.Name == "Water/Waste")?.State == GroundServiceState.Completed)
-                    {
-                        _cabinManager.WaterLevel = 100.0;
-                        _cabinManager.WasteLevel = 0.0;
-                    }
-                    if (_groundOpsManager.Services.FirstOrDefault(s => s.Name == "Cabin Cleaning" || s.Name == "Cleaning" || s.Name == "Light Cleaning" || s.Name == "Deep Cleaning")?.State == GroundServiceState.Completed)
-                    {
-                        _cabinManager.CabinCleanliness = 100.0;
-                    }
-                    if (_groundOpsManager.Services.FirstOrDefault(s => s.Name == "Catering")?.State == GroundServiceState.Completed)
-                    {
-                        _cabinManager.CateringRations = Math.Max(_cabinManager.CateringRations, 150); // Default full capacity
-                        _cabinManager.CateringCompletion = 100.0;
-                    }
-                }
+                // Les ressources Cabine (Water, Waste, Cleanliness, Fuel) sont désormais gérées de manière
+                // progressive et validées à la fin de leur progression par GroundOpsResourceService.Tick();
 
                 SendTelemetryToWeb();
                 
@@ -524,7 +515,8 @@ namespace FlightSupervisor.UI
                                 Tow = _currentResponse?.Weights?.EstTow ?? "0",
                                 BlockFuel = _currentResponse?.Fuel?.PlanRamp ?? "0",
                                 DelaySec = effectiveDelaySec,
-                                RawDelaySec = rawDelaySec
+                                RawDelaySec = rawDelaySec,
+                                TurnaroundEfficiencySec = _turnaroundEfficiencySec
                             };
 
                             FlightSupervisor.UI.Services.FlightLogger.ArchiveFlight(report);
@@ -559,7 +551,8 @@ namespace FlightSupervisor.UI
                                 Tow = _currentResponse?.Weights?.EstTow ?? "0",
                                 BlockFuel = _currentResponse?.Fuel?.PlanRamp ?? "0",
                                 DelaySec = effectiveDelaySec,
-                                RawDelaySec = rawDelaySec
+                                RawDelaySec = rawDelaySec,
+                                TurnaroundEfficiencySec = _turnaroundEfficiencySec
                             };
 
                             FlightSupervisor.UI.Services.FlightLogger.ArchiveFlight(fallbackReport);
@@ -596,7 +589,7 @@ namespace FlightSupervisor.UI
                                 }
                             }
 
-                            _groundOpsManager.PrepareNextLeg(_currentFobKg);
+                            _groundOpsManager.PrepareNextLeg(_currentFobKg, _cabinManager.CabinCleanliness, _cabinManager.CateringCompletion);
                             // Pass into Turnaround immediately so the UI unlocks the "Deboarding" and ground ops
                             _phaseManager.ForcePhase(FlightPhase.Turnaround);
 
@@ -766,6 +759,7 @@ namespace FlightSupervisor.UI
             _simConnectService.OnNavigationReceived += (locErr, gpsErr, hasLoc) => { _phaseManager.UpdateNavigation(locErr, gpsErr, hasLoc); };
             _simConnectService.OnEngineCombustionReceived += (eng1, eng2) => {
                 _phaseManager.UpdateEngineCombustion(eng1, eng2);
+                _cabinManager.AreEnginesRunning = eng1 || eng2;
             };
             _simConnectService.OnEngineN1Received += (eng1n1, eng2n1) => {
                 _phaseManager.Eng1N1 = eng1n1;
@@ -812,6 +806,7 @@ namespace FlightSupervisor.UI
                 _phaseManager.FenixApuMaster = mst;
                 _phaseManager.FenixApuStart = start;
                 _phaseManager.FenixApuBleed = bleed;
+                _cabinManager.IsApuRunning = mst;
                 
                 if (_lastLogApuMaster != null && _lastLogApuMaster != mst) 
                     _scoreManager?.AddScore(0, mst ? "APU Master SW ON" : "APU Master SW OFF", ScoreCategory.Operations);
@@ -1882,7 +1877,12 @@ namespace FlightSupervisor.UI
                     {
                         int minutes = minProp.GetInt32();
                         
-                        if (_groundOpsManager.TargetSobt.HasValue && _currentSimTime.AddMinutes(minutes) >= _groundOpsManager.TargetSobt.Value.AddMinutes(-5))
+                        if (_phaseManager.CurrentPhase != FlightPhase.AtGate && _phaseManager.CurrentPhase != FlightPhase.Turnaround)
+                        {
+                            SendToWeb(new { type = "log", message = $"[SYSTEM] Action Denied. Time Skip is ONLY available during Ground Operations." });
+                            minutes = 0;
+                        }
+                        else if (_groundOpsManager.TargetSobt.HasValue && _currentSimTime.AddMinutes(minutes) >= _groundOpsManager.TargetSobt.Value.AddMinutes(-5))
                         {
                             SendToWeb(new { type = "log", message = $"[SYSTEM] Time Skip clamped. Aircraft is within 5 minutes of Scheduled Off Block Time." });
                             int allowedMinutes = (int)(_groundOpsManager.TargetSobt.Value.AddMinutes(-5) - _currentSimTime).TotalMinutes;
@@ -2154,6 +2154,7 @@ namespace FlightSupervisor.UI
                 cabinCleanliness = Math.Round(_cabinManager.CabinCleanliness, 1),
                 waterLevel = Math.Round(_cabinManager.WaterLevel, 1),
                 wasteLevel = Math.Round(_cabinManager.WasteLevel, 1),
+                virtualFuelPercentage = Math.Round(_cabinManager.VirtualFuelPercentage, 1),
                 baggageCompletion = Math.Round(_cabinManager.BaggageCompletion, 1),
                 isSilencePenaltyActive = _cabinManager.IsSilencePenaltyActive,
                 crisisElapsed = _crisisManager.CrisisStartTimeSeconds > 0 ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _crisisManager.CrisisStartTimeSeconds : 0,
@@ -2236,7 +2237,7 @@ namespace FlightSupervisor.UI
                 }
             }
 
-            _groundOpsManager.InitializeFromSimBrief(response, _cabinManager.SessionFlightsCompleted == 0 && _cabinManager.FirstFlightClean, _currentFobKg, nextSobt);
+            _groundOpsManager.InitializeFromSimBrief(response, _cabinManager.SessionFlightsCompleted == 0 && _cabinManager.FirstFlightClean, _currentFobKg, _cabinManager.CabinCleanliness, _cabinManager.CateringCompletion, _cabinManager.WaterLevel, _cabinManager.WasteLevel, nextSobt);
               if (_cabinManager.SessionFlightsCompleted == 0)
               {
                   _groundOpsManager.Services.RemoveAll(x => x.Name == "Deboarding");
@@ -2629,7 +2630,7 @@ namespace FlightSupervisor.UI
                     _cabinManager.FastForward(simAdvanceSec, _phaseManager.CurrentPhase);
                 }
 
-                if (_simConnectService != null && _simConnectService.IsConnected && _currentSimTime.Year > 2000)
+                if (_simConnectService != null && _simConnectService.IsConnected && _currentSimTime.Year > 2000 && _phaseManager.Altitude > 10000)
                 {
                     _simConnectService.SendTimeWarpCommand(newSimTime);
                     SendToWeb(new { type = "log", message = $"[SYSTEM] Dispatched MSFS TimeWarp to {newSimTime:HH:mm}Z" });

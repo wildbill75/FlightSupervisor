@@ -260,9 +260,31 @@ namespace FlightSupervisor.UI.Services
             } 
         }
 
-        public double CabinCleanliness { get; set; } = 100.0;
-        public double WaterLevel { get; set; } = 100.0;
-        public double WasteLevel { get; set; } = 0.0;
+        public FlightSupervisor.UI.Models.AircraftState StateOfAircraft { get; private set; } = new FlightSupervisor.UI.Models.AircraftState();
+
+        public double CabinCleanliness
+        {
+            get => StateOfAircraft.CleanlinessPercentage;
+            set => StateOfAircraft.CleanlinessPercentage = value;
+        }
+
+        public double WaterLevel
+        {
+            get => StateOfAircraft.PotableWaterPercentage;
+            set => StateOfAircraft.PotableWaterPercentage = value;
+        }
+
+        public double WasteLevel
+        {
+            get => StateOfAircraft.WasteTankPercentage;
+            set => StateOfAircraft.WasteTankPercentage = value;
+        }
+
+        public double VirtualFuelPercentage
+        {
+            get => StateOfAircraft.VirtualFuelPercentage;
+            set => StateOfAircraft.VirtualFuelPercentage = value;
+        }
 
         public bool IsServiceHalted { get; private set; } = false;
         public bool HasBoardingStarted { get; set; } = false;
@@ -283,6 +305,8 @@ namespace FlightSupervisor.UI.Services
         private bool _hasWarnedTempCold = false;
         private bool _hasWarnedPushbackNoSeatbelts = false;
         public bool HasPenalizedRefuelingSeatbelts { get; private set; } = false;
+        public bool AreEnginesRunning { get; set; } = false;
+        public bool IsApuRunning { get; set; } = false;
 
         public void TriggerRefuelingSeatbeltPenalty()
         {
@@ -446,7 +470,15 @@ namespace FlightSupervisor.UI.Services
                 }
             }
             
-            MaxCateringRations = Math.Max(150, (int)(PassengerManifest.Count * 1.15)); // 15% safety margin
+            if (profile.Tier.ToLower() == "lowcost")
+            {
+                MaxCateringRations = PassengerManifest.Count + 5; // Very strict for LCC (Buy on Board)
+            }
+            else
+            {
+                MaxCateringRations = Math.Max(PassengerManifest.Count + 10, (int)(PassengerManifest.Count * 1.15)); // 15% safety margin for Legacy
+            }
+            CateringCompletion = CateringCompletion; // Force recalculation of rations based on new Max
             
             // Adjust Crew Stats based on Tier
             switch(profile.Tier.ToLower())
@@ -490,6 +522,7 @@ namespace FlightSupervisor.UI.Services
             CabinCleanliness = state.CabinCleanliness;
             WaterLevel = state.WaterLevel;
             WasteLevel = state.WasteLevel;
+            VirtualFuelPercentage = state.VirtualFuelPercentage == 0.0 ? 100.0 : state.VirtualFuelPercentage;
             CateringRations = state.CateringRations;
             CrewProactivity = state.CrewProactivity;
             CrewEfficiency = state.CrewEfficiency;
@@ -643,13 +676,28 @@ namespace FlightSupervisor.UI.Services
         {
             if (deltaSeconds <= 0) return;
             
-            // Artificial consumption of cabin resources for the test panel
-            if (PassengerManifest.Count > 0)
+            // Artificial consumption matching EXACTLY the standard Tick pace
+            // Per user request, NEVER consume cabin resources on the ground. Only in flight.
+            bool isFlyingPhase = phase == FlightPhase.Cruise || phase == FlightPhase.Climb || phase == FlightPhase.Descent || phase == FlightPhase.Approach;
+
+            if (PassengerManifest.Count > 0 && isFlyingPhase)
             {
-                double baseDrainRate = PassengerManifest.Count * 0.0001; // Example scale
-                WaterLevel = Math.Max(0, WaterLevel - (baseDrainRate * deltaSeconds));
-                WasteLevel = Math.Min(100, WasteLevel + (baseDrainRate * deltaSeconds * 1.5));
-                CabinCleanliness = Math.Max(0, CabinCleanliness - (baseDrainRate * deltaSeconds * 0.5));
+                int paxCount = Math.Max(1, PassengerManifest.Count(p => p.IsBoarded));
+                double paxMultiplier = paxCount / 150.0;
+
+                // User Rule: Only consume resources (Water, Waste, Dirt, Food) if Seatbelts are OFF
+                if (!_seatbeltsOn)
+                {
+                    WaterLevel = Math.Max(0, WaterLevel - (0.004 * paxMultiplier * deltaSeconds));
+                    WasteLevel = Math.Min(100, WasteLevel + (0.005 * paxMultiplier * deltaSeconds));
+                    CabinCleanliness = Math.Max(0, CabinCleanliness - (0.003 * paxMultiplier * deltaSeconds));
+
+                    if (CateringRations > paxCount * 0.1)
+                    {
+                        double caterDrainRate = paxCount / 10000.0; 
+                        CateringRations = Math.Max(0, (int)(CateringRations - caterDrainRate * deltaSeconds));
+                    }
+                }
             }
 
             if (deltaSeconds >= 300)
@@ -771,23 +819,50 @@ namespace FlightSupervisor.UI.Services
                 }
             }
             
+            // Jauge Virtuelle de Fuel
+            if (CurrentFlight != null && CurrentFlight.Times != null)
+            {
+                if (long.TryParse(CurrentFlight.Times.SchedOut, out long outTime) && long.TryParse(CurrentFlight.Times.SchedIn, out long inTime))
+                {
+                    double flightSeconds = inTime - outTime;
+                    if (flightSeconds > 0)
+                    {
+                        if (AreEnginesRunning)
+                        {
+                            // Estimate burn: 90% over block time (assuming 10% remaining at engines off).
+                            double fuelBurnRate = 90.0 / flightSeconds;
+                            VirtualFuelPercentage -= fuelBurnRate * deltaTimeSeconds;
+                        }
+                        else if (IsApuRunning)
+                        {
+                            // Estimate burn: APU burns considerably less (approx 5% of normal engines)
+                            double fuelBurnRate = (90.0 / flightSeconds) * 0.05;
+                            VirtualFuelPercentage -= fuelBurnRate * deltaTimeSeconds;
+                        }
+                        
+                        if (VirtualFuelPercentage < 2.0) VirtualFuelPercentage = 2.0; // Prevent stalling at 0%
+                    }
+                }
+            }
+
             // Continuous Consumption of Water, Cleanliness, and Waste (Multi-Leg)
             if (phase == FlightPhase.Cruise || phase == FlightPhase.Climb || phase == FlightPhase.Descent || phase == FlightPhase.Takeoff || phase == FlightPhase.InitialClimb || phase == FlightPhase.Approach)
             {
                 int paxCount = Math.Max(1, PassengerManifest.Count(p => p.IsBoarded));
                 double paxMultiplier = paxCount / 150.0; // Baseline normalized
 
-                // Dirtiness drops based on time
-                CabinCleanliness -= 0.003 * paxMultiplier * deltaTimeSeconds; 
-                if (CabinCleanliness < 0) CabinCleanliness = 0;
+                // User Rule: Passenger resource consumption (Water, Waste, Dirt) ONLY happens when Seatbelts are OFF
+                if (!_seatbeltsOn)
+                {
+                    CabinCleanliness -= 0.003 * paxMultiplier * deltaTimeSeconds; 
+                    if (CabinCleanliness < 0) CabinCleanliness = 0;
 
-                // Water drained continuously based on pax
-                WaterLevel -= 0.004 * paxMultiplier * deltaTimeSeconds; 
-                if (WaterLevel < 0) WaterLevel = 0;
+                    WaterLevel -= 0.004 * paxMultiplier * deltaTimeSeconds; 
+                    if (WaterLevel < 0) WaterLevel = 0;
 
-                // Waste fills based on time, multiplied by Anxiety (Stress Bowels)
-                double stressMultiplier = PassengerAnxiety > 60.0 ? 3.0 : 1.0;
-                WasteLevel += 0.005 * paxMultiplier * stressMultiplier * deltaTimeSeconds;
+                    double stressMultiplier = PassengerAnxiety > 60.0 ? 3.0 : 1.0;
+                    WasteLevel += 0.005 * paxMultiplier * stressMultiplier * deltaTimeSeconds;
+                }
                 
                 if (WasteLevel >= 100) 
                 {
@@ -1710,17 +1785,24 @@ namespace FlightSupervisor.UI.Services
             _actualTakeoffTime = null;
             if (SessionFlightsCompleted == 0 && FirstFlightClean)
             {
-                CateringCompletion = 100.0;
+                CateringCompletion = 0.0;
                 CabinCleanliness = 100.0;
                 WaterLevel = 100.0;
                 WasteLevel = 0.0;
+                VirtualFuelPercentage = 15.0;
             }
             else if (SessionFlightsCompleted == 0 && !FirstFlightClean)
             {
-                CateringCompletion = Math.Round(_rnd.NextDouble() * 40.0 + 20.0, 1);
-                CabinCleanliness = Math.Round(_rnd.NextDouble() * 30.0 + 40.0, 1);
-                WaterLevel = Math.Round(_rnd.NextDouble() * 50.0 + 30.0, 1);
-                WasteLevel = Math.Round(_rnd.NextDouble() * 30.0 + 20.0, 1);
+                // Catering ALWAYS empty on a fresh session, even if plane is dirty from previous day
+                CateringCompletion = 0.0; 
+                
+                // Fixed dirtiness baseline
+                double minCleanliness = 60.0;
+                CabinCleanliness = Math.Round(_rnd.NextDouble() * (100.0 - minCleanliness) + minCleanliness, 1);
+                
+                WaterLevel = Math.Round(_rnd.NextDouble() * 30.0 + 70.0, 1); // 70-100%
+                WasteLevel = Math.Round(_rnd.NextDouble() * 20.0 + 10.0, 1); // 10-30%
+                VirtualFuelPercentage = 15.0; // 3 tons
             }
             
             BaggageCompletion = 100.0;

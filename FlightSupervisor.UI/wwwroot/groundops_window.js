@@ -3,9 +3,12 @@ const GO_ICONS = {
     'Boarding': '<span class="material-symbols-outlined text-[18px] text-sky-400">group</span>',
     'Deboarding': '<span class="material-symbols-outlined text-[18px] text-sky-300">directions_run</span>',
     'Cargo': '<span class="material-symbols-outlined text-[18px] text-amber-500">luggage</span>',
+    'Cargo/Luggage': '<span class="material-symbols-outlined text-[18px] text-amber-500">luggage</span>',
     'Catering': '<span class="material-symbols-outlined text-[18px] text-pink-400">restaurant</span>',
     'Cleaning': '<span class="material-symbols-outlined text-[18px] text-fuchsia-400">cleaning_services</span>',
+    'Cabin Cleaning': '<span class="material-symbols-outlined text-[18px] text-fuchsia-400">cleaning_services</span>',
     'Cabin Clean (PNC)': '<span class="material-symbols-outlined text-[18px] text-indigo-400">dry_cleaning</span>',
+    'PNC Chores': '<span class="material-symbols-outlined text-[18px] text-indigo-400">dry_cleaning</span>',
     'Water/Waste': '<span class="material-symbols-outlined text-[18px] text-emerald-400">water_drop</span>'
 };
 
@@ -46,15 +49,17 @@ function renderGroundOps(services, isDispatchSignedOff = true) {
         `;
 
     const POSITIONS = {
-        'Boarding': { left: '0.0%', top: '4.1%' },
-        'Deboarding': { left: '0.0%', top: '4.1%' },
-        'Water/Waste': { left: '0.0%', top: '64.0%' },
-        'Catering': { left: '70.3%', top: '13.8%' },
-        'Cargo': { left: '74.4%', top: '34.8%' },
-        'Cargo/Luggage': { left: '74.4%', top: '34.8%' },
-        'Refueling': { left: '75.2%', top: '58.7%' },
-        'Cleaning': { left: '72.5%', top: '81.0%' },
-        'Cabin Clean (PNC)': { left: '72.5%', top: '81.0%' }
+        'Boarding': { left: '0.0%', top: '8.0%' },
+        'Deboarding': { left: '0.0%', top: '8.0%' },
+        'Water/Waste': { left: 'calc(50% - 160px)', top: '88.0%' },
+        'Catering': { left: '70.3%', top: '15.0%' },
+        'Cargo': { left: '74.4%', top: '35.0%' },
+        'Cargo/Luggage': { left: '74.4%', top: '35.0%' },
+        'Refueling': { left: '75.2%', top: '55.0%' },
+        'Cleaning': { left: '0.0%', top: '75.0%' },
+        'Cabin Cleaning': { left: '0.0%', top: '75.0%' },
+        'Cabin Clean (PNC)': { left: '0.0%', top: '75.0%' },
+        'PNC Chores': { left: '0.0%', top: '75.0%' }
     };
 
     let isDeboardingActive = services.some(s => (s.Name || s.name) === "Deboarding" && (s.State !== undefined ? s.State : s.state) === 1);
@@ -95,7 +100,8 @@ function renderGroundOps(services, isDispatchSignedOff = true) {
             }
         }
         else if (locName === "Catering") locName = "CATERING";
-        else if (locName === "Cleaning" || locName === "Cabin Clean (PNC)") locName = "CLEANING";
+        else if (locName === "Cleaning" || locName === "Cabin Cleaning") locName = "AIRPORT CLEANING";
+        else if (locName === "Cabin Clean (PNC)" || locName === "PNC Chores") locName = "PNC CLEANING";
         else if (locName === "Water/Waste") locName = "WATER/WASTE";
 
         let stateVal = s.State !== undefined ? s.State : s.state;

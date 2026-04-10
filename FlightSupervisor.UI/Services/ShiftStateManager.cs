@@ -10,6 +10,7 @@ namespace FlightSupervisor.UI.Services
         public double CabinCleanliness { get; set; }
         public double WaterLevel { get; set; }
         public double WasteLevel { get; set; }
+        public double VirtualFuelPercentage { get; set; }
         public int CateringRations { get; set; }
         public double CrewProactivity { get; set; }
         public double CrewEfficiency { get; set; }
@@ -41,6 +42,7 @@ namespace FlightSupervisor.UI.Services
                     CabinCleanliness = cabinManager.CabinCleanliness,
                     WaterLevel = cabinManager.WaterLevel,
                     WasteLevel = cabinManager.WasteLevel,
+                    VirtualFuelPercentage = cabinManager.VirtualFuelPercentage,
                     CateringRations = cabinManager.CateringRations,
                     CrewProactivity = cabinManager.CrewProactivity,
                     CrewEfficiency = cabinManager.CrewEfficiency,
