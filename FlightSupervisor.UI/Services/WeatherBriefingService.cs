@@ -139,7 +139,7 @@ namespace FlightSupervisor.UI.Services
 
             // Departure Station
             var depStation = new BriefingStation { Id = "departure", Label = LocalizationService.Translate("DEPARTURE:", "DÉPART :"), RawMetar = origMetar };
-            depStation.Commentary = AnalyzeMetar(origMetar, LocalizationService.Translate("departure", "le départ"), depStation);
+            depStation.Commentary = AnalyzeMetar(origMetar, "departure", "le départ", depStation);
             if (!string.IsNullOrEmpty(response.Origin?.IcaoCode))
             {
                 depStation.Icao = response.Origin.IcaoCode;
@@ -152,12 +152,12 @@ namespace FlightSupervisor.UI.Services
             var destStation = new BriefingStation { Id = "destination", Label = LocalizationService.Translate("DESTINATION:", "DESTINATION :"), RawMetar = destMetar, RawTaf = destTaf };
             
             // Pre-parse the METAR to guarantee Temp/Dew and QNH are populated (TAFs usually lack them)
-            if (!string.IsNullOrWhiteSpace(destMetar)) AnalyzeMetar(destMetar, "", destStation);
+            if (!string.IsNullOrWhiteSpace(destMetar)) AnalyzeMetar(destMetar, "destination", "la destination", destStation);
 
             if (etaUnix > 0 && !string.IsNullOrWhiteSpace(destTaf))
-                destStation.Commentary = AnalyzeTafAtEta(destTaf, etaUnix, destStation);
+                destStation.Commentary = AnalyzeTafAtEta(destTaf, etaUnix, "destination", "la destination", destStation);
             else
-                destStation.Commentary = AnalyzeMetar(destMetar, LocalizationService.Translate("destination", "la destination"), destStation);
+                destStation.Commentary = AnalyzeMetar(destMetar, "destination", "la destination", destStation);
 
             if (!string.IsNullOrEmpty(response.Destination?.IcaoCode))
             {
@@ -193,16 +193,22 @@ namespace FlightSupervisor.UI.Services
                 
                 var altnStation = new BriefingStation { Id = "alternate", Label = LocalizationService.Translate("ALTERNATE PLAN:", "PLAN DE DÉGAGEMENT :"), RawMetar = altnMetarStr, RawTaf = altnTafStr, Icao = altnIcao };
 
+                string altnRwy = response.Alternate?.PlanRwy;
+                if (!string.IsNullOrEmpty(altnRwy))
+                {
+                    altnStation.RunwayAdvice = LocalizationService.Translate($"Exp. Runway {altnRwy}", $"Piste prévue {altnRwy}");
+                }
+
                 // Pre-parse the METAR to guarantee Temp/Dew and QNH are populated
-                if (!string.IsNullOrWhiteSpace(altnMetarStr)) AnalyzeMetar(altnMetarStr, "", altnStation);
+                if (!string.IsNullOrWhiteSpace(altnMetarStr)) AnalyzeMetar(altnMetarStr, "the alternate", "le dégagement", altnStation);
                 
                 var altComm = new StringBuilder();
                 altComm.AppendLine(LocalizationService.Translate($"Regarding our primary destination alternate, {altnIcao}:", $"Concernant notre dégagement principal, {altnIcao} :"));
                 
                 if (etaUnix > 0 && !string.IsNullOrWhiteSpace(altnTafStr))
-                    altComm.AppendLine(AnalyzeTafAtEta(altnTafStr, etaUnix, altnStation));
+                    altComm.AppendLine(AnalyzeTafAtEta(altnTafStr, etaUnix, "the alternate", "le dégagement", altnStation));
                 else if (!string.IsNullOrWhiteSpace(altnMetarStr))
-                    altComm.AppendLine(AnalyzeMetar(altnMetarStr, LocalizationService.Translate("the alternate", "le dégagement"), altnStation));
+                    altComm.AppendLine(AnalyzeMetar(altnMetarStr, "the alternate", "le dégagement", altnStation));
                 else
                     altComm.AppendLine(LocalizationService.Translate($"We have the necessary weather minimums to safely divert to {altnIcao} if required.", $"Nous avons les minimums météorologiques requis pour nous dérouter vers {altnIcao} en toute sécurité si besoin."));
                 
@@ -293,7 +299,102 @@ namespace FlightSupervisor.UI.Services
             var lines = briefing.ToString().Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var line in lines) data.OralCommentary.Add(line.Trim());
 
+            CalculateCompanyPolicyRecommendations(data, response);
+            
             return data;
+        }
+
+        private void CalculateCompanyPolicyRecommendations(BriefingData data, SimBriefResponse? response)
+        {
+            // Default rules (Virtual "Flight Supervisor" Company Policy)
+            int recommendedExtra = 0;
+            int currentExtra = 0;
+            if (response?.Fuel?.Extra != null && int.TryParse(response.Fuel.Extra, out int e)) currentExtra = e;
+            
+            int recommendedCi = 30; // Default company CI
+            if (response?.General?.CostIndex != null && int.TryParse(response.General.CostIndex, out int ci)) recommendedCi = ci;
+
+            int recommendedFl = 0;
+            int initialAlt = 0;
+            if (response?.General?.InitialAlt != null && int.TryParse(response.General.InitialAlt, out initialAlt)) recommendedFl = initialAlt / 100;
+
+            var policyTextEn = new StringBuilder("COMPANY PNF ADVICE: ");
+            var policyTextFr = new StringBuilder("CONSEIL DU COPILOTE: ");
+            bool hasModifiers = false;
+
+            // 1. Weather Checks for Destination & Alternate
+            int dangerCount = 0;
+            int warningCount = 0;
+            foreach (var st in data.Stations)
+            {
+                if (st.Id == "departure") continue;
+                
+                if (st.WindSeverity == WeatherSeverity.Danger || st.VisibilitySeverity == WeatherSeverity.Danger || st.CloudSeverity == WeatherSeverity.Danger)
+                    dangerCount++;
+                else if (st.WindSeverity == WeatherSeverity.Warning || st.VisibilitySeverity == WeatherSeverity.Warning || st.CloudSeverity == WeatherSeverity.Warning)
+                    warningCount++;
+            }
+
+            if (dangerCount > 0)
+            {
+                recommendedExtra = 1000;
+                policyTextEn.Append("Due to dangerous weather conditions ahead (TS/FG/GR), company policy strongly advises adding +1000kg to Extra Fuel. ");
+                policyTextFr.Append("Vu les conditions météo dangereuses devant nous (Orages/Brouillard/Grêle), la compagnie recommande fortement d'ajouter +1000kg d'Extra Fuel. ");
+                hasModifiers = true;
+            }
+            else if (warningCount > 0)
+            {
+                recommendedExtra = 500;
+                policyTextEn.Append("Due to marginal weather conditions, consider adding +500kg to Extra Fuel for extending our holding capabilities. ");
+                policyTextFr.Append("Vu les conditions météo marginales, je suggère +500kg d'Extra Fuel pour s'assurer un temps d'attente confortable. ");
+                hasModifiers = true;
+            }
+
+            // 2. Altitude checks (Tropopause / Turbulence)
+            int maxTurb = 0;
+            int avgTropoFl = 0;
+            int tropoCount = 0;
+            if (response?.Navlog?.Fixes != null)
+            {
+                foreach(var point in response.Navlog.Fixes)
+                {
+                    if (int.TryParse(point.Turb, out int t) && t > maxTurb) maxTurb = t;
+                    if (int.TryParse(point.TropopauseFeet, out int trop))
+                    {
+                        avgTropoFl += (trop / 100);
+                        tropoCount++;
+                    }
+                }
+            }
+
+            if (tropoCount > 0) avgTropoFl /= tropoCount;
+
+            if (maxTurb >= 3)
+            {
+                recommendedCi = Math.Max(10, recommendedCi - 10);
+                policyTextEn.Append($"Also, heavy turbulence is predicted on route. I've lowered our Cost Index (CI {recommendedCi}) to prioritize comfort over speed. ");
+                policyTextFr.Append($"De fortes turbulences sont prévues en route. J'ai réduit le Cost Index (CI {recommendedCi}) pour privilégier le confort des passagers sur la vitesse. ");
+                hasModifiers = true;
+            }
+
+            if (avgTropoFl > 0 && recommendedFl >= avgTropoFl)
+            {
+                recommendedFl = avgTropoFl - 20; // 2000 ft below tropo
+                policyTextEn.Append($"We were planned at FL{initialAlt / 100}, but the tropopause is low today (FL{avgTropoFl}). Suggesting cruise at FL{recommendedFl} to maintain engine margin. ");
+                policyTextFr.Append($"On était prévus au niveau FL{initialAlt / 100}, mais la tropopause est très basse (FL{avgTropoFl}). Je suggère d'écrêter au FL{recommendedFl} pour garder une bonne marge moteur. ");
+                hasModifiers = true;
+            }
+
+            if (!hasModifiers)
+            {
+                policyTextEn.Append("SimBrief plan looks perfectly solid. Standard reserves applied. We are good to go as filed.");
+                policyTextFr.Append("Le dossier de vol me semble parfait. Réserves standards appliquées. On peut valider tel quel.");
+            }
+
+            data.RecommendedExtraFuel = currentExtra >= recommendedExtra ? currentExtra : recommendedExtra;
+            data.RecommendedCostIndex = recommendedCi;
+            data.RecommendedAltitude = recommendedFl;
+            data.PolicyNarrative = LocalizationService.Translate(policyTextEn.ToString().TrimEnd(), policyTextFr.ToString().TrimEnd());
         }
 
         public string GenerateSandboxBriefing(string metar, string taf)
@@ -302,13 +403,13 @@ namespace FlightSupervisor.UI.Services
             if (!string.IsNullOrWhiteSpace(metar))
             {
                 sb.AppendLine(LocalizationService.Translate("CURRENT CONDITIONS:", "CONDITIONS ACTUELLES :"));
-                sb.AppendLine(AnalyzeMetar(metar, LocalizationService.Translate("the local area", "la zone locale")));
+                sb.AppendLine(AnalyzeMetar(metar, "the local area", "la zone locale"));
                 sb.AppendLine();
             }
             if (!string.IsNullOrWhiteSpace(taf))
             {
                 sb.AppendLine(LocalizationService.Translate("FORECAST (TAF):", "PRÉVISONS (TAF) :"));
-                sb.AppendLine(AnalyzeMetar(taf, LocalizationService.Translate("the forecast", "les prévisions")));
+                sb.AppendLine(AnalyzeMetar(taf, "the forecast", "les prévisions"));
             }
             return sb.ToString().TrimEnd();
         }
@@ -502,7 +603,7 @@ namespace FlightSupervisor.UI.Services
             return "";
         }
 
-        private string AnalyzeTafAtEta(string taf, long etaUnix, BriefingStation station = null)
+        private string AnalyzeTafAtEta(string taf, long etaUnix, string phaseEn, string phaseFr, BriefingStation station = null)
         {
             try
             {
@@ -511,22 +612,16 @@ namespace FlightSupervisor.UI.Services
                 
                 var sb = new StringBuilder();
                 sb.AppendLine(LocalizationService.Translate("Based on the terminal area forecast for our scheduled arrival time:", "D'après les prévisions pour notre heure d'arrivée prévue :"));
-                sb.AppendLine(AnalyzeMetar(activeForecast, LocalizationService.Translate("your arrival", "votre arrivée"), station));
+                sb.AppendLine(AnalyzeMetar(activeForecast, phaseEn, phaseFr, station));
 
                 if (tempoStr.Length > 0)
                 {
-                    string tempoAnalyzed = AnalyzeMetar(tempoStr, LocalizationService.Translate("temporarily", "temporairement"), null);
-                    var cleanTempo = tempoAnalyzed.Replace("We are lacking recent weather reports for temporarily. Expect standard procedures.", "")
-                                                .Replace("Therefore, we do not anticipate any particular weather-related issues for this phase.", "")
-                                                .Replace("Nous manquons de bulletins météo récents pour temporairement. Attendez-vous aux procédures standards.", "")
-                                                .Replace("Par conséquent, nous n'anticipons aucun problème météorologique particulier pour cette phase.", "")
-                                                .Trim();
-                    
-                    if (!string.IsNullOrWhiteSpace(cleanTempo))
+                    string tempoAnalyzed = AnalyzeMetar(tempoStr, "temporarily", "temporairement", null);
+                    if (!string.IsNullOrWhiteSpace(tempoAnalyzed) && tempoAnalyzed.Length > 20)
                     {
                         sb.AppendLine();
                         sb.AppendLine(LocalizationService.Translate("However, please be advised that we may encounter the following temporary conditions during our arrival window:", "Cependant, notez que nous pourrions rencontrer les conditions temporaires suivantes durant notre fenêtre d'arrivée :"));
-                        sb.AppendLine(cleanTempo);
+                        sb.AppendLine(tempoAnalyzed);
                     }
                 }
 
@@ -534,221 +629,27 @@ namespace FlightSupervisor.UI.Services
             }
             catch(Exception)
             {
-                return AnalyzeMetar(taf, LocalizationService.Translate("destination", "la destination"), station);
+                return AnalyzeMetar(taf, phaseEn, phaseFr, station);
             }
         }
 
-        private string AnalyzeMetar(string metar, string phase, BriefingStation station = null)
+        private string AnalyzeMetar(string metar, string phaseEn, string phaseFr, BriefingStation station = null)
         {
-            if (string.IsNullOrWhiteSpace(metar)) return LocalizationService.Translate($"We are lacking recent weather reports for {phase}. Expect standard procedures.", $"Nous manquons de bulletins météo récents pour {phase}. Attendez-vous aux procédures standards.");
+            if (string.IsNullOrWhiteSpace(metar)) 
+                return LocalizationService.Translate($"We are lacking recent weather reports for {phaseEn}. Expect standard procedures.", $"Nous manquons de bulletins météo récents pour {phaseFr}. Attendez-vous aux procédures standards.");
 
-            var conditions = new StringBuilder();
-            var upperMetar = metar.ToUpperInvariant();
-            bool hasBadWeather = false;
-
-            // Parse Wind
-            var windMatch = Regex.Match(upperMetar, @"(VRB|[0-9]{3})([0-9]{2,3})(G[0-9]{2,3})?KT");
-            if (windMatch.Success)
-            {
-                if (station != null) station.Wind = windMatch.Value;
-                string dirStr = windMatch.Groups[1].Value;
-                string spdStr = windMatch.Groups[2].Value;
-                bool hasGusts = windMatch.Groups[3].Success;
-                
-                int speed = int.TryParse(spdStr, out int s) ? s : 0;
-                
-                string speedUnit = "knots";
-                int displaySpeed = speed;
-                int thresholdStrong = 20;
-                int thresholdMod = 10;
-
-                if (_units.Speed == "KMH")
-                {
-                    displaySpeed = (int)Math.Round(speed * 1.852);
-                    speedUnit = "km/h";
-                    thresholdStrong = 37;
-                    thresholdMod = 18;
-                }
-
-                if (displaySpeed > thresholdStrong || hasGusts) hasBadWeather = true;
-                
-                // Severity calculation
-                if (station != null)
-                {
-                    if (speed > 35 || (hasGusts && speed > 25)) station.WindSeverity = WeatherSeverity.Danger;
-                    else if (speed > 25 || hasGusts) station.WindSeverity = WeatherSeverity.Warning;
-                    else station.WindSeverity = WeatherSeverity.Normal;
-                }
-
-                string intensityEn = displaySpeed > thresholdStrong ? "strong" : displaySpeed > thresholdMod ? "moderate" : "light";
-                string intensityFr = displaySpeed > thresholdStrong ? "fort" : displaySpeed > thresholdMod ? "modéré" : "léger";
-                
-                if (dirStr == "VRB")
-                {
-                    conditions.Append(LocalizationService.Translate($"We have variable {intensityEn} winds at {displaySpeed} {speedUnit}. ", $"Nous avons un vent variable {intensityFr} à {displaySpeed} {speedUnit}. "));
-                }
-                else if (int.TryParse(dirStr, out int dir))
-                {
-                    string cardinal = GetCardinalDirection(dir);
-                    conditions.Append(cardinal);
-                }
-            }
-            else
-            {
-                if (station != null) station.Wind = "CALM";
-                conditions.Append(LocalizationService.Translate("Wind conditions are calm or unavailable. ", "Le vent est calme ou les données sont indisponibles. "));
-            }
-
-            // Parse Temp
-            var tempMatch = Regex.Match(upperMetar, @"\s(M?[0-9]{2})/(M?[0-9]{2})\s");
-            if (tempMatch.Success)
-            {
-                if (station != null) station.TempDew = $"{tempMatch.Groups[1].Value.Replace("M","-")} / {tempMatch.Groups[2].Value.Replace("M","-")}";
-                string tempStr = tempMatch.Groups[1].Value;
-                int tempC = int.Parse(tempStr.Replace("M", "-"));
-                
-                int displayTemp = tempC;
-                string tempUnit = "C";
-                if (_units.Temp == "F")
-                {
-                    displayTemp = (int)Math.Round(tempC * 9.0 / 5.0 + 32);
-                    tempUnit = "F";
-                }
-                
-                conditions.Append(LocalizationService.Translate($"The outside temperature is {displayTemp}°{tempUnit}. ", $"La température extérieure est de {displayTemp}°{tempUnit}. "));
-                if (tempC <= 3 && (upperMetar.Contains(" BR") || upperMetar.Contains(" FG") || upperMetar.Contains(" SN")))
-                {
-                    conditions.Append(LocalizationService.Translate("Icing conditions are possible, anti-ice systems might be required. ", "Des conditions givrantes sont possibles, nos systèmes d'anti-givrage pourraient être nécessaires. "));
-                    hasBadWeather = true;
-                }
-            }
-
-            // Parse QNH
-            var qnhMatch = Regex.Match(upperMetar, @"(?:^|\s)(Q|A)([0-9]{4})(?:\s|=|$)", RegexOptions.IgnoreCase);
-            if (qnhMatch.Success)
-            {
-                if (station != null) station.Qnh = $"{qnhMatch.Groups[1].Value}{qnhMatch.Groups[2].Value}";
-                string pType = qnhMatch.Groups[1].Value;
-                int pVal = int.Parse(qnhMatch.Groups[2].Value);
-                
-                if (pType == "Q") // METAR in hPa
-                {
-                    if (_units.Press == "INHG")
-                        conditions.Append(LocalizationService.Translate($"Altimeter setting is {(pVal * 0.0295300):F2} inHg. ", $"Le calage altimétrique est de {(pVal * 0.0295300):F2} inHg. "));
-                    else
-                        conditions.Append($"QNH {pVal}. ");
-                }
-                else // METAR in inHg (Altimeter A2992 = 29.92)
-                {
-                    double inHg = pVal / 100.0;
-                    if (_units.Press == "HPA")
-                        conditions.Append($"QNH {(int)Math.Round(inHg * 33.8639)}. ");
-                    else
-                        conditions.Append(LocalizationService.Translate($"Altimeter setting is {inHg:F2} inHg. ", $"Le calage altimétrique est de {inHg:F2} inHg. "));
-                }
-            }
-
-            // Visibility
-            if (upperMetar.Contains("CAVOK"))
-            {
-                if (station != null) station.Visibility = "CAVOK";
-                conditions.Append(LocalizationService.Translate("Visibility is excellent (CAVOK). ", "La visibilité est excellente (CAVOK). "));
-            }
-            else
-            {
-                var visMatch = Regex.Match(upperMetar, @"\s([0-9]{4})\s");
-                if (visMatch.Success && int.TryParse(visMatch.Groups[1].Value, out int visMeters))
-                {
-                    if (station != null) 
-                    {
-                        station.Visibility = $"{visMeters} m";
-                        if (visMeters < 600) station.VisibilitySeverity = WeatherSeverity.Danger;
-                        else if (visMeters < 1500) station.VisibilitySeverity = WeatherSeverity.Warning;
-                        else station.VisibilitySeverity = WeatherSeverity.Normal;
-                    }
-                    if (visMeters < 1000) { conditions.Append(LocalizationService.Translate("Visibility is extremely low (less than 1km). ", "La visibilité est extrêmement faible (moins de 1km). ")); hasBadWeather = true; }
-                    else if (visMeters < 5000) { conditions.Append(LocalizationService.Translate("Visibility is reduced. ", "La visibilité est réduite. ")); }
-                    else conditions.Append(LocalizationService.Translate("Visibility is generally good (over 5km). ", "La visibilité est bonne (plus de 5km). "));
-                }
-            }
+            var result = MetarDecoder.Decode(metar.ToUpperInvariant(), false, _units, phaseEn, phaseFr);
             
-            // Clouds
             if (station != null)
             {
-                var cloudMatches = Regex.Matches(upperMetar, @"(FEW|SCT|BKN|OVC)([0-9]{3})(CB|TCU)?");
-                var cloudList = new System.Collections.Generic.List<string>();
-                int lowestCeiling = 999;
-
-                foreach (Match m in cloudMatches)
-                {
-                    cloudList.Add(m.Value);
-                    string type = m.Groups[1].Value;
-                    if ((type == "BKN" || type == "OVC") && int.TryParse(m.Groups[2].Value, out int height))
-                    {
-                        if (height < lowestCeiling) lowestCeiling = height;
-                    }
-                }
-
-                if (cloudList.Count > 0) station.CloudBase = string.Join(" ", cloudList);
-                else if (upperMetar.Contains("CAVOK") || upperMetar.Contains("NSC")) station.CloudBase = "CLR";
-
-                // Severity calculation (height is in hundreds of feet)
-                if (lowestCeiling < 2) station.CloudSeverity = WeatherSeverity.Danger; // < 200ft
-                else if (lowestCeiling < 5) station.CloudSeverity = WeatherSeverity.Warning; // < 500ft
-                else station.CloudSeverity = WeatherSeverity.Normal;
+                if (!string.IsNullOrEmpty(result.RawWind)) { station.Wind = result.RawWind; station.WindSeverity = result.WindSeverity; }
+                if (!string.IsNullOrEmpty(result.RawVisibility)) { station.Visibility = result.RawVisibility; station.VisibilitySeverity = result.VisibilitySeverity; }
+                if (!string.IsNullOrEmpty(result.RawClouds)) { station.CloudBase = result.RawClouds; station.CloudSeverity = result.CloudSeverity; }
+                if (!string.IsNullOrEmpty(result.RawTempDew)) { station.TempDew = result.RawTempDew; }
+                if (!string.IsNullOrEmpty(result.RawQnh)) { station.Qnh = result.RawQnh; }
             }
 
-            // Weather phenomena
-            if (upperMetar.Contains(" TS") || upperMetar.Contains("TSRA") || upperMetar.Contains("VCTS"))
-            {
-                conditions.Append(LocalizationService.Translate("Thunderstorms are reported in the vicinity. ", "Des orages sont signalés à proximité. "));
-                hasBadWeather = true;
-            }
-            if (upperMetar.Contains(" -RA") || Regex.IsMatch(upperMetar, @"\sRA\s") || upperMetar.Contains(" +RA"))
-            {
-                conditions.Append(LocalizationService.Translate(
-                    upperMetar.Contains(" +RA") ? "Heavy rain is expected. " : "Expect some light to moderate rain. ",
-                    upperMetar.Contains(" +RA") ? "De fortes pluies sont attendues. " : "Attendez-vous à de la pluie légère à modérée. "
-                ));
-                hasBadWeather = true;
-            }
-            if (upperMetar.Contains(" SN"))
-            {
-                conditions.Append(LocalizationService.Translate("Snow is reported, de-icing might be required. ", "De la neige est signalée, un dégivrage pourrait être nécessaire. "));
-                hasBadWeather = true;
-            }
-            if (upperMetar.Contains(" FG") || upperMetar.Contains(" BR") || upperMetar.Contains("LIFR") || upperMetar.Contains("VV00") || upperMetar.Contains(" R0"))
-            {
-                conditions.Append(LocalizationService.Translate("Fog or mist is reducing visibility, be prepared for low visibility operations. ", "Brouillard ou brume réduisant la visibilité, préparons-nous à des opérations par faible visibilité. "));
-                hasBadWeather = true;
-            }
-            if (upperMetar.Contains(" CB"))
-            {
-                conditions.Append(LocalizationService.Translate("Cumulonimbus clouds are present, potential for heavy turbulence. ", "Nuages cumulonimbus repérés, possible présence de fortes turbulences. "));
-                hasBadWeather = true;
-            }
-            if (upperMetar.Contains(" WS"))
-            {
-                conditions.Append(LocalizationService.Translate("Wind shear is reported on the runways. ", "Cisaillement de vent signalé sur les pistes. "));
-                hasBadWeather = true;
-            }
-
-            if (!hasBadWeather && !upperMetar.Contains("CAVOK"))
-            {
-                conditions.Append(LocalizationService.Translate("No significant adverse weather phenomena reported. ", "Aucun phénomène météorologique défavorable majeur signalé. "));
-            }
-
-            // Conclusion
-            if (hasBadWeather)
-            {
-                conditions.Append(LocalizationService.Translate("In conclusion, expect some challenging conditions and heightened vigilance.", "En conclusion, attendez-vous à des conditions délicates exigeant une vigilance accrue."));
-            }
-            else
-            {
-                conditions.Append(LocalizationService.Translate("Therefore, we do not anticipate any particular weather-related issues for this phase.", "Par conséquent, nous n'anticipons aucun problème météorologique particulier pour cette phase."));
-            }
-
-            return conditions.ToString().Trim();
+            return LocalizationService.Translate(result.CommentaryEn, result.CommentaryFr);
         }
 
         private string GetCardinalDirection(int degrees)

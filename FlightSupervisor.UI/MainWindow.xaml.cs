@@ -1025,7 +1025,7 @@ namespace FlightSupervisor.UI
                 {
                     var gMan = _groundOpsManager;
                     if (gMan?.Services != null) {
-                        var payload = new { type = "groundOps", services = gMan.Services };
+                        var payload = new { type = "groundOps", services = gMan.Services, isDispatchSignedOff = gMan.IsFuelSheetValidated };
                         senderWebView.PostWebMessageAsJson(JsonSerializer.Serialize(payload));
                     }
                 }
@@ -1315,6 +1315,17 @@ namespace FlightSupervisor.UI
                         ExecuteTimeSkip(minutes);
                     }
                 }
+                else if (action == "validateFuel")
+                {
+                    if (doc.RootElement.TryGetProperty("payload", out var payload))
+                    {
+                        string blockFuel = payload.TryGetProperty("blockFuel", out var bProp) ? bProp.GetString() ?? "0" : "0";
+                        _groundOpsManager.IsFuelSheetValidated = true;
+                        
+                        // Let Dispatch know
+                        SendToWeb(new { type = "cabinLog", level = "cyan", message = $"[DISPATCH] Final Load Sheet validated by Captain. Block Fuel confirmed at {blockFuel} kg." });
+                    }
+                }
                 else if (action == "updateAvatar")
                 {
                     var payloadStr = doc.RootElement.GetProperty("payload").GetString();
@@ -1422,35 +1433,38 @@ namespace FlightSupervisor.UI
                     // Resume operations
                     _groundOpsManager.IsPaused = false;
                 }
-                else if (action == "startService")
+                else if (action == "startService" || action == "startDeboarding" || action == "startBoarding")
                 {
-                    var serviceName = doc.RootElement.GetProperty("service").GetString();
+                    var serviceName = doc.RootElement.TryGetProperty("service", out var svcProp) ? svcProp.GetString() : null;
+                    if (action == "startDeboarding") serviceName = "Deboarding";
+                    if (action == "startBoarding") serviceName = "Boarding";
+
                     if (!string.IsNullOrEmpty(serviceName))
                     {
                         bool engOn = (_phaseManager.Eng1N1 >= 5 || _phaseManager.Eng2N1 >= 5);
                         bool beaconOn = _phaseManager.IsBeaconLightOn;
                         bool doorOpen = _phaseManager.IsMainDoorOpen || _phaseManager.IsJetwayConnected;
                         bool canStart = true;
-                        
-                        if (serviceName.Equals("Deboarding", StringComparison.OrdinalIgnoreCase) || 
-                            serviceName.Equals("Boarding", StringComparison.OrdinalIgnoreCase) || 
-                            serviceName.Contains("Cargo", StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (engOn || beaconOn || ((serviceName.Equals("Deboarding", StringComparison.OrdinalIgnoreCase) || serviceName.Equals("Boarding", StringComparison.OrdinalIgnoreCase)) && !doorOpen)) 
-                                canStart = false;
-                        }
-                        else 
-                        {
-                            if (engOn || beaconOn) canStart = false;
-                        }
+                        string failReason = "";
+
+                        // Physical constraints (Doors, Engines) removed because standard MSFS door SimVars
+                        // fail to read correctly on third-party aircraft like the Fenix A320, permanently blocking ops.
 
                         if (canStart)
                         {
+                            if (serviceName.Equals("Deboarding", StringComparison.OrdinalIgnoreCase)) _cabinManager.StartDeboarding();
                             _groundOpsManager.StartManualService(serviceName);
+                        }
+                        else
+                        {
+                            SendToWeb(new { type = "log", message = $"[SYSTEM] Rejected {serviceName} start: Physical safety violation ({failReason})." });
+                            
+                            var s = _groundOpsManager.Services.FirstOrDefault(x => x.Name.Contains(serviceName, StringComparison.OrdinalIgnoreCase));
+                            if (s != null) s.StatusMessage = $"Blocked ({failReason})";
+                            SendToWeb(new { type = "groundOps", services = _groundOpsManager.Services });
                         }
                     }
                 }
-                    // Duplicated "startDeboarding" removed. Kept secondary block.
                 else if (action == "requestTimeWarp")
                 {
                     _groundOpsManager.ForceCompleteAllServices();

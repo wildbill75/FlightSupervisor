@@ -10,6 +10,12 @@ namespace FlightSupervisor.UI.Models
         public List<string> AlertMessages { get; set; } = new List<string>();
         
         public List<BriefingStation> Stations { get; set; } = new List<BriefingStation>();
+
+        // Dispatch Recommendations (Company Policy)
+        public int RecommendedExtraFuel { get; set; } = 0;
+        public string PolicyNarrative { get; set; } = "";
+        public int RecommendedCostIndex { get; set; } = 0;
+        public int RecommendedAltitude { get; set; } = 0;
     }
 
     public enum WeatherSeverity

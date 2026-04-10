@@ -38,3 +38,19 @@
 [DEBUG] Queue size is now 1, _currentResponse is NULL
 [DEBUG] Calling LoadNextLeg()!
 [DEBUG] StartOps() complete.
+
+[10 Apr 2026 14:01:36] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 14:40:13] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.

@@ -109,6 +109,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
         [JsonPropertyName("flight_number")]
         public string? FlightNumber { get; set; }
         
+        [JsonPropertyName("costindex")]
+        public string? CostIndex { get; set; }
+        
         [JsonPropertyName("initial_altitude")]
         public string? InitialAlt { get; set; }
 
@@ -234,6 +237,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
     {
         [JsonPropertyName("plan_ramp")]
         public string? PlanRamp { get; set; }
+
+        [JsonPropertyName("extra")]
+        public string? Extra { get; set; }
 
         [JsonExtensionData]
         public System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? ExtensionData { get; set; }

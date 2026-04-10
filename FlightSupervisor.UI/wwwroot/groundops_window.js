@@ -12,7 +12,7 @@ const GO_ICONS = {
 window.chrome.webview.addEventListener('message', function(e) {
     const data = e.data;
     if (data.type === 'groundOps') {
-        renderGroundOps(data.services);
+        renderGroundOps(data.services, data.isDispatchSignedOff);
     }
 });
 
@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.chrome.webview.postMessage({ action: 'requestGroundOps' });
 });
 
-function renderGroundOps(services) {
+function renderGroundOps(services, isDispatchSignedOff = true) {
     const container = document.getElementById('groundOpsContainer');
 
     if (!services || services.length === 0) {
@@ -29,8 +29,33 @@ function renderGroundOps(services) {
         return;
     }
 
-    let html = `
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+    let html = ``;
+    
+    if (!isDispatchSignedOff) {
+        html += `<div class="absolute top-10 left-0 w-full text-center z-50 pointer-events-none">
+                    <span class="bg-black/80 text-orange-400 border border-orange-500/30 px-6 py-2 rounded-full font-bold tracking-[0.2em] shadow-[0_0_20px_rgba(249,115,22,0.3)]">
+                        PENDING LOAD SHEET VALIDATION
+                    </span>
+                 </div>`;
+    }
+
+    html += `
+    <div class="relative w-full max-w-[1200px] mx-auto min-h-[800px] h-[85vh] mt-4 z-0 ${!isDispatchSignedOff ? 'opacity-30 grayscale pointer-events-none' : ''}">
+        <!-- SVG Background image constrained inside the wrapper so nose/tail are not cut off -->
+        <img src="A320.svg" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-full w-auto object-contain opacity-40 pointer-events-none select-none z-0" />
+        `;
+
+    const POSITIONS = {
+        'Boarding': { left: '0.0%', top: '4.1%' },
+        'Deboarding': { left: '0.0%', top: '4.1%' },
+        'Water/Waste': { left: '0.0%', top: '64.0%' },
+        'Catering': { left: '70.3%', top: '13.8%' },
+        'Cargo': { left: '74.4%', top: '34.8%' },
+        'Cargo/Luggage': { left: '74.4%', top: '34.8%' },
+        'Refueling': { left: '75.2%', top: '58.7%' },
+        'Cleaning': { left: '72.5%', top: '81.0%' },
+        'Cabin Clean (PNC)': { left: '72.5%', top: '81.0%' }
+    };
 
     let isDeboardingActive = services.some(s => (s.Name || s.name) === "Deboarding" && (s.State !== undefined ? s.State : s.state) === 1);
     let isBoardingActive = services.some(s => (s.Name || s.name) === "Boarding" && (s.State !== undefined ? s.State : s.state) === 1);
@@ -55,28 +80,23 @@ function renderGroundOps(services) {
     }
 
     combinedServices.forEach(s => {
-        const mLang = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
-        const mDict = window.locales && window.locales[mLang] ? window.locales[mLang] : (window.locales ? window.locales.en : {});
-
         let locName = s.Name !== undefined ? s.Name : s.name;
-        if (locName === "Refueling") locName = mDict.gops_refueling || locName;
-        else if (locName === "Boarding") locName = mDict.gops_boarding || locName;
-        else if (locName === "Deboarding") locName = mDict.gops_deboarding || locName;
+        if (locName === "Refueling") locName = "REFUELING";
+        else if (locName === "Boarding") locName = "BOARDING";
+        else if (locName === "Deboarding") locName = "DEBOARDING";
         else if (locName === "Cargo" || locName === "Cargo/Luggage") {
-            locName = mDict.gops_cargo || "Cargo";
             let nState = s.State !== undefined ? s.State : s.state;
             if (deboardingSrv) { // Turnaround
-                if (nState === 1 && (s.ProgressPercent || 0) < 50) locName = `${locName} (UNLOADING)`;
-                else if (nState === 1) locName = `${locName} (LOADING)`;
-                else if (nState === 0 || nState === 5) locName = `${locName} (UNLOAD/LOAD)`;
+                if (nState === 1 && (s.ProgressPercent || 0) < 50) locName = "CARGO UNLOADING";
+                else if (nState === 1) locName = "CARGO LOADING";
+                else locName = "CARGO LOAD/UNLOAD";
             } else { // Pristine
-                if (nState === 0 || nState === 1 || nState === 5) locName = `${locName} (LOADING)`;
+                locName = "CARGO LOADING";
             }
         }
-        else if (locName === "Catering") locName = mDict.gops_catering || locName;
-        else if (locName === "Cleaning") locName = mDict.gops_cleaning || locName;
-        else if (locName === "Cabin Clean (PNC)") locName = "Cabin Clean (PNC)";
-        else if (locName === "Water/Waste") locName = mDict.gops_water || locName;
+        else if (locName === "Catering") locName = "CATERING";
+        else if (locName === "Cleaning" || locName === "Cabin Clean (PNC)") locName = "CLEANING";
+        else if (locName === "Water/Waste") locName = "WATER/WASTE";
 
         let stateVal = s.State !== undefined ? s.State : s.state;
         const icon = GO_ICONS[s.Name] || '🔹';
@@ -90,7 +110,7 @@ function renderGroundOps(services) {
 
         let buttonText = `START ${locName.toUpperCase()}`;
         let buttonStyles = '';
-        let buttonClass = 'transition-all duration-300';
+        let buttonClass = '';
         let isClickable = false;
         let actionName = s.Name === 'Deboarding' ? 'startDeboarding' : 'startService';
 
@@ -100,7 +120,6 @@ function renderGroundOps(services) {
                 buttonText = `LOCKED (${isPaxMoving ? 'PAX' : 'SVC'})`;
             } else {
                 buttonStyles = 'color: #38bdf8; cursor: pointer;';
-                buttonClass += ' hover:text-white hover:bg-white/5';
                 isClickable = true;
             }
         } else if (stateVal === 1 || stateVal === 2) {
@@ -126,16 +145,19 @@ function renderGroundOps(services) {
 
         let smMsg = s.StatusMessage !== undefined ? s.StatusMessage : s.statusMessage;
         let inlineStateHtml = '';
-        if (stateVal === 1) inlineStateHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-sky-500/20"><span class="animate-pulse">●</span> ${smMsg ? smMsg.toUpperCase() : 'IN PROGRESS'}</span>`;
-        else if (stateVal === 2) inlineStateHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-orange-500/20">WAITING (DELAYED)</span>`;
-        else if (stateVal === 5) inlineStateHtml = `<span class="text-yellow-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-yellow-500/20"><span class="animate-pulse">●</span> WAITING FOR DRIVER</span>`;
-        if (isCompleted) inlineStateHtml = `<span class="text-slate-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-white/5"><span class="material-symbols-outlined text-[10px]">check</span> COMPLETED</span>`;
+        if (smMsg && smMsg.toLowerCase().includes("blocked")) {
+            inlineStateHtml = `<span class="text-red-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-red-500/20"><span class="material-symbols-outlined text-[12px] align-middle">block</span> ${smMsg.toUpperCase()}</span>`;
+        }
+        else if (stateVal === 1) inlineStateHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-sky-500/20"><span class="animate-pulse">●</span> ${smMsg ? smMsg.toUpperCase() : 'IN PROGRESS'}</span>`;
+        else if (stateVal === 2) inlineStateHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-orange-500/20">${smMsg ? smMsg.toUpperCase() : 'WAITING (DELAYED)'}</span>`;
+        else if (stateVal === 5) inlineStateHtml = `<span class="text-yellow-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-yellow-500/20"><span class="animate-pulse">●</span> ${smMsg ? smMsg.toUpperCase() : 'WAITING FOR DRIVER'}</span>`;
+        if (isCompleted) inlineStateHtml = `<span class="text-slate-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-white/5"><span class="material-symbols-outlined text-[10px]">check</span> ${smMsg && !smMsg.toLowerCase().includes("completed") && !smMsg.toLowerCase().includes("termin") ? smMsg.toUpperCase() : 'COMPLETED'}</span>`;
         else if (isSkipped) inlineStateHtml = `<span class="text-slate-500 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-white/5"><span class="material-symbols-outlined text-[10px]">close</span> SKIPPED</span>`;
 
         let extraBadgesHtml = '';
         if (s.Name === "Catering" || s.Name === "Cleanliness" || s.Name === "Cleaning" || s.Name === "Cabin Clean (PNC)" || s.Name === "Water/Waste") {
             if (!isCompleted && !isSkipped) {
-                extraBadgesHtml += `<button onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'skipService', service: '${(s.Name || s.name)}' });" class="px-2 py-1 ml-2 rounded text-[#7b7b7b] text-[9px] uppercase font-bold tracking-widest leading-none hover:text-white hover:bg-white/5 transition-colors duration-300 relative z-10 cursor-pointer">SKIP</button>`;
+                extraBadgesHtml += `<button onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'skipService', service: '${(s.Name || s.name)}' });" class="px-2 py-1 ml-2 rounded text-[#7b7b7b] text-[9px] uppercase font-bold tracking-widest leading-none relative z-10 cursor-pointer">SKIP</button>`;
             }
         }
         // Telemetry badges (might need to fetch lastTelemetry from window or C#)
@@ -147,8 +169,14 @@ function renderGroundOps(services) {
         if (isCompleted && !(s.IsPreServiced || s.isPreServiced)) barColor = '#34D399';
         else if (isCompleted && (s.IsPreServiced || s.isPreServiced)) barColor = '#475569';
 
+        let pos = POSITIONS[s.Name] || { left: '50%', top: '50%' };
+        // Fallbacks if not recognized
+        if (!POSITIONS[s.Name]) {
+            pos = { left: '0%', top: '0%', position: 'relative' }; // Flow normally if not mapped
+        }
+
         html += `
-            <div class="bg-[#1C1F26] rounded-xl border border-white/5 overflow-hidden flex flex-col justify-center h-full min-h-[90px] relative">
+            <div class="${POSITIONS[s.Name] ? 'absolute w-[320px] transition-all duration-500' : 'relative w-full'} bg-[#1C1F26]/90 backdrop-blur-md rounded-xl border border-white/5 overflow-hidden flex flex-col justify-center min-h-[90px] shadow-[0_4px_20px_rgba(0,0,0,0.5)] z-10" style="${POSITIONS[s.Name] ? `left: ${pos.left}; top: ${pos.top};` : ''}">
                 ${(() => {
                     if (s.Name === "Water/Waste") {
                         let waterLvl = s.State === 1 ? s.ProgressPercent : 100;
@@ -166,19 +194,24 @@ function renderGroundOps(services) {
                                 </div>`;
                     }
                 })()}
-                <button ${clickAction} class="w-full h-full p-5 flex items-center outline-none border-none relative ${buttonClass}" style="${buttonStyles}">
-                    <div class="flex items-center gap-4 w-[35%] overflow-hidden text-left">
-                        <span class="text-2xl shrink-0">${icon}</span>
-                        <strong class="font-headline tracking-widest uppercase text-[11px] md:text-[13px] whitespace-normal leading-tight break-words text-left" title="${buttonText}">${buttonText}</strong>
+                <button ${clickAction} class="w-full h-full p-4 flex flex-col justify-center items-start gap-1.5 outline-none border-none relative ${buttonClass}" style="${buttonStyles}">
+                    <div class="flex flex-row items-center justify-between w-full h-[24px]">
+                        <div class="flex flex-row items-center gap-3 overflow-visible">
+                            <span class="text-xl leading-none w-6 text-center shrink-0">${icon}</span>
+                            <strong class="font-headline tracking-widest uppercase text-[12px] whitespace-nowrap text-left leading-none">${buttonText}</strong>
+                        </div>
+                        <div class="flex flex-row justify-end shrink-0 pl-2">
+                            ${timeDisplay}
+                        </div>
                     </div>
-                    <div class="flex-1 flex justify-center min-w-[120px] shrink-0">
-                        ${inlineStateHtml}
-                    </div>
-                    <div class="w-[35%] flex justify-end">
-                        ${timeDisplay}
+                    <div class="flex flex-row w-full mt-1">
+                        <div class="w-[36px] shrink-0"></div> <!-- spacer offset icon -->
+                        <div class="flex-1 flex justify-start">
+                            ${inlineStateHtml}
+                        </div>
                     </div>
                 </button>
-                ${extraBadgesHtml ? `<div class="absolute top-2 right-2 flex items-center">${extraBadgesHtml}</div>` : ''}
+                ${extraBadgesHtml ? `<div class="absolute bottom-3 right-3 flex items-center z-20">${extraBadgesHtml}</div>` : ''}
             </div>
         `;
     });

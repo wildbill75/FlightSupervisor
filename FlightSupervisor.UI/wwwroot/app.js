@@ -1,124 +1,356 @@
-window.parseBriefing = (data, rd) => {
-    if (!data) return '';
-    if (typeof data === 'string') return "<i>Updating format...</i>";
+window.populateBriefingView = (index = 0) => {
+    const briefingContent = document.getElementById('briefing-content');
+    if (!briefingContent || !window.allRotations || window.allRotations.length === 0) return;
+    
+    // Ensure content is visible
+    briefingContent.classList.remove('hidden');
+    setTimeout(() => {
+        briefingContent.classList.remove('opacity-0');
+        briefingContent.classList.add('opacity-100');
+    }, 50);
 
-    let html = '';
-    if (data.HeaderText) {
-        html += `
-                        <div class="mb-6 relative">
-                            <button onclick="document.getElementById('rawOpText_${rd?.general?.flight_number || '0'}').classList.toggle('hidden')" class="text-[10px] uppercase font-bold tracking-widest text-slate-500 hover:text-sky-400 transition-colors flex items-center gap-1 mb-2">
-                                <span class="material-symbols-outlined text-[14px]">visibility</span> Toggle Dispatch Narrative
-                            </button>
-                            <div id="rawOpText_${rd?.general?.flight_number || '0'}" class="hidden italic text-slate-300 font-serif text-sm p-4 bg-black/40 rounded border border-white/5 leading-relaxed">
-                                ${data.HeaderText}
-                            </div>
-                        </div>`;
+    const rot = window.allRotations[index];
+    if (!rot) return;
+    
+    const rd = rot.data;
+    const briefingData = rot.briefing; // The WeatherBriefingData block
+    
+    // Route Summary update
+    const elRouteSummary = document.getElementById('briefingRouteSummary');
+    if (elRouteSummary) {
+        let routeString = rd.general.route || '';
+        let routeParts = routeString.split(' ').filter(p => p.trim() !== '');
+        let formattedRoute = routeString;
+        if(routeParts.length > 1) {
+            let sid = routeParts[0];
+            let star = routeParts[routeParts.length - 1];
+            let middle = routeParts.slice(1, routeParts.length - 1).join(' ');
+            formattedRoute = `<span class="text-fuchsia-400 drop-shadow-[0_0_5px_rgba(232,121,249,0.5)] font-black">${sid}</span> ${middle} <span class="text-pink-400 drop-shadow-[0_0_5px_rgba(244,114,182,0.5)] font-black">${star}</span>`;
+        }
+
+        let routeHtml = `
+            <div class="grid grid-cols-6 items-center w-full bg-[#1C1F26]/80 p-5 rounded-xl border border-white/5 shadow-md divide-x divide-white/5">
+                <div class="flex flex-col items-center justify-center cursor-pointer group" onclick="if(window.showAirlineIdentityModal) window.showAirlineIdentityModal('${rd.general.icao_airline||''}')">
+                    <span class="text-[9px] text-[#7b7b7b] font-bold tracking-widest uppercase mb-1">Airline</span>
+                    <span class="text-emerald-400 group-hover:text-white transition-colors text-xl font-black tracking-widest font-headline">${rot.airlineProfile ? rot.airlineProfile.name : (rd.general.airline_name || rd.general.icao_airline || '---')}</span>
+                </div>
+                <div class="flex flex-col items-center justify-center">
+                    <span class="text-[9px] text-[#7b7b7b] font-bold tracking-widest uppercase mb-1">Flight Number</span>
+                    <span class="text-white text-xl font-black tracking-widest font-headline">${rd.general.icao_airline || ''}${rd.general.flight_number || ''}</span>
+                </div>
+                <div class="flex flex-col items-center justify-center">
+                    <span class="text-[9px] text-[#7b7b7b] font-bold tracking-widest uppercase mb-1">Route</span>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl font-black text-sky-400 tracking-widest font-headline">${rd.origin.icao_code}</span>
+                        <span class="material-symbols-outlined text-white/30 text-[14px]">flight_takeoff</span>
+                        <span class="text-xl font-black text-emerald-400 tracking-widest font-headline">${rd.destination.icao_code}</span>
+                    </div>
+                </div>
+                <div class="flex flex-col items-center justify-center">
+                    <span class="text-[9px] text-[#7b7b7b] font-bold tracking-widest uppercase mb-1">Aircraft</span>
+                    <span class="text-slate-200 text-lg font-bold font-mono">${rd.aircraft.base_type || rd.aircraft.icaocode}</span>
+                </div>
+                <div class="flex flex-col items-center justify-center">
+                    <span class="text-[9px] text-[#7b7b7b] font-bold tracking-widest uppercase mb-1">Cruising Alt</span>
+                    <span class="text-slate-200 text-lg font-bold font-mono">FL${Math.round((rd.general.initial_altitude || 0) / 100) || 'N/A'}</span>
+                </div>
+                <div class="flex flex-col items-center justify-center">
+                    <span class="text-[9px] text-[#7b7b7b] font-bold tracking-widest uppercase mb-1">Trip Distance</span>
+                    <span class="text-slate-200 text-lg font-bold font-mono">${rd.general.route_distance} nm</span>
+                </div>
+            </div>
+            
+            <div class="bg-[#1C1F26]/80 mt-3 p-4 rounded-xl border border-white/5 shadow-md flex flex-col items-center justify-center">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="material-symbols-outlined text-slate-500 text-sm">route</span>
+                    <span class="text-[10px] text-slate-500 font-bold tracking-widest uppercase">Filed Route</span>
+                </div>
+                <div class="text-slate-300 font-mono text-base font-bold leading-relaxed tracking-wider px-4 text-center">
+                    ${formattedRoute}
+                </div>
+            </div>
+            </div>`;
+        elRouteSummary.innerHTML = routeHtml;
     }
-    html += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">';
 
-    if (data.Stations && Array.isArray(data.Stations)) {
-        data.Stations.forEach(station => {
-            let icon = "location_on";
-            if (station.Id.toLowerCase() === "origin") icon = "flight_takeoff";
-            else if (station.Id.toLowerCase() === "destination") icon = "flight_land";
-            else if (station.Id.toLowerCase() === "alternate") icon = "alt_route";
+    const elDep = document.getElementById('legDepartureMetarBox');
+    const elArr = document.getElementById('legArrivalMetarBox');
+    const elAlt = document.getElementById('legAlternateMetarBox');
+    const elEnRoute = document.getElementById('legEnRouteBox');
+    const elNotams = document.getElementById('legNotamsBox');
 
-            // Search for specific Tropopause/Level data to show in station text
-            let stnFlHtml = '';
-            if (station.Id.toLowerCase() === "origin") {
-                let flightLevel = rd?.general?.initial_alt || rd?.general?.initial_altitude || '';
-                if (flightLevel) {
-                    let flNum = parseInt(flightLevel.toString().replace(/[^0-9]/g, ''), 10);
-                    if (!isNaN(flNum)) {
-                        if (flNum > 1000) flNum = Math.floor(flNum / 100);
-                        flightLevel = flNum.toString().padStart(3, '0');
-                    }
-                    stnFlHtml += `<span class="bg-black/40 px-2 py-1 rounded text-sky-400 font-bold ml-2">FL${flightLevel}</span>`;
-                }
+    let depHtml = '<div class="text-slate-500 font-mono text-xs">No Departure Data</div>';
+    let arrHtml = '<div class="text-slate-500 font-mono text-xs">No Arrival Data</div>';
+    let altHtml = '<div class="text-slate-500 font-mono text-xs">No Alternate Data</div>';
+    let enRouteHtml = '<div class="text-slate-500 font-mono text-xs">No En Route Data</div>';
+    let notamsHtml = '<div class="text-slate-500 font-mono text-xs">No Operational Notams</div>';
+
+    if (briefingData && briefingData.Stations) {
+        briefingData.Stations.forEach(st => {
+            let pillsHtml = '';
+            if (st.TempDew) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-orange-400 opacity-80"></div> <span class="text-white font-bold">${st.TempDew}</span></div>`;
+            if (st.Qnh) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-sky-400 opacity-80"></div> <span class="text-white font-bold">${st.Qnh}</span></div>`;
+            if (st.Wind) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-slate-300 opacity-80"></div> <span class="text-white font-bold">${st.Wind}</span></div>`;
+            if (st.Visibility) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-violet-400 opacity-80"></div> <span class="text-white font-bold">${st.Visibility}</span></div>`;
+            if (st.CloudBase) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-slate-500 opacity-80"></div> <span class="text-white font-bold">${st.CloudBase}</span></div>`;
+            if (st.RunwayAdvice && st.RunwayAdvice.includes('Runway')) {
+                const rwyMatch = st.RunwayAdvice.match(/Runway\s+([A-Z0-9]+)/i) || st.RunwayAdvice.match(/Piste.*?\s+([A-Z0-9]+)/i);
+                if (rwyMatch) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-emerald-400 opacity-80"></div> <span class="text-white font-bold">RWY ${rwyMatch[1].toUpperCase()}</span></div>`;
             }
 
-            let variablesHtml = '';
-            const getSeverityStyle = (severity) => {
-                if (severity === 2 || severity === 'Danger') return { text: 'text-red-100 font-bold', bg: 'bg-red-900/60 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-pulse' };
-                if (severity === 1 || severity === 'Warning') return { text: 'text-orange-100 font-bold', bg: 'bg-orange-900/50 border-orange-500/80 shadow-[0_0_10px_rgba(249,115,22,0.3)]' };
-                return null;
-            };
-
-            const addPill = (label, value, defaultColorClass, severity) => {
-                if (value && value.trim() !== '') {
-                    const sevStyle = getSeverityStyle(severity);
-                    const finalTextColor = sevStyle ? sevStyle.text : defaultColorClass;
-                    const finalBgColor = sevStyle ? sevStyle.bg : 'bg-black/40 border-white/5';
-                    variablesHtml += `
-                                        <div class="flex flex-col rounded p-2 justify-center items-center text-center transition-all border ${finalBgColor}">
-                                            <span class="text-[9px] uppercase tracking-wider text-slate-400/90 mb-1">${label}</span>
-                                            <span class="font-bold text-[13px] ${finalTextColor}">${value}</span>
-                                        </div>
-                                    `;
-                }
-            };
-
-            addPill('QNH', station.Qnh, 'text-purple-400', 0);
-            addPill('Wind', station.Wind, 'text-emerald-400', station.WindSeverity);
-            addPill('Temp/Dew', station.TempDew, 'text-slate-200', 0);
-            addPill('Visibility', station.Visibility, 'text-sky-400', station.VisibilitySeverity);
-            addPill('Clouds', station.CloudBase, 'text-slate-300', station.CloudSeverity);
-
-            html += `
-                            <div class="bg-[#232730] p-5 rounded-xl border border-white/5 flex flex-col gap-4 shadow-xl relative overflow-hidden">
-                                <div class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
-                                
-                                <div class="flex items-center justify-between border-b border-white/5 pb-3 relative z-10">
-                                    <div class="flex items-center gap-3">
-                                        <span class="material-symbols-outlined text-sky-400 text-2xl">${icon}</span>
-                                        <h4 class="text-white font-bold uppercase tracking-widest text-sm m-0">${station.Label} ${station.Icao ? `<span class="text-sky-400/80 tracking-widest">${station.Icao}</span>` : ''}</h4>
-                                        ${stnFlHtml}
-                                    </div>
+            let htmlBlock = `<div class="flex justify-between items-start mb-3 relative group">
+                                <div>
+                                    <div class="font-bold text-white text-xl tracking-widest drop-shadow-md mb-2">${st.Icao || ''}</div>
+                                    <div class="flex flex-wrap gap-2 mb-3">${pillsHtml}</div>
                                 </div>
-
-                                <div class="bg-black/60 rounded p-3 font-mono text-[11px] text-slate-400 leading-relaxed border border-white/5 relative z-10">
-                                    <span class="block mb-2 text-white break-words">${station.RawMetar || 'NO METAR'}</span>
-                                    <span class="block text-slate-500 break-words">${station.RawTaf || 'NO TAF'}</span>
+                                <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="text-[10px] uppercase font-bold text-sky-400/80 hover:text-sky-300 px-3 py-1.5 rounded-md border border-sky-400/20 bg-sky-900/10 hover:bg-sky-900/30 transition-all font-mono tracking-widest mt-1">RAW DATA</button>
+                                <div class="hidden absolute top-12 left-0 right-0 z-50 p-4 bg-[#0f1115] rounded-xl border border-white/10 shadow-2xl font-mono text-xs text-emerald-400/90 leading-relaxed max-h-48 overflow-y-auto custom-scrollbar">
+                                    <div class="mb-3 break-words text-emerald-300 border-b border-white/5 pb-2">${st.RawMetar || 'No METAR available.'}</div>
+                                    <div class="text-emerald-700/80 break-words">${st.RawTaf || 'No TAF available.'}</div>
                                 </div>
+                             </div>
+                             <div class="text-slate-300 text-sm leading-relaxed font-sans bg-white/5 p-3 rounded-lg border-l-2 border-slate-500/50 italic">${st.Commentary || 'Pas de briefing météorologique narratif.'}</div>`;
+                             
+            if (st.Id.toLowerCase() === 'origin' || st.Id.toLowerCase() === 'departure') {
+                depHtml = htmlBlock;
+            } else if (st.Id.toLowerCase() === 'destination') {
+                arrHtml = htmlBlock;
+            } else if (st.Id.toLowerCase() === 'alternate') {
+                altHtml = htmlBlock;
+            }
+        });
+        
+        // Combine all NOTAMs from all stations for this leg
+        let allNotams = '';
+        briefingData.Stations.forEach(st => {
+            if (st.Notams && st.Notams.trim() !== '') {
+                allNotams += `<div class="mb-4 bg-black/20 p-3 rounded-lg border border-white/5"><div class="text-[10px] font-black tracking-widest text-indigo-400 mb-2 border-b border-white/5 pb-1">[${st.Icao}]</div><div class="text-slate-400 text-[10px] font-mono leading-relaxed">${st.Notams.trim().replace(/\\n/g, '<br/>')}</div></div>`;
+            }
+        });
+        if (allNotams !== '') notamsHtml = allNotams;
 
-                                ${variablesHtml !== '' ? `<div class="grid grid-cols-2 xl:grid-cols-5 gap-2 mt-2 relative z-10">${variablesHtml}</div>` : ''}
+        // Try extracting en-route info using WeatherBriefingService mapping if any
+        if (briefingData && briefingData.EnrouteText) {
+            enRouteHtml = `<div class="text-slate-300 text-sm leading-relaxed font-sans bg-white/5 p-3 rounded-lg border-l-2 border-blue-500/50">${briefingData.EnrouteText}</div>`;
+        } else {
+             enRouteHtml = `<div class="text-slate-300 text-sm leading-relaxed font-sans bg-white/5 p-3 rounded-lg border-l-2 border-slate-500/50 italic">No significant en-route weather detected. Operations normal.</div>`;
+        }
+    }
 
-                                ${station.RunwayAdvice ? `
-                                <div class="mt-2 text-slate-300 font-medium text-[11px] flex items-center gap-2 bg-emerald-900/20 p-2 rounded border border-emerald-500/20 relative z-10">
-                                    <span class="material-symbols-outlined text-emerald-400 text-[16px]">flight_takeoff</span>
-                                    ${station.RunwayAdvice.replace('Warning:', '<strong class="text-orange-400 uppercase tracking-widest ml-1 text-[9px]">CAUTION</strong>')}
-                                </div>` : ''}
+    if (elDep) elDep.innerHTML = depHtml;
+    if (elArr) elArr.innerHTML = arrHtml;
+    if (elAlt) elAlt.innerHTML = altHtml;
+    if (elEnRoute) elEnRoute.innerHTML = enRouteHtml;
+    if (elNotams) elNotams.innerHTML = notamsHtml;
 
-                                ${station.Commentary ? `
-                                <div class="mt-2 text-slate-400 italic font-serif text-[12px] border-l-2 border-slate-500/50 pl-4 py-2 bg-black/20 rounded-r-lg leading-relaxed relative z-10">
-                                    "${station.Commentary}"
-                                </div>` : ''}
 
-                                ${station.Notams && station.Notams.trim() !== '' ? `
-                                <div class="mt-4 pt-4 border-t border-red-500/20 bg-red-900/10 p-3 rounded relative z-10">
-                                    <h5 class="text-red-400/90 uppercase text-[9px] font-bold tracking-widest mb-2 flex items-center gap-1"><span class="material-symbols-outlined text-red-500 text-[14px]">warning</span> NOTAMS & ALERTS</h5>
-                                    <div class="text-red-200/80 text-[10px] whitespace-pre-wrap leading-relaxed">${station.Notams}</div>
-                                </div>` : ''}
-                            </div>`;
+
+    // Fill Fuel & Weight Load Sheet
+    const elTrip = document.getElementById('fuelTripField');
+    const elAltn = document.getElementById('fuelAltnField');
+    const elRes = document.getElementById('fuelResField');
+    const elExtra = document.getElementById('fuelExtraField');
+    const elBlock = document.getElementById('fuelBlockField');
+    
+    if (rd && rd.fuel) {
+        let weightUnit = (rd.general && rd.general.units && rd.general.units.toLowerCase() === "lbs") ? "LBS" : "KG";
+        let unitLabels = document.querySelectorAll('.fuelUnitLabel');
+        unitLabels.forEach(lbl => lbl.innerText = weightUnit);
+
+        if (elTrip) elTrip.innerText = rd.fuel.enroute_burn ? Math.round(parseFloat(rd.fuel.enroute_burn)) : '---';
+        if (elAltn) elAltn.innerText = rd.fuel.alternate_burn ? Math.round(parseFloat(rd.fuel.alternate_burn)) : '---';
+        if (elRes) elRes.innerText = rd.fuel.reserve ? Math.round(parseFloat(rd.fuel.reserve)) : '---';
+        if (elExtra && elExtra.innerText === '0') elExtra.innerText = rd.fuel.extra ? Math.round(parseFloat(rd.fuel.extra)) : '0';
+        
+        const elPax = document.getElementById('loadPaxField');
+        const elPayload = document.getElementById('loadPayloadField');
+        if (elPax && rd.weights && rd.weights.pax_count) {
+            elPax.innerText = rd.weights.pax_count;
+        }
+        if (elPayload && rd.weights && rd.weights.payload) {
+            elPayload.innerText = Math.round(parseFloat(rd.weights.payload));
+        }
+        
+        // Populate CI and Altitude from raw data
+        const elCi = document.getElementById('dispCiField');
+        const elFl = document.getElementById('dispFlField');
+        if (elCi) elCi.innerText = rd.general.cost_index || '30';
+        if (elFl) {
+            let fl = Math.round(parseInt(rd.general.initial_alt || '30000') / 100);
+            elFl.innerText = 'FL' + fl;
+        }
+
+
+        // Calculate dynamic block based on input
+        window.calculateBlockFuel();
+    }
+};
+
+window.calculateBlockFuel = () => {
+    const elTrip = document.getElementById('fuelTripField');
+    const elAltn = document.getElementById('fuelAltnField');
+    const elRes = document.getElementById('fuelResField');
+    const elExtra = document.getElementById('fuelExtraField');
+    const elBlock = document.getElementById('fuelBlockField');
+    
+    if (!elTrip || !elAltn || !elRes || !elExtra || !elBlock) return;
+    
+    const trip = parseInt(elTrip.innerText) || 0;
+    const altn = parseInt(elAltn.innerText) || 0;
+    const res = parseInt(elRes.innerText) || 0;
+    const extra = parseInt(elExtra.innerText) || 0;
+    
+    // Add contingencies or taxi if present in real logic, simplify here just for UI effect
+    // Real SBP block already includes taxi, so we should take SBP plan_ramp and replace extra
+    
+    const index = window.dashboardActiveLegIndex || 0;
+    let blockFuelVal = trip + altn + res + extra;
+    let computedTow = 0;
+    let computedLdw = 0;
+    let zfw = 0;
+
+    if (window.allRotations && window.allRotations[index]) {
+        const rd = window.allRotations[index].data;
+        if (rd && rd.weights && rd.weights.est_zfw) {
+            zfw = parseInt(rd.weights.est_zfw) || 0;
+        }
+        if (rd && rd.fuel && rd.fuel.plan_ramp) {
+            const extraSimBrief = parseInt(rd.fuel.extra) || 0;
+            const diff = extra - extraSimBrief;
+            blockFuelVal = parseInt(rd.fuel.plan_ramp) + diff;
+            
+            const taxi = parseInt(rd.fuel.taxi) || 0;
+            computedTow = zfw + blockFuelVal - taxi;
+            computedLdw = computedTow - trip;
+        } else {
+            computedTow = zfw + blockFuelVal;
+            computedLdw = computedTow - trip;
+        }
+    }
+    
+    elBlock.innerText = blockFuelVal;
+    
+    const elZfw = document.getElementById('loadZfwField');
+    const elTow = document.getElementById('loadTowField');
+    const elLdw = document.getElementById('loadLdwField');
+    
+    if (elZfw) elZfw.innerText = zfw > 0 ? zfw : '---';
+    if (elTow) elTow.innerText = computedTow > 0 ? computedTow : '---';
+    if (elLdw) elLdw.innerText = computedLdw > 0 ? computedLdw : '---';
+};
+
+window.requestFuelValidation = () => {
+    const elBlock = document.getElementById('fuelBlockField');
+    const blockFuel = elBlock ? elBlock.innerText : '0';
+    
+    const btn = document.getElementById('fuelValidateBtn');
+    const btnText = document.getElementById('fuelValidateBtnText');
+    
+    // Update UI 
+    if (btn) {
+        btn.onclick = null;
+        btn.classList.remove('bg-sky-500/20', 'text-sky-400', 'hover:bg-sky-500', 'border-sky-500/50', 'hover:shadow-[0_0_30px_rgba(14,165,233,0.4)]');
+        btn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/50', 'cursor-not-allowed', 'shadow-[0_0_20px_rgba(16,185,129,0.15)]');
+        
+        if (btnText) btnText.innerText = "FUEL VALIDATED";
+        const icon = btn.querySelector('.material-symbols-outlined');
+        if (icon) icon.innerText = "check_circle";
+    }
+    
+    const finalBtn = document.getElementById('btnToggleLoadSheet');
+    if (finalBtn) {
+        finalBtn.classList.remove('hidden');
+        finalBtn.classList.add('flex');
+    }
+    
+    const elCi = document.getElementById('dispCiField');
+    const elFl = document.getElementById('dispFlField');
+
+    // Send to Backend GroundOps
+    window.chrome.webview.postMessage({
+        action: 'validateFuel',
+        payload: {
+            blockFuel: blockFuel,
+            costIndex: elCi ? elCi.innerText : '0',
+            cruiseAlt: elFl ? elFl.innerText.replace('FL', '') : '0',
+            legIndex: window.dashboardActiveLegIndex || 0
+        }
+    });
+
+    // Notify user visually
+    const metaText = document.getElementById('dashMetaText');
+    if (metaText) {
+        metaText.innerText = "FUEL VALIDATED";
+        metaText.style.color = "#34d399";
+    }
+
+    if (window.unlockDashboard) {
+        window.unlockDashboard();
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const elExtra = document.getElementById('fuelExtraField');
+    if (elExtra) {
+        elExtra.addEventListener('input', window.calculateBlockFuel);
+    }
+    const btnSub = document.getElementById('btnSubExtra');
+    const btnAdd = document.getElementById('btnAddExtra');
+    if (btnSub && elExtra) {
+        btnSub.addEventListener('click', () => {
+            let val = parseInt(elExtra.innerText) || 0;
+            if (val >= 100) val -= 100;
+            elExtra.innerText = val;
+            window.calculateBlockFuel();
         });
     }
-    html += '</div>';
-
-    if (data.EnrouteText) {
-        html += `
-                        <div class="mt-6 bg-[#232730] p-5 rounded-xl border border-white/5 shadow-xl relative overflow-hidden">
-                            <div class="flex items-center gap-2 mb-4 border-b border-white/5 pb-3 relative z-10">
-                                <span class="material-symbols-outlined text-sky-400 text-lg">public</span>
-                                <h4 class="text-white font-bold uppercase tracking-widest text-xs m-0">EN ROUTE & OPERATIONS</h4>
-                            </div>
-                            <div class="text-slate-300 leading-relaxed font-body text-xs whitespace-pre-wrap relative z-10">
-                                ${data.EnrouteText}
-                            </div>
-                        </div>`;
+    if (btnAdd && elExtra) {
+        btnAdd.addEventListener('click', () => {
+            let val = parseInt(elExtra.innerText) || 0;
+            val += 100;
+            elExtra.innerText = val;
+            window.calculateBlockFuel();
+        });
     }
 
-    return html;
-};
+    // Cost Index controls
+    const elCi = document.getElementById('dispCiField');
+    const btnSubCi = document.getElementById('btnSubCi');
+    const btnAddCi = document.getElementById('btnAddCi');
+    if (btnSubCi && elCi) {
+        btnSubCi.addEventListener('click', () => {
+            let val = parseInt(elCi.innerText) || 0;
+            if (val > 0) val -= 1;
+            elCi.innerText = val;
+        });
+    }
+    if (btnAddCi && elCi) {
+        btnAddCi.addEventListener('click', () => {
+            let val = parseInt(elCi.innerText) || 0;
+            val += 1;
+            elCi.innerText = val;
+        });
+    }
+
+    // Altitude controls
+    const elFl = document.getElementById('dispFlField');
+    const btnSubFl = document.getElementById('btnSubFl');
+    const btnAddFl = document.getElementById('btnAddFl');
+    if (btnSubFl && elFl) {
+        btnSubFl.addEventListener('click', () => {
+            let val = parseInt(elFl.innerText.replace('FL', '')) || 0;
+            if (val >= 100) val -= 10;
+            elFl.innerText = 'FL' + val;
+        });
+    }
+    if (btnAddFl && elFl) {
+        btnAddFl.addEventListener('click', () => {
+            let val = parseInt(elFl.innerText.replace('FL', '')) || 0;
+            if (val <= 430) val += 10;
+            elFl.innerText = 'FL' + val;
+        });
+    }
+});
 
 
 window.dashboardActiveLegIndex = 0;
@@ -130,6 +362,7 @@ window.navigateDashboardLeg = (dir) => {
     if (window.dashboardActiveLegIndex < 0) window.dashboardActiveLegIndex = 0;
     if (window.dashboardActiveLegIndex >= window.allRotations.length) window.dashboardActiveLegIndex = window.allRotations.length - 1;
     window.populateDashboardActiveLeg(window.dashboardActiveLegIndex);
+    if (window.populateBriefingView) window.populateBriefingView(window.dashboardActiveLegIndex);
     if (window.renderBriefingTimeline) window.renderBriefingTimeline();
 };
 window.AIRLINES = {
@@ -283,7 +516,7 @@ window.populateDashboardActiveLeg = (index = 0) => {
                 <div class="flex items-stretch justify-between w-full bg-[#1a1d24]/60 backdrop-blur-md rounded-2xl border border-white/5 py-4 px-2 shadow-[0_8px_30px_rgba(0,0,0,0.5)] mb-2">
                     <div class="flex flex-col flex-1 items-center justify-center border-r border-white/10 px-4">
                         <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Airline</div>
-                        <div class="text-[20px] font-black text-white tracking-widest mt-1 uppercase text-center">${ac}</div>
+                        <div class="text-[20px] font-black text-emerald-400 hover:text-white transition-colors cursor-pointer tracking-widest mt-1 uppercase text-center" onclick="if(window.showAirlineIdentityModal) window.showAirlineIdentityModal('${icao}')">${ac}</div>
                     </div>
                     <div class="flex flex-col flex-1 items-center justify-center border-r border-white/10 px-4">
                         <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Flight N&deg;</div>
@@ -493,8 +726,8 @@ window.renderBriefingTimeline = () => {
         const isActive = (i === currentIndex);
 
         html += `
-            <div class="w-60 md:w-72 h-[130px] bg-[#2a2a2b] rounded-2xl border ${isActive ? 'border-zinc-500 shadow-[0_0_30px_rgba(255,255,255,0.03)]' : 'border-white/5'} flex flex-col p-4 relative overflow-hidden group cursor-pointer hover:border-white/10 transition-all flex-shrink-0"
-                 onclick="window.dashboardActiveLegIndex = ${i}; window.renderBriefingTimeline(); window.populateDashboardActiveLeg(${i});">
+            <div class="w-60 md:w-72 h-[130px] bg-[#1C1F26]/80 rounded-xl border ${isActive ? 'border-zinc-500 shadow-[0_0_15px_rgba(255,255,255,0.05)]' : 'border-white/5 shadow-md'} flex flex-col p-4 relative overflow-hidden group cursor-pointer hover:border-white/10 transition-all flex-shrink-0"
+                 onclick="window.dashboardActiveLegIndex = ${i}; window.renderBriefingTimeline(); window.populateDashboardActiveLeg(${i}); window.populateBriefingView(${i});">
                 
                 <!-- Permanent Delete Button -->
                 <div class="absolute top-3 right-3 z-20">
@@ -543,7 +776,7 @@ window.renderBriefingTimeline = () => {
     // 2. Render "Add Flight" button in the next available slot
     if (rotations.length < maxSlots) {
         html += `
-            <div class="w-60 md:w-72 h-[130px] bg-white/5 rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center gap-3 p-3 group hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer shadow-inner flex-shrink-0"
+            <div class="w-60 md:w-72 h-[130px] bg-[#1C1F26]/40 rounded-xl border-2 border-dashed border-white/10 flex items-center justify-center gap-3 p-3 group hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer shadow-md flex-shrink-0"
                  onclick="window.openIntegratedSimBrief()">
                 <span class="material-symbols-outlined text-3xl md:text-4xl text-zinc-400 group-hover:scale-110 transition-transform">add_circle</span>
                 <span class="text-[10px] font-bold tracking-[0.15em] uppercase text-zinc-500 group-hover:text-zinc-200 transition-colors mt-0.5">Add Flight</span>
@@ -556,8 +789,8 @@ window.renderBriefingTimeline = () => {
                 <div class="flex items-center justify-center flex-shrink-0">
                     <span class="material-symbols-outlined text-white text-2xl">arrow_forward</span>
                 </div>
-                <div class="w-60 md:w-72 h-[130px] bg-black/20 rounded-2xl border border-dashed border-white/20 flex items-center justify-center flex-shrink-0">
-                    <span class="material-symbols-outlined text-3xl md:text-4xl text-white">flight_takeoff</span>
+                <div class="w-60 md:w-72 h-[130px] bg-[#1C1F26]/20 rounded-xl border border-dashed border-white/10 shadow-md flex items-center justify-center flex-shrink-0">
+                    <span class="material-symbols-outlined text-3xl md:text-4xl text-white/50">flight_takeoff</span>
                 </div>
             `;
         }
@@ -569,21 +802,15 @@ window.renderBriefingTimeline = () => {
     }
 
     container.innerHTML = html;
-
-    // Check persistence
-    if (localStorage.getItem('isDispatchSignedOff') === 'true') {
-        window.unlockDashboard(true); // silent unlock
-    }
 };
 
 window.unlockDashboard = (silent = false) => {
     window.isDispatchSignedOff = true;
-    localStorage.setItem('isDispatchSignedOff', 'true');
     
     const dashBtn = document.getElementById('navDashboardBtn');
     if (dashBtn) {
         dashBtn.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
-        dashBtn.classList.add('cursor-pointer', 'hover:text-white', 'text-[#b6b6b6]');
+        dashBtn.classList.add('cursor-pointer', 'hover:bg-white/5', 'hover:text-sky-300', 'text-[#b6b6b6]');
         dashBtn.title = "Dashboard"; 
     }
 
@@ -596,6 +823,28 @@ window.unlockDashboard = (silent = false) => {
         if (clearBtn) clearBtn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
     }
 
+    // Populate Quick Load Sheet
+    const qmBlock = document.getElementById('qmBlock');
+    const qmCi = document.getElementById('qmCi');
+    const qmCrz = document.getElementById('qmCrz');
+    const qmZfw = document.getElementById('qmZfw');
+    const qmTow = document.getElementById('qmTow');
+    
+    if (qmBlock) qmBlock.innerText = document.getElementById('fuelBlockField')?.innerText || '---';
+    if (qmCi) qmCi.innerText = document.getElementById('dispCiField')?.innerText || '---';
+    if (qmCrz) qmCrz.innerText = document.getElementById('dispFlField')?.innerText || '---';
+
+    const index = window.dashboardActiveLegIndex || 0;
+    if (window.allRotations && window.allRotations[index] && window.allRotations[index].data) {
+        const rd = window.allRotations[index].data;
+        if (qmZfw && rd.weights && rd.weights.est_zfw) qmZfw.innerText = rd.weights.est_zfw;
+        if (qmTow && rd.weights && rd.weights.est_tow) qmTow.innerText = rd.weights.est_tow;
+    }
+
+    // Show Quick Load Sheet button
+    const toggleBtn = document.getElementById('btnToggleLoadSheet');
+    if (toggleBtn) toggleBtn.classList.remove('hidden');
+
     if (!silent && window.Swal) {
         Swal.fire({
             title: 'DISPATCH SIGNED OFF',
@@ -606,6 +855,17 @@ window.unlockDashboard = (silent = false) => {
             confirmButtonColor: '#0ea5e9',
             timer: 2000
         });
+        
+        // Auto-switch to Dashboard Tab
+        document.querySelectorAll('.sidebar button').forEach(b => b.classList.remove('active', 'text-white'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        if (dashBtn) dashBtn.classList.add('active', 'text-white');
+        const dashTab = document.getElementById('dashboard');
+        if (dashTab) dashTab.classList.add('active');
+    }
+
+    if (window.groundOpsCache && window.renderGroundOps) {
+        window.renderGroundOps(window.groundOpsCache);
     }
 };
 
@@ -1252,7 +1512,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if ((!window.allRotations || window.allRotations.length === 0) && window.isDispatchSignedOff) {
             console.log("[SYSTEM] No active rotation detected. Resetting sign-off state.");
             window.isDispatchSignedOff = false;
-            localStorage.removeItem('isDispatchSignedOff');
             const dashBtn = document.getElementById('navDashboardBtn');
             if (dashBtn) {
                 dashBtn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
@@ -2236,6 +2495,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.chrome.webview.postMessage({ action: 'syncRotationsAndStart', payloadStr: sbPayloadStr });
                 // Reset footer states
                 btnFinishDispatch.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+                
+                // BUG FIX: Automatically view the first leg in Briefing when closing dispatch
+                window.dashboardActiveLegIndex = 0;
+                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(0);
+                if (window.populateBriefingView) window.populateBriefingView(0);
+                if (window.renderBriefingTimeline) window.renderBriefingTimeline();
+
                 window.chrome.webview.postMessage({ action: 'finishDispatch' });
             } catch (err) {
                 console.error("Failed to stringify or send payload", err);
@@ -2347,13 +2613,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 break;
             case 'briefingUpdate':
-                if (typeof window.parseBriefing === 'function') {
-                    const parsedHtml = window.parseBriefing(payload.briefing);
-                    const briefingElem = document.getElementById('briefing-content');
-                    if (briefingElem && briefingElem.dataset.lastBriefingHtml !== parsedHtml) {
-                        briefingElem.innerHTML = parsedHtml;
-                        briefingElem.dataset.lastBriefingHtml = parsedHtml;
-                    }
+                if (window.populateBriefingView) {
+                    window.populateBriefingView(window.dashboardActiveLegIndex || 0);
                 }
                 // Refresh Timeline whenever we get briefing data
                 if (window.renderBriefingTimeline) window.renderBriefingTimeline();
@@ -2377,7 +2638,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.activeLegIndex = 0;
                 window.dashboardActiveLegIndex = 0;
                 window.isDispatchSignedOff = false;
-                localStorage.removeItem('isDispatchSignedOff');
                 if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg();
                 if (window.resetDashboardWidgets) window.resetDashboardWidgets();
                 if (window.renderBriefingTimeline) window.renderBriefingTimeline();
@@ -2801,7 +3061,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             'AAL': 'American Airlines', 'UAL': 'United', 'SWA': 'Southwest'
                         };
                         let aCode = currentFlight.general?.icao_airline || '';
-                        document.getElementById('dashFlightCompany').innerText = GLOBAL_AIRLINES[aCode] || currentFlight.general?.airline_name || aCode || 'AIRLINE';
+                        let dashFlightCo = document.getElementById('dashFlightCompany');
+                        if (dashFlightCo) {
+                            dashFlightCo.innerText = GLOBAL_AIRLINES[aCode] || currentFlight.general?.airline_name || aCode || 'AIRLINE';
+                            dashFlightCo.onclick = () => { if(window.showAirlineIdentityModal) window.showAirlineIdentityModal(aCode); };
+                            dashFlightCo.classList.add('cursor-pointer', 'hover:text-emerald-400', 'transition-colors');
+                        }
+                        
                         document.getElementById('dashFlightIdent').innerText = `${currentFlight.general?.icao_airline || ''}${currentFlight.general?.flight_number || ''}`;
 
                         let acType = currentFlight.aircraft?.name || currentFlight.aircraft?.base_type || currentFlight.aircraft?.icaocode || 'Unknown';
@@ -3860,6 +4126,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                                 const btnFinishDispatch = document.getElementById('btnFinishDispatch');
                                 if (btnFinishDispatch) btnFinishDispatch.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+                                
+                                // BUG FIX: Automatically view the first leg in Briefing when closing dispatch
+                                window.dashboardActiveLegIndex = 0;
+                                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(0);
+                                if (window.populateBriefingView) window.populateBriefingView(0);
+                                if (window.renderBriefingTimeline) window.renderBriefingTimeline();
+
                             }, 800); // Small 800ms delay to let the dashboard prepare visually
                         } catch (err) {
                             console.error(err);
@@ -4136,7 +4409,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (dhOrigin) dhOrigin.innerHTML = `${d.origin?.icao_code || '---'} <span style="font-size: 15px; color: #94A3B8; font-weight: 600;">(${d.origin?.name || d.origin?.city || ''})</span>`;
                 if (dhDest) dhDest.innerHTML = `${d.destination?.icao_code || '---'} <span style="font-size: 15px; color: #94A3B8; font-weight: 600;">(${d.destination?.name || d.destination?.city || ''})</span>`;
                 if (dhFlight) dhFlight.innerText = `Flight ${d.general?.icao_airline || ''}${d.general?.flight_number || ''}`;
-                if (dhAirline) dhAirline.innerText = d.general?.airline_name || d.general?.icao_airline || 'Unknown';
+                if (dhAirline) {
+                    dhAirline.innerText = d.general?.airline_name || d.general?.icao_airline || 'Unknown';
+                    const aCode = d.general?.icao_airline || '';
+                    dhAirline.onclick = () => { if(window.showAirlineIdentityModal) window.showAirlineIdentityModal(aCode); };
+                    dhAirline.classList.add('cursor-pointer', 'hover:text-emerald-400', 'transition-colors');
+                }
 
                 if (payload.manifest && !window.manifest) {
                     window.manifest = payload.manifest;
@@ -4183,6 +4461,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'groundOps':
                 window.groundOpsCache = payload.services;
+                if (payload.isDispatchSignedOff !== undefined) {
+                    window.isDispatchSignedOff = payload.isDispatchSignedOff;
+                }
                 renderGroundOps(payload.services);
                 updateMetaBar(payload.services);
                 if (payload.airportTier) {
@@ -4366,18 +4647,18 @@ function updateMetaBar(services) {
 function renderGroundOps(services) {
     const container = document.getElementById('groundOpsContainer');
 
-    if (!services || services.length === 0) {
-        container.innerHTML = '<p class="text-slate-500 font-mono text-center delay-fade-in" data-i18n="ground_pending">Ground operations pending SimBrief initialization...</p>';
-        return;
-    }
+    let html = '';
 
-    let html = `
-    <div class="flex justify-end mb-4">
-        <button onclick="document.getElementById('timeSkipModal').classList.remove('hidden')" class="bg-amber-600/20 text-amber-500 border border-amber-500/30 px-3 py-1 rounded text-[10px] uppercase tracking-widest font-bold hover:bg-amber-600/40 transition-colors shadow-[0_0_10px_rgba(245,158,11,0.2)]">
-            <span class="material-symbols-outlined text-[12px] align-middle mr-1">fast_forward</span> Time skip
-        </button>
-    </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+    if (!services || services.length === 0) {
+        html = '<p class="text-slate-500 font-mono text-center delay-fade-in" data-i18n="ground_pending">Ground operations pending SimBrief initialization...</p>';
+    } else {
+        html = `
+        <div class="flex justify-end mb-4">
+            <button onclick="document.getElementById('timeSkipModal').classList.remove('hidden')" class="bg-amber-600/20 text-amber-500 border border-amber-500/30 px-3 py-1 rounded text-[10px] uppercase tracking-widest font-bold hover:bg-amber-600/40 transition-colors shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+                <span class="material-symbols-outlined text-[12px] align-middle mr-1">fast_forward</span> Time skip
+            </button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
 
     let isDeboardingActive = services.some(s => (s.Name || s.name) === "Deboarding" && (s.State !== undefined ? s.State : s.state) === 1);
     let isBoardingActive = services.some(s => (s.Name || s.name) === "Boarding" && (s.State !== undefined ? s.State : s.state) === 1);
@@ -4432,15 +4713,8 @@ function renderGroundOps(services) {
         let blockReason = '';
         let isPhysicalBlock = false;
 
-        if ((s.Name === "Deboarding" || s.Name === "Boarding") && isCrewWorking) {
-            isBlocked = true;
-            blockReason = 'CREW';
-        }
-        if ((s.Name.includes("Clean") || s.Name === "Catering") && isPaxMoving) {
-            isBlocked = true;
-            blockReason = 'PAX';
-        }
-
+        // Note: Pax/Crew padlocks removed by user request
+        
         // TELEMETRY LOCKS
         const tele = window.lastTelemetry || {};
         const beaconOn = tele.isBeaconOn === true;
@@ -4541,6 +4815,10 @@ function renderGroundOps(services) {
                 extraBadgesHtml += `<div class="px-2 py-1 rounded ${waBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${waColor}; border-color: ${waColor}40;">🗑️ ${Math.round(wasl)}%</div>`;
             }
         }
+        if (!window.isDispatchSignedOff) {
+            isClickable = false;
+        }
+        
         const safeName = (s.Name || s.name).replace(/\s|[^\w]/g, '');
         const clickAction = isClickable ? `onclick="window.chrome.webview.postMessage({action: '${actionName}', service: '${(s.Name || s.name)}'})"` : '';
 
@@ -4548,8 +4826,13 @@ function renderGroundOps(services) {
         if (isCompleted && !(s.IsPreServiced || s.isPreServiced)) barColor = '#34D399';
         else if (isCompleted && (s.IsPreServiced || s.isPreServiced)) barColor = '#475569';
 
+        let cardContainerClasses = "bg-[#12141A] rounded-xl border border-white/5 overflow-hidden flex flex-col justify-center h-full min-h-[90px] relative transition-all duration-700";
+        if (!window.isDispatchSignedOff) {
+            cardContainerClasses += " opacity-25 grayscale pointer-events-none";
+        }
+
         html += `
-            <div class="bg-[#12141A] rounded-xl border border-white/5 overflow-hidden flex flex-col justify-center h-full min-h-[90px] relative">
+            <div class="${cardContainerClasses}">
                 ${(() => {
                 if (s.Name === "Water/Waste") {
                     let waterLvl = s.State === 1 ? s.ProgressPercent : Math.round(window.lastTelemetry?.waterLevel || 100);
@@ -4610,6 +4893,11 @@ function renderGroundOps(services) {
     });
 
     html += '</div>';
+    }
+
+    if (!window.isDispatchSignedOff) {
+        // Overlay disabled per user request
+    }
 
     container.innerHTML = html;
 }
@@ -5230,3 +5518,39 @@ window.showSystemConfirm = function(options) {
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 };
+
+document.addEventListener('DOMContentLoaded', () => {
+    // --- QUICK LOAD SHEET MODAL DRAG LOGIC ---
+    let isQuickLoadDragging = false;
+    let qlDragStartX = 0;
+    let qlDragStartY = 0;
+    const quickLoadModal = document.getElementById('quickLoadSheetModal');
+    const quickLoadHeader = document.getElementById('quickLoadSheetHeader');
+
+    if (quickLoadModal && quickLoadHeader) {
+        quickLoadHeader.addEventListener('mousedown', (e) => {
+            if (e.target.closest('button')) return; // ignore close button
+            isQuickLoadDragging = true;
+            qlDragStartX = e.clientX - quickLoadModal.offsetLeft;
+            qlDragStartY = e.clientY - quickLoadModal.offsetTop;
+            document.body.style.userSelect = 'none'; // prevent text selection
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isQuickLoadDragging) return;
+            quickLoadModal.style.left = `${e.clientX - qlDragStartX}px`;
+            quickLoadModal.style.top = `${e.clientY - qlDragStartY}px`;
+            quickLoadModal.style.right = 'auto'; // release right constraint
+            quickLoadModal.style.bottom = 'auto';
+            quickLoadModal.style.margin = '0'; // clear margins that might break positioning
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isQuickLoadDragging) {
+                isQuickLoadDragging = false;
+                document.body.style.userSelect = '';
+            }
+        });
+    }
+});
+

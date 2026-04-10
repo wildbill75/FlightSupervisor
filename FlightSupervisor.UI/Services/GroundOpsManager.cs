@@ -54,6 +54,8 @@ namespace FlightSupervisor.UI.Services
         // Story 29
         public DateTime? TargetSobt { get; private set; }
         public bool IsLowCost { get; private set; } = false;
+        
+        public bool IsFuelSheetValidated { get; set; } = false;
 
         private static readonly Dictionary<string, List<DelayEvent>> _delayEvents = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -250,6 +252,7 @@ namespace FlightSupervisor.UI.Services
             // Reset state to allow importing a new flight plan seamlessly
             _isStarted = false;
             IsPaused = false;
+            IsFuelSheetValidated = false;
             TargetSobt = null;
             Services.Clear();
             Services.Add(new GroundService { Name = "Deboarding", TotalDurationSec = 600, StatusMessage = "Pending", State = GroundServiceState.NotStarted, ElapsedSec = 0 });
@@ -360,6 +363,19 @@ namespace FlightSupervisor.UI.Services
                         OnOpsLog?.Invoke(LocalizationService.Translate($"[{GetActorForService(s.Name)}] Cannot start Boarding while Cleaning or Catering is in progress.", $"[{GetActorForService(s.Name)}] L'embarquement est bloqué car le nettoyage ou le catering est en cours."));
                         OnOpsUpdated?.Invoke();
                         return;
+                    }
+                }
+
+                if (name.Equals("Refueling", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!IsFuelSheetValidated)
+                    {
+                        s.StatusMessage = LocalizationService.Translate("Awaiting Validation", "Attente Validation");
+                        OnOpsLog?.Invoke(LocalizationService.Translate(
+                            $"[DISPATCH] Cannot commence Refueling until Fuel Load Sheet is strictly validated by the Commander.", 
+                            $"[DISPATCH] Impossible de commencer le ravitaillement, la confirmation en carburant n'a pas été validée par le Cdt."));
+                        OnOpsUpdated?.Invoke();
+                        return; // BLOCKED
                     }
                 }
 
