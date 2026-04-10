@@ -225,6 +225,15 @@ window.populateBriefingView = (index = 0) => {
             elPayload.innerText = Math.round(parseFloat(rd.weights.payload));
         }
         
+        const elZfw = document.getElementById('loadZfwField');
+        const elLdw = document.getElementById('loadLdwField');
+        if (elZfw && rd.weights && rd.weights.est_zfw) {
+            elZfw.innerText = Math.round(parseFloat(rd.weights.est_zfw));
+        }
+        if (elLdw && rd.weights && rd.weights.est_ldw) {
+            elLdw.innerText = Math.round(parseFloat(rd.weights.est_ldw));
+        }
+        
         // Populate CI and Altitude from raw data
         const elCi = document.getElementById('dispCiField');
         const elFl = document.getElementById('dispFlField');
@@ -237,6 +246,51 @@ window.populateBriefingView = (index = 0) => {
 
         // Calculate dynamic block based on input
         window.calculateBlockFuel();
+
+        // --- Fuel Validation Button State Management ---
+        const btnValidate = document.getElementById('fuelValidateBtn');
+        const btnValidateText = document.getElementById('fuelValidateBtnText');
+        const btnValidateIcon = btnValidate ? btnValidate.querySelector('.material-symbols-outlined') : null;
+        
+        if (btnValidate && btnValidateText) {
+            const activeLegIdx = window.activeLegIndex || 0;
+            const isItPast = index < activeLegIdx;
+            const isItFuture = index > activeLegIdx;
+            const isItValidated = rd.isFuelValidated;
+            
+            // Reset base classes
+            btnValidate.className = "w-full py-4 rounded-xl font-bold tracking-[0.2em] uppercase transition-all duration-300 flex items-center justify-center gap-2 relative overflow-hidden group";
+            
+            if (isItFuture) {
+                // Next Leg : Not arrived yet, grayed out
+                btnValidate.classList.add('bg-slate-800/50', 'text-slate-500', 'border', 'border-white/5', 'cursor-not-allowed');
+                btnValidate.onclick = null;
+                btnValidate.title = "Fuel validation will be available during the turnaround phase when this leg becomes active.";
+                btnValidateText.innerText = "FUTURE TURNAROUND";
+                if (btnValidateIcon) btnValidateIcon.innerText = "hourglass_empty";
+            } else if (isItPast) {
+                btnValidate.classList.add('bg-slate-800/80', 'text-slate-500', 'border', 'border-slate-700/50', 'cursor-not-allowed');
+                btnValidate.onclick = null;
+                btnValidate.title = "This leg is already completed.";
+                btnValidateText.innerText = "LEG COMPLETED";
+                if (btnValidateIcon) btnValidateIcon.innerText = "check_circle";
+            } else {
+                // Active Leg
+                if (isItValidated) {
+                    btnValidate.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50', 'cursor-not-allowed', 'shadow-[0_0_20px_rgba(16,185,129,0.15)]');
+                    btnValidate.onclick = null;
+                    btnValidate.title = "Fuel successfully validated and transmitted to ground operations.";
+                    btnValidateText.innerText = "FUEL VALIDATED";
+                    if (btnValidateIcon) btnValidateIcon.innerText = "check_circle";
+                } else {
+                    btnValidate.classList.add('bg-sky-500/20', 'text-sky-400', 'hover:bg-sky-500', 'hover:text-white', 'border', 'border-sky-500/50', 'shadow-[0_0_20px_rgba(14,165,233,0.15)]', 'hover:shadow-[0_0_30px_rgba(14,165,233,0.4)]', 'cursor-pointer');
+                    btnValidate.onclick = () => { if(window.requestFuelValidation) window.requestFuelValidation(); };
+                    btnValidate.title = "Confirm load sheet and start fueling operations.";
+                    btnValidateText.innerText = "Validate Fuel";
+                    if (btnValidateIcon) btnValidateIcon.innerText = "verified";
+                }
+            }
+        }
     }
 };
 
@@ -297,6 +351,11 @@ window.requestFuelValidation = () => {
     const elBlock = document.getElementById('fuelBlockField');
     const blockFuel = elBlock ? elBlock.innerText : '0';
     
+    const activeIdx = window.dashboardActiveLegIndex || 0;
+    if (window.allRotations && window.allRotations[activeIdx] && window.allRotations[activeIdx].data) {
+        window.allRotations[activeIdx].data.isFuelValidated = true;
+    }
+
     const btn = document.getElementById('fuelValidateBtn');
     const btnText = document.getElementById('fuelValidateBtnText');
     
@@ -780,7 +839,7 @@ window.renderBriefingTimeline = () => {
         const isActive = (i === currentIndex);
 
         html += `
-            <div class="w-60 md:w-72 h-[130px] bg-[#1C1F26]/80 rounded-xl border ${isActive ? 'border-zinc-500 shadow-[0_0_15px_rgba(255,255,255,0.05)]' : 'border-white/5 shadow-md'} flex flex-col p-4 relative overflow-hidden group cursor-pointer hover:border-white/10 transition-all flex-shrink-0"
+            <div id="timelineCard_${i}" class="w-60 md:w-72 h-[130px] bg-[#1C1F26]/80 rounded-xl border ${isActive ? 'border-zinc-500 shadow-[0_0_15px_rgba(255,255,255,0.05)]' : 'border-white/5 shadow-md'} flex flex-col p-4 relative overflow-hidden group cursor-pointer hover:border-white/10 transition-all flex-shrink-0 snap-center"
                  onclick="window.dashboardActiveLegIndex = ${i}; window.renderBriefingTimeline(); window.populateDashboardActiveLeg(${i}); window.populateBriefingView(${i});">
                 
                 <!-- Permanent Delete Button -->
@@ -830,7 +889,7 @@ window.renderBriefingTimeline = () => {
     // 2. Render "Add Flight" button in the next available slot
     if (rotations.length < maxSlots) {
         html += `
-            <div class="w-60 md:w-72 h-[130px] bg-[#1C1F26]/40 rounded-xl border-2 border-dashed border-white/10 flex items-center justify-center gap-3 p-3 group hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer shadow-md flex-shrink-0"
+            <div class="w-60 md:w-72 h-[130px] bg-[#1C1F26]/40 rounded-xl border-2 border-dashed border-white/10 flex items-center justify-center gap-3 p-3 group hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer shadow-md flex-shrink-0 snap-center"
                  onclick="window.openIntegratedSimBrief()">
                 <span class="material-symbols-outlined text-3xl md:text-4xl text-zinc-400 group-hover:scale-110 transition-transform">add_circle</span>
                 <span class="text-[10px] font-bold tracking-[0.15em] uppercase text-zinc-500 group-hover:text-zinc-200 transition-colors mt-0.5">Add Flight</span>
@@ -843,7 +902,7 @@ window.renderBriefingTimeline = () => {
                 <div class="flex items-center justify-center flex-shrink-0">
                     <span class="material-symbols-outlined text-white text-2xl">arrow_forward</span>
                 </div>
-                <div class="w-60 md:w-72 h-[130px] bg-[#1C1F26]/20 rounded-xl border border-dashed border-white/10 shadow-md flex items-center justify-center flex-shrink-0">
+                <div class="w-60 md:w-72 h-[130px] bg-[#1C1F26]/20 rounded-xl border border-dashed border-white/10 shadow-md flex items-center justify-center flex-shrink-0 snap-center">
                     <span class="material-symbols-outlined text-3xl md:text-4xl text-white/50">flight_takeoff</span>
                 </div>
             `;
@@ -856,6 +915,18 @@ window.renderBriefingTimeline = () => {
     }
 
     container.innerHTML = html;
+
+    setTimeout(() => {
+        const activeCard = document.getElementById(`timelineCard_${currentIndex}`);
+        if (activeCard && container) {
+            const containerCenter = container.offsetWidth / 2;
+            const cardCenter = activeCard.offsetLeft + (activeCard.offsetWidth / 2);
+            container.scrollTo({
+                left: cardCenter - containerCenter,
+                behavior: 'smooth'
+            });
+        }
+    }, 50);
 };
 
 window.unlockDashboard = (silent = false) => {
@@ -3324,9 +3395,39 @@ document.addEventListener('DOMContentLoaded', () => {
                         d = window.finalAibtUnix - window.currentSibtUnix;
                         let st = getPunc(window.currentSibtUnix, window.finalAibtUnix);
                         let isEarly = st.d < 0;
-                        let turnaroundStr = window.currentTotTurnaround ? ` | TAS Remaining: ${window.currentTotTurnaround}m` : "";
-                        cd.innerText = `Arrivé avec ${fmt(st.d)} ${isEarly ? "d'avance" : "de retard"}${turnaroundStr}`;
-                        cd.style.color = st.c;
+                        
+                        if (!cd.querySelector('#ttAnimatedBox')) {
+                            cd.innerHTML = `<div id="ttAnimatedBox" class="flex flex-col items-center justify-center transition-opacity duration-700 min-h-[36px]">
+                                <span id="ttAnimateLabel" class="text-[9px] text-slate-400 font-bold tracking-[0.2em] uppercase"></span>
+                                <span id="ttAnimateTime" class="text-[13px] font-mono font-bold mt-0.5"></span>
+                            </div>`;
+                        }
+                        
+                        const lbl = document.getElementById('ttAnimateLabel');
+                        const timeEl = document.getElementById('ttAnimateTime');
+                        const box = document.getElementById('ttAnimatedBox');
+                        
+                        let nowMs = Date.now();
+                        let cyclePeriod = 5000;
+                        let phase = nowMs % cyclePeriod;
+                        let cycle = Math.floor(nowMs / cyclePeriod) % 2;
+                        
+                        // Fade in/out logic (Fade out during first 500ms and last 500ms of the 5s window)
+                        if (phase < 500 || phase > 4500) {
+                            box.style.opacity = "0";
+                        } else {
+                            box.style.opacity = "1";
+                            if (cycle === 0) {
+                                lbl.innerText = "TURNAROUND REMAINING";
+                                timeEl.innerText = window.currentTotTurnaround ? `${window.currentTotTurnaround}m` : "STANDBY";
+                                timeEl.style.color = '#34d399'; // emerald-400
+                            } else {
+                                lbl.innerText = "ARRIVAL STATS";
+                                timeEl.innerText = `${isEarly ? "EARLY" : "LATE"} BY ${fmt(st.d)}`;
+                                timeEl.style.color = st.c;
+                            }
+                        }
+
                         let aibtSp = document.getElementById('bdAibt');
                         if (aibtSp) aibtSp.style.color = st.c;
                         isArrTimer = true;

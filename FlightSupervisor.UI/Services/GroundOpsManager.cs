@@ -444,13 +444,18 @@ namespace FlightSupervisor.UI.Services
             
             if (_lastTick.Year < 2000) _lastTick = now;
             
-            var delta = (int)(now - _lastTick).TotalSeconds;
-            _lastTick = now; // Update immediately to prevent delta buildup if paused
+            double deltaD = (now - _lastTick).TotalSeconds;
 
-            if (IsPaused || delta <= 0) return;
+            if (IsPaused) 
+            {
+                _lastTick = now; // Don't accumulate when paused
+                return;
+            }
+
+            if (deltaD < 1.0) return; // Wait until at least 1 full second has accumulated
             
-            // Note: delta is no longer clamped to > 10 because we want to seamlessly support MSFS Time skips
-            // If the user advances the simulator clock by 30 mins, delta will be 1800s, and operations will correctly batch process.
+            var delta = (int)deltaD;
+            _lastTick = _lastTick.AddSeconds(delta); // Advance _lastTick strictly by the consumed integer seconds to keep the fractional remainder
 
             if (Services.Count == 0) return;
 

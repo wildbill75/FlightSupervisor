@@ -643,8 +643,8 @@
             <!-- BRIEFING TAB -->
             <section id="briefing" class="tab-content active flex flex-col min-h-[calc(100vh-120px)] w-full">
                 <!-- Timeline de Rotation (Dynamique) -->
-                <div class="flex flex-col items-center gap-6 mb-6 flex-none w-full max-w-7xl mx-auto">
-                    <div id="briefing-timeline" class="flex items-center gap-4 py-4 w-full overflow-x-auto min-h-[160px] custom-thin-scrollbar">
+                <div class="flex flex-col items-center gap-6 mb-6 flex-none w-full max-w-7xl mx-auto relative">
+                    <div id="briefing-timeline" class="flex items-center gap-4 py-4 w-full overflow-x-auto min-h-[160px] custom-thin-scrollbar snap-x snap-mandatory scroll-smooth pr-8">
                         <!-- Généré dynamiquement par app.js -->
                     </div>
                     
@@ -727,6 +727,24 @@
                             </h3>
 
                             <div class="space-y-4 mb-8 flex-grow">
+                                <div class="grid grid-cols-2 gap-4 mb-4">
+                                    <div class="flex flex-col bg-black/40 p-3 rounded-lg border border-white/5">
+                                        <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest font-bold mb-1">Pax</span>
+                                        <span id="loadPaxField" class="text-sm font-mono text-white font-bold">---</span>
+                                    </div>
+                                    <div class="flex flex-col bg-black/40 p-3 rounded-lg border border-white/5">
+                                        <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest font-bold mb-1">Payload</span>
+                                        <div class="flex items-end"><span id="loadPayloadField" class="text-sm font-mono text-white font-bold leading-none">---</span><span class="text-[9px] text-white/50 ml-1 font-bold leading-none mb-0.5">KG</span></div>
+                                    </div>
+                                    <div class="flex flex-col bg-black/40 p-3 rounded-lg border border-white/5">
+                                        <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest font-bold mb-1">Est ZFW</span>
+                                        <div class="flex items-end"><span id="loadZfwField" class="text-sm font-mono text-white font-bold leading-none">---</span><span class="text-[9px] text-white/50 ml-1 font-bold leading-none mb-0.5">KG</span></div>
+                                    </div>
+                                    <div class="flex flex-col bg-black/40 p-3 rounded-lg border border-white/5">
+                                        <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest font-bold mb-1">Est LDW</span>
+                                        <div class="flex items-end"><span id="loadLdwField" class="text-sm font-mono text-white font-bold leading-none">---</span><span class="text-[9px] text-white/50 ml-1 font-bold leading-none mb-0.5">KG</span></div>
+                                    </div>
+                                </div>
                                 <div class="flex justify-between items-center bg-black/30 p-3 rounded-lg border border-white/5">
                                     <span class="text-[10px] text-[#7b7b7b] uppercase tracking-widest font-bold">Trip Fuel</span>
                                     <div><span id="fuelTripField" class="text-sm font-mono text-emerald-400 font-bold">---</span><span class="fuelUnitLabel text-[9px] text-emerald-400/50 ml-1 font-bold">KG</span></div>

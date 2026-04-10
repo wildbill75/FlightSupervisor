@@ -566,16 +566,17 @@ namespace FlightSupervisor.UI
                         string arrAirline = _currentResponse?.General?.Airline ?? "UNK";
                         ShiftStateManager.SaveState(_cabinManager, arrIcao, arrAirline);
                         
-                        // Increment leg counter and load next leg instead of waiting for acknowledgeDebrief
-                        _cabinManager.SessionFlightsCompleted++;
+                        // Pass into Turnaround immediately so the UI unlocks "Deboarding"
+                        _phaseManager.ForcePhase(FlightPhase.Turnaround);
 
                         if (_rotationQueue.Count > 0)
                         {
-                            LoadNextLeg();
-                            SendToWeb(new { type = "log", message = $"[SYSTEM] Flight secured. Initiating turnaround operations. {_rotationQueue.Count} leg(s) remaining." });
+                            SendToWeb(new { type = "log", message = $"[SYSTEM] Flight secured. Initiating turnaround deboarding. {_rotationQueue.Count} leg(s) remaining." });
                         }
                         else
                         {
+                            _cabinManager.SessionFlightsCompleted++;
+
                             // Bug 30: Location Mismatch during Turnaround without a pending leg.
                             // We construct a "Dummy" next leg so the UI knows we are at our new origin.
                             if (_currentResponse != null && _currentResponse.Destination != null)
@@ -590,8 +591,6 @@ namespace FlightSupervisor.UI
                             }
 
                             _groundOpsManager.PrepareNextLeg(_currentFobKg, _cabinManager.CabinCleanliness, _cabinManager.CateringCompletion);
-                            // Pass into Turnaround immediately so the UI unlocks the "Deboarding" and ground ops
-                            _phaseManager.ForcePhase(FlightPhase.Turnaround);
 
                             // Let the UI know about the dummy flight plan to update the banner and location
                             SendToWeb(new
@@ -1261,6 +1260,17 @@ namespace FlightSupervisor.UI
                     catch (System.Exception ex)
                     {
                         System.Windows.MessageBox.Show("Error opening Simbrief: " + ex.Message);
+                    }
+                }
+                else if (action == "acknowledgeDebrief")
+                {
+                    if (_rotationQueue.Count > 0)
+                    {
+                        Dispatcher.Invoke(() => {
+                            _cabinManager.SessionFlightsCompleted++;
+                            LoadNextLeg();
+                            SendToWeb(new { type = "log", message = $"[SYSTEM] Dispatch: Rotation Leg {_cabinManager.SessionFlightsCompleted + 1} initialized." });
+                        });
                     }
                 }
                 else if (action == "cancelLastLeg")
