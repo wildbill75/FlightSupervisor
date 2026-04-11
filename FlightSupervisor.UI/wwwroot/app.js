@@ -1229,8 +1229,6 @@ window.renderBriefingTabs = () => {
         const uiWeightUnit = document.getElementById('selUnitWeight') ? document.getElementById('selUnitWeight').value : 'LBS';
         let fuel = rd.fuel?.plan_ramp || rd.weights?.est_block || rd.weights?.block_fuel || '';
 
-        const parsedHtml = window.parseBriefing(rot.briefing, rd);
-
         let legHtml = `<div class="briefing-view animate-fade-in" style="display:none;">
                             
                             <!-- BACK TO GLOBAL NAVIGATION -->
@@ -1354,7 +1352,7 @@ window.renderBriefingTabs = () => {
                                     <h3 class="text-sm font-label tracking-[0.4em] text-white uppercase mb-6 border-b border-light pb-4 flex items-center gap-2">
                                         <span class="material-symbols-outlined text-white">cloud</span> CREW OPERATIONAL BRIEFING
                                     </h3>
-                                    ${parsedHtml}
+                                    <!-- Dynamic text insertion has been refactored in populateBriefingView -->
                                 </div>
                             </div>
                         </div>`;
@@ -4816,7 +4814,8 @@ function updateMetaBar(services) {
 }
 
 function renderGroundOps(services) {
-    const container = document.getElementById('groundOpsContainer');
+    const containerDash = document.getElementById('dashboardGroundOpsPillsGrid');
+    const containerBriefing = document.getElementById('groundOpsContainer');
 
     let html = '';
 
@@ -4824,12 +4823,7 @@ function renderGroundOps(services) {
         html = '<p class="text-slate-500 font-mono text-center delay-fade-in" data-i18n="ground_pending">Ground operations pending SimBrief initialization...</p>';
     } else {
         html = `
-        <div class="flex justify-end mb-4">
-            <button onclick="document.getElementById('timeSkipModal').classList.remove('hidden')" class="bg-amber-600/20 text-amber-500 border border-amber-500/30 px-3 py-1 rounded text-[10px] uppercase tracking-widest font-bold hover:bg-amber-600/40 transition-colors shadow-[0_0_10px_rgba(245,158,11,0.2)]">
-                <span class="material-symbols-outlined text-[12px] align-middle mr-1">fast_forward</span> Time skip
-            </button>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+        <div class="flex flex-col gap-3">`;
 
     let isDeboardingActive = services.some(s => (s.Name || s.name) === "Deboarding" && (s.State !== undefined ? s.State : s.state) === 1);
     let isBoardingActive = services.some(s => (s.Name || s.name) === "Boarding" && (s.State !== undefined ? s.State : s.state) === 1);
@@ -4865,79 +4859,66 @@ function renderGroundOps(services) {
             locName = mDict.gops_cargo || "Cargo";
             let nState = s.State !== undefined ? s.State : s.state;
             if (deboardingSrv) { // Turnaround
-                if (nState === 1 && (s.ProgressPercent || 0) < 50) locName = `${locName} (UNLOADING)`;
-                else if (nState === 1) locName = `${locName} (LOADING)`;
-                else if (nState === 0 || nState === 5) locName = `${locName} (UNLOAD/LOAD)`;
+                if (nState === 1 && (s.ProgressPercent || 0) < 50) locName = `CARGO UNLOADING`;
+                else if (nState === 1) locName = `CARGO LOADING`;
+                else if (nState === 0 || nState === 5) locName = `CARGO UNLOAD/LOAD`;
             } else { // Pristine
-                if (nState === 0 || nState === 1 || nState === 5) locName = `${locName} (LOADING)`;
+                if (nState === 0 || nState === 1 || nState === 5) locName = `CARGO LOADING`;
             }
         }
         else if (locName === "Catering") locName = mDict.gops_catering || locName;
         else if (locName === "Cleaning") locName = mDict.gops_cleaning || locName;
-        else if (locName === "Cabin Clean (PNC)") locName = "Cabin Clean (PNC)";
+        else if (locName === "Cabin Clean (PNC)" || locName === "PNC Chores") locName = "CLEANING (CREW)";
         else if (locName === "Water/Waste") locName = mDict.gops_water || locName;
 
         let stateVal = s.State !== undefined ? s.State : s.state;
-        const icon = GO_ICONS[s.Name] || '🔹';
-
-        let isBlocked = false;
-        let blockReason = '';
-        let isPhysicalBlock = false;
-
-        // Note: Pax/Crew padlocks removed by user request
         
-        // TELEMETRY LOCKS
-        const tele = window.lastTelemetry || {};
-        const beaconOn = tele.isBeaconOn === true;
-        const engOn = (tele.eng1N1 >= 5) || (tele.eng2N1 >= 5);
-        const doorOpen = tele.isMainDoorOpen === true || tele.isJetwayConnected === true;
+        let iconKey = s.Name !== undefined ? s.Name : s.name;
+        if (iconKey === "Cargo/Luggage") iconKey = "Cargo";
+        if (iconKey === "PNC Chores") iconKey = "Cabin Clean (PNC)";
+        const icon = GO_ICONS[iconKey] || '🔹';
 
-        if (s.Name === "Deboarding" || s.Name === "Boarding" || s.Name === "Cargo" || s.Name === "Cargo/Luggage") {
-            if (engOn) { isBlocked = true; isPhysicalBlock = true; blockReason = 'ENGINES'; }
-            else if (beaconOn) { isBlocked = true; isPhysicalBlock = true; blockReason = 'BEACON'; }
-            else if ((s.Name === "Deboarding" || s.Name === "Boarding") && !doorOpen) { isBlocked = true; isPhysicalBlock = true; blockReason = 'DOORS'; }
-        } else {
-            // Other services (Fuel, Catering, Cleaning, Water)
-            if (engOn) { isBlocked = true; isPhysicalBlock = true; blockReason = 'ENGINES'; }
-            else if (beaconOn) { isBlocked = true; isPhysicalBlock = true; blockReason = 'BEACON'; }
+        // No frontend physical blocks - let the backend/logic strictly dictate if it's startable.
+        let isCompleted = stateVal === 3 || stateVal === 4 || s.IsPreServiced || s.isPreServiced;
+        let isClickable = (stateVal === 0 || stateVal === 5) && window.isDispatchSignedOff;
+        let actionName = s.Name === 'Deboarding' ? 'startDeboarding' : 'startService';
+        let clickAction = isClickable ? `onclick="window.chrome.webview.postMessage({action: '${actionName}', service: '${(s.Name || s.name)}'})"` : '';
+
+        // Custom Boarding Lock logic visually explicitly requested by user
+        let boardBlockedText = null;
+        if (s.Name === "Boarding") {
+            let cleaningSrv = combinedServices.find(x => x.Name === "Cleaning" || x.Name === "Cabin Clean (PNC)");
+            let cateringSrv = combinedServices.find(x => x.Name === "Catering");
+            let block1 = cleaningSrv && (cleaningSrv.State === 1 || cleaningSrv.state === 1);
+            let block2 = cateringSrv && (cateringSrv.State === 1 || cateringSrv.state === 1);
+            if (block1 || block2) {
+                boardBlockedText = "WAIT FOR OTHER OPERATIONS";
+            }
         }
 
-        let isCompleted = stateVal === 3 || stateVal === 4 || s.IsPreServiced || s.isPreServiced;
-
-        let buttonText = `START ${locName.toUpperCase()}`;
-        let buttonStyles = '';
-        let buttonClass = 'transition-all duration-300';
-        let isClickable = false;
-        let actionName = s.Name === 'Deboarding' ? 'startDeboarding' : 'startService';
+        // Center Area Logic
+        let centerAreaHtml = '';
+        let smMsg = s.StatusMessage !== undefined ? s.StatusMessage : s.statusMessage;
 
         if (stateVal === 0 || stateVal === 5) {
-            if (isBlocked) {
-                if (isPhysicalBlock) {
-                    buttonStyles = 'color: #ef4444; opacity: 0.8; cursor: default; pointer-events: none;';
-                    buttonClass += ' shadow-[0_0_10px_rgba(239,68,68,0.2)] bg-red-500/5';
-                    if (blockReason === 'ENGINES') buttonText = `⚠️ ENGINES ON`;
-                    else if (blockReason === 'BEACON') buttonText = `⚠️ BEACON ON`;
-                    else if (blockReason === 'DOORS') buttonText = `⚠️ DOORS CLSD`;
-                } else {
-                    buttonStyles = 'color: #64748b; opacity: 0.4; cursor: default; pointer-events: none;';
-                    buttonText = `LOCKED (${blockReason})`;
-                }
+            let btnText = actionName === 'startDeboarding' ? 'START DEBOARDING' : `START ${(s.Name || s.name)}`;
+            
+            if (boardBlockedText) {
+                centerAreaHtml = `<span class="text-orange-400 font-bold uppercase tracking-wide text-[9px] md:text-[10px] flex justify-center items-center gap-1 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 cursor-not-allowed" style="text-shadow: 0 0 10px rgba(249,115,22,0.3);"><span class="material-symbols-outlined text-[14px]">warning</span> WAIT FOR OPS</span>`;
+                isClickable = false;
+            } else if (smMsg && smMsg.toLowerCase().includes("blocked")) {
+                centerAreaHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 cursor-not-allowed">${smMsg.toUpperCase()}</span>`;
+                isClickable = false;
             } else {
-                buttonStyles = 'color: #38bdf8; cursor: pointer;';
-                buttonClass += ' hover:text-white hover:bg-sky-500/10 hover:border hover:border-sky-500/50';
-                isClickable = true;
+                centerAreaHtml = `<button ${clickAction} class="bg-sky-500/10 text-sky-400 border border-sky-500/20 w-[120px] md:w-[140px] py-1.5 md:py-2 rounded text-[9px] md:text-[10px] font-bold tracking-widest hover:bg-sky-500 hover:text-white transition-all uppercase shadow-[0_0_10px_rgba(56,189,248,0.1)] outline-none whitespace-nowrap flex-shrink-0">${btnText}</button>`;
             }
         } else if (stateVal === 1 || stateVal === 2) {
-            buttonText = locName.toUpperCase();
-            if (stateVal === 2) {
-                buttonStyles = 'color: #f97316; cursor: default; pointer-events: none;';
-                buttonClass += ' animate-pulse';
-            } else {
-                buttonStyles = 'color: #34d399; cursor: default; pointer-events: none;';
-                buttonClass += ' shadow-[0_0_15px_rgba(52,211,153,0.2)] bg-emerald-500/5 animate-pulse';
-            }
+            if (stateVal === 1) centerAreaHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0"><span class="animate-pulse shadow-[0_0_10px_rgba(56,189,248,0.5)] bg-sky-400 rounded-full w-2 h-2"></span> ${smMsg ? smMsg.toUpperCase() : 'IN PROGRESS'}</span>`;
+            if (stateVal === 2) centerAreaHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0"><span class="animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.5)] bg-orange-400 rounded-full w-2 h-2"></span> DELAYED</span>`;
         } else if (isCompleted) {
-            buttonStyles = 'color: #64748b; opacity: 0.5; cursor: default; pointer-events: none;';
+            centerAreaHtml = `<span class="text-emerald-500 font-bold uppercase tracking-widest text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0">COMPLETED</span>`;
+        } else if (stateVal === 4) { // Skipped
+            centerAreaHtml = `<span class="text-slate-500 font-bold uppercase tracking-widest text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0">SKIPPED</span>`;
         }
 
         let timeDisplay = '';
@@ -4945,120 +4926,83 @@ function renderGroundOps(services) {
         if (remainingSec > 0 && stateVal !== 3 && stateVal !== 4) {
             const m = Math.floor(remainingSec / 60).toString().padStart(2, '0');
             const sec = (remainingSec % 60).toString().padStart(2, '0');
-            timeDisplay = `<span class="text-xl font-mono font-black tracking-wider ml-auto drop-shadow-[0_0_10px_currentColor] min-w-[70px] text-right" style="color: inherit;">${m}:${sec}</span>`;
+            let colorClass = stateVal === 2 ? 'text-orange-400 drop-shadow-[0_0_10px_rgba(249,115,22,0.3)]' : 'text-sky-400 drop-shadow-[0_0_10px_rgba(56,189,248,0.3)]';
+            timeDisplay = `<span class="font-mono text-base md:text-lg font-black tracking-widest ${colorClass} text-right tabular-nums w-[50px] flex-shrink-0">${m}:${sec}</span>`;
+        } else if (stateVal === 3 || stateVal === 4) {
+            timeDisplay = `<span class="font-mono text-base md:text-lg font-black tracking-widest text-slate-600 text-right tabular-nums w-[50px] flex-shrink-0">--:--</span>`;
         }
-
-        let smMsg = s.StatusMessage !== undefined ? s.StatusMessage : s.statusMessage;
-        let inlineStateHtml = '';
-        if (stateVal === 1) inlineStateHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-sky-500/20 shadow-[0_0_10px_rgba(56,189,248,0.1)]"><span class="animate-pulse">●</span> ${smMsg ? smMsg.toUpperCase() : 'IN PROGRESS'}</span>`;
-        else if (stateVal === 2) inlineStateHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-orange-500/20 shadow-[0_0_10px_rgba(249,115,22,0.1)]">WAITING (DELAYED)</span>`;
-        else if (stateVal === 5) inlineStateHtml = `<span class="text-yellow-400 font-bold uppercase tracking-widest text-[10px] bg-[#12141a] px-3 py-1 rounded-full border border-yellow-500/20 shadow-[0_0_10px_rgba(250,204,21,0.1)] animate-pulse">WAITING FOR DRIVER</span>`;
-        // if completed, we could show completed, but let's keep it clean
-        if (isCompleted) inlineStateHtml = `<span class="text-slate-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-white/5"><span class="material-symbols-outlined text-[10px]">check</span> COMPLETED</span>`;
 
         let extraBadgesHtml = '';
         if (s.Name === "Catering" || s.Name === "Cleanliness" || s.Name === "Cleaning" || s.Name === "Cabin Clean (PNC)" || s.Name === "Water/Waste") {
             if (!isCompleted) {
-                extraBadgesHtml += `<button onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'skipService', service: '${(s.Name || s.name)}' });" class="px-2 py-1 ml-2 rounded bg-red-500/10 hover:bg-red-500/30 text-red-500 border border-red-500/20 text-[9px] uppercase font-bold tracking-widest leading-none shadow-[0_0_10px_rgba(239,68,68,0.2)] transition-colors relative z-10 cursor-pointer">SKIP</button>`;
+                // SKIP button
+                extraBadgesHtml += `<button onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'skipService', service: '${(s.Name || s.name)}' });" class="px-2 py-1 rounded bg-[#1a1c23] hover:bg-red-500/10 text-red-500/50 hover:text-red-500 border border-white/5 hover:border-red-500/20 text-[9px] uppercase font-bold tracking-widest leading-none outline-none transition-colors flex-shrink-0 cursor-pointer mr-0 md:mr-3">SKIP</button>`;
             }
         }
-        if (window.lastTelemetry && stateVal !== 1 && !isCompleted) {
-            if (s.Name === "Catering") {
-                const cr = window.lastTelemetry.cateringRations !== undefined ? window.lastTelemetry.cateringRations : 0;
-                const cColor = cr <= 10 ? '#EF4444' : (cr <= 25 ? '#F59E0B' : '#34D399');
-                const cBg = cr <= 10 ? 'bg-red-500/10' : (cr <= 25 ? 'bg-amber-500/10' : 'bg-emerald-500/10');
-                extraBadgesHtml += `<div class="px-2 py-1 rounded ${cBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${cColor}; border-color: ${cColor}40;">🥪 ${cr}</div>`;
-            }
-            if (s.Name === "Cleanliness" || s.Name === "Cleaning" || s.Name === "Cabin Clean (PNC)") {
-                const cl = window.lastTelemetry.cabinCleanliness !== undefined ? window.lastTelemetry.cabinCleanliness : 100;
-                const clColor = cl < 50 ? '#EF4444' : (cl < 75 ? '#F59E0B' : '#34D399');
-                const clBg = cl < 50 ? 'bg-red-500/10' : (cl < 75 ? 'bg-amber-500/10' : 'bg-emerald-500/10');
-                extraBadgesHtml += `<div class="px-2 py-1 rounded ${clBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${clColor}; border-color: ${clColor}40;">✨ ${Math.round(cl)}%</div>`;
-            }
-            if (s.Name === "Water/Waste") {
-                const wl = window.lastTelemetry.waterLevel !== undefined ? window.lastTelemetry.waterLevel : 100;
-                const wasl = window.lastTelemetry.wasteLevel !== undefined ? window.lastTelemetry.wasteLevel : 0;
-                const wColor = wl < 20 ? '#EF4444' : (wl < 50 ? '#F59E0B' : '#60A5FA');
-                const wBg = wl < 20 ? 'bg-red-500/10' : (wl < 50 ? 'bg-amber-500/10' : 'bg-blue-500/10');
-                const waColor = wasl > 90 ? '#EF4444' : (wasl > 70 ? '#F59E0B' : '#60A5FA');
-                const waBg = wasl > 90 ? 'bg-red-500/10' : (wasl > 70 ? 'bg-amber-500/10' : 'bg-blue-500/10');
-                extraBadgesHtml += `<div class="px-2 py-1 rounded ${wBg} border text-[9px] uppercase font-bold tracking-widest leading-none mr-1 flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${wColor}; border-color: ${wColor}40;">💧 ${Math.round(wl)}%</div>`;
-                extraBadgesHtml += `<div class="px-2 py-1 rounded ${waBg} border text-[9px] uppercase font-bold tracking-widest leading-none flex items-center shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="color: ${waColor}; border-color: ${waColor}40;">🗑️ ${Math.round(wasl)}%</div>`;
-            }
-        }
-        if (!window.isDispatchSignedOff) {
-            isClickable = false;
-        }
-        
-        const safeName = (s.Name || s.name).replace(/\s|[^\w]/g, '');
-        const clickAction = isClickable ? `onclick="window.chrome.webview.postMessage({action: '${actionName}', service: '${(s.Name || s.name)}'})"` : '';
 
-        let barColor = stateVal === 3 ? '#34D399' : (stateVal === 2 ? '#FB923C' : '#4A90E2');
+        let barColor = stateVal === 3 ? '#34D399' : (stateVal === 2 ? '#FB923C' : '#38BDF8');
         if (isCompleted && !(s.IsPreServiced || s.isPreServiced)) barColor = '#34D399';
         else if (isCompleted && (s.IsPreServiced || s.isPreServiced)) barColor = '#475569';
 
-        let cardContainerClasses = "bg-[#12141A] rounded-xl border border-white/5 overflow-hidden flex flex-col justify-center h-full min-h-[90px] relative transition-all duration-700";
-        if (!window.isDispatchSignedOff) {
-            cardContainerClasses += " opacity-25 grayscale pointer-events-none";
+        let rowClasses = `w-full grid grid-cols-[1fr_auto_80px] md:grid-cols-[1.5fr_160px_130px] items-center p-3 md:p-4 bg-[#1a1d24]/40 border border-white/5 rounded-xl transition-all relative overflow-hidden group`;
+        if (isClickable) rowClasses += ` cursor-pointer hover:bg-[#1a1d24]/80 hover:border-sky-500/30`;
+        if (!window.isDispatchSignedOff) rowClasses += ` opacity-25 grayscale pointer-events-none`;
+
+        let progressHtml = '';
+        if (s.Name === "Water/Waste") {
+            let waterLvl = s.State === 1 ? s.ProgressPercent : Math.round(window.lastTelemetry?.waterLevel || 100);
+            let wasteLvl = s.State === 1 ? s.ProgressPercent : Math.round(window.lastTelemetry?.wasteLevel || 0);
+            let wColor = waterLvl < 20 ? '#EF4444' : (waterLvl < 50 ? '#F59E0B' : '#60A5FA');
+            let waColor = wasteLvl > 90 ? '#EF4444' : (wasteLvl > 70 ? '#F59E0B' : '#60A5FA');
+            progressHtml = `
+                <div class="absolute bottom-0 left-0 w-full flex flex-col gap-[1px] bg-black/40 h-1.5">
+                    <div class="h-1"><div class="h-full transition-all duration-1000 ease-out" style="width: ${waterLvl}%; background-color: ${wColor}; opacity: 0.8"></div></div>
+                    <div class="h-1"><div class="h-full transition-all duration-1000 ease-out" style="width: ${wasteLvl}%; background-color: ${waColor}; opacity: 0.8"></div></div>
+                </div>`;
+        } else {
+            let mappedProgress = s.ProgressPercent;
+            let mappedColor = barColor;
+            if (s.Name === "Deboarding") mappedProgress = 100 - (s.ProgressPercent || 0);
+
+            if (s.State !== 1 && window.lastTelemetry && !isCompleted) {
+                if (s.Name === "Catering") {
+                    mappedProgress = window.lastTelemetry.cateringCompletion !== undefined ? window.lastTelemetry.cateringCompletion : 100;
+                    mappedColor = mappedProgress < 20 ? '#EF4444' : (mappedProgress < 50 ? '#F59E0B' : '#34D399');
+                } else if (s.Name === "Cleanliness" || s.Name === "Cleaning") {
+                    mappedProgress = window.lastTelemetry.cabinCleanliness !== undefined ? window.lastTelemetry.cabinCleanliness : 100;
+                    mappedColor = mappedProgress < 50 ? '#EF4444' : (mappedProgress < 75 ? '#F59E0B' : '#34D399');
+                }
+            }
+            progressHtml = `<div class="absolute bottom-0 left-0 w-full h-[2px] bg-black/40"><div class="h-full transition-all duration-1000 ease-out" style="width: ${mappedProgress}%; background-color: ${mappedColor}; opacity: 0.8"></div></div>`;
         }
 
-        html += `
-            <div class="${cardContainerClasses}">
-                ${(() => {
-                if (s.Name === "Water/Waste") {
-                    let waterLvl = s.State === 1 ? s.ProgressPercent : Math.round(window.lastTelemetry?.waterLevel || 100);
-                    let wasteLvl = s.State === 1 ? s.ProgressPercent : Math.round(window.lastTelemetry?.wasteLevel || 0);
-                    let wColor = waterLvl < 20 ? '#EF4444' : (waterLvl < 50 ? '#F59E0B' : '#60A5FA');
-                    let waColor = wasteLvl > 90 ? '#EF4444' : (wasteLvl > 70 ? '#F59E0B' : '#60A5FA');
-                    return `
-                        <div class="absolute bottom-0 left-0 w-full flex flex-col gap-[1px] bg-black/40 h-2">
-                            <div class="h-1">
-                                <div class="h-full transition-all duration-1000 ease-out" style="width: ${waterLvl}%; background-color: ${wColor}; opacity: 0.8"></div>
-                            </div>
-                            <div class="h-1">
-                                <div class="h-full transition-all duration-1000 ease-out" style="width: ${wasteLvl}%; background-color: ${waColor}; opacity: 0.8"></div>
-                            </div>
-                        </div>`;
-                } else {
-                    let mappedProgress = s.ProgressPercent;
-                    let mappedColor = barColor;
-                    
-                    // Invert progress for Deboarding (100% full -> 0% empty)
-                    if (s.Name === "Deboarding") {
-                        mappedProgress = 100 - (s.ProgressPercent || 0);
-                    }
+        let rowProps = isClickable ? clickAction : '';
 
-                    if (s.State !== 1 && window.lastTelemetry && !isCompleted) {
-                        if (s.Name === "Catering") {
-                            mappedProgress = window.lastTelemetry.cateringCompletion !== undefined ? window.lastTelemetry.cateringCompletion : 100;
-                            mappedColor = mappedProgress < 20 ? '#EF4444' : (mappedProgress < 50 ? '#F59E0B' : '#34D399');
-                        } else if (s.Name === "Cleanliness" || s.Name === "Cleaning") {
-                            mappedProgress = window.lastTelemetry.cabinCleanliness !== undefined ? window.lastTelemetry.cabinCleanliness : 100;
-                            mappedColor = mappedProgress < 50 ? '#EF4444' : (mappedProgress < 75 ? '#F59E0B' : '#34D399');
-                        }
-                    }
-                    return `<div class="absolute bottom-0 left-0 w-full h-[3px] bg-black/40">
-                                <div class="h-full transition-all duration-1000 ease-out" style="width: ${mappedProgress}%; background-color: ${mappedColor}; opacity: 0.8"></div>
-                            </div>`;
-                }
-            })()}
-                <button ${clickAction} class="w-full h-full p-5 flex items-center outline-none border-none relative ${buttonClass}" style="${buttonStyles}">
-                    <div class="flex items-center gap-4 w-[35%] overflow-hidden">
-                        <span class="text-2xl shrink-0">${icon}</span>
-                        <strong class="font-headline tracking-widest uppercase text-[11px] md:text-[13px] whitespace-normal leading-tight break-words text-left" title="${buttonText}">${buttonText}</strong>
-                    </div>
-                    <div class="flex-1 flex justify-center min-w-[120px] shrink-0">
-                        ${inlineStateHtml}
-                    </div>
-                    <div class="w-[35%] flex justify-end">
-                        ${timeDisplay}
-                    </div>
-                </button>
-                ${extraBadgesHtml ? `<div class="absolute top-2 right-2 flex items-center">${extraBadgesHtml}</div>` : ''}
+        html += `
+            <div class="${rowClasses}" ${rowProps}>
+                ${progressHtml}
                 
-                <div id="ge-container-${safeName}" class="hidden w-full transition-all duration-300">
-                    <!-- Events will be dynamically injected here -->
+                <!-- Left: Title & Icon -->
+                <div class="flex items-center min-w-0 pr-2 md:pr-4">
+                    <span class="text-xl md:text-2xl mr-3 text-white/50 shrink-0 w-[30px] flex justify-center">${icon}</span>
+                    <strong class="font-headline tracking-widest text-[#e2e8f0] uppercase text-[11px] md:text-[13px] whitespace-normal leading-tight">${locName.toUpperCase()}</strong>
                 </div>
+
+                <!-- Center: Action/Status -->
+                <div class="flex justify-center items-center shrink-0 w-full">
+                    ${centerAreaHtml}
+                </div>
+
+                <!-- Right: Extra Badges & Timer -->
+                <div class="flex items-center justify-end pl-2 md:pl-4 min-w-0">
+                    <div class="flex items-center gap-1 justify-end mr-2 md:mr-4">
+                        ${extraBadgesHtml}
+                    </div>
+                    ${timeDisplay}
+                </div>
+
+                <!-- Optional Sub Container -->
+                <div id="ge-container-${(s.Name || s.name).replace(/\s|[^\w]/g, '')}" class="hidden col-span-3"></div>
             </div>
         `;
     });
@@ -5070,7 +5014,8 @@ function renderGroundOps(services) {
         // Overlay disabled per user request
     }
 
-    container.innerHTML = html;
+    if (containerDash) containerDash.innerHTML = html;
+    if (containerBriefing) containerBriefing.innerHTML = html;
 }
 
 window.renderManifest = function (manifest) {
@@ -5725,3 +5670,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// Carousel function for Ground Ops and Timing pages
+window.currentDashPage = 1;
+window.toggleDashPage = function (dir) {
+    window.currentDashPage += dir;
+    if (window.currentDashPage > 2) window.currentDashPage = 1;
+    if (window.currentDashPage < 1) window.currentDashPage = 2;
+    
+    // Page IDs in index.html: 'dashPage1_Timing' and 'dashPage2_GroundOps'
+    const page1 = document.getElementById('dashPage1_Timing');
+    const page2 = document.getElementById('dashPage2_GroundOps');
+    
+    if (page1 && page2) {
+        if (window.currentDashPage === 1) {
+            page1.style.display = 'flex';
+            page2.style.display = 'none';
+        } else {
+            page1.style.display = 'none';
+            page2.style.display = 'flex';
+            
+            // Clean up old tailwind 'hidden' class just in case to prevent specificity conflicts
+            page1.classList.remove('hidden');
+            page2.classList.remove('hidden');
+        }
+    }
+};

@@ -356,103 +356,128 @@
                     <!-- FULL ROW WRAPPER FOR SIDE-BY-SIDE PANELS -->
                     <div class="col-span-12 grid grid-cols-12 gap-5 mb-8 pb-8 border-b border-white/5 w-full">
 
-                        <div class="col-span-4 bg-[#1a1d24]/60 backdrop-blur-xl rounded-2xl overflow-hidden flex flex-col border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.4)] cursor-pointer hover:bg-[#1a1d24]/80 transition-all hover:border-white/10 group" onclick="window.chrome.webview.postMessage({action: 'openGroundOpsWindow'})" title="Open Ground Operations Panel">
-                        <div class="px-6 py-6 flex flex-row items-center justify-center gap-4 bg-gradient-to-b from-white/5 to-transparent">
-                            <span id="flightPhase" class="text-lg font-label tracking-[0.4em] text-[#b6b6b6] font-bold uppercase shrink-0">OFF</span>
-                            <div class="h-6 w-px bg-white/10 shrink-0"></div>
-                            <div id="flightCountdown" class="text-sm text-[#7b7b7b] font-bold tracking-widest shrink-0" style="font-family: 'Manrope', sans-serif;"></div>
-                        </div>
-                        
-                        <div id="dashMetaBar" class="px-8 py-4 border-b border-white/5 bg-black/20" style="display: none;">
-                            <div class="flex justify-between items-center px-1">
-                                <span id="dashMetaTitle" class="text-[9px] font-bold uppercase tracking-[0.3em] text-[#7b7b7b]">Ground Operations</span>
-                                <span id="dashMetaText" class="text-[9px] text-[#b6b6b6] uppercase font-bold tracking-widest">Standing By.</span>
+                        <div class="col-span-4 bg-[#1a1d24]/60 backdrop-blur-xl rounded-2xl overflow-hidden flex flex-col border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.4)] transition-all">
+                            
+                            <!-- FLIGHT PHASE HEADER WITH CAROUSEL ARROWS -->
+                            <div class="px-3 md:px-6 py-4 flex flex-row items-center justify-between gap-1 md:gap-4 bg-gradient-to-b from-white/5 to-transparent relative border-b border-white/5 overflow-hidden">
+                                <button onclick="window.toggleDashPage && window.toggleDashPage(-1)" class="text-white/80 hover:text-white transition-colors relative z-10 cursor-pointer p-1 shrink-0">
+                                    <span class="material-symbols-outlined text-[28px] md:text-[36px] font-black">chevron_left</span>
+                                </button>
+                                
+                                <div class="flex flex-col 2xl:flex-row items-center gap-1 2xl:gap-4 flex-1 justify-center min-w-0">
+                                    <span id="flightPhase" class="text-[16px] xl:text-[22px] font-black text-white tracking-widest uppercase inline-block font-headline text-center whitespace-nowrap">OFF</span>
+                                    <div class="hidden 2xl:block h-8 w-px bg-white/20 shrink-0"></div>
+                                    <div id="flightCountdown" class="text-[16px] xl:text-[22px] font-black tracking-widest text-[#4fa4ff] uppercase font-headline text-center whitespace-nowrap" style="font-family: 'Manrope', sans-serif;">--:-- UTC</div>
+                                </div>
+
+                                <button onclick="window.toggleDashPage && window.toggleDashPage(1)" class="text-white/80 hover:text-white transition-colors relative z-10 cursor-pointer p-1 shrink-0">
+                                    <span class="material-symbols-outlined text-[28px] md:text-[36px] font-black">chevron_right</span>
+                                </button>
                             </div>
-                            <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5 shadow-inner mt-2">
-                                <div id="dashMetaFill" class="h-full bg-sky-500 w-0 transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(14,165,233,0.5)]"></div>
-                            </div>
-                            <div class="flex justify-end gap-2 mt-3">
-                                <button onclick="event.stopPropagation(); window.requestTimeSkip(1)" class="px-2 py-0.5 bg-white/5 hover:bg-white/10 text-[#7b7b7b] hover:text-white rounded border border-white/5 text-[9px] font-bold font-mono transition-colors tracking-widest">+1m</button>
-                                <button onclick="event.stopPropagation(); window.requestTimeSkip(5)" class="px-2 py-0.5 bg-white/5 hover:bg-white/10 text-[#7b7b7b] hover:text-white rounded border border-white/5 text-[9px] font-bold font-mono transition-colors tracking-widest">+5m</button>
-                                <button onclick="event.stopPropagation(); window.requestTimeSkip(10)" class="px-2 py-0.5 bg-white/5 hover:bg-white/10 text-[#7b7b7b] hover:text-white rounded border border-white/5 text-[9px] font-bold font-mono transition-colors tracking-widest">+10m</button>
-                            </div>
-                        </div>
-                        <div id="globalRotationBanner" class="hidden bg-[#2a2a2b]/60 border-b border-white/5 py-4 px-8 flex items-center justify-between shadow-[inset_0_-10px_20px_rgba(0,0,0,0.2)] gap-4">
-                            <!-- CURRENT LEG -->
-                            <div class="flex-1 flex items-center justify-between border-r border-white/10 pr-4">
-                                <div class="flex items-center">
-                                    <div class="flex flex-col">
-                                        <span class="text-[9px] font-bold uppercase tracking-widest text-[#7b7b7b]">Current Leg Status</span>
-                                        <span class="text-xs text-[#b6b6b6] font-medium tracking-wide mt-1" id="currentLegStatus">Leg X</span>
+
+                            <!-- PAGE 1: TIMING AND ROTATION -->
+                            <div id="dashPage1_Timing" class="flex flex-col flex-1 w-full animate-fade-in relative">
+                                <div id="globalRotationBanner" class="hidden bg-[#2a2a2b]/60 border-b border-white/5 py-4 px-8 flex items-center justify-between shadow-[inset_0_-10px_20px_rgba(0,0,0,0.2)] gap-4">
+                                    <!-- CURRENT LEG -->
+                                    <div class="flex-1 flex items-center justify-between border-r border-white/10 pr-4">
+                                        <div class="flex items-center">
+                                            <div class="flex flex-col">
+                                                <span class="text-[9px] font-bold uppercase tracking-widest text-[#7b7b7b]">Current Leg Status</span>
+                                                <span class="text-xs text-[#b6b6b6] font-medium tracking-wide mt-1" id="currentLegStatus">Leg X</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-col items-end">
+                                            <div class="font-mono text-xl font-black text-emerald-400 tracking-wider drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]" id="currentLegTimer">--:--:--</div>
+                                            <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mt-1">Est. Block Time</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- GLOBAL ROTATION -->
+                                    <div class="flex-1 flex items-center justify-between pl-2">
+                                        <div class="flex items-center">
+                                            <div class="flex flex-col">
+                                                <span class="text-[9px] font-bold uppercase tracking-widest text-[#7b7b7b]">Global Rotation</span>
+                                                <span class="text-[10px] text-[#b6b6b6] font-medium tracking-wide mt-0.5" id="globalRotationStatus">Leg 1 of 1</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-col items-end">
+                                            <div class="font-mono text-xl font-black text-sky-400 tracking-wider drop-shadow-[0_0_10px_rgba(56,189,248,0.3)]" id="globalRotationTimer">--:--:--</div>
+                                            <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mt-1">Total Est. Time</span>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="flex flex-col items-end">
-                                    <div class="font-mono text-xl font-black text-emerald-400 tracking-wider drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]" id="currentLegTimer">--:--:--</div>
-                                    <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mt-1">Est. Block Time</span>
+                                <div class="p-8 flex-1 w-full">
+                                    <table class="w-full text-left">
+                                        <thead>
+                                            <tr class="text-[9px] uppercase tracking-[0.2em] text-[#7b7b7b] font-bold">
+                                                <th class="pb-5" data-i18n="dash_th_milestone">Milestone</th>
+                                                <th class="pb-5" data-i18n="dash_th_sched">Scheduled</th>
+                                                <th class="pb-5" data-i18n="dash_th_actual">Actual</th>
+                                                <th class="pb-5 text-right" data-i18n="dash_th_status">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="text-sm font-medium">
+                                            <tr class="border-t border-white/5">
+                                                <td class="py-4">
+                                                    <div class="flex items-center">
+                                                        <span class="material-symbols-outlined text-xl mr-3 text-[#b6b6b6]">flight_takeoff</span>
+                                                        <div class="flex flex-col">
+                                                            <span class="text-slate-200 font-bold tracking-wide">DEPARTURE</span>
+                                                            <span class="text-[9px] text-[#7b7b7b] font-mono">OFF-BLOCK / SOBT</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="py-4 font-mono text-[#b6b6b6]" id="ttSchedDep">--:--Z</td>
+                                                <td class="py-4 font-mono text-sky-400 font-bold" id="ttActDep">--:--Z</td>
+                                                <td class="py-4 text-right" id="ttDepBadgeContainer">
+                                                    <span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-[#7b7b7b] uppercase font-bold tracking-wider" id="ttDepStatus">STANDBY</span>
+                                                </td>
+                                            </tr>
+                                            <tr class="border-t border-white/5">
+                                                <td class="py-4">
+                                                    <div class="flex items-center">
+                                                        <span class="material-symbols-outlined text-xl mr-3 text-[#b6b6b6]">flight_land</span>
+                                                        <div class="flex flex-col">
+                                                            <span class="text-slate-200 font-bold tracking-wide">ARRIVAL</span>
+                                                            <span class="text-[9px] text-[#7b7b7b] font-mono">IN-BLOCK / SIBT</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="py-4 font-mono text-[#b6b6b6]" id="ttSchedArr">--:--Z</td>
+                                                <td class="py-4 font-mono text-sky-400 font-bold" id="ttActArr">--:--Z</td>
+                                                <td class="py-4 text-right" id="ttArrBadgeContainer">
+                                                    <span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-[#7b7b7b] uppercase font-bold tracking-wider" id="ttArrStatus">STANDBY</span>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                             
-                            <!-- GLOBAL ROTATION -->
-                            <div class="flex-1 flex items-center justify-between pl-2">
-                                <div class="flex items-center">
-                                    <div class="flex flex-col">
-                                        <span class="text-[9px] font-bold uppercase tracking-widest text-[#7b7b7b]">Global Rotation</span>
-                                        <span class="text-[10px] text-[#b6b6b6] font-medium tracking-wide mt-0.5" id="globalRotationStatus">Leg 1 of 1</span>
+                            <!-- PAGE 2: GROUND OPERATIONS (Hidden by default) -->
+                            <div id="dashPage2_GroundOps" class="flex flex-col flex-1 w-full hidden animate-fade-in relative bg-[#242430]">
+                                <div id="dashMetaBar" class="px-8 py-4 border-b border-white/5 bg-[#1a1a24]" style="display: none;">
+                                    <div class="flex justify-between items-center px-1">
+                                        <span id="dashMetaTitle" class="text-[12px] font-bold uppercase tracking-[0.05em] text-white/90 font-sans">Ground Operations</span>
+                                        <span id="dashMetaText" class="text-[10px] text-[#b6b6b6] uppercase font-bold tracking-widest hidden">Standing By.</span>
+                                    </div>
+                                    <div class="h-2.5 w-full bg-[#2a382e] rounded-full overflow-hidden shadow-inner mt-2">
+                                        <div id="dashMetaFill" class="h-full bg-[#42804b] w-0 transition-all duration-1000 ease-out"></div>
+                                    </div>
+                                    <div class="flex justify-end gap-3 mt-3">
+                                        <button onclick="event.stopPropagation(); window.requestTimeSkip(1)" class="bg-white/20 hover:bg-white/30 text-white text-[12px] font-medium font-mono px-3 py-0.5 rounded shadow transition-colors">+1m</button>
+                                        <button onclick="event.stopPropagation(); window.requestTimeSkip(5)" class="bg-white/20 hover:bg-white/30 text-white text-[12px] font-medium font-mono px-3 py-0.5 rounded shadow transition-colors">+5m</button>
+                                        <button onclick="event.stopPropagation(); window.requestTimeSkip(10)" class="bg-white/20 hover:bg-white/30 text-white text-[12px] font-medium font-mono px-3 py-0.5 rounded shadow transition-colors">+10m</button>
                                     </div>
                                 </div>
-                                <div class="flex flex-col items-end">
-                                    <div class="font-mono text-xl font-black text-sky-400 tracking-wider drop-shadow-[0_0_10px_rgba(56,189,248,0.3)]" id="globalRotationTimer">--:--:--</div>
-                                    <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mt-1">Total Est. Time</span>
+                                
+                                <div id="dashboardGroundOpsPillsGrid" class="flex flex-col w-full">
+                                    <div class="px-6 py-8 flex items-center justify-center border-b border-white/5 last:border-b-0 w-full h-full">
+                                        <p class="text-[#7b7b7b] font-mono text-center" data-i18n="ground_pending">Ground operations pending SimBrief initialization...</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="p-8 flex-1">
-                            <table class="w-full text-left">
-                                <thead>
-                                    <tr class="text-[9px] uppercase tracking-[0.2em] text-[#7b7b7b] font-bold">
-                                        <th class="pb-5" data-i18n="dash_th_milestone">Milestone</th>
-                                        <th class="pb-5" data-i18n="dash_th_sched">Scheduled</th>
-                                        <th class="pb-5" data-i18n="dash_th_actual">Actual</th>
-                                        <th class="pb-5 text-right" data-i18n="dash_th_status">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="text-sm font-medium">
-                                    <tr class="border-t border-white/5">
-                                        <td class="py-4">
-                                            <div class="flex items-center">
-                                                <span class="material-symbols-outlined text-xl mr-3 text-[#b6b6b6]">flight_takeoff</span>
-                                                <div class="flex flex-col">
-                                                    <span class="text-slate-200 font-bold tracking-wide">DEPARTURE</span>
-                                                    <span class="text-[9px] text-[#7b7b7b] font-mono">OFF-BLOCK / SOBT</span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="py-4 font-mono text-[#b6b6b6]" id="ttSchedDep">--:--Z</td>
-                                        <td class="py-4 font-mono text-sky-400 font-bold" id="ttActDep">--:--Z</td>
-                                        <td class="py-4 text-right" id="ttDepBadgeContainer">
-                                            <span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-[#7b7b7b] uppercase font-bold tracking-wider" id="ttDepStatus">STANDBY</span>
-                                        </td>
-                                    </tr>
-                                    <tr class="border-t border-white/5">
-                                        <td class="py-4">
-                                            <div class="flex items-center">
-                                                <span class="material-symbols-outlined text-xl mr-3 text-[#b6b6b6]">flight_land</span>
-                                                <div class="flex flex-col">
-                                                    <span class="text-slate-200 font-bold tracking-wide">ARRIVAL</span>
-                                                    <span class="text-[9px] text-[#7b7b7b] font-mono">IN-BLOCK / SIBT</span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="py-4 font-mono text-[#b6b6b6]" id="ttSchedArr">--:--Z</td>
-                                        <td class="py-4 font-mono text-sky-400 font-bold" id="ttActArr">--:--Z</td>
-                                        <td class="py-4 text-right" id="ttArrBadgeContainer">
-                                            <span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-[#7b7b7b] uppercase font-bold tracking-wider" id="ttArrStatus">STANDBY</span>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
 
                         <div class="col-span-4 bg-[#1a1d24]/60 backdrop-blur-xl rounded-2xl p-6 flex flex-col border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.4)] cursor-pointer hover:bg-[#1a1d24]/80 transition-all hover:border-white/10 group" onclick="window.chrome.webview.postMessage({action: 'openManifestWindow'})" title="Open Manifest View">
                         <div class="mb-6 flex flex-col items-center justify-center">

@@ -1749,6 +1749,7 @@ namespace FlightSupervisor.UI
                         if (canStart)
                         {
                             if (srvName == "Deboarding") _cabinManager.StartDeboarding();
+                            if (srvName == "Boarding") _cabinManager.StartBoarding();
                             _groundOpsManager.StartManualService(srvName);
                         }
                         else
@@ -2640,7 +2641,7 @@ namespace FlightSupervisor.UI
                     _cabinManager.FastForward(simAdvanceSec, _phaseManager.CurrentPhase);
                 }
 
-                if (_simConnectService != null && _simConnectService.IsConnected && _currentSimTime.Year > 2000 && _phaseManager.Altitude > 10000)
+                if (_simConnectService != null && _simConnectService.IsConnected && _currentSimTime.Year > 2000)
                 {
                     _simConnectService.SendTimeWarpCommand(newSimTime);
                     SendToWeb(new { type = "log", message = $"[SYSTEM] Dispatched MSFS TimeWarp to {newSimTime:HH:mm}Z" });
