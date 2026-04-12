@@ -320,6 +320,9 @@ namespace FlightSupervisor.UI.Services
             {
                 _vsHistory.Enqueue(VerticalSpeed);
                 if (_vsHistory.Count > 5) _vsHistory.Dequeue();
+                
+                _gForceHistory.Enqueue(GForce);
+                if (_gForceHistory.Count > 5) _gForceHistory.Dequeue();
             }
 
             // Calculate Deceleration and Rates
@@ -703,8 +706,8 @@ namespace FlightSupervisor.UI.Services
                         _goAroundStartTime = null;
                         if (_vsHistory.Count > 0)
                         {
-                            // On prend la moyenne des dernières frames avant le contact sol (radioHeight > 2.0)
-                            TouchdownFpm = _vsHistory.Average(); 
+                            // On prend la pire valeur (Min = descente la plus forte)
+                            TouchdownFpm = _vsHistory.Min(); 
                         }
                         else
                         {
@@ -730,7 +733,12 @@ namespace FlightSupervisor.UI.Services
                     if (IsOnGround && !_hasLanded)
                     {
                         _hasLanded = true;
-                        TouchdownGForce = GForce;
+                        
+                        if (_gForceHistory.Count > 0)
+                            TouchdownGForce = Math.Max(GForce, _gForceHistory.Max());
+                        else
+                            TouchdownGForce = GForce;
+
                         string landingQualityEn = "Normal Landing";
                         string landingQualityFr = "Atterrissage Normal";
                         if (TouchdownFpm > -150) { landingQualityEn = "Butter Landing"; landingQualityFr = "Kiss Landing"; }

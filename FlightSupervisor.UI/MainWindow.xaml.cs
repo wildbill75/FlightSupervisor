@@ -95,19 +95,38 @@ namespace FlightSupervisor.UI
             if (Math.Abs(_phaseManager.Latitude) < 0.001 && Math.Abs(_phaseManager.Longitude) < 0.001)
                 return true;
 
-            if (_currentResponse?.Origin == null) return true;
+            var originToCheck = _currentResponse?.Origin;
             
-            if (double.TryParse(_currentResponse.Origin.PosLat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double expLat) &&
-                double.TryParse(_currentResponse.Origin.PosLong, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double expLon))
+            // Fix Bug 30: Multi-leg turnaround mismatch
+            if (_phaseManager.CurrentPhase == FlightPhase.Turnaround)
+            {
+                if (_rotationQueue.Count > 0)
+                {
+                    originToCheck = _rotationQueue[0].Origin;
+                }
+                else
+                {
+                    // End of rotation: no next leg, so we are at the destination.
+                    // No origin mismatch is relevant here.
+                    return true;
+                }
+            }
+
+            if (originToCheck == null) return true;
+            
+            if (double.TryParse(originToCheck.PosLat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double expLat) &&
+                double.TryParse(originToCheck.PosLong, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double expLon))
             {
                 double dist = CalculateHaversineDistanceNM(_phaseManager.Latitude, _phaseManager.Longitude, expLat, expLon);
-                return dist < 3.0; // 3 NM safety threshold
+                return dist < 5.0; // 5 NM safety threshold for mismatch
             }
             return true;
         }
         public MainWindow()
         {
             InitializeComponent();
+            FlightSupervisor.UI.Services.WindowSettingsManager.ApplySettings(this, "MainWindow", 1928, 1197);
+            
             _audioEngine = new AudioEngineService();
             _simBriefService = new SimBriefService();
             _activeSkyService = new ActiveSkyService();
@@ -309,7 +328,7 @@ namespace FlightSupervisor.UI
                 
                 // THERMAL DEBUG
                 if (_currentSimTime.Second % 5 == 0 && _currentSimTime.Millisecond < 500) {
-                    SendToWeb(new { type = "log", message = $"DEBUG THERMO - Target: {targetTemp:F1}°C | Ambient: {_cabinManager.CurrentAmbientTemperature:F1}°C | Cabin: {_cabinManager.LastKnownCabinTemp:F1}°C" });
+                    // SendToWeb(new { type = "log", message = $"DEBUG THERMO - Target: {targetTemp:F1}°C | Ambient: {_cabinManager.CurrentAmbientTemperature:F1}°C | Cabin: {_cabinManager.LastKnownCabinTemp:F1}°C" });
                 }
 
                 _cabinManager.Tick(_phaseManager.GForce, _lastKnownBank, isBoardingComplete,
@@ -571,11 +590,13 @@ namespace FlightSupervisor.UI
 
                         if (_rotationQueue.Count > 0)
                         {
+                            _cabinManager.SessionFlightsCompleted++;
                             SendToWeb(new { type = "log", message = $"[SYSTEM] Flight secured. Initiating turnaround deboarding. {_rotationQueue.Count} leg(s) remaining." });
                         }
                         else
                         {
                             _cabinManager.SessionFlightsCompleted++;
+
 
                             // Bug 30: Location Mismatch during Turnaround without a pending leg.
                             // We construct a "Dummy" next leg so the UI knows we are at our new origin.
@@ -596,7 +617,7 @@ namespace FlightSupervisor.UI
                             SendToWeb(new
                             {
                                 type = "flightPlan",
-                                hasSimBrief = true,
+                                hasSimBrief = false,
                                 flightPlan = new
                                 {
                                     origin = _currentResponse?.Origin?.IcaoCode ?? "----",
@@ -1045,6 +1066,7 @@ namespace FlightSupervisor.UI
                         System.Windows.Shell.WindowChrome.SetWindowChrome(manifestWin, new System.Windows.Shell.WindowChrome { CaptionHeight = 0, ResizeBorderThickness = new System.Windows.Thickness(8), GlassFrameThickness = new System.Windows.Thickness(0), CornerRadius = new System.Windows.CornerRadius(0), UseAeroCaptionButtons = false });
                         
                         manifestWin.Closed += (s, e) => {
+                            FlightSupervisor.UI.Services.WindowSettingsManager.SaveWindowState(manifestWin, "ManifestWindow");
                             _manifestWebView = null;
                             _manifestWindow = null;
                         };
@@ -1054,6 +1076,8 @@ namespace FlightSupervisor.UI
                         _manifestWebView = webView;
                         _manifestWindow = manifestWin;
                         manifestWin.Content = webView;
+                        
+                        FlightSupervisor.UI.Services.WindowSettingsManager.ApplySettings(manifestWin, "ManifestWindow", 1150, 850);
                         manifestWin.Show();
 
                         _ = System.Threading.Tasks.Task.Run(async () =>
@@ -1106,6 +1130,7 @@ namespace FlightSupervisor.UI
                         System.Windows.Shell.WindowChrome.SetWindowChrome(logsWin, new System.Windows.Shell.WindowChrome { CaptionHeight = 0, ResizeBorderThickness = new System.Windows.Thickness(8), GlassFrameThickness = new System.Windows.Thickness(0), CornerRadius = new System.Windows.CornerRadius(0), UseAeroCaptionButtons = false });
                         
                         logsWin.Closed += (s, e) => {
+                            FlightSupervisor.UI.Services.WindowSettingsManager.SaveWindowState(logsWin, "LogsWindow");
                             _logsWebView = null;
                             _logsWindow = null;
                         };
@@ -1115,6 +1140,8 @@ namespace FlightSupervisor.UI
                         _logsWebView = webView;
                         _logsWindow = logsWin;
                         logsWin.Content = webView;
+
+                        FlightSupervisor.UI.Services.WindowSettingsManager.ApplySettings(logsWin, "LogsWindow", 650, 750);
                         logsWin.Show();
 
                         _ = System.Threading.Tasks.Task.Run(async () =>
@@ -1186,6 +1213,7 @@ namespace FlightSupervisor.UI
                         System.Windows.Shell.WindowChrome.SetWindowChrome(groundOpsWin, new System.Windows.Shell.WindowChrome { CaptionHeight = 0, ResizeBorderThickness = new System.Windows.Thickness(8), GlassFrameThickness = new System.Windows.Thickness(0), CornerRadius = new System.Windows.CornerRadius(0), UseAeroCaptionButtons = false });
                         
                         groundOpsWin.Closed += (s, e) => {
+                            FlightSupervisor.UI.Services.WindowSettingsManager.SaveWindowState(groundOpsWin, "GroundOpsWindow");
                             _groundOpsWebView = null;
                             _groundOpsWindow = null;
                         };
@@ -1195,6 +1223,8 @@ namespace FlightSupervisor.UI
                         _groundOpsWebView = webView;
                         _groundOpsWindow = groundOpsWin;
                         groundOpsWin.Content = webView;
+                        
+                        FlightSupervisor.UI.Services.WindowSettingsManager.ApplySettings(groundOpsWin, "GroundOpsWindow", 1200, 800);
                         groundOpsWin.Show();
 
                         _ = System.Threading.Tasks.Task.Run(async () =>
@@ -1267,7 +1297,7 @@ namespace FlightSupervisor.UI
                     if (_rotationQueue.Count > 0)
                     {
                         Dispatcher.Invoke(() => {
-                            _cabinManager.SessionFlightsCompleted++;
+                            // Do not increment SessionFlightsCompleted here, it is already incremented when the flight ends at the gate
                             LoadNextLeg();
                             SendToWeb(new { type = "log", message = $"[SYSTEM] Dispatch: Rotation Leg {_cabinManager.SessionFlightsCompleted + 1} initialized." });
                         });
@@ -1953,10 +1983,14 @@ namespace FlightSupervisor.UI
                             else if (metar.Contains(" FG") || metar.Contains(" BKN") || metar.Contains(" OVC")) wxc = "cloudy";
                             _cabinManager.AnnounceApproach(destName, wxc);
                         }
-                        else if (annType == "Delay")
+                        else if (annType != null && (annType == "Delay" || annType.StartsWith("Delay_")))
                         {
                             string reason = "ATC";
-                            if (doc.RootElement.TryGetProperty("reason", out var reasonProperty))
+                            if (annType.StartsWith("Delay_"))
+                            {
+                                reason = annType.Substring(6); // Gets "Pax", "Bags", "Cargo", "Weather", "Traffic", "Technical", "Catering"
+                            }
+                            else if (doc.RootElement.TryGetProperty("reason", out var reasonProperty))
                             {
                                 reason = reasonProperty.GetString() ?? "ATC";
                             }
@@ -2108,14 +2142,21 @@ namespace FlightSupervisor.UI
                 bool lonParsed = false;
                 double lat = 0, lon = 0;
                 
-                if (_currentResponse?.Origin != null)
+                var originForDist = _currentResponse?.Origin;
+                if (_phaseManager.CurrentPhase == FlightPhase.Turnaround)
                 {
-                    latParsed = double.TryParse(_currentResponse.Origin.PosLat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out lat);
-                    lonParsed = double.TryParse(_currentResponse.Origin.PosLong, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out lon);
+                    if (_rotationQueue.Count > 0) originForDist = _rotationQueue[0].Origin;
+                    else originForDist = null;
+                }
+
+                if (originForDist != null)
+                {
+                    latParsed = double.TryParse(originForDist.PosLat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out lat);
+                    lonParsed = double.TryParse(originForDist.PosLong, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out lon);
                 }
 
                 double calcDist = -1;
-                if (latParsed && lonParsed && _currentResponse?.Origin != null) {
+                if (latParsed && lonParsed && originForDist != null) {
                     calcDist = Math.Round(CalculateHaversineDistanceNM(_phaseManager.Latitude, _phaseManager.Longitude, lat, lon), 2);
                 }
 
@@ -2137,9 +2178,11 @@ namespace FlightSupervisor.UI
                     seatbeltsOn = _cabinManager.IsSeatbeltsOn,
                     isDelayed = _groundOpsManager.TargetSobt != null && (_aobt != null ? _aobt.Value > _groundOpsManager.TargetSobt.Value.AddMinutes(5) : _currentSimTime > _groundOpsManager.TargetSobt.Value.AddMinutes(5)),
                     isBoardingComplete = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Boarding")?.State == GroundServiceState.Completed,
+                    isDeboardingAvailable = _groundOpsManager.Services.Any(s => s.Name == "Deboarding"),
+                    isDeboardingCompleted = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Deboarding")?.State == GroundServiceState.Completed,
                     originDistanceNM = calcDist,
                     isAtWrongAirport = uiMismatch,
-                plannedOriginIcao = _currentResponse?.Origin?.IcaoCode ?? "",
+                plannedOriginIcao = originForDist?.IcaoCode ?? "",
                 anxiety = Math.Round(_cabinManager.PassengerAnxiety, 1),
                 comfort = Math.Round(_cabinManager.ComfortLevel, 1),
                 satisfaction = Math.Round(_cabinManager.Satisfaction, 1),
@@ -2399,7 +2442,42 @@ namespace FlightSupervisor.UI
                         }
                     }
 
-                    _rotationQueue.Add(response);
+                    // Check for duplicate to avoid queue accumulation during ACARS refresh
+                    bool isDupe = false;
+                    for (int i = 0; i < _rotationQueue.Count; i++)
+                    {
+                        var r = _rotationQueue[i];
+                        if (r.Origin?.IcaoCode == response.Origin?.IcaoCode &&
+                            r.Destination?.IcaoCode == response.Destination?.IcaoCode &&
+                            r.General?.FlightNumber == response.General?.FlightNumber)
+                        {
+                            _rotationQueue[i] = response;
+                            isDupe = true;
+                            // If this was the active flight plan, update _currentResponse
+                            if (_currentResponse != null && _currentResponse.Origin?.IcaoCode == response.Origin?.IcaoCode &&
+                                _currentResponse.Destination?.IcaoCode == response.Destination?.IcaoCode &&
+                                _currentResponse.General?.FlightNumber == response.General?.FlightNumber)
+                            {
+                                _currentResponse = response;
+                            }
+                            break;
+                        }
+                    }
+
+                    // Also check if _currentResponse is the exact same leg but it's not in the queue (e.g. if popped)
+                    if (!isDupe && _currentResponse != null && 
+                        _currentResponse.Origin?.IcaoCode == response.Origin?.IcaoCode &&
+                        _currentResponse.Destination?.IcaoCode == response.Destination?.IcaoCode &&
+                        _currentResponse.General?.FlightNumber == response.General?.FlightNumber)
+                    {
+                        _currentResponse = response;
+                        isDupe = true;
+                    }
+
+                    if (!isDupe)
+                    {
+                        _rotationQueue.Add(response);
+                    }
                     
                     var weatherService = new WeatherBriefingService(units);
                     var briefingData = weatherService.GenerateBriefing(response, _isAtWrongAirport);
@@ -2467,6 +2545,7 @@ namespace FlightSupervisor.UI
 
         private void MainWindow_Closed(object sender, EventArgs e)
         {
+            FlightSupervisor.UI.Services.WindowSettingsManager.SaveWindowState(this, "MainWindow");
             _simConnectService?.Disconnect();
             _panelServer?.StopServer();
         }

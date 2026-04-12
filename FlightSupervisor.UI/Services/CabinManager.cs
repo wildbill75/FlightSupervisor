@@ -40,6 +40,7 @@ namespace FlightSupervisor.UI.Services
     public class CabinManager
     {
                 public CabinState State { get; private set; } = CabinState.Idle;
+        public FlightSupervisor.UI.Models.AirportDestinationType CurrentDestinationType { get; set; } = FlightSupervisor.UI.Models.AirportDestinationType.Business;
         public DateTime CurrentSimLocalTime { get; set; } = DateTime.MinValue;
         public DateTime CurrentSimZuluTime { get; set; } = DateTime.MinValue;
         
@@ -421,7 +422,7 @@ namespace FlightSupervisor.UI.Services
             
             ActiveAirlineId = profile.Name;
             
-            if (SessionFlightsCompleted > 0 && PassengerManifest.Count > 0)
+            if (SessionFlightsCompleted > 0 && PassengerManifest.Any(p => p.IsBoarded))
             {
                 PreviousLegManifest.Clear();
                 PreviousLegManifest.AddRange(PassengerManifest);
@@ -718,7 +719,8 @@ namespace FlightSupervisor.UI.Services
                 if ((DateTime.Now - _lastBoardingTick).TotalSeconds >= 0.5)
                 {
                     _lastBoardingTick = DateTime.Now;
-                    var boarded = PassengerManifest.Where(p => p.IsBoarded).ToList();
+                    var activeManifest = PreviousLegManifest.Any(p => p.IsBoarded) ? PreviousLegManifest : PassengerManifest;
+                    var boarded = activeManifest.Where(p => p.IsBoarded).ToList();
                     if (boarded.Count > 0)
                     {
                         int toDeboard = _rnd.Next(2, 6);
@@ -790,7 +792,7 @@ namespace FlightSupervisor.UI.Services
             // --- THERMAL COMFORT (Physical Simulation) ---
             if (cabinTemperature > 0.0) 
             {
-                double inertiaRate = 0.04 * deltaTimeSeconds; // ~2.5 degrees per minute
+                double inertiaRate = 0.2 * deltaTimeSeconds; // ~12 degrees per minute (fast response to simulator)
                 if (LastKnownCabinTemp < cabinTemperature) {
                     LastKnownCabinTemp += Math.Min(inertiaRate, cabinTemperature - LastKnownCabinTemp);
                 } else if (LastKnownCabinTemp > cabinTemperature) {
@@ -854,14 +856,21 @@ namespace FlightSupervisor.UI.Services
                 // User Rule: Passenger resource consumption (Water, Waste, Dirt) ONLY happens when Seatbelts are OFF
                 if (!_seatbeltsOn)
                 {
-                    CabinCleanliness -= 0.003 * paxMultiplier * deltaTimeSeconds; 
+                    // Cleanliness degrades faster with Grumpy passengers
+                    int grumpyCount = PassengerManifest.Count(p => p.IsBoarded && p.Demographic == PassengerDemographic.Grumpy);
+                    double grumpyMultiplier = 1.0 + (grumpyCount / (double)paxCount) * 1.5; // Up to 2.5x if all grumpy
+                    CabinCleanliness -= 0.003 * paxMultiplier * grumpyMultiplier * deltaTimeSeconds; 
                     if (CabinCleanliness < 0) CabinCleanliness = 0;
 
-                    WaterLevel -= 0.004 * paxMultiplier * deltaTimeSeconds; 
+                    // Water consumption peaks if Stress > 50%
+                    double waterStressMultiplier = PassengerAnxiety > 50.0 ? 3.0 : 1.0;
+                    WaterLevel -= 0.004 * paxMultiplier * waterStressMultiplier * deltaTimeSeconds; 
                     if (WaterLevel < 0) WaterLevel = 0;
 
-                    double stressMultiplier = PassengerAnxiety > 60.0 ? 3.0 : 1.0;
-                    WasteLevel += 0.005 * paxMultiplier * stressMultiplier * deltaTimeSeconds;
+                    // Waste generation +40% for Holiday destination
+                    double wasteDestMultiplier = CurrentDestinationType == FlightSupervisor.UI.Models.AirportDestinationType.Holiday ? 1.4 : 1.0;
+                    double stressMultiplier = PassengerAnxiety > 60.0 ? 3.0 : 1.0; // Keep existing stress multiplier for waste
+                    WasteLevel += 0.005 * paxMultiplier * stressMultiplier * wasteDestMultiplier * deltaTimeSeconds;
                 }
                 
                 if (WasteLevel >= 100) 
@@ -1373,21 +1382,21 @@ namespace FlightSupervisor.UI.Services
                 _currentDelayMinutes = delaySpan.TotalMinutes;
                 if (_currentDelayMinutes > 5)
                 {
-                    double anxInc = 0.005; 
-                    double comfDec = 0.005;
-                    double satDec = 0.02; // Satisfaction drops faster on delay
+                    double anxInc = 0.005 * deltaTimeSeconds; 
+                    double comfDec = 0.005 * deltaTimeSeconds;
+                    double satDec = 0.015 * deltaTimeSeconds; // Satisfaction drops faster on delay
                     
-                    if (delaySpan.TotalMinutes > 15) { anxInc = 0.01; comfDec = 0.01; satDec = 0.05; }
+                    if (delaySpan.TotalMinutes > 15) { anxInc = 0.01 * deltaTimeSeconds; comfDec = 0.01 * deltaTimeSeconds; satDec = 0.03 * deltaTimeSeconds; }
                     
                     if ((DateTime.Now - _timeOfLastDelayPA).TotalMinutes > 15)
                     {
-                        comfDec *= 2.0; 
-                        anxInc *= 2.0;
-                        satDec *= 2.0;
+                        comfDec *= 1.5; 
+                        anxInc *= 1.5;
+                        satDec *= 1.5;
                     }
                     else
                     {
-                        satDec *= 0.1; // PA Apology slows down satisfaction drop
+                        satDec *= 0.2; // PA Apology slows down satisfaction drop
                     }
                     
                     if (PassengerAnxiety < 50.0) IncreaseAnxiety(anxInc, phase, isCrisisActive);
@@ -1456,14 +1465,14 @@ namespace FlightSupervisor.UI.Services
                     InFlightServiceProgress += baseRate;
                     
                     int totalPax = Math.Max(1, PassengerManifest.Count);
-                    double paxServedThisTick = (InFlightServiceProgress - prevProgress) / 100.0 * totalPax;
+                    double ratio = InFlightServiceProgress / 100.0;
                     
-                    if (paxServedThisTick > 0 && CateringRations > 0)
+                    int expectedEaten = (int)(ratio * totalPax * 0.90);
+                    int desiredRations = Math.Max(0, MaxCateringRations - expectedEaten);
+                    
+                    if (CateringRations > desiredRations)
                     {
-                         if (_rnd.NextDouble() < (paxServedThisTick * 0.90))
-                         {
-                             CateringRations--;
-                         }
+                        CateringRations = desiredRations;
                     }
 
                     if (InFlightServiceProgress >= 100.0)
@@ -1585,10 +1594,15 @@ namespace FlightSupervisor.UI.Services
                 ModifySatisfaction(10.0);
                 string spokenReason = reason.ToLower() switch {
                     "atc" => "ATC clearance",
+                    "traffic" => "ATC clearance",
                     "luggage" => "luggage loading",
+                    "bags" => "luggage loading",
                     "weather" => "bad weather",
                     "passengers" => "late connecting passengers",
+                    "pax" => "late connecting passengers",
                     "technical" => "technical checks",
+                    "cargo" => "cargo loading",
+                    "catering" => "catering supplies",
                     _ => "ATC clearance"
                 };
 

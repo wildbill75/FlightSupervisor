@@ -8,9 +8,18 @@ namespace FlightSupervisor.UI.Models
         F_Small
     }
 
+    public enum AirportDestinationType
+    {
+        Business,
+        Holiday
+    }
+
     public class AirportArchetype
     {
         public string Icao { get; set; } = "XXXX";
+        
+        public AirportDestinationType Type { get; set; } = AirportDestinationType.Business;
+
         
         /// <summary>
         /// Defines the size of the airport, which will directly impact Ground Ops approach delays.

@@ -73,6 +73,8 @@ namespace FlightSupervisor.UI.Services
             var res = new MetarAnalysisResult();
             if (string.IsNullOrWhiteSpace(code)) return res;
 
+            code = code.Replace("=", "").Replace('\n', ' ').Replace('\r', ' ').Trim();
+
             // Remove RMK
             int rmkIndex = code.IndexOf(" RMK ");
             if (rmkIndex != -1) code = code.Substring(0, rmkIndex);

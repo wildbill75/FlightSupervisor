@@ -267,7 +267,13 @@ namespace FlightSupervisor.UI.Services
             IsFuelSheetValidated = false;
             TargetSobt = null;
             Services.Clear();
-            Services.Add(new GroundService { Name = "Deboarding", TotalDurationSec = 600, StatusMessage = "Pending", State = GroundServiceState.NotStarted, ElapsedSec = 0 });
+            Services.Add(new GroundService { Name = "Deboarding", TotalDurationSec = 600, StatusMessage = "Pending", State = GroundServiceState.NotStarted, ElapsedSec = 0, RequiresManualStart = true });
+            Services.Add(new GroundService { Name = "Cargo/Luggage", TotalDurationSec = 600, StatusMessage = "Pending", State = GroundServiceState.NotStarted, ElapsedSec = 0, RequiresManualStart = true });
+            Services.Add(new GroundService { Name = "Cleaning", TotalDurationSec = 600, StatusMessage = "Pending", State = GroundServiceState.NotStarted, ElapsedSec = 0, RequiresManualStart = true });
+            Services.Add(new GroundService { Name = "Catering", TotalDurationSec = 600, StatusMessage = "Pending", State = GroundServiceState.NotStarted, ElapsedSec = 0, RequiresManualStart = true, IsOptional = true });
+            Services.Add(new GroundService { Name = "Water/Waste", TotalDurationSec = 300, StatusMessage = "Pending", State = GroundServiceState.NotStarted, ElapsedSec = 0, RequiresManualStart = true, IsOptional = true });
+            Services.Add(new GroundService { Name = "Refueling", TotalDurationSec = 600, StatusMessage = "Pending", State = GroundServiceState.NotStarted, ElapsedSec = 0, RequiresManualStart = true });
+            Services.Add(new GroundService { Name = "Boarding", TotalDurationSec = 900, StatusMessage = "Pending", State = GroundServiceState.NotStarted, ElapsedSec = 0, RequiresManualStart = true });
             OnOpsUpdated?.Invoke();
         }
 

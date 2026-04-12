@@ -1,3 +1,64 @@
+window.formatAirportData = function(cityRaw, nameRaw) {
+    let city = (cityRaw || "").split('/')[0].trim();
+    let name = (nameRaw || "").replace(/airport/gi, '').replace(/aéroport/gi, '').replace(/international/gi, '').replace(/intl/gi, '').trim();
+    if (city && name.toLowerCase().startsWith(city.toLowerCase())) {
+        name = name.substring(city.length).trim();
+        if (name.startsWith('-') || name.startsWith('/')) {
+            name = name.substring(1).trim();
+        }
+    }
+    if (!name) name = "";
+    return { city: city.toUpperCase(), name: name.toUpperCase() };
+};
+
+window.formatAirportLabel = function(cityRaw, nameRaw) {
+    const data = window.formatAirportData(cityRaw, nameRaw);
+    if (!data.name) return data.city;
+    return `${data.city} - ${data.name}`;
+};
+
+window.updateDashboardAnimation = function(telemetry) {
+    if (!telemetry) return;
+    const progressLine = document.getElementById('dashboardProgressLine');
+    const airplaneIcon = document.getElementById('dashboardAirplaneIcon');
+    if (!progressLine || !airplaneIcon) return;
+    
+    let rawPercent = 0;
+    const phase = telemetry.phaseEnum || "Preflight";
+    const preF = ["Preflight", "Boarding", "TaxiOut"];
+    const postF = ["Landing", "TaxiIn", "Turnaround", "Arrived", "Finished"];
+    
+    if (preF.includes(phase)) {
+        rawPercent = 0;
+    } else if (postF.includes(phase)) {
+        rawPercent = 100;
+    } else {
+        let totalDist = 0;
+        if (window.allRotations && window.allRotations.length > 0 && window.allRotations[0].data && window.allRotations[0].data.general) {
+            totalDist = parseFloat(window.allRotations[0].data.general.route_distance);
+        }
+        let flownDist = telemetry.originDistanceNM || 0;
+        
+        if (totalDist > 0 && flownDist > 0) {
+            rawPercent = (flownDist / totalDist) * 100;
+            if (rawPercent < 5) rawPercent = 5;
+            if (rawPercent > 95) rawPercent = 95;
+            if (phase === "Approach" && rawPercent < 90) rawPercent = 95;
+            if (phase === "Takeoff" && rawPercent > 10) rawPercent = 5;
+        } else {
+            if (phase === "Takeoff") rawPercent = 5;
+            else if (phase === "Climb") rawPercent = 20;
+            else if (phase === "Cruise") rawPercent = 50;
+            else if (phase === "Descent") rawPercent = 80;
+            else if (phase === "Approach") rawPercent = 95;
+        }
+    }
+    
+    const svgX = 2 + (rawPercent / 100) * 96;
+    progressLine.setAttribute('x2', svgX);
+    airplaneIcon.style.left = svgX + '%';
+};
+
 window.populateBriefingView = (index = 0) => {
     const briefingContent = document.getElementById('briefing-content');
     if (!briefingContent || !window.allRotations || window.allRotations.length === 0) return;
@@ -91,9 +152,45 @@ window.populateBriefingView = (index = 0) => {
             let pillsHtml = '';
             if (st.TempDew) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-orange-400 opacity-80"></div> <span class="text-white font-bold">${st.TempDew}</span></div>`;
             if (st.Qnh) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-sky-400 opacity-80"></div> <span class="text-white font-bold">${st.Qnh}</span></div>`;
-            if (st.Wind) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-slate-300 opacity-80"></div> <span class="text-white font-bold">${st.Wind}</span></div>`;
-            if (st.Visibility) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-violet-400 opacity-80"></div> <span class="text-white font-bold">${st.Visibility}</span></div>`;
+            
+            if (st.Wind) {
+                let windColor = 'bg-slate-300', windText = 'text-white';
+                let wMatch = st.Wind.match(/(\d+)G(\d+)/) || st.Wind.match(/(\d+)\s*kt/);
+                if (wMatch) {
+                    let knots = parseInt(wMatch[2] || wMatch[1], 10);
+                    if (knots >= 35) { windColor = 'bg-red-500 animate-pulse'; windText = 'text-red-400'; }
+                    else if (knots >= 20) { windColor = 'bg-orange-500 animate-pulse'; windText = 'text-orange-400'; }
+                }
+                pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full ${windColor} opacity-80"></div> <span class="${windText} font-bold">${st.Wind}</span></div>`;
+            }
+
+            if (st.Visibility) {
+                let visColor = 'bg-violet-400', visText = 'text-white';
+                let isSM = st.Visibility.includes('SM') || st.Visibility.includes('sm');
+                let isM = st.Visibility.includes('m') && !isSM;
+                let numMatch = st.Visibility.match(/(\d+\.?\d*|\d+\/\d+)/);
+                if (numMatch) {
+                    let val = parseFloat(numMatch[1]);
+                    if (st.Visibility.includes('/')) {
+                        const parts = numMatch[1].split('/');
+                        val = parseInt(parts[0]) / parseInt(parts[1]);
+                    }
+                    let isLow = false, isVeryLow = false;
+                    if (isSM) {
+                        if (val <= 0.5) isVeryLow = true;
+                        else if (val <= 1.5) isLow = true;
+                    } else if (isM) {
+                        if (val <= 800) isVeryLow = true;
+                        else if (val <= 2000) isLow = true;
+                    }
+                    if (isVeryLow) { visColor = 'bg-red-500 animate-pulse'; visText = 'text-red-400'; }
+                    else if (isLow) { visColor = 'bg-orange-500 animate-pulse'; visText = 'text-orange-400'; }
+                }
+                pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full ${visColor} opacity-80"></div> <span class="${visText} font-bold">${st.Visibility}</span></div>`;
+            }
+
             if (st.CloudBase) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-slate-500 opacity-80"></div> <span class="text-white font-bold">${st.CloudBase}</span></div>`;
+
             
             if (st.RunwayAdvice && st.RunwayAdvice.includes('Runway')) {
                 const rwyMatch = st.RunwayAdvice.match(/Runway\s+([A-Z0-9]+)/i) || st.RunwayAdvice.match(/Piste.*?\s+([A-Z0-9]+)/i);
@@ -617,8 +714,20 @@ window.populateDashboardActiveLeg = (index = 0) => {
             }
         }
 
-        const depQnh = window.allRotations[index].briefing?.Stations?.find(s => s.Id.toLowerCase() === 'origin' || s.Id.toLowerCase() === 'departure')?.Qnh || '---';
-        const arrQnh = window.allRotations[index].briefing?.Stations?.find(s => s.Id.toLowerCase() === 'destination')?.Qnh || '---';
+        const getStationQnh = (type) => {
+            if (!window.allRotations[index].briefing) return '---';
+            const stations = window.allRotations[index].briefing.Stations || window.allRotations[index].briefing.stations;
+            if (!stations) return '---';
+            const st = stations.find(s => {
+                const sid = s.Id || s.id || '';
+                return sid.toLowerCase() === type.toLowerCase();
+            });
+            if (!st) return '---';
+            return st.Qnh || st.qnh || st.QNH || '---';
+        };
+
+        const depQnh = getStationQnh('origin') !== '---' ? getStationQnh('origin') : getStationQnh('departure');
+        const arrQnh = getStationQnh('destination');
 
         const leftOpacity = index === 0 ? 'opacity-20 pointer-events-none' : 'opacity-100 hover:bg-white/10 cursor-pointer';
         const rightOpacity = index === window.allRotations.length - 1 ? 'opacity-20 pointer-events-none' : 'opacity-100 hover:bg-white/10 cursor-pointer';
@@ -660,10 +769,13 @@ window.populateDashboardActiveLeg = (index = 0) => {
                         <div role="button" tabindex="-1" class="flex-1 border-x border-solid border-white/10 flex justify-between items-center py-4 px-10 relative cursor-default text-left">
                             
                             <!-- Left: FROM -->
-                            <div class="flex flex-col z-10 w-[25%] pointer-events-none">
+                            <div class="flex flex-col z-10 w-[25%] pointer-events-none text-left">
                                 <div class="text-[10px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">From</div>
                                 <div class="text-[44px] font-black text-[#58586c] tracking-widest mt-1 leading-none uppercase">${rd.origin?.icao_code || '---'}</div>
-                                <div class="text-[11px] font-bold text-[#7b7b7b] uppercase mt-3 tracking-wider whitespace-nowrap">RWY:${rd.origin?.plan_rwy || '---'} / QNH:${depQnh}</div>
+                                <div class="text-[9px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis w-full max-w-[200px]" title="${window.airportsDb && window.airportsDb[rd.origin?.icao_code] ? window.formatAirportLabel(window.airportsDb[rd.origin.icao_code].city, window.airportsDb[rd.origin.icao_code].name) : ''}">
+                                    ${window.airportsDb && window.airportsDb[rd.origin?.icao_code] ? window.formatAirportLabel(window.airportsDb[rd.origin.icao_code].city, window.airportsDb[rd.origin.icao_code].name) : ''}
+                                </div>
+                                <div class="text-[11px] font-bold text-[#7b7b7b] uppercase mt-2 tracking-wider whitespace-nowrap">RWY:${rd.origin?.plan_rwy || '---'} <span class="mx-1">/</span> QNH:${depQnh}</div>
                                 <div class="text-[14px] font-bold text-white uppercase mt-1 tracking-widest">${rd.times?.sched_out ? new Date(parseInt(rd.times.sched_out) * 1000).toISOString().substr(11, 5) + 'Z' : '--:--'}</div>
                             </div>
 
@@ -673,24 +785,34 @@ window.populateDashboardActiveLeg = (index = 0) => {
                                 <div class="text-[16px] font-bold text-white tracking-widest uppercase mt-1 text-center">${fl}</div>
                                 
                                 <div class="w-full flex items-center justify-center my-4 relative pointer-events-none">
-                                    <svg class="w-full h-4 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]" preserveAspectRatio="none" viewBox="0 0 100 10">
-                                        <line x1="2" y1="5" x2="98" y2="5" stroke="currentColor" stroke-width="1.5" />
-                                        <polyline points="5,2 1,5 5,8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                        <polyline points="95,2 99,5 95,8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                    <svg class="w-full h-4 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 10">
+                                        <defs>
+                                            <linearGradient id="flightProgressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                <stop offset="0%" stop-color="#3b82f6" />
+                                                <stop offset="100%" stop-color="#10b981" />
+                                            </linearGradient>
+                                        </defs>
+                                        <line x1="2" y1="5" x2="98" y2="5" stroke="currentColor" stroke-width="2.5" stroke-opacity="0.2" />
+                                        <line id="dashboardProgressLine" x1="2" y1="5" x2="2" y2="5" stroke="url(#flightProgressGradient)" stroke-width="2.5" stroke-linecap="round" class="transition-all duration-1000 ease-in-out" />
                                     </svg>
-                                    <span class="material-symbols-outlined text-[#7b7b7b] absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#1a1d24] px-2 shadow-[0_0_10px_rgba(26,29,36,1)]" style="top:50%; transform: translate(-50%, -50%) rotate(90deg) scale(1.3);">flight</span>
+                                    <div id="dashboardAirplaneIcon" class="absolute transition-all duration-1000 ease-in-out" style="left: 2%; top: 50%; transform: translate(-50%, -50%);">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" class="w-7 h-7 fill-white drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]"><path d="M482.3 192c34 0 93.7 29 93.7 64c0 36-59.7 64-93.7 64l-116.6 0L265.2 495.9c-5.7 10-16.3 16.1-27.8 16.1l-56.2 0c-10.6 0-18.3-10.2-15.4-20.4l49-171.6L112 320 68.8 377.6c-3 4-7.8 6.4-12.8 6.4l-42 0c-7.8 0-14-6.3-14-14c0-1.3 .2-2.6 .5-3.9L32 256 .5 145.9c-.4-1.3-.5-2.6-.5-3.9c0-7.8 6.3-14 14-14l42 0c5 0 9.8 2.4 12.8 6.4L112 192l102.9 0-49-171.6C162.9 10.2 170.6 0 181.2 0l56.2 0c11.5 0 22.1 6.2 27.8 16.1L365.7 192l116.6 0z"/></svg>
+                                    </div>
                                 </div>
                                 
-                                <div class="text-[10px] font-mono tracking-[0.2em] text-[#7b7b7b] uppercase text-center w-[120%] px-2 mt-2" style="line-height:1.2;">
+                                <div class="text-[12px] font-mono tracking-[0.2em] text-white uppercase text-center w-[120%] px-2 mt-2" style="line-height:1.2;">
                                     ${rd.general?.route || 'CLEARED FOR DEPARTURE'}
                                 </div>
                             </div>
 
                             <!-- Right: TO -->
-                            <div class="flex flex-col text-right items-end z-10 w-[25%] pointer-events-none">
+                            <div class="flex flex-col text-right items-end z-10 w-[25%] pointer-events-none text-right">
                                 <div class="text-[10px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">To</div>
                                 <div class="text-[44px] font-black text-[#58586c] tracking-widest mt-1 leading-none uppercase">${rd.destination?.icao_code || '---'}</div>
-                                <div class="text-[11px] font-bold text-[#7b7b7b] uppercase mt-3 tracking-wider whitespace-nowrap">RWY:${rd.destination?.plan_rwy || '---'} / QNH:${arrQnh}</div>
+                                <div class="text-[9px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis w-full max-w-[200px]" title="${window.airportsDb && window.airportsDb[rd.destination?.icao_code] ? window.formatAirportLabel(window.airportsDb[rd.destination.icao_code].city, window.airportsDb[rd.destination.icao_code].name) : ''}">
+                                    ${window.airportsDb && window.airportsDb[rd.destination?.icao_code] ? window.formatAirportLabel(window.airportsDb[rd.destination.icao_code].city, window.airportsDb[rd.destination.icao_code].name) : ''}
+                                </div>
+                                <div class="text-[11px] font-bold text-[#7b7b7b] uppercase mt-2 tracking-wider whitespace-nowrap">RWY:${rd.destination?.plan_rwy || '---'} <span class="mx-1">/</span> QNH:${arrQnh}</div>
                                 <div class="text-[14px] font-bold text-white uppercase mt-1 tracking-widest">${rd.times?.sched_in ? new Date(parseInt(rd.times.sched_in) * 1000).toISOString().substr(11, 5) + 'Z' : '--:--'}</div>
                             </div>
                         </div>
@@ -705,6 +827,9 @@ window.populateDashboardActiveLeg = (index = 0) => {
                 </div>
             </div>
         `;
+        if (typeof window.updateDashboardAnimation === 'function' && window.lastTelemetry) {
+            window.updateDashboardAnimation(window.lastTelemetry);
+        }
     }
 };
 
@@ -1847,61 +1972,48 @@ document.addEventListener('DOMContentLoaded', () => {
         sysMenu.classList.remove('opacity-100');
     }
 
-    const buildSelectOptions = (options) => {
-        if (options.length === 0) return `<option data-disabled="true" style="background-color: #1E2433; color: inherit;">STANDING BY...</option>`;
+    const renderActionButtons = (containerId, sectionId, options, colorClasses, type) => {
+        const container = document.getElementById(containerId);
+        const section = document.getElementById(sectionId);
+        if (!container) return;
 
-        // Sort options so that enabled ones appear first
-        const sorted = [...options].sort((a, b) => (a.disabled === b.disabled) ? 0 : a.disabled ? 1 : -1);
+        let enabledOptions = options.filter(o => !o.disabled);
 
-        return sorted.map(o => {
-            const text = o.disabled && o.reason ? `${o.text} (${o.reason})` : o.text;
-            return `<option value="${o.val}" data-action="${o.action || 'announceCabin'}" data-disabled="${o.disabled ? 'true' : 'false'}" style="background-color: #1E2433; color: inherit;">${text}</option>`;
-        }).join('');
-    };
-
-    const updateDropdown = (selectId, btnId, options, baseColorClass) => {
-        const select = document.getElementById(selectId);
-        const btn = document.getElementById(btnId);
-        if (!select || !btn) return;
-
-        const html = buildSelectOptions(options);
-        // Avoid DOM reset if no changes (prevents flickering)
-        if (select.dataset.lastHtml !== html) {
-            const prevVal = select.value;
-            select.innerHTML = html;
-            select.dataset.lastHtml = html;
-
-            if (options.length > 0 && !options.every(o => o.disabled)) {
-                // Try to keep previously selected if it's still enabled, else select the first enabled
-                const newMatch = Array.from(select.options).find(o => o.value === prevVal);
-                if (newMatch && newMatch.getAttribute('data-disabled') !== "true") select.value = prevVal;
-                else select.selectedIndex = 0;
-            } else if (options.length > 0) {
-                select.selectedIndex = 0; // Select the first disabled item as fallback
-            }
+        if (enabledOptions.length === 0) {
+            container.innerHTML = '';
+            container.dataset.lastHtml = '';
+            return;
         }
 
-        const isCompletelyDisabled = select.options.length === 0 || select.options[select.selectedIndex]?.getAttribute('data-disabled') === "true";
+        const html = enabledOptions.map(o => {
+            const action = o.action || (type === 'PA' ? 'announceCabin' : 'pncCommand');
+            const propName = action === 'resolveCrisis' ? 'crisisType' : (type === 'PA' ? 'annType' : 'command');
+            
+            let onclickStr = '';
+            if (type === 'PA') {
+                onclickStr = `window.chrome.webview.postMessage({action: '${action}', ${propName}: '${o.val}'})`;
+            } else {
+                if (action === 'pncCommand') {
+                    onclickStr = `window.chrome.webview.postMessage({action: '${action}', command: '${o.val}'})`;
+                } else if (action === 'resolveCrisis') {
+                    onclickStr = `window.chrome.webview.postMessage({action: '${action}', crisisType: '${o.val}'})`;
+                } else {
+                    onclickStr = `window.chrome.webview.postMessage({action: '${action}'})`;
+                }
+            }
 
-        if (isCompletelyDisabled) {
-            select.classList.add('opacity-50');
+            return `<button onclick="${onclickStr}" class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all ${colorClasses}">
+                        ${o.text}
+                    </button>`;
+        }).join('');
 
-            btn.disabled = true;
-            btn.classList.add('opacity-50'); /* REMOVED cursor-not-allowed */
-            btn.classList.remove(baseColorClass);
-            btn.title = 'Aucune action disponible en ce moment';
-        } else {
-            select.classList.remove('opacity-50');
-
-            btn.disabled = false;
-            btn.classList.remove('opacity-50'); /* REMOVED cursor-not-allowed */
-            btn.classList.add(baseColorClass);
-            btn.title = 'Broadcast on Intercom';
+        if (container.dataset.lastHtml !== html) {
+             container.innerHTML = html;
+             container.dataset.lastHtml = html;
         }
     };
 
     function updateIntercomButtons(payload) {
-        // We no longer build a dynamic layout block, we push everything into the two dropdowns!
         const phase = payload.phaseEnum;
         const used = payload.issuedCommands || [];
 
@@ -1911,33 +2023,33 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!used.includes('PA_Welcome')) {
             const boardingFinished = payload.passengers && payload.passengers.length > 0 ? payload.passengers.every(p => (p.IsBoarded !== undefined ? p.IsBoarded : p.isBoarded)) : false;
             const ok = ['AtGate', 'Pushback', 'TaxiOut'].includes(phase) && boardingFinished;
-            paOptions.push({ val: 'Welcome', text: 'PA: Welcome Aboard', disabled: !ok, reason: 'Embarquement requis' });
+            paOptions.push({ val: 'Welcome', text: 'WELCOME', disabled: !ok });
         }
         if (!used.includes('PA_Approach') && ['Approach', 'FinalApproach'].includes(phase)) {
             const ok = phase === 'Approach';
-            paOptions.push({ val: 'Approach', text: 'PA: Approach Info', disabled: !ok, reason: 'Approche requise' });
+            paOptions.push({ val: 'Approach', text: 'APPROACH', disabled: !ok });
         }
 
-        paOptions.push({ val: 'CruiseStatus', text: 'PA: Cruise Status', disabled: phase !== 'Cruise', reason: 'CroisiÃ¨re requise' });
-        paOptions.push({ val: 'ArrivalWeather', text: 'PA: Arrival Weather', disabled: !['Descent', 'Approach'].includes(phase), reason: 'Descente/Approche requise' });
+        paOptions.push({ val: 'CruiseStatus', text: 'CRUISE', disabled: phase !== 'Cruise' });
+        paOptions.push({ val: 'ArrivalWeather', text: 'WEATHER', disabled: !['Descent', 'Approach'].includes(phase) });
 
         if (flightHasExperiencedDelay) {
-            paOptions.push({ val: 'DelayApology', text: 'PA: Delay Apology', disabled: false, reason: '' });
+            paOptions.push({ val: 'DelayApology', text: 'DELAY', disabled: false });
         }
 
         if (flightHasExperiencedTurbulence) {
             const isInAir = ['Takeoff', 'Climb', 'Cruise', 'Descent', 'Approach', 'FinalApproach'].includes(phase);
-            paOptions.push({ val: 'TurbulenceApology', text: 'PA: Turbulence Apology', disabled: !isInAir, reason: 'En vol uniquement' });
+            paOptions.push({ val: 'TurbulenceApology', text: 'TURBULENCE', disabled: !isInAir });
         }
 
         if (payload.isGoAroundActive) {
-            paOptions.push({ val: 'GoAround', text: '*** PA: Go-Around ***', disabled: false, reason: '' });
+            paOptions.push({ val: 'GoAround', text: 'GO-AROUND', disabled: false });
         }
         if (payload.isSevereTurbulenceActive && phase === 'Cruise') {
-            paOptions.push({ val: 'Turbulence', text: '*** PA: Severe Turbulence ***', disabled: false, reason: '' });
+            paOptions.push({ val: 'Turbulence', text: 'SEVERE TURB', disabled: false });
         }
         if (payload.activeCrisis === 'MedicalEmergency') {
-            paOptions.push({ val: 'MedicalEmergency', text: '*** PA: Doctor On Board ***', disabled: false, reason: '', action: 'resolveCrisis' });
+            paOptions.push({ val: 'MedicalEmergency', text: 'DOCTOR', disabled: false, action: 'resolveCrisis' });
         }
 
         // 2. FLIGHT DECK TO PNC ACTIONS
@@ -1945,75 +2057,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const diffSec = payload.cabinReportCooldownElapsed || 999;
         const isCd = diffSec < 120;
-        const cdLeft = Math.ceil(120 - diffSec);
+        
         pncOptions.push({
             val: 'intercomQuery',
-            text: 'INT: Request Cabin Report',
+            text: 'CABIN REPORT',
             disabled: isCd,
-            reason: isCd ? `Report Cooldown (${Math.floor(cdLeft / 60)}m ${cdLeft % 60}s)` : '',
             action: 'intercomQuery'
         });
 
         if (!used.includes('ARM_DOORS') && ['AtGate', 'Pushback'].includes(phase)) {
             const ok = payload.isBoardingComplete;
-            pncOptions.push({ val: 'ARM_DOORS', text: 'INT: Arm Doors', disabled: !ok, reason: 'Embarquement requis', action: 'pncCommand' });
+            pncOptions.push({ val: 'ARM_DOORS', text: 'ARM DOORS', disabled: !ok, action: 'pncCommand' });
         }
         if (!used.includes('PREPARE_TAKEOFF') && phase === 'TaxiOut') {
-            pncOptions.push({ val: 'PREPARE_TAKEOFF', text: 'INT: Prepare Cabin for Takeoff', disabled: false, reason: '', action: 'pncCommand' });
+            pncOptions.push({ val: 'PREPARE_TAKEOFF', text: 'PREP TAKEOFF', disabled: false, action: 'pncCommand' });
         }
         if (!used.includes('SEATS_TAKEOFF') && phase === 'TaxiOut') {
             const isReady = payload.securingProgress >= 100;
-            pncOptions.push({ val: 'SEATS_TAKEOFF', text: isReady ? 'INT: Seats for Takeoff' : 'INT: Force Seats (Caution)', disabled: false, reason: '', action: 'pncCommand' });
+            pncOptions.push({ val: 'SEATS_TAKEOFF', text: isReady ? 'SEATS TAKEOFF' : 'FORCE SEATS', disabled: false, action: 'pncCommand' });
         }
         if (!used.includes('TOP_DESCENT') && ['Cruise', 'Descent'].includes(phase)) {
-            pncOptions.push({ val: 'TOP_DESCENT', text: 'INT: Inform Top of Descent', disabled: false, reason: '', action: 'pncCommand' });
+            pncOptions.push({ val: 'TOP_DESCENT', text: 'TOP DESCENT', disabled: false, action: 'pncCommand' });
         }
         if (!used.includes('PREPARE_LANDING') && ['Cruise', 'Descent', 'Approach', 'FinalApproach'].includes(phase)) {
             const ok = payload.altitude <= 10000 && phase !== 'Cruise';
-            pncOptions.push({ val: 'PREPARE_LANDING', text: 'INT: Prepare Cabin for Landing', disabled: !ok, reason: 'Passage sous 10 000 ft requis', action: 'pncCommand' });
+            pncOptions.push({ val: 'PREPARE_LANDING', text: 'PREP LANDING', disabled: !ok, action: 'pncCommand' });
         }
         if (!used.includes('SEATS_LANDING') && ['Descent', 'Approach'].includes(phase)) {
             const ok = phase === 'Approach' || payload.altitude <= 5000;
             const isReady = payload.securingProgress >= 100;
-            pncOptions.push({ val: 'SEATS_LANDING', text: isReady ? 'INT: Seats for Landing' : 'INT: Force Seats (Caution)', disabled: !ok, reason: "Approche requise", action: 'pncCommand' });
+            pncOptions.push({ val: 'SEATS_LANDING', text: isReady ? 'SEATS LANDING' : 'FORCE SEATS', disabled: !ok, action: 'pncCommand' });
         }
         if (payload.cabinState === 'ServingMeals') {
-            const svcText = payload.isServiceHalted ? 'PNC: Resume Service' : 'PNC: Pause Service';
-            pncOptions.push({ val: 'toggleService', text: svcText, disabled: false, reason: '', action: 'toggleService' });
+            const svcText = payload.isServiceHalted ? 'RESUME SVC' : 'PAUSE SVC';
+            pncOptions.push({ val: 'toggleService', text: svcText, disabled: false, action: 'toggleService' });
         }
         if (payload.activeCrisis === 'UnrulyPassenger') {
-            pncOptions.push({ val: 'UnrulyPassenger', text: '*** INT: Restrain Passenger ***', disabled: false, reason: '', action: 'resolveCrisis' });
+            pncOptions.push({ val: 'UnrulyPassenger', text: 'RESTRAIN PAX', disabled: false, action: 'resolveCrisis' });
         }
 
-        updateDropdown('dropdownPA', 'btnStaticPA', paOptions, 'hover:bg-sky-800/60');
-        updateDropdown('dropdownPNC', 'btnStaticPNC', pncOptions, 'hover:bg-amber-800/60');
+        renderActionButtons('paButtonsContainer', 'paSection', paOptions, 'bg-sky-900/40 text-sky-400 border-sky-500/20 hover:bg-sky-800/60 shadow-[0_0_10px_rgba(14,165,233,0.1)] hover:shadow-[0_0_15px_rgba(14,165,233,0.2)]', 'PA');
+        renderActionButtons('pncButtonsContainer', 'pncSection', pncOptions, 'bg-amber-900/40 text-amber-400 border-amber-500/20 hover:bg-amber-800/60 shadow-[0_0_10px_rgba(245,158,11,0.1)] hover:shadow-[0_0_15px_rgba(245,158,11,0.2)]', 'PNC');
     }
-
-    window.triggerPA = function () {
-        const select = document.getElementById('dropdownPA');
-        if (!select || !select.value) return;
-        const opt = select.options[select.selectedIndex];
-        if (opt.getAttribute('data-disabled') === "true") return;
-
-        const action = opt.getAttribute('data-action') || 'announceCabin';
-        const propName = action === 'resolveCrisis' ? 'crisisType' : 'annType';
-        window.chrome.webview.postMessage({ action: action, [propName]: select.value });
-    };
-
-    window.triggerPNC = function () {
-        const select = document.getElementById('dropdownPNC');
-        if (!select || !select.value) return;
-        const opt = select.options[select.selectedIndex];
-        if (opt.getAttribute('data-disabled') === "true") return;
-
-        const action = opt.getAttribute('data-action') || 'pncCommand';
-
-        let msg = { action: action };
-        if (action === 'pncCommand') msg.command = select.value;
-        else if (action === 'resolveCrisis') msg.crisisType = select.value;
-
-        window.chrome.webview.postMessage(msg);
-    };
 
 
     const selLanguage = document.getElementById('selLanguage');
@@ -2736,6 +2821,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 break;
             case 'briefingUpdate':
+                if (payload.briefing && window.allRotations && window.allRotations[window.activeLegIndex || 0]) {
+                    window.allRotations[window.activeLegIndex || 0].briefing = payload.briefing;
+                }
                 if (window.populateBriefingView) {
                     window.populateBriefingView(window.dashboardActiveLegIndex || 0);
                 }
@@ -2874,6 +2962,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 updateIntercomButtons(payload);
                 document.getElementById('flightPhase').innerText = `${payload.phase}`;
+                if (typeof window.updateDashboardAnimation === 'function') window.updateDashboardAnimation(payload);
 
                 // Start Ops Button Lifecycle (Point 11)
                 const startOpsBtn = document.getElementById('btnStartGroundOps');
@@ -2897,7 +2986,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         const btnDeboardToggle = document.getElementById('btnDeboardingToggle');
                         if (btnDeboardToggle) {
-                            if (payload.phaseEnum === 'Turnaround') {
+                            if (payload.isDeboardingAvailable && !payload.isDeboardingCompleted) {
                                 btnDeboardToggle.innerText = 'START DEBOARDING';
                                 // It should send action 'startDeboarding' to the backend
                                 btnDeboardToggle.onclick = () => window.chrome.webview.postMessage({ action: 'startDeboarding' });
@@ -2932,8 +3021,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Passenger Manifest Refresh (Story 25)
                 if (payload.passengers && Array.isArray(payload.passengers)) {
-                    if (window.manifest && (window.manifest.Passengers || window.manifest.passengers)) {
-                        (window.manifest.Passengers || window.manifest.passengers).forEach(p => {
+                    let paxArray = window.manifest?.Passengers || window.manifest?.passengers || (Array.isArray(window.manifest) ? window.manifest : null);
+                    if (paxArray) {
+                        paxArray.forEach(p => {
                             const state = payload.passengers.find(s => s.seat === p.Seat || s.Seat === p.Seat);
                             if (state) {
                                 p.IsBoarded = (state.IsBoarded !== undefined) ? state.IsBoarded : state.isBoarded;
@@ -3222,23 +3312,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             arrNameStr = window.airportsDb[arrIcao].name || arrNameStr;
                         }
 
-                        if (depNameStr.includes('/')) {
-                            const pts = depNameStr.split('/');
-                            document.getElementById('dashDepCity').innerText = depCity || pts[0].trim();
-                            document.getElementById('dashDepName').innerText = (pts[1] || '').trim();
-                        } else {
-                            document.getElementById('dashDepCity').innerText = depCity || depNameStr;
-                            document.getElementById('dashDepName').innerText = depNameStr;
-                        }
+                        const depFormat = window.formatAirportData(depCity, depNameStr);
+                        document.getElementById('dashDepCity').innerText = depFormat.city;
+                        document.getElementById('dashDepName').innerText = depFormat.name;
 
-                        if (arrNameStr.includes('/')) {
-                            const pts = arrNameStr.split('/');
-                            document.getElementById('dashArrCity').innerText = arrCity || pts[0].trim();
-                            document.getElementById('dashArrName').innerText = (pts[1] || '').trim();
-                        } else {
-                            document.getElementById('dashArrCity').innerText = arrCity || arrNameStr;
-                            document.getElementById('dashArrName').innerText = arrNameStr;
-                        }
+                        const arrFormat = window.formatAirportData(arrCity, arrNameStr);
+                        document.getElementById('dashArrCity').innerText = arrFormat.city;
+                        document.getElementById('dashArrName').innerText = arrFormat.name;
 
                         if (currentFlight.times?.sched_out) {
                             let offset = window.lastTelemetry?.globalTimeOffsetSeconds || 0;
@@ -4887,7 +4967,10 @@ function renderGroundOps(services) {
         // Custom Boarding Lock logic visually explicitly requested by user
         let boardBlockedText = null;
         if (s.Name === "Boarding") {
-            let cleaningSrv = combinedServices.find(x => x.Name === "Cleaning" || x.Name === "Cabin Clean (PNC)");
+            let cleaningSrv = combinedServices.find(x => x.Name === "Cleaning" || 
+                                                         x.Name === "Cabin Clean (PNC)" || 
+                                                         x.Name === "PNC Chores" || 
+                                                         x.Name === "CLEANING (CREW)");
             let cateringSrv = combinedServices.find(x => x.Name === "Catering");
             let block1 = cleaningSrv && (cleaningSrv.State === 1 || cleaningSrv.state === 1);
             let block2 = cateringSrv && (cateringSrv.State === 1 || cateringSrv.state === 1);
@@ -5019,11 +5102,12 @@ function renderGroundOps(services) {
 }
 
 window.renderManifest = function (manifest) {
+    manifest = manifest || window.manifest;
     const container = document.getElementById('manifestContainer');
     if (!container) return;
 
     let flightCrew = manifest?.FlightCrew || manifest?.flightCrew;
-    let passengers = manifest?.Passengers || manifest?.passengers;
+    let passengers = manifest?.Passengers || manifest?.passengers || (Array.isArray(manifest) ? manifest : null);
 
     if (!manifest || (!flightCrew && !passengers)) {
         container.innerHTML = '<p style="color:#64748b;">Waiting for final manifest processing...</p>';
@@ -5039,7 +5123,7 @@ window.renderManifest = function (manifest) {
     const existingMap = document.getElementById('seatMapContent');
     const expectedPaxCount = container.dataset.flightPaxCount ? parseInt(container.dataset.flightPaxCount) : -1;
 
-    if (existingMap && expectedPaxCount === (manifest.Passengers || manifest.passengers).length) {
+    if (existingMap && expectedPaxCount === passengers.length) {
         let boardedCount = 0;
         let fastenedCount = 0;
         let injuredCount = 0;
@@ -5052,7 +5136,7 @@ window.renderManifest = function (manifest) {
             s.dataset.initialized = '';
         });
 
-        (manifest.Passengers || manifest.passengers).forEach(p => {
+        passengers.forEach(p => {
             if (p.IsBoarded === true || p.isBoarded === true) {
                 boardedCount++;
                 if (p.IsSeatbeltFastened) fastenedCount++;
@@ -5080,7 +5164,7 @@ window.renderManifest = function (manifest) {
 
         let headerLabel = document.getElementById('paxListHeader');
         if (headerLabel) {
-            headerLabel.innerText = `LIST (${boardedCount} / ${(manifest.Passengers || manifest.passengers).length} PAX)`;
+            headerLabel.innerText = `LIST (${boardedCount} / ${passengers.length} PAX)`;
         }
 
         let totalSeats = container.dataset.totalSeats ? parseInt(container.dataset.totalSeats) : expectedPaxCount;
@@ -5099,11 +5183,11 @@ window.renderManifest = function (manifest) {
         return; // Fast update complete!
     }
 
-    container.dataset.flightPaxCount = (manifest.Passengers || manifest.passengers).length;
+    container.dataset.flightPaxCount = passengers.length;
 
     let maxRow = 0;
     let hasLettersGHK = false; // check if widebody
-    (manifest.Passengers || manifest.passengers).forEach(p => {
+    passengers.forEach(p => {
         let rowStr = p.Seat.replace(/[^0-9]/g, '');
         let row = parseInt(rowStr);
         if (row > maxRow) maxRow = row;
@@ -5238,7 +5322,7 @@ window.renderManifest = function (manifest) {
         seatMapHtml += `<div class="seat-block">`;
         lettersLeft.forEach(l => {
             let sId = r + l;
-            let p = (manifest.Passengers || manifest.passengers).find(x => (x.Seat || x.seat) === sId);
+            let p = passengers.find(x => (x.Seat || x.seat) === sId);
             if (p) {
                 if (p.IsBoarded === true || p.isBoarded === true) {
                     const isFastened = p.IsSeatbeltFastened === true || p.isSeatbeltFastened === true;
@@ -5263,7 +5347,7 @@ window.renderManifest = function (manifest) {
             seatMapHtml += `<div class="seat-block" style="margin: 0 10px;">`;
             lettersCenter.forEach(l => {
                 let sId = r + l;
-                let p = (manifest.Passengers || manifest.passengers).find(x => (x.Seat || x.seat) === sId);
+                let p = passengers.find(x => (x.Seat || x.seat) === sId);
                 if (p) {
                     if (p.IsBoarded === true || p.isBoarded === true) {
                         const isFastened = p.IsSeatbeltFastened === true || p.isSeatbeltFastened === true;
@@ -5288,7 +5372,7 @@ window.renderManifest = function (manifest) {
         seatMapHtml += `<div class="seat-block">`;
         lettersRight.forEach(l => {
             let sId = r + l;
-            let p = (manifest.Passengers || manifest.passengers).find(x => (x.Seat || x.seat) === sId);
+            let p = passengers.find(x => (x.Seat || x.seat) === sId);
             if (p) {
                 if (p.IsBoarded === true || p.isBoarded === true) {
                     const isFastened = p.IsSeatbeltFastened === true || p.isSeatbeltFastened === true;
@@ -5322,7 +5406,7 @@ window.renderManifest = function (manifest) {
     const legEmpty = mDict.man_leg_empty || "Empty";
     const legInjured = mDict.man_leg_injured || "Injured";
 
-    let boardedInitialCount = (manifest.Passengers || manifest.passengers).filter(p => p.IsBoarded === true || p.isBoarded === true).length;
+    let boardedInitialCount = passengers.filter(p => p.IsBoarded === true || p.isBoarded === true).length;
 
     let html = `
         <div style="display:flex; gap: 40px; justify-content: space-between; height: 100%;">
@@ -5352,15 +5436,15 @@ window.renderManifest = function (manifest) {
     const thNat = mDict.man_th_nat || "Nat.";
     const thAge = mDict.man_th_age || "Age";
 
-    let fastenedCount = (manifest.Passengers || manifest.passengers).filter(p => (p.IsBoarded === true || p.isBoarded === true) && (p.IsSeatbeltFastened === true || p.isSeatbeltFastened === true)).length;
+    let fastenedCount = passengers.filter(p => (p.IsBoarded === true || p.isBoarded === true) && (p.IsSeatbeltFastened === true || p.isSeatbeltFastened === true)).length;
     let unfastenedCount = boardedInitialCount - fastenedCount;
-    let injuredCount = (manifest.Passengers || manifest.passengers).filter(p => (p.IsBoarded === true || p.isBoarded === true) && (p.IsInjured === true || p.isInjured === true)).length;
-    let fallbackAircraftSeats = container.dataset.totalSeats ? parseInt(container.dataset.totalSeats) : (manifest.Passengers || manifest.passengers).length;
+    let injuredCount = passengers.filter(p => (p.IsBoarded === true || p.isBoarded === true) && (p.IsInjured === true || p.isInjured === true)).length;
+    let fallbackAircraftSeats = container.dataset.totalSeats ? parseInt(container.dataset.totalSeats) : passengers.length;
     let emptyCount = fallbackAircraftSeats - boardedInitialCount;
 
     html += `       </ul>
                     <div class="border-b border-white/5 pb-3 mb-4" style="display:flex; justify-content:space-between; align-items:flex-end;">
-                        <h3 id="paxListHeader" class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80" style="margin:0;">${paxListLabel} (${boardedInitialCount} / ${(manifest.Passengers || manifest.passengers).length} PAX)</h3>
+                        <h3 id="paxListHeader" class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80" style="margin:0;">${paxListLabel} (${boardedInitialCount} / ${passengers.length} PAX)</h3>
                     </div>
                 </div>
                 <div style="flex: 1; overflow-y: auto; padding-right: 15px; border-right: 1px solid #1e293b; color:#94A3B8; font-size:13px;">
@@ -5376,7 +5460,7 @@ window.renderManifest = function (manifest) {
                         <tbody>
     `;
 
-    (manifest.Passengers || manifest.passengers).forEach(p => {
+    passengers.forEach(p => {
         html += `
             <tr style="border-bottom: 1px solid rgba(51, 65, 85, 0.4);">
                 <td style="padding: 3px 4px; color: #38BDF8; font-weight: bold;">${p.Seat || p.seat}</td>

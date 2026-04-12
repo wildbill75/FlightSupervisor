@@ -53,4 +53,12 @@ Voici l'ensemble des tâches restantes, réorganisées et renumérotées suite a
 - `[ ]` ** Revoir complêtement les logique de ressenti des passagers (Anxiété, Confort) et les pénalités associées.
 
 ### Tycoon Systems & Metagame
-- `[ ]` **Feature ACARS / Dispatch :** Création du système d'interface de "Company Communications" pour demander des sauts de Cost Index, des Express Turnarounds, etc. en vol.
+- `[ ]` **Refonte Systèmes de Communication :** Implémentation de la refonte des communications avec le Flight Deck et les PNC (voir les documents Design_Gameplay générés).
+
+### Tuning & Équilibrage
+- `[x]` **Bug/Tuning (Retard) :** La satisfaction des passagers chute de manière disproportionnée. *Résolu : La perte de satisfaction n'utilisait pas le `deltaTime` et se déclenchait par frame, et les boutons de retard du Drill-Down n'étaient pas correctement bindés côté C#.*
+
+---
+
+## ⚠️ RÈGLES D'OR & INTERDITS
+- Consulter le document **[Design_Technical_ACARS_Hoppie.md](d:/FlightSupervisor/docs/Design_Technical_ACARS_Hoppie.md)** avant toute idée de modification touchant à l'intégration ACARS du vaisseau.
