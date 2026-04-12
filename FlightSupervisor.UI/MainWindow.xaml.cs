@@ -138,6 +138,12 @@ namespace FlightSupervisor.UI
             _profileManager = new ProfileManager();
 
             _groundOpsManager = new GroundOpsManager();
+            _groundOpsManager.OnPenaltyTriggered += (points, reason) => {
+                if (_scoreManager != null) _scoreManager.AddScore(points, reason, ScoreCategory.Operations);
+            };
+            _groundOpsManager.OnOperationBonusTriggered += (points, reason) => {
+                if (_scoreManager != null) _scoreManager.AddScore(points, reason, ScoreCategory.Operations);
+            };
             _groundOpsManager.OnOpsCompleted += () => {
                 if (_groundOpsManager.TargetSobt.HasValue && _currentSimTime != DateTime.MinValue && _aobt == null)
                 {
@@ -230,11 +236,28 @@ namespace FlightSupervisor.UI
                     }
                 }
                 
+                _groundOpsManager.CurrentPhase = _phaseManager.CurrentPhase;
+                _groundOpsManager.IsSeatbeltsOn = _phaseManager.IsSeatbeltsOn;
+                _groundOpsManager.IsBeaconOn = _phaseManager.IsBeaconLightOn;
+                _groundOpsManager.EngineMaxN1 = Math.Max(_phaseManager.Eng1N1, _phaseManager.Eng2N1);
                 _groundOpsManager.Tick(_currentSimTime);
 
                 // --- MULTI-LEG PROGRESSIVE GROUND OP REFILLS ---
                 _groundOpsResourceService.Tick((int)_uiTimer.Interval.TotalMilliseconds);
                 // ------------------------------------------------
+
+                if (_phaseManager.CurrentPhase == FlightPhase.Turnaround && _rotationQueue.Count > 0)
+                {
+                    var deboarding = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Deboarding");
+                    var cargoUnload = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Cargo/Luggage");
+                    bool deboardingDone = deboarding == null || deboarding.State == GroundServiceState.Completed;
+                    bool cargoDone = cargoUnload == null || cargoUnload.State == GroundServiceState.Completed;
+                    
+                    if (deboardingDone && cargoDone && _groundOpsManager.IsFuelSheetValidated)
+                    {
+                        LoadNextLeg();
+                    }
+                }
 
                 int totalSvc = _groundOpsManager.Services.Count;
                 if (totalSvc > 0)
@@ -597,7 +620,6 @@ namespace FlightSupervisor.UI
                         {
                             _cabinManager.SessionFlightsCompleted++;
 
-
                             // Bug 30: Location Mismatch during Turnaround without a pending leg.
                             // We construct a "Dummy" next leg so the UI knows we are at our new origin.
                             if (_currentResponse != null && _currentResponse.Destination != null)
@@ -610,8 +632,6 @@ namespace FlightSupervisor.UI
                                     _currentResponse.General.FlightNumber = "XXXX";
                                 }
                             }
-
-                            _groundOpsManager.PrepareNextLeg(_currentFobKg, _cabinManager.CabinCleanliness, _cabinManager.CateringCompletion);
 
                             // Let the UI know about the dummy flight plan to update the banner and location
                             SendToWeb(new
@@ -632,6 +652,9 @@ namespace FlightSupervisor.UI
                                 }
                             });
                         }
+                        
+                        _groundOpsManager.PrepareNextLeg(_currentFobKg, _cabinManager.CabinCleanliness, _cabinManager.CateringCompletion);
+                        _groundOpsManager.StartOps();
                     }
                     SendToWeb(new { type = "phaseUpdate", phase = phase.ToString(), 
                                     sessionFlightsCompleted = _cabinManager.SessionFlightsCompleted,
@@ -2067,6 +2090,21 @@ namespace FlightSupervisor.UI
                         var briefingData = weatherService.GenerateBriefing(_currentResponse, _isAtWrongAirport);
                         SendToWeb(new { type = "briefingUpdate", briefing = briefingData });
                     }
+                }
+                else if (action == "acknowledgeFlightReport")
+                {
+                    Dispatcher.Invoke(() => {
+                        if (_rotationQueue.Count > 0)
+                        {
+                            _phaseManager.ForcePhase(FlightPhase.Turnaround);
+                            SendToWeb(new { type = "phaseChanged", phaseEnum = 1, phaseName = "TURNAROUND" });
+                            // The web UI "Load Next Leg/Briefing" should be shown.
+                        }
+                        else
+                        {
+                            // No more legs, just show arrived
+                        }
+                    });
                 }
                 else if (action == "fenixExport")
                 {

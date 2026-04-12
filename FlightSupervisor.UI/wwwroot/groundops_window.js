@@ -124,6 +124,9 @@ function renderGroundOps(services, isDispatchSignedOff = true) {
             if (isBlocked) {
                 buttonStyles = 'color: #64748b; opacity: 0.4; cursor: default; pointer-events: none;';
                 buttonText = `LOCKED (${isPaxMoving ? 'PAX' : 'SVC'})`;
+            } else if (smMsg && (smMsg.toLowerCase().includes("wait") || smMsg.toLowerCase().includes("attente"))) {
+                buttonStyles = 'color: #64748b; opacity: 0.4; cursor: default; pointer-events: none;';
+                buttonText = `LOCKED`;
             } else {
                 buttonStyles = 'color: #38bdf8; cursor: pointer;';
                 isClickable = true;
@@ -153,6 +156,9 @@ function renderGroundOps(services, isDispatchSignedOff = true) {
         let inlineStateHtml = '';
         if (smMsg && smMsg.toLowerCase().includes("blocked")) {
             inlineStateHtml = `<span class="text-red-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-red-500/20"><span class="material-symbols-outlined text-[12px] align-middle">block</span> ${smMsg.toUpperCase()}</span>`;
+        }
+        else if (smMsg && stateVal === 0 && (smMsg.toLowerCase().includes("wait") || smMsg.toLowerCase().includes("attente"))) {
+            inlineStateHtml = `<span class="text-slate-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-slate-500/20"><span class="material-symbols-outlined text-[12px] align-middle">lock</span> ${smMsg.toUpperCase()}</span>`;
         }
         else if (stateVal === 1) inlineStateHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-sky-500/20"><span class="animate-pulse">●</span> ${smMsg ? smMsg.toUpperCase() : 'IN PROGRESS'}</span>`;
         else if (stateVal === 2) inlineStateHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-orange-500/20">${smMsg ? smMsg.toUpperCase() : 'WAITING (DELAYED)'}</span>`;

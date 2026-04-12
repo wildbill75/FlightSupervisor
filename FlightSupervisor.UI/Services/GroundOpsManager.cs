@@ -55,6 +55,13 @@ namespace FlightSupervisor.UI.Services
         public DateTime? TargetSobt { get; private set; }
         public bool IsLowCost { get; private set; } = false;
         
+        // Turnaround Phase Context
+        public FlightPhase CurrentPhase { get; set; } = FlightPhase.AtGate;
+        public bool IsSeatbeltsOn { get; set; } = true;
+        public bool IsBeaconOn { get; set; } = false;
+        public double EngineMaxN1 { get; set; } = 0.0;
+        private bool _hasEmittedN1Warning = false;
+
         public bool IsFuelSheetValidated { get; set; } = false;
 
         private static readonly Dictionary<string, List<DelayEvent>> _delayEvents = new(StringComparer.OrdinalIgnoreCase)
@@ -265,6 +272,7 @@ namespace FlightSupervisor.UI.Services
             _isStarted = false;
             IsPaused = false;
             IsFuelSheetValidated = false;
+            _hasEmittedN1Warning = false;
             TargetSobt = null;
             Services.Clear();
             Services.Add(new GroundService { Name = "Deboarding", TotalDurationSec = 600, StatusMessage = "Pending", State = GroundServiceState.NotStarted, ElapsedSec = 0, RequiresManualStart = true });
@@ -358,6 +366,31 @@ namespace FlightSupervisor.UI.Services
                 var deboarding = Services.FirstOrDefault(x => x.Name == "Deboarding");
                 var cleaning = Services.FirstOrDefault(x => x.Name.Contains("Clean"));
                 var catering = Services.FirstOrDefault(x => x.Name == "Catering");
+
+                if (CurrentPhase == FlightPhase.Turnaround)
+                {
+                    if (s.Name != "Deboarding" && s.Name != "Cargo/Luggage")
+                    {
+                        s.StatusMessage = LocalizationService.Translate("Wait Turnaround", "Attente Turnaround");
+                        return;
+                    }
+                    else if (s.Name == "Deboarding" && IsSeatbeltsOn)
+                    {
+                        s.StatusMessage = LocalizationService.Translate("Wait Seatbelts", "Attentes Signes");
+                        return;
+                    }
+                    else if (s.Name == "Cargo/Luggage" && IsBeaconOn)
+                    {
+                        s.StatusMessage = LocalizationService.Translate("Wait Beacon", "Attente Beacon");
+                        return;
+                    }
+                    else if (EngineMaxN1 > 5.0 && !_hasEmittedN1Warning)
+                    {
+                        _hasEmittedN1Warning = true;
+                        OnOpsLog?.Invoke(LocalizationService.Translate("[WARNING] Ground Ops started while engines are running! This is extremely dangerous. Penalty applied.", "[WARNING] Opération lancée moteurs allumés ! Très dangereux. Pénalité affectée."));
+                        OnPenaltyTriggered?.Invoke(-50, "Engines running during Turnaround OPs");
+                    }
+                }
 
                 bool isPaxMoving = (boarding != null && boarding.State == GroundServiceState.InProgress) || 
                                    (deboarding != null && deboarding.State == GroundServiceState.InProgress);
@@ -481,6 +514,25 @@ namespace FlightSupervisor.UI.Services
                 {
                     if (s.RequiresManualStart)
                     {
+                        if (CurrentPhase == FlightPhase.Turnaround)
+                        {
+                            if (s.Name != "Deboarding" && s.Name != "Cargo/Luggage")
+                            {
+                                s.StatusMessage = LocalizationService.Translate("Wait Turnaround", "Attente Turnaround");
+                                continue;
+                            }
+                            else if (s.Name == "Deboarding" && IsSeatbeltsOn)
+                            {
+                                s.StatusMessage = LocalizationService.Translate("Wait Seatbelts", "Attentes Signes");
+                                continue;
+                            }
+                            else if (s.Name == "Cargo/Luggage" && IsBeaconOn)
+                            {
+                                s.StatusMessage = LocalizationService.Translate("Wait Beacon", "Attente Beacon");
+                                continue;
+                            }
+                        }
+
                         s.State = GroundServiceState.WaitingForAction;
                         s.StatusMessage = LocalizationService.Translate("Waiting for Pilot...", "En attente d'action Cdt...");
                         changed = true;
@@ -544,6 +596,31 @@ namespace FlightSupervisor.UI.Services
 
                     if (shouldStart)
                     {
+                        if (CurrentPhase == FlightPhase.Turnaround)
+                        {
+                            if (s.Name != "Deboarding" && s.Name != "Cargo/Luggage")
+                            {
+                                s.StatusMessage = LocalizationService.Translate("Wait Turnaround", "Attente Turnaround");
+                                continue;
+                            }
+                            else if (s.Name == "Deboarding" && IsSeatbeltsOn)
+                            {
+                                s.StatusMessage = LocalizationService.Translate("Wait Seatbelts", "Attentes Signes");
+                                continue;
+                            }
+                            else if (s.Name == "Cargo/Luggage" && IsBeaconOn)
+                            {
+                                s.StatusMessage = LocalizationService.Translate("Wait Beacon", "Attente Beacon");
+                                continue;
+                            }
+                            else if (EngineMaxN1 > 5.0 && !_hasEmittedN1Warning)
+                            {
+                                _hasEmittedN1Warning = true;
+                                OnOpsLog?.Invoke(LocalizationService.Translate("[WARNING] Ground Ops started while engines are running! This is extremely dangerous. Penalty applied.", "[WARNING] Opération lancée moteurs allumés ! Très dangereux. Pénalité affectée."));
+                                OnPenaltyTriggered?.Invoke(-50, "Engines running during Turnaround OPs");
+                            }
+                        }
+
                         s.State = GroundServiceState.InProgress;
                         s.StatusMessage = LocalizationService.Translate("In Progress", "En cours");
                         changed = true;

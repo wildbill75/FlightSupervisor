@@ -1846,6 +1846,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     let acarsTimeouts = [];
 
+    window.acknowledgeFlightReport = function() {
+        const modal = document.getElementById('flightReportModal');
+        if(modal) modal.style.display = 'none';
+        window.chrome.webview.postMessage({ action: 'acknowledgeFlightReport' });
+    };
+
     window.cancelRotations = function () {
         location.reload();
     };
@@ -3932,7 +3938,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         document.getElementById('frChiefPilotSpeech').innerHTML = window.generateChiefPilotDebrief(rep, lang);
                     }
 
-                    document.getElementById('flightReportModal').style.display = 'flex';
+                    // Instead of showing the modal automatically, output a system log message
+                    const viewLabel = (localStorage.getItem('selLanguage') || 'en') === 'fr' ? 'Consulter le rapport' : 'View Report';
+                    const msgContent = `[SYSTEM] Flight Report Available. <a href="#" onclick="document.getElementById('flightReportModal').style.display = 'flex'; return false;" class="text-blue-400 hover:text-blue-300 underline">${viewLabel}</a>`;
+                    
+                    const timeString = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                    const newLog = document.createElement("div");
+                    newLog.className = "mb-1";
+                    newLog.innerHTML = `<span class="text-gray-400 font-mono text-xs">[${timeString}]</span> <span class="text-blue-300">${msgContent}</span>`;
+                    
+                    const logContainer = document.getElementById("pncChat");
+                    if (logContainer) {
+                        logContainer.appendChild(newLog);
+                        logContainer.scrollTop = logContainer.scrollHeight;
+                    }
                 }
                 break;
             case 'gatekeeperFailed':
