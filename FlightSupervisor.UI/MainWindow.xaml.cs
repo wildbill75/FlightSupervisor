@@ -88,6 +88,7 @@ namespace FlightSupervisor.UI
         private string _cachedLogsHtml = "";
 
         private bool _isAtWrongAirport = false;
+        private string _lastNotifiedMismatchIcao = "";
 
         private bool IsAircraftAtOrigin()
         {
@@ -95,30 +96,18 @@ namespace FlightSupervisor.UI
             if (Math.Abs(_phaseManager.Latitude) < 0.001 && Math.Abs(_phaseManager.Longitude) < 0.001)
                 return true;
 
+            // STORY 38: Simplified Logic
+            // We only ever check against the CURRENT active flight's origin.
+            // Since we load the next leg immediately at arrival, this is always consistent.
             var originToCheck = _currentResponse?.Origin;
             
-            // Fix Bug 30: Multi-leg turnaround mismatch
-            if (_phaseManager.CurrentPhase == FlightPhase.Turnaround)
-            {
-                if (_rotationQueue.Count > 0)
-                {
-                    originToCheck = _rotationQueue[0].Origin;
-                }
-                else
-                {
-                    // End of rotation: no next leg, so we are at the destination.
-                    // No origin mismatch is relevant here.
-                    return true;
-                }
-            }
-
             if (originToCheck == null) return true;
             
             if (double.TryParse(originToCheck.PosLat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double expLat) &&
                 double.TryParse(originToCheck.PosLong, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double expLon))
             {
                 double dist = CalculateHaversineDistanceNM(_phaseManager.Latitude, _phaseManager.Longitude, expLat, expLon);
-                return dist < 5.0; // 5 NM safety threshold for mismatch
+                return dist < 10.0; // Increased threshold to 10.0 NM for large airports and flexibility.
             }
             return true;
         }
@@ -154,7 +143,12 @@ namespace FlightSupervisor.UI
             _groundOpsManager.OnOpsLog += msg => SendToWeb(new { type = "log", message = msg });
             _groundOpsManager.OnOpsUpdated += () => {
                 var services = _groundOpsManager.Services;
-                Dispatcher.Invoke(() => SendToWeb(new { type = "groundOps", services = services }));
+                Dispatcher.Invoke(() => SendToWeb(new { 
+                    type = "groundOps", 
+                    services = services,
+                    isSeatbeltsOn = _groundOpsManager.IsSeatbeltsOn,
+                    isBeaconOn = _groundOpsManager.IsBeaconOn
+                }));
             };
             _groundOpsManager.OnServiceStarted += srvName => {
                 if (srvName.Equals("Boarding", StringComparison.OrdinalIgnoreCase))
@@ -615,6 +609,10 @@ namespace FlightSupervisor.UI
                         {
                             _cabinManager.SessionFlightsCompleted++;
                             SendToWeb(new { type = "log", message = $"[SYSTEM] Flight secured. Initiating turnaround deboarding. {_rotationQueue.Count} leg(s) remaining." });
+                            
+                            // STORY 38 : LOAD NEXT LEG IMMEDIATELY
+                            // This allows the player to prepare the next leg while deboarding.
+                            LoadNextLeg();
                         }
                         else
                         {
@@ -1378,6 +1376,22 @@ namespace FlightSupervisor.UI
                     if (doc.RootElement.TryGetProperty("payload", out var payload))
                     {
                         string blockFuel = payload.TryGetProperty("blockFuel", out var bProp) ? bProp.GetString() ?? "0" : "0";
+                        int legIndex = payload.TryGetProperty("legIndex", out var lProp) ? lProp.GetInt32() : 0;
+
+                        // STORY 38: LEG VALIDATION GUARD (Anti-Cheat)
+                        // legIndex 0 is current active. legIndex > 0 is future.
+                        // We only allow validating legIndex > 0 if we are in Turnaround phase of current leg.
+                        if (legIndex > 0 && 
+                            _phaseManager.CurrentPhase != FlightPhase.Arrived && 
+                            _phaseManager.CurrentPhase != FlightPhase.Turnaround)
+                        {
+                            SendToWeb(new { 
+                                type = "fuelValidationRejected", 
+                                message = "Validation impossible : Vous ne pouvez pas signer la load sheet d'un vol futur tant que le vol actuel n'est pas arrivé à destination." 
+                            });
+                            return;
+                        }
+
                         _groundOpsManager.IsFuelSheetValidated = true;
                         
                         // Let Dispatch know
@@ -2176,27 +2190,38 @@ namespace FlightSupervisor.UI
             // Only flag as 'wrong airport' for UI if in preparation phases
             bool uiMismatch = _isAtWrongAirport && (_phaseManager.CurrentPhase == FlightPhase.AtGate || _phaseManager.CurrentPhase == FlightPhase.Turnaround);
 
-                bool latParsed = false;
-                bool lonParsed = false;
-                double lat = 0, lon = 0;
-                
-                var originForDist = _currentResponse?.Origin;
-                if (_phaseManager.CurrentPhase == FlightPhase.Turnaround)
-                {
-                    if (_rotationQueue.Count > 0) originForDist = _rotationQueue[0].Origin;
-                    else originForDist = null;
-                }
+            bool latParsed = false;
+            bool lonParsed = false;
+            double lat = 0, lon = 0;
+            
+            // STORY 38: Simplified Reference
+            var originForDist = _currentResponse?.Origin;
 
-                if (originForDist != null)
-                {
-                    latParsed = double.TryParse(originForDist.PosLat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out lat);
-                    lonParsed = double.TryParse(originForDist.PosLong, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out lon);
-                }
+            if (originForDist != null)
+            {
+                latParsed = double.TryParse(originForDist.PosLat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out lat);
+                lonParsed = double.TryParse(originForDist.PosLong, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out lon);
+            }
 
-                double calcDist = -1;
-                if (latParsed && lonParsed && originForDist != null) {
-                    calcDist = Math.Round(CalculateHaversineDistanceNM(_phaseManager.Latitude, _phaseManager.Longitude, lat, lon), 2);
-                }
+            double calcDist = -1;
+            if (latParsed && lonParsed && originForDist != null) {
+                calcDist = Math.Round(CalculateHaversineDistanceNM(_phaseManager.Latitude, _phaseManager.Longitude, lat, lon), 2);
+            }
+
+            // STORY 38: DISCRETE AMBER LOG (Style SIS)
+            if (uiMismatch && _lastNotifiedMismatchIcao != originForDist?.IcaoCode && calcDist > 0)
+            {
+                _lastNotifiedMismatchIcao = originForDist?.IcaoCode ?? "";
+                SendToWeb(new { 
+                    type = "cabinLog", 
+                    level = "amber", 
+                    message = $"[SYSTEM] Position Mismatch : Actuellement à {calcDist} NM de l'origine prévue ({_lastNotifiedMismatchIcao})." 
+                });
+            }
+            else if (!uiMismatch)
+            {
+                _lastNotifiedMismatchIcao = ""; // Reset for next occurrence
+            }
 
                 // Bug fix: As long as there are boarded passengers from the previous leg, we show them on the UI.
                 // We don't wait for "Deboarding" to be explicitly InProgress, otherwise they disappear instantly upon arrival when the new Leg is loaded.
@@ -2292,6 +2317,7 @@ namespace FlightSupervisor.UI
             _phaseManager.Reset(isTurnaroundPhase); // false = AtGate (Pristine), true = Turnaround
             _scoreManager.Reset();
             _cabinManager.Reset();
+            _groundOpsResourceService.Reset();
             _eventEngine.Reset();
             CurrentAirline = _airlineDb.GetProfileFor(response.General?.Airline ?? "");
 
@@ -2359,6 +2385,11 @@ namespace FlightSupervisor.UI
                 _phaseManager.AircraftCategory = "Medium";
 
             SendToWeb(new { type = "simulationState", msg = $"Leg Loaded: {response.Origin?.IcaoCode} to {response.Destination?.IcaoCode}. {(_rotationQueue.Count)} leg(s) remaining." });
+
+            // Story 38: Trigger immediate UI update for Briefing
+            var weatherService = new FlightSupervisor.UI.Services.WeatherBriefingService();
+            var briefingData = weatherService.GenerateBriefing(response, _isAtWrongAirport);
+            SendToWeb(new { type = "briefingUpdate", briefing = briefingData });
         }
 
         private async System.Threading.Tasks.Task FetchFlightPlan(string username, bool remember, FlightSupervisor.UI.Models.UnitPreferences? units = null, string weatherSource = "simbrief", bool syncMsfsTime = false)

@@ -729,7 +729,8 @@ window.populateDashboardActiveLeg = (index = 0) => {
         const depQnh = getStationQnh('origin') !== '---' ? getStationQnh('origin') : getStationQnh('departure');
         const arrQnh = getStationQnh('destination');
 
-        const leftOpacity = index === 0 ? 'opacity-20 pointer-events-none' : 'opacity-100 hover:bg-white/10 cursor-pointer';
+        const disableLeft = index === 0 || index <= (window.activeLegIndex || 0);
+        const leftOpacity = disableLeft ? 'opacity-20 pointer-events-none' : 'opacity-100 hover:bg-white/10 cursor-pointer';
         const rightOpacity = index === window.allRotations.length - 1 ? 'opacity-20 pointer-events-none' : 'opacity-100 hover:bg-white/10 cursor-pointer';
 
         activeContainer.innerHTML = `
@@ -1260,7 +1261,7 @@ window.renderBriefingTabs = () => {
         }
 
         globalHtml += `
-                            <div draggable="${isActive ? 'false' : (isPast ? 'false' : 'true')}" data-index="${idx}" onclick="window.setBriefingTab(${idx + 1})" class="${!isActive && !isPast ? 'drag-leg-item' : ''} bg-gradient-to-r ${isPast ? 'from-[#111318] to-[#0A0C0F] opacity-50 grayscale' : 'from-[#171A21] to-[#12141A]'} hover:from-sky-900/10 hover:to-[#171A21] transition-all p-6 rounded-xl border ${isActive ? 'border-sky-500/30 shadow-[0_0_15px_rgba(14,165,233,0.15)]' : 'border-white/5 shadow-lg'} cursor-pointer flex items-center justify-between group relative">
+                            <div draggable="${isActive ? 'false' : (isPast ? 'false' : 'true')}" data-index="${idx}" onclick="${isPast ? '' : `window.setBriefingTab(${idx + 1})`}" class="${!isActive && !isPast ? 'drag-leg-item' : ''} bg-gradient-to-r ${isPast ? 'from-[#111318] to-[#0A0C0F] opacity-30 grayscale pointer-events-none cursor-default' : 'from-[#171A21] to-[#12141A] cursor-pointer hover:from-sky-900/10 hover:to-[#171A21]'} transition-all p-6 rounded-xl border ${isActive ? 'border-sky-500/30 shadow-[0_0_15px_rgba(14,165,233,0.15)]' : 'border-white/5 shadow-lg'} flex items-center justify-between group relative">
                                 <div class="flex items-center gap-6 pointer-events-none">
                                     <div class="flex items-center text-4xl font-black ${isActive ? 'text-sky-500/80' : 'text-slate-800/80 group-hover:text-sky-500/30'} transition-colors">
                                         ${isPast ? `<span class="material-symbols-outlined text-4xl mr-2 text-slate-700" title="Completed">check_circle</span>` :
@@ -2842,6 +2843,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     // window.unlockDashboard(); // Keep locked until manual signoff
                 }
                 break;
+            case 'fuelValidationRejected':
+                // STORY 38: RESET BUTTON AND SHOW MODAL
+                if (window.Swal) {
+                    Swal.fire({
+                        title: 'ACTION BLOQUÉE',
+                        text: payload.message || 'Validation impossible.',
+                        icon: 'warning',
+                        background: '#1C1F26',
+                        color: '#f8fafc',
+                        confirmButtonColor: '#0ea5e9'
+                    });
+                }
+                const fvBtn = document.getElementById('fuelValidateBtn');
+                const fvBtnText = document.getElementById('fuelValidateBtnText');
+                if (fvBtn) {
+                    fvBtn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/50', 'cursor-not-allowed', 'shadow-[0_0_20px_rgba(16,185,129,0.15)]');
+                    fvBtn.classList.add('bg-sky-500/20', 'text-sky-400', 'hover:bg-sky-500', 'border-sky-500/50', 'shadow-[0_0_20px_rgba(14,165,233,0.15)]');
+                    if (fvBtnText) fvBtnText.innerText = "Validate Fuel";
+                    const fvIcon = fvBtn.querySelector('.material-symbols-outlined');
+                    if (fvIcon) fvIcon.innerText = "verified";
+                }
+                break;
             case 'flightReset':
                 window.currentFlight = null;
                 window.manifest = null;
@@ -2948,17 +2971,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (locWarning) {
                     if (payload.isAtWrongAirport) {
                         locWarning.classList.remove('hidden');
-                        locWarning.title = `Current position is > 3 NM from planned origin (${payload.plannedOriginIcao}). Distance: ${payload.originDistanceNM} NM`;
+                        locWarning.title = `Current position is > 10 NM from planned origin (${payload.plannedOriginIcao}). Distance: ${payload.originDistanceNM} NM`;
                         
-                        // Show modal if not already shown for this occurrence AND a plan is loaded
-                        if (locModal && locModal.classList.contains('hidden') && !window.locationMismatchModalShown && payload.plannedOriginIcao) {
-                            const modalIcao = document.getElementById('modalOriginIcao');
-                            const modalDist = document.getElementById('modalOriginDistance');
-                            if (modalIcao) modalIcao.innerText = payload.plannedOriginIcao || '----';
-                            if (modalDist) modalDist.innerText = payload.originDistanceNM !== -1 ? payload.originDistanceNM : '--';
-                            locModal.classList.remove('hidden');
-                            window.locationMismatchModalShown = true;
-                        }
+                        // Modal is now disabled as per User Request (Story 38).
+                        // We keep the modal hidden for now.
+                        if (locModal) locModal.classList.add('hidden');
                     } else {
                         locWarning.classList.add('hidden');
                         if (locModal) locModal.classList.add('hidden');
@@ -3476,45 +3493,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     };
 
                     if (window.finalAibtUnix && window.currentSibtUnix > 0) {
-                        d = window.finalAibtUnix - window.currentSibtUnix;
-                        let st = getPunc(window.currentSibtUnix, window.finalAibtUnix);
-                        let isEarly = st.d < 0;
+                        d = payload.rawUnix - (window.finalAibtUnix + 2100);
+                        let isLate = d > 0;
+                        let absDiff = Math.floor(Math.abs(d));
+                        let h = Math.floor(absDiff / 3600);
+                        let m = Math.floor((absDiff % 3600) / 60);
+                        let s = absDiff % 60;
+                        let timeStr = (h > 0 ? `${h}h ` : '') + `${m}m ${s}s`;
+                        let prefix = isLate ? '+' : '-';
+                        cd.innerText = prefix + timeStr;
                         
-                        if (!cd.querySelector('#ttAnimatedBox')) {
-                            cd.innerHTML = `<div id="ttAnimatedBox" class="flex flex-col items-center justify-center transition-opacity duration-700 min-h-[36px]">
-                                <span id="ttAnimateLabel" class="text-[9px] text-slate-400 font-bold tracking-[0.2em] uppercase"></span>
-                                <span id="ttAnimateTime" class="text-[13px] font-mono font-bold mt-0.5"></span>
-                            </div>`;
-                        }
-                        
-                        const lbl = document.getElementById('ttAnimateLabel');
-                        const timeEl = document.getElementById('ttAnimateTime');
-                        const box = document.getElementById('ttAnimatedBox');
-                        
-                        let nowMs = Date.now();
-                        let cyclePeriod = 5000;
-                        let phase = nowMs % cyclePeriod;
-                        let cycle = Math.floor(nowMs / cyclePeriod) % 2;
-                        
-                        // Fade in/out logic (Fade out during first 500ms and last 500ms of the 5s window)
-                        if (phase < 500 || phase > 4500) {
-                            box.style.opacity = "0";
-                        } else {
-                            box.style.opacity = "1";
-                            if (cycle === 0) {
-                                lbl.innerText = "TURNAROUND REMAINING";
-                                timeEl.innerText = window.currentTotTurnaround ? `${window.currentTotTurnaround}m` : "STANDBY";
-                                timeEl.style.color = '#34d399'; // emerald-400
-                            } else {
-                                lbl.innerText = "ARRIVAL STATS";
-                                timeEl.innerText = `${isEarly ? "EARLY" : "LATE"} BY ${fmt(st.d)}`;
-                                timeEl.style.color = st.c;
-                            }
-                        }
+                        let cCol = '#10b981';
+                        if (d < -300) cCol = '#3b82f6';
+                        else if (d <= 180) cCol = '#10b981';
+                        else if (d <= 420) cCol = '#eab308';
+                        else if (d <= 600) cCol = '#f97316';
+                        else cCol = '#ef4444';
+                        cd.style.color = cCol;
 
                         let aibtSp = document.getElementById('bdAibt');
-                        if (aibtSp) aibtSp.style.color = st.c;
-                        isArrTimer = true;
+                        if (aibtSp) {
+                            let st = getPunc(window.currentSibtUnix, window.finalAibtUnix);
+                            aibtSp.style.color = st.c;
+                        }
                     } else if (window.finalAobtUnix) {
                         d = window.finalAobtUnix - currentSobtUnix;
                         let st = getPunc(currentSobtUnix, window.finalAobtUnix);

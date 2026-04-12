@@ -15,7 +15,7 @@ const GO_ICONS = {
 window.chrome.webview.addEventListener('message', function(e) {
     const data = e.data;
     if (data.type === 'groundOps') {
-        renderGroundOps(data.services, data.isDispatchSignedOff);
+        renderGroundOps(data.services, data.isDispatchSignedOff, data.isSeatbeltsOn, data.isBeaconOn);
     }
 });
 
@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.chrome.webview.postMessage({ action: 'requestGroundOps' });
 });
 
-function renderGroundOps(services, isDispatchSignedOff = true) {
+function renderGroundOps(services, isDispatchSignedOff = true, isSeatbeltsOn = true, isBeaconOn = false) {
     const container = document.getElementById('groundOpsContainer');
 
     if (!services || services.length === 0) {
@@ -108,8 +108,13 @@ function renderGroundOps(services, isDispatchSignedOff = true) {
         const icon = GO_ICONS[s.Name] || '🔹';
 
         let isBlocked = false;
-        if ((s.Name === "Deboarding" || s.Name === "Boarding") && isCrewWorking) isBlocked = true;
-        if ((s.Name.includes("Clean") || s.Name === "Catering") && isPaxMoving) isBlocked = true;
+        let blockReason = '';
+        if ((s.Name === "Deboarding" || s.Name === "Boarding") && isCrewWorking) { isBlocked = true; blockReason = isPaxMoving ? 'PAX' : 'SVC'; }
+        if ((s.Name.includes("Clean") || s.Name === "Catering") && isPaxMoving) { isBlocked = true; blockReason = 'PAX'; }
+        
+        // Turnaround Specifics
+        if (s.Name === "Deboarding" && isSeatbeltsOn) { isBlocked = true; blockReason = 'SIGNS'; }
+        if ((s.Name === "Cargo" || s.Name === "Cargo/Luggage") && isBeaconOn) { isBlocked = true; blockReason = 'BEACON'; }
 
         let isCompleted = stateVal === 3 || s.IsPreServiced || s.isPreServiced;
         let isSkipped = stateVal === 4;
@@ -123,7 +128,7 @@ function renderGroundOps(services, isDispatchSignedOff = true) {
         if (stateVal === 0 || stateVal === 5) {
             if (isBlocked) {
                 buttonStyles = 'color: #64748b; opacity: 0.4; cursor: default; pointer-events: none;';
-                buttonText = `LOCKED (${isPaxMoving ? 'PAX' : 'SVC'})`;
+                buttonText = `LOCKED (${blockReason})`;
             } else if (smMsg && (smMsg.toLowerCase().includes("wait") || smMsg.toLowerCase().includes("attente"))) {
                 buttonStyles = 'color: #64748b; opacity: 0.4; cursor: default; pointer-events: none;';
                 buttonText = `LOCKED`;
@@ -167,9 +172,9 @@ function renderGroundOps(services, isDispatchSignedOff = true) {
         else if (isSkipped) inlineStateHtml = `<span class="text-slate-500 font-bold uppercase tracking-widest text-[10px] bg-black/40 px-3 py-1 rounded-full border border-white/5"><span class="material-symbols-outlined text-[10px]">close</span> SKIPPED</span>`;
 
         let extraBadgesHtml = '';
-        if (s.Name === "Catering" || s.Name === "Cleanliness" || s.Name === "Cleaning" || s.Name === "Cabin Clean (PNC)" || s.Name === "Water/Waste") {
+        if (s.IsOptional || s.isOptional) {
             if (!isCompleted && !isSkipped) {
-                extraBadgesHtml += `<button onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'skipService', service: '${(s.Name || s.name)}' });" class="px-2 py-1 ml-2 rounded text-[#7b7b7b] text-[9px] uppercase font-bold tracking-widest leading-none relative z-10 cursor-pointer">SKIP</button>`;
+                extraBadgesHtml += `<button onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'skipService', service: '${(s.Name || s.name)}' });" class="px-2 py-1 ml-2 rounded text-[#7b7b7b] text-[9px] uppercase font-bold tracking-widest leading-none relative z-10 cursor-pointer hover:bg-white/10 hover:text-white transition-colors duration-200">SKIP</button>`;
             }
         }
         // Telemetry badges (might need to fetch lastTelemetry from window or C#)

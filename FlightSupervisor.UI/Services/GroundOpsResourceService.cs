@@ -20,6 +20,15 @@ namespace FlightSupervisor.UI.Services
             _cabinManager = cabinManager;
         }
 
+        public void Reset()
+        {
+            _lastCateringSec = 0;
+            _lastCleanSec = 0;
+            _lastWaterSec = 0;
+            _lastFuelSec = 0;
+            _lastCargoSec = 0;
+        }
+
         public void Tick(int deltaMs)
         {
             var caterSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Catering");

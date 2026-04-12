@@ -415,6 +415,9 @@ namespace FlightSupervisor.UI.Services
             _hasAnnouncedBoardingComplete = false;
             _hasWarnedPushbackNoSeatbelts = false;
             HasPenalizedRefuelingSeatbelts = false;
+            HasBoardingStarted = false;
+            _lastBoardingTick = DateTime.MaxValue;
+            State = CabinState.Idle;
 
             CurrentManifest = manifestData;
 
@@ -471,6 +474,7 @@ namespace FlightSupervisor.UI.Services
                 }
             }
             
+            int savedRations = CateringRations;
             if (profile.Tier.ToLower() == "lowcost")
             {
                 MaxCateringRations = PassengerManifest.Count + 5; // Very strict for LCC (Buy on Board)
@@ -479,41 +483,44 @@ namespace FlightSupervisor.UI.Services
             {
                 MaxCateringRations = Math.Max(PassengerManifest.Count + 10, (int)(PassengerManifest.Count * 1.15)); // 15% safety margin for Legacy
             }
-            CateringCompletion = CateringCompletion; // Force recalculation of rations based on new Max
+            CateringRations = savedRations; // Preserve physical rations and recalculate percentage for the new leg
             
-            // Adjust Crew Stats based on Tier
-            switch(profile.Tier.ToLower())
+            // Adjust Crew Stats based on Tier - ONLY for the first flight to allow persistence
+            if (SessionFlightsCompleted == 0)
             {
-                case "elite":
-                    CrewProactivity = Math.Round(90.0 + (_rnd.NextDouble() * 10.0));
-                    CrewEfficiency = Math.Round(90.0 + (_rnd.NextDouble() * 10.0));
-                    CrewMorale = 100.0;
-                    break;
-                case "standard":
-                    CrewProactivity = Math.Round(70.0 + (_rnd.NextDouble() * 19.0));
-                    CrewEfficiency = Math.Round(70.0 + (_rnd.NextDouble() * 19.0));
-                    CrewMorale = Math.Round(90.0 + (_rnd.NextDouble() * 10.0));
-                    break;
-                case "lowcost":
-                    CrewProactivity = Math.Round(50.0 + (_rnd.NextDouble() * 20.0));
-                    CrewEfficiency = Math.Round(80.0 + (_rnd.NextDouble() * 15.0)); // Highly efficient turns
-                    CrewMorale = Math.Round(70.0 + (_rnd.NextDouble() * 20.0));
-                    break;
-                case "struggling":
-                    CrewProactivity = Math.Round(30.0 + (_rnd.NextDouble() * 20.0));
-                    CrewEfficiency = Math.Round(40.0 + (_rnd.NextDouble() * 20.0));
-                    CrewMorale = Math.Round(40.0 + (_rnd.NextDouble() * 20.0));
-                    break;
-                case "danger":
-                    CrewProactivity = Math.Round(10.0 + (_rnd.NextDouble() * 20.0));
-                    CrewEfficiency = Math.Round(20.0 + (_rnd.NextDouble() * 20.0));
-                    CrewMorale = Math.Round(10.0 + (_rnd.NextDouble() * 20.0));
-                    break;
-                default:
-                    CrewProactivity = Math.Round(50.0 + (_rnd.NextDouble() * 50.0));
-                    CrewEfficiency = Math.Round(50.0 + (_rnd.NextDouble() * 50.0));
-                    CrewMorale = 80.0;
-                    break;
+                switch (profile.Tier.ToLower())
+                {
+                    case "elite":
+                        CrewProactivity = Math.Round(90.0 + (_rnd.NextDouble() * 10.0));
+                        CrewEfficiency = Math.Round(90.0 + (_rnd.NextDouble() * 10.0));
+                        CrewMorale = 100.0;
+                        break;
+                    case "standard":
+                        CrewProactivity = Math.Round(70.0 + (_rnd.NextDouble() * 19.0));
+                        CrewEfficiency = Math.Round(70.0 + (_rnd.NextDouble() * 19.0));
+                        CrewMorale = Math.Round(90.0 + (_rnd.NextDouble() * 10.0));
+                        break;
+                    case "lowcost":
+                        CrewProactivity = Math.Round(50.0 + (_rnd.NextDouble() * 20.0));
+                        CrewEfficiency = Math.Round(80.0 + (_rnd.NextDouble() * 15.0)); // Highly efficient turns
+                        CrewMorale = Math.Round(70.0 + (_rnd.NextDouble() * 20.0));
+                        break;
+                    case "struggling":
+                        CrewProactivity = Math.Round(30.0 + (_rnd.NextDouble() * 20.0));
+                        CrewEfficiency = Math.Round(40.0 + (_rnd.NextDouble() * 20.0));
+                        CrewMorale = Math.Round(40.0 + (_rnd.NextDouble() * 20.0));
+                        break;
+                    case "danger":
+                        CrewProactivity = Math.Round(10.0 + (_rnd.NextDouble() * 20.0));
+                        CrewEfficiency = Math.Round(20.0 + (_rnd.NextDouble() * 20.0));
+                        CrewMorale = Math.Round(10.0 + (_rnd.NextDouble() * 20.0));
+                        break;
+                    default:
+                        CrewProactivity = Math.Round(50.0 + (_rnd.NextDouble() * 50.0));
+                        CrewEfficiency = Math.Round(50.0 + (_rnd.NextDouble() * 50.0));
+                        CrewMorale = 80.0;
+                        break;
+                }
             }
         }
 
@@ -716,27 +723,16 @@ namespace FlightSupervisor.UI.Services
 
             if (State == CabinState.Deboarding)
             {
-                if ((DateTime.Now - _lastBoardingTick).TotalSeconds >= 0.5)
+                var activeManifest = PreviousLegManifest.Any(p => p.IsBoarded) ? PreviousLegManifest : PassengerManifest;
+                var boardedCount = activeManifest.Count(p => p.IsBoarded);
+                
+                if (boardedCount == 0)
                 {
-                    _lastBoardingTick = DateTime.Now;
-                    var activeManifest = PreviousLegManifest.Any(p => p.IsBoarded) ? PreviousLegManifest : PassengerManifest;
-                    var boarded = activeManifest.Where(p => p.IsBoarded).ToList();
-                    if (boarded.Count > 0)
-                    {
-                        int toDeboard = _rnd.Next(2, 6);
-                        for(int i = 0; i < Math.Min(toDeboard, boarded.Count); i++)
-                        {
-                            boarded[i].IsBoarded = false;
-                        }
-                    }
-                    else
-                    {
-                        State = CabinState.Idle;
-                        HasBoardingStarted = false;
-                        OnCrewMessage?.Invoke("cyan", LocalizationService.Translate("Cabin makes are complete. All passengers have disembarked.", "La cabine est débarrassée. Tous les passagers ont débarqué."), null);
-                        OnDeboardingComplete?.Invoke();
-                        OnPncStatusChanged?.Invoke("Standing By", State);
-                    }
+                    State = CabinState.Idle;
+                    HasBoardingStarted = false;
+                    OnCrewMessage?.Invoke("cyan", LocalizationService.Translate("Cabin makes are complete. All passengers have disembarked.", "La cabine est débarrassée. Tous les passagers ont débarqué."), null);
+                    OnDeboardingComplete?.Invoke();
+                    OnPncStatusChanged?.Invoke("Standing By", State);
                 }
                 return;
             }
@@ -1465,14 +1461,16 @@ namespace FlightSupervisor.UI.Services
                     InFlightServiceProgress += baseRate;
                     
                     int totalPax = Math.Max(1, PassengerManifest.Count);
-                    double ratio = InFlightServiceProgress / 100.0;
+                    double prevRatio = prevProgress / 100.0;
+                    double currentRatio = InFlightServiceProgress / 100.0;
                     
-                    int expectedEaten = (int)(ratio * totalPax * 0.90);
-                    int desiredRations = Math.Max(0, MaxCateringRations - expectedEaten);
+                    int prevExpectedEaten = (int)(prevRatio * totalPax * 0.90);
+                    int currentExpectedEaten = (int)(currentRatio * totalPax * 0.90);
+                    int eatenThisTick = currentExpectedEaten - prevExpectedEaten;
                     
-                    if (CateringRations > desiredRations)
+                    if (eatenThisTick > 0)
                     {
-                        CateringRations = desiredRations;
+                        CateringRations = Math.Max(0, CateringRations - eatenThisTick);
                     }
 
                     if (InFlightServiceProgress >= 100.0)
@@ -1774,11 +1772,20 @@ namespace FlightSupervisor.UI.Services
             _hasWarnedPushbackNoSeatbelts = false;
             HasPenalizedRefuelingSeatbelts = false;
             
-            SetSatisfaction(Math.Round(80.0 + (_rnd.NextDouble() * 16.0), 1));
-            _manualApologyCount = 0;
-            CrewProactivity = Math.Round(30.0 + (_rnd.NextDouble() * 70.0));
-            CrewEfficiency = Math.Round(60.0 + (_rnd.NextDouble() * 40.0));
-            CrewMorale = 100.0;
+            if (SessionFlightsCompleted == 0)
+            {
+                SetSatisfaction(Math.Round(80.0 + (_rnd.NextDouble() * 16.0), 1));
+                _manualApologyCount = 0;
+                CrewProactivity = Math.Round(30.0 + (_rnd.NextDouble() * 70.0));
+                CrewEfficiency = Math.Round(60.0 + (_rnd.NextDouble() * 40.0));
+                CrewMorale = 100.0;
+                VirtualFuelPercentage = 0.0;
+            }
+            else
+            {
+                // Slight morale recovery during turnaround (+10%)
+                CrewMorale = Math.Min(100.0, CrewMorale + 10.0);
+            }
 
             _gForceHistory.Clear();
             _lastTurbulenceNotice = DateTime.MinValue;

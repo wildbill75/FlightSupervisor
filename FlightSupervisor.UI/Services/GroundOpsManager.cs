@@ -217,7 +217,7 @@ namespace FlightSupervisor.UI.Services
             if (IsLowCost) cleanName = "PNC Chores";
 
             // TICKET 34 & 38 : REALISTIC DURATIONS SCALED BY METRICS
-            int deboardingBase = IsLowCost ? 600 : 900;
+            int deboardingBase = IsLowCost ? 1500 : 2700; // 25m for LCC, 45m for Legacy
             double boardingEfficiencyRatio = Math.Max(50.0, CurrentCrewEfficiency) / 100.0;
             int boardingBase = (int)((IsLowCost ? 900 : 1200) / boardingEfficiencyRatio);
             
