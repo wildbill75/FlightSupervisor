@@ -1,0 +1,3694 @@
+
+[2 Apr 2026 22:31:29] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 0
+[DEBUG] Queue size is now 0, _currentResponse is NULL
+[ERROR] _currentResponse is null, but _rotationQueue is empty!
+[DEBUG] StartOps() complete.
+
+[2 Apr 2026 22:31:41] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 0
+[DEBUG] Queue size is now 0, _currentResponse is NULL
+[ERROR] _currentResponse is null, but _rotationQueue is empty!
+[DEBUG] StartOps() complete.
+
+[2 Apr 2026 22:41:39] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 0
+[DEBUG] Queue size is now 0, _currentResponse is NULL
+[ERROR] _currentResponse is null, but _rotationQueue is empty!
+[DEBUG] StartOps() complete.
+
+[2 Apr 2026 22:41:49] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 0
+[DEBUG] Queue size is now 0, _currentResponse is NULL
+[ERROR] _currentResponse is null, but _rotationQueue is empty!
+[DEBUG] StartOps() complete.
+
+[2 Apr 2026 22:42:21] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 0
+[DEBUG] Queue size is now 0, _currentResponse is NULL
+[ERROR] _currentResponse is null, but _rotationQueue is empty!
+[DEBUG] StartOps() complete.
+
+[2 Apr 2026 22:50:10] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 2, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[2 Apr 2026 23:05:19] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[2 Apr 2026 23:24:23] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[2 Apr 2026 23:40:37] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[2 Apr 2026 23:46:46] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 04:09:14] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 04:20:51] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has EGGW. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 04:23:05] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 04:36:51] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 04:44:08] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 2, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 10:10:41] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 3, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 10:30:10] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 2, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 11:04:59] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 2, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 11:11:20] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 2, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 12:17:17] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 2, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 12:24:27] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has EGGW. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 12:38:42] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 2, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 12:40:24] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has EGGW. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 14:36:37] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has EGGW. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 14:37:59] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has EGGW. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 15:17:26] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 2, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 15:19:43] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has EGPH. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 15:22:41] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 2, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 17:28:48] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 2, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 17:59:56] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[3 Apr 2026 20:13:21] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[4 Apr 2026 00:31:48] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[4 Apr 2026 01:08:44] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 2, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[4 Apr 2026 09:16:08] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 2, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[4 Apr 2026 15:19:02] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 2, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[4 Apr 2026 15:40:33] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 2, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[4 Apr 2026 16:40:52] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 2, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[4 Apr 2026 16:45:05] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[4 Apr 2026 18:51:57] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 2, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[4 Apr 2026 20:02:57] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 2, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 05:20:55] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 05:23:37] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 05:30:17] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 05:32:21] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 05:54:58] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 06:12:50] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 06:19:47] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 06:24:02] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 06:43:41] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 528408...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 12:17:22] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 528408...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 12:32:01] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 528408...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 12:48:08] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 528408...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 13:14:17] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 528408...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 13:14:24] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 528408...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 17:12:52] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 543360...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 17:13:19] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 543360...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 17:14:40] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 543360...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 17:15:29] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 543360...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 537757...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 17:21:56] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 537757...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 17:53:09] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 18:16:02] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 18:21:11] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 18:24:27] syncRotationsAndStart called.
+[ERROR] Payload was missing or not an array.
+[DEBUG] Queue size is now 0, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 22:09:20] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 536184...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 22:15:59] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 536513...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 22:20:16] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 536332...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 22:30:22] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 542420...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 22:48:40] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 542711...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 22:58:08] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 536041...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 22:58:39] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 536041...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Deserializing element of length 544420...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[5 Apr 2026 23:27:46] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 543729...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[6 Apr 2026 00:30:39] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 544759...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[6 Apr 2026 00:33:53] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 544759...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 532074...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[6 Apr 2026 00:58:09] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 543924...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[6 Apr 2026 01:09:37] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 543668...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[6 Apr 2026 01:24:26] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 543454...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[6 Apr 2026 02:01:44] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 543167...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[6 Apr 2026 12:45:26] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 543167...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[6 Apr 2026 12:48:42] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 543167...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 533140...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[6 Apr 2026 17:54:51] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 543589...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[6 Apr 2026 17:55:13] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 543589...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[6 Apr 2026 18:03:25] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 543589...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 532198...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[6 Apr 2026 20:29:53] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 542996...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] Time Offset Locked: 901 seconds.
+[DEBUG] StartOps() complete.
+
+[6 Apr 2026 20:31:58] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 542996...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 529919...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] Silently updated _currentResponse natively. Queue size now 1.
+[DEBUG] _currentResponse is already set and we are not in Turnaround! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[6 Apr 2026 22:35:40] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 541744...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] Time Offset Locked: 901 seconds.
+[DEBUG] StartOps() complete.
+
+[6 Apr 2026 22:36:28] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 541744...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 531930...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] Silently updated _currentResponse natively. Queue size now 1.
+[DEBUG] _currentResponse is already set and we are not in Turnaround! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 01:33:39] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560835...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 01:34:07] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 560835...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 528821...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 01:39:53] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560838...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 01:40:26] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 560838...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 524217...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 02:11:47] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559734...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 02:12:22] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 559734...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 543171...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 02:33:29] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560884...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 02:33:55] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 560884...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 541385...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 10:19:27] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 571735...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 10:20:25] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 571735...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 558462...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 11:06:36] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 558462...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 11:07:19] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 582557...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 11:08:30] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 582557...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 571325...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 12:43:29] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 578373...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 12:44:04] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 578373...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 567285...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 13:01:29] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 579498...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 13:01:55] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 579498...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 565697...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 14:04:16] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 577231...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 14:05:21] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 577231...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 564238...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 15:52:37] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 570386...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 15:53:10] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 570386...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 556968...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 16:15:22] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556968...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 16:15:53] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 556968...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Deserializing element of length 571372...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 16:26:01] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554653...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 16:35:35] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554489...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 16:44:25] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 552876...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 16:53:00] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 552696...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 17:05:11] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 544913...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 18:12:22] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 550857...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 19:45:54] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 550824...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 19:54:08] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547133...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 19:55:07] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547133...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 19:56:58] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 547133...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Deserializing element of length 564713...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 20:08:47] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 564713...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 20:10:49] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 564713...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 553050...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 20:18:13] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 553050...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 20:19:09] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 553050...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Deserializing element of length 564931...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 20:29:03] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561319...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 20:29:57] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 561319...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 545921...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 21:04:05] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 545921...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 21:04:56] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 545921...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Deserializing element of length 562262...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 22:06:08] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562262...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 22:08:59] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 549883...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 22:11:42] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 549883...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 22:14:50] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562413...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 22:29:18] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 548196...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 22:32:18] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 548196...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Deserializing element of length 562412...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 22:41:37] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562412...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 22:44:09] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 546405...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 22:46:30] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 546405...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 22:51:33] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 546378...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 22:57:29] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 546378...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[7 Apr 2026 23:01:19] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 546378...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 01:49:05] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 546378...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 01:58:41] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 546378...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 02:10:24] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 546378...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 02:42:29] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 546378...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 02:59:10] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 546378...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 10:47:43] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 575369...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 10:48:12] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 575369...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 10:53:34] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562824...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 11:09:52] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 558113...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 11:10:22] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 558113...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 548348...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 11:27:56] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559355...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 11:46:36] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559284...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 12:32:11] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 558466...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 12:32:20] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 558466...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 12:39:34] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 558466...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 13:25:48] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 549390...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 13:49:54] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559963...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 13:50:57] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 559963...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 551679...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 14:02:55] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562695...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 14:06:04] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562695...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 14:08:31] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559151...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 14:32:55] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560066...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 14:44:11] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559127...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 14:47:09] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559127...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 14:51:10] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559127...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 14:55:28] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559126...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 15:21:48] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559127...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 15:25:26] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559127...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 15:32:24] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559127...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 15:40:55] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559127...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 15:44:34] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559127...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 15:46:48] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559127...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 15:48:33] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559126...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 15:53:04] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559127...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 16:00:01] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559127...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 16:03:36] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559127...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 16:21:56] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559127...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 17:00:43] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559127...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 17:17:05] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559460...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 17:19:42] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559460...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 17:23:48] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559460...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 17:24:35] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559460...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 17:27:02] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559460...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 17:27:32] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 551998...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 17:29:21] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559460...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 17:29:45] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 559460...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 551998...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 17:42:41] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559460...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 17:44:11] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559460...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 17:50:16] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559474...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 17:53:25] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559474...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 17:56:55] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559474...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 18:11:24] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559474...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 18:57:13] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560387...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 19:01:35] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560387...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 19:04:09] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560387...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 19:11:46] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560387...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 19:27:26] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560387...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 19:34:43] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560387...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 19:48:35] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560387...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 20:05:39] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560387...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 20:30:56] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560387...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 20:35:55] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560387...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 20:42:33] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560387...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 20:44:23] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 560387...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 554235...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 22:08:23] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554235...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 22:08:51] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 564014...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 22:22:43] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 564014...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 22:34:04] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 563962...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 22:44:48] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 563962...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 22:51:03] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 563962...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 22:55:50] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 563962...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 23:08:03] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 563962...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 23:14:36] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 563961...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 23:21:10] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 563962...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[8 Apr 2026 23:52:01] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 563962...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 00:41:51] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 563962...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 00:52:07] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 563962...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 01:07:56] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 563962...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 01:08:51] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 566221...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 01:13:07] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 566221...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 01:35:21] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 566221...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 01:57:06] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 566221...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 02:05:01] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 566221...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 02:08:04] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 566221...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 02:08:47] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 567681...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 02:27:19] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 567681...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 557399...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 08:18:08] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 573001...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 08:21:43] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 573001...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 563207...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 09:23:38] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 646729...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 09:46:36] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 646764...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 09:51:40] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 646764...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 09:55:26] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 646764...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 563151...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 10:17:59] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 648568...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 10:21:47] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 648568...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 563129...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 13:52:52] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 403048...
+[DEBUG] Enqueued flight LFPO -> LFPG.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 13:55:22] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 403048...
+[DEBUG] Enqueued flight LFPO -> LFPG.
+[DEBUG] Deserializing element of length 383261...
+[DEBUG] Enqueued flight LFPG -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 13:56:26] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 403048...
+[DEBUG] Enqueued flight LFPO -> LFPG.
+[DEBUG] Deserializing element of length 383078...
+[DEBUG] Enqueued flight LFPG -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 13:58:24] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 403048...
+[DEBUG] Enqueued flight LFPO -> LFPG.
+[DEBUG] Deserializing element of length 383080...
+[DEBUG] Enqueued flight LFPG -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 14:12:07] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 407898...
+[DEBUG] Enqueued flight LFPO -> LFPG.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 14:12:52] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 407898...
+[DEBUG] Enqueued flight LFPO -> LFPG.
+[DEBUG] Deserializing element of length 381824...
+[DEBUG] Enqueued flight LFPG -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 14:17:54] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 407898...
+[DEBUG] Enqueued flight LFPO -> LFPG.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 14:18:25] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 407898...
+[DEBUG] Enqueued flight LFPO -> LFPG.
+[DEBUG] Deserializing element of length 383450...
+[DEBUG] Enqueued flight LFPG -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 15:51:51] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 412515...
+[DEBUG] Enqueued flight LFPO -> LFPG.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 15:52:20] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 412515...
+[DEBUG] Enqueued flight LFPO -> LFPG.
+[DEBUG] Deserializing element of length 380306...
+[DEBUG] Enqueued flight LFPG -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 16:02:37] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 681642...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 16:03:03] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 681642...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 555608...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 16:22:22] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 681977...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 16:22:55] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 681977...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 555938...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 16:49:02] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 682585...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 16:49:45] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 682585...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 556631...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 17:07:08] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 682982...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 17:07:33] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 682982...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 557018...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 17:14:31] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 682988...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 17:20:37] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 682997...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 17:21:02] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 682997...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 557021...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 17:44:17] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 572287...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 17:44:58] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 572287...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 570244...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 18:29:36] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 572351...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 18:35:13] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 571057...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 18:37:47] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 571057...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 18:52:01] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 570717...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 18:57:42] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 570718...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 18:58:11] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 570718...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 569586...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 19:27:53] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 682624...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:17:45] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 664984...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:29:53] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 664986...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:31:28] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 664986...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:34:59] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 664986...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:35:33] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 664986...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 547842...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:41:37] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547841...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:50:41] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547842...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:51:02] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547842...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:51:13] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547842...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:51:15] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547842...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:51:19] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547842...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:51:21] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547842...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:51:21] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547842...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:51:22] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547842...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:51:22] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547842...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:51:22] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547842...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:51:22] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547842...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 20:51:23] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547842...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 22:03:02] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 630724...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 22:03:29] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 630724...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 547466...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 22:23:29] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 633405...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 22:36:49] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 631412...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[9 Apr 2026 22:37:26] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 631412...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 547992...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 00:14:57] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 555563...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 00:15:29] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 555563...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 547919...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 00:33:59] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547919...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 00:34:29] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547919...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 00:35:42] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 547919...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 00:36:16] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 547919...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Deserializing element of length 555261...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 01:07:10] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 555232...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 01:07:44] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 555232...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 01:08:27] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 555232...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 01:09:16] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 555232...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 547576...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 01:19:03] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 555237...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 01:21:38] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 555237...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 01:46:36] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 555237...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 546834...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 01:56:15] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554851...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 01:57:27] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554851...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 01:57:58] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 554851...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 546834...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 02:01:09] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554851...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 02:18:20] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554851...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 02:20:44] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554883...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 02:56:53] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554887...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 03:04:36] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554886...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 03:09:59] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554887...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 03:13:42] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554886...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 03:16:05] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554887...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 03:18:31] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554887...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 03:31:46] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554887...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 03:40:17] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554887...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 08:00:46] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554887...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 08:12:45] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554887...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 08:19:54] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 554887...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 08:20:25] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 554887...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 552852...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 08:28:43] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 552852...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 08:29:29] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561058...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 08:30:00] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 561058...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 552852...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 08:34:40] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561058...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 08:39:50] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 08:40:23] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 552914...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 08:46:09] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 08:47:01] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 08:50:05] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 08:59:04] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 09:10:44] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 09:15:00] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 09:16:20] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 09:23:27] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 09:34:25] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 09:40:33] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 09:43:18] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 09:48:26] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 09:56:37] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 10:06:25] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 10:16:26] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 10:35:04] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 10:37:29] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 561101...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 553933...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 11:12:43] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 553933...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 11:13:31] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 11:44:16] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 11:44:56] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 11:46:33] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 11:50:09] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562044...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 11:52:55] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 11:59:40] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 12:02:25] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 12:06:52] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 12:15:30] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 12:39:42] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 13:46:03] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 14:27:25] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 14:31:31] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 15:12:02] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 15:20:50] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 15:29:21] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 15:42:55] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 15:51:02] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 15:54:46] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 16:01:16] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 16:07:32] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 16:14:08] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 16:19:29] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 731719...
+[DEBUG] Enqueued flight LFBO -> EGGW.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 16:21:34] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 3
+[DEBUG] Deserializing element of length 562045...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 731719...
+[DEBUG] Enqueued flight LFBO -> EGGW.
+[DEBUG] Deserializing element of length 388660...
+[DEBUG] Enqueued flight EGGW -> EGPH.
+[DEBUG] Queue size is now 3, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 16:27:56] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 388660...
+[DEBUG] Enqueued flight EGGW -> EGPH.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 16:32:16] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 388660...
+[DEBUG] Enqueued flight EGGW -> EGPH.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 16:35:16] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 388659...
+[DEBUG] Enqueued flight EGGW -> EGPH.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 16:37:29] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 388659...
+[DEBUG] Enqueued flight EGGW -> EGPH.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 16:45:44] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 388660...
+[DEBUG] Enqueued flight EGGW -> EGPH.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 16:48:31] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 388660...
+[DEBUG] Enqueued flight EGGW -> EGPH.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 16:51:50] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 388660...
+[DEBUG] Enqueued flight EGGW -> EGPH.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 16:55:28] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 388660...
+[DEBUG] Enqueued flight EGGW -> EGPH.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 17:01:47] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 388660...
+[DEBUG] Enqueued flight EGGW -> EGPH.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 17:08:37] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 388660...
+[DEBUG] Enqueued flight EGGW -> EGPH.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 17:11:27] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 388660...
+[DEBUG] Enqueued flight EGGW -> EGPH.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 17:42:07] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 388660...
+[DEBUG] Enqueued flight EGGW -> EGPH.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 17:42:45] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 555438...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 18:09:03] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 555438...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 18:09:34] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 555438...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 18:23:14] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 555438...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 18:24:45] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 555438...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 18:27:58] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 555438...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 18:28:32] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 555438...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 549226...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 18:29:53] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 549226...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 18:30:47] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556470...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 18:37:13] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556470...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 18:48:17] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556470...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 18:57:52] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 556470...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 548166...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 19:00:33] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556227...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 19:07:13] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556227...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 19:08:04] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556227...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 19:11:21] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556227...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 19:17:16] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556227...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 19:21:35] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556227...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 19:24:41] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556227...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 19:26:13] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556227...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 19:28:19] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556226...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 19:32:14] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556227...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 20:13:53] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556227...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 20:51:01] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556227...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 21:56:41] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556227...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 22:21:09] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556227...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 22:41:17] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556227...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 23:08:09] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 556227...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[10 Apr 2026 23:39:00] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 556227...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 553666...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 01:06:32] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 552952...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 07:08:45] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 552952...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 07:25:51] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 552952...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 10:41:25] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559692...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 10:49:59] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559692...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 10:54:48] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559692...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 11:02:02] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559692...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 11:06:37] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559692...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 11:13:07] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559692...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 11:15:35] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559692...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 11:31:59] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559692...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 11:35:48] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559692...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 11:43:23] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559692...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 11:50:42] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559692...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 11:56:44] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559692...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 12:04:35] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 559715...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Deserializing element of length 560525...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 14:16:12] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 555177...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 14:18:05] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 555177...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 14:28:13] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560856...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 15:38:50] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560879...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 15:39:35] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 560879...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 559574...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 16:13:41] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560517...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 16:14:10] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 560517...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 559577...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 16:15:50] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560517...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 16:19:15] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 560517...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 559581...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 17:59:16] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559441...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 18:28:35] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 559464...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Deserializing element of length 560144...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFBO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 20:01:36] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 560144...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 20:02:31] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 559280...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 20:12:33] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 558935...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 20:12:58] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 558935...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 551160...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 21:29:10] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 555089...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[11 Apr 2026 21:38:43] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557271...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[12 Apr 2026 06:04:57] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557271...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[12 Apr 2026 06:39:55] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557271...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[12 Apr 2026 12:01:03] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557271...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[12 Apr 2026 12:04:25] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557271...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[12 Apr 2026 12:07:05] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557271...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[12 Apr 2026 12:08:08] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557271...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[12 Apr 2026 12:11:38] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557271...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[12 Apr 2026 12:13:44] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557271...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[12 Apr 2026 12:14:02] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557271...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[12 Apr 2026 12:16:54] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557271...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[12 Apr 2026 12:30:32] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557271...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[12 Apr 2026 12:59:51] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557271...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[12 Apr 2026 13:04:06] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557271...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[12 Apr 2026 13:09:53] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557269...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[12 Apr 2026 13:13:43] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557271...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[12 Apr 2026 13:17:46] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557271...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.
+
+[12 Apr 2026 13:22:16] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 557271...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Queue size is now 1, _currentResponse is NULL
+[DEBUG] Calling LoadNextLeg()!
+[DEBUG] StartOps() complete.

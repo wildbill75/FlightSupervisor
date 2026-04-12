@@ -24,7 +24,8 @@ namespace FlightSupervisor.UI.Services
         
         // Story 29: Scheduled Ground Services
         public int StartOffsetMinutes { get; set; }
-        public bool RequiresManualStart { get; set; }
+        // Story 42/43: Visual Inhibition & Dependencies
+        public bool IsAvailable { get; set; } = true;
 
         public int RemainingSec => Math.Max(0, (TotalDurationSec + DelayAddedSec) - ElapsedSec);
         public int ProgressPercent => (TotalDurationSec + DelayAddedSec) == 0 ? 100 : (int)Math.Min(100, Math.Max(0, ((double)ElapsedSec / (TotalDurationSec + DelayAddedSec)) * 100));
@@ -240,12 +241,13 @@ namespace FlightSupervisor.UI.Services
             int fuelBase = Math.Max(600, (int)(fuelNeededKg / 50.0)); // Minimum 10 minutes ou 50kg/sec
 
             Services.Add(new GroundService { Name = "Refueling", TotalDurationSec = applyTime(fuelBase), IsOptional = false, RequiresManualStart = true, StartOffsetMinutes = 0 });
-            Services.Add(new GroundService { Name = "Deboarding", TotalDurationSec = applyTime(deboardingBase), IsOptional = false, RequiresManualStart = true, StartOffsetMinutes = 0 });
             Services.Add(new GroundService { Name = "Boarding", TotalDurationSec = applyTime(boardingBase), IsOptional = false, RequiresManualStart = true, StartOffsetMinutes = boardOffset });
             Services.Add(new GroundService { Name = "Cargo/Luggage", TotalDurationSec = applyTime(Math.Max(600, pax * 6)), IsOptional = false, RequiresManualStart = true, StartOffsetMinutes = cargoOffset });
             Services.Add(new GroundService { Name = "Catering", TotalDurationSec = applyTime(cateringBase), IsOptional = true, RequiresManualStart = true, StartOffsetMinutes = caterOffset });
             Services.Add(new GroundService { Name = cleanName, TotalDurationSec = applyTime(cleaningBase), IsOptional = true, RequiresManualStart = true, StartOffsetMinutes = cleanOffset });
             Services.Add(new GroundService { Name = "Water/Waste", TotalDurationSec = applyTime(wwBase), IsOptional = true, RequiresManualStart = true, StartOffsetMinutes = waterOffset });
+            
+            // Note: Deboarding is NO LONGER added here. It is an Arrival task added by MainWindow when parked.
             
             if (firstFlightClean)
             {

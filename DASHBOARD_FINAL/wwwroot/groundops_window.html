@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>TRUE AIRMANSHIP | Ground Operations</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="app.css?v=6">
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        background: "#141414",
+                        primary: "#95ccff",
+                        "primary-container": "#00a8ff",
+                    },
+                    fontFamily: {
+                        headline: ["Manrope", "sans-serif"],
+                        body: ["Inter", "sans-serif"],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #141414;
+            color: #b6b6b6;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+        }
+        .window-drag-area {
+            -webkit-app-region: drag;
+        }
+        .no-drag { -webkit-app-region: no-drag; }
+        .glass-panel {
+            background: rgba(51, 53, 58, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(136, 146, 157, 0.1);
+        }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(62, 72, 82, 0.3); border-radius: 999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(62, 72, 82, 0.6); }
+    </style>
+</head>
+<body class="bg-[#141414] text-[#b6b6b6] overflow-hidden select-none">
+    <div class="h-screen w-screen flex flex-col disable-drag">
+        <!-- Title Bar -->
+        <div id="top-bar" class="window-drag-area flex-none flex items-center justify-between px-4 h-10 bg-[#1d1d1d] border-b border-white/5" onmousedown="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action:'drag'});">
+            <!-- Logo / Title -->
+            <div class="text-[10px] font-label tracking-[0.4em] text-[#7b7b7b] uppercase pointer-events-none select-none whitespace-nowrap truncate flex-1">TRUE AIRMANSHIP | GROUND OPERATIONS</div>
+            
+            <!-- CENTERED -->
+            <div class="flex items-center justify-center gap-6 text-[12px] font-bold text-[#b6b6b6] font-mono tracking-wider pointer-events-none select-none whitespace-nowrap truncate flex-1">
+            </div>
+
+            <!-- Right Side Icons -->
+            <div class="flex items-center gap-2 justify-end flex-1">
+                <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" title="Always on Top" onmousedown="event.stopPropagation()" onclick="this.classList.toggle('text-[#b6b6b6]'); this.classList.toggle('text-sky-400'); if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'togglePinApp'});">
+                    <span class="material-symbols-outlined text-[14px]">push_pin</span>
+                </button>
+                <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" title="Minimize" onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'minimizeApp'});">
+                    <span class="material-symbols-outlined text-[14px]">remove</span>
+                </button>
+                <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-white/10 rounded transition-colors" title="Maximize" onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'maximizeApp'});">
+                    <span class="material-symbols-outlined text-[14px]">crop_square</span>
+                </button>
+                <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-rose-500 rounded transition-colors" title="Close" onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'closeApp'});">
+                    <span class="material-symbols-outlined text-[14px]">close</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Content -->
+        <div class="flex-1 overflow-y-auto custom-scrollbar p-6">
+            <div id="groundOpsContainer" class="w-full">
+                <p class="text-[#7b7b7b] font-mono text-center mt-10" data-i18n="ground_pending">Waiting for ground crew reports...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Time Skip Hook (Simplified) -->
+    <script>
+        window.openTimeSkip = function() {
+            window.chrome.webview.postMessage({ action: 'openTimeSkipDialog' }); // Or whatever trigger
+        };
+    </script>
+
+    <script src="locales.js"></script>
+    <script src="groundops_window.js"></script>
+</body>
+</html>

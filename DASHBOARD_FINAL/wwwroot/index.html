@@ -1,317 +1,1903 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <title>Flight Supervisor</title>
-    <link rel="stylesheet" href="app.css?v=2">
+    <title>TRUE AIRMANSHIP | Command Center</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="app.css?v=6">
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        background: "#141414",
+                        primary: "#95ccff",
+                        "primary-container": "#00a8ff",
+                        "surface-container-highest": "#33353a",
+                        "surface-container-low": "#1a1b21",
+                        "surface-variant": "#33353a",
+                    },
+                    fontFamily: {
+                        headline: ["Manrope", "sans-serif"],
+                        body: ["Inter", "sans-serif"],
+                        label: ["Inter", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #141414;
+            color: #b6b6b6;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+        }
+        .window-drag-area {
+            -webkit-app-region: drag;
+            position: fixed; top: 0; left: 0; right: 0; height: 30px; z-index: 9999;
+        }
+        .no-drag { -webkit-app-region: no-drag; }
+        .glass-panel {
+            background: rgba(51, 53, 58, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(136, 146, 157, 0.1);
+        }
+        .neon-glow {
+            text-shadow: 0 0 10px rgba(149, 204, 255, 0.5), 0 0 20px rgba(149, 204, 255, 0.3);
+        }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+        
+        /* Tab system support */
+        .tab-content { display: none !important; }
+        .tab-content.active { display: block !important; }
+        .tab-content.active.flex { display: flex !important; }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(62, 72, 82, 0.3); border-radius: 999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(62, 72, 82, 0.6); }
+
+        /* active tab styles */
+        .menu li {
+            color: #b6b6b6;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            padding: 0.75rem 1.2rem;
+            display: flex; align-items: center; gap: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        .menu li:hover {
+            color: #b6b6b6;
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+        .menu li.active {
+            color: #b6b6b6;
+            background-color: transparent;
+            border: 1px solid transparent;
+            font-weight: 600;
+        }
+
+        /* System Modal Animations */
+        @keyframes modal-backdrop-in {
+            from { opacity: 0; backdrop-filter: blur(0px); }
+            to { opacity: 1; backdrop-filter: blur(8px); }
+        }
+        @keyframes modal-card-in {
+            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .animate-modal-backdrop { animation: modal-backdrop-in 0.25s ease-out forwards; }
+        .animate-modal-card { animation: modal-card-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+          
+        /* Custom Thin Scrollbar for Carousel */
+        .custom-thin-scrollbar::-webkit-scrollbar {
+            height: 4px;
+        }
+        .custom-thin-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-thin-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        .custom-thin-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+    <script>
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            document.body.innerHTML += '<div style="position:fixed;top:0;left:0;z-index:9999;background:red;color:white;padding:20px;font-size:16px;">CRITICAL JS ERROR: ' + msg + '<br/>At ' + url + ':' + lineNo + ':' + columnNo + '<br/><pre>' + (error ? error.stack : '') + '</pre></div>';
+            return false;
+        };
+    </script>
 </head>
-<body>
-
-    <!-- Left Sidebar -->
-    <nav id="sidebar">
-        <div class="logo">FS</div>
-        <ul class="menu">
-            <li class="active" data-target="dashboard">Dashboard</li>
-            <li data-target="briefing">Briefing</li>
-            <li data-target="groundops">Ground Ops</li>
-            <li data-target="logs">Logs</li>
-            <li data-target="options">Options</li>
-        </ul>
-        <div style="padding: 0 20px; display: flex; flex-direction: column; gap: 5px; margin-top: auto; margin-bottom: 20px;">
-            <button id="btnFetchPlan" style="font-size: 12px; padding: 10px; border-radius: 4px; border: none; background-color: #4A90E2; color: white; font-weight: bold; cursor: pointer;">Fetch Latest Plan</button>
-            <button id="btnStartGroundOps" style="font-size: 12px; padding: 10px; border-radius: 4px; background-color: #334155; color: #64748b; font-weight: bold; border: none; cursor: not-allowed; text-align: center;" disabled>Start Ground Ops</button>
-            <button id="btnSmartConnect" class="smart-connect error" style="margin: 0; padding: 10px; width: 100%; border-radius: 4px;"><span>Not Connected</span></button>
+<body class="bg-background">
+    <div id="top-bar" class="window-drag-area fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-6 h-12 bg-[#14161a]/85 backdrop-blur-xl border-b border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)]" onmousedown="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action:'drag'});">
+        <!-- Logo / Title -->
+        <div class="text-[11px] font-label tracking-[0.5em] text-white/50 uppercase pointer-events-none select-none flex-1 drop-shadow-md">TRUE AIRMANSHIP</div>
+        <div id="locationMismatchWarning" class="hidden flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 animate-pulse cursor-help overflow-hidden no-drag">
+            <span class="material-symbols-outlined text-[14px]">location_off</span>
+            <span class="text-[9px] font-black uppercase tracking-widest">Location Mismatch</span>
         </div>
-        <div id="fetchStatus" style="display: none;"></div>
-        <div style="position: absolute; bottom: 15px; left: 0; width: 100%; text-align: center; color: #475569; font-size: 11px; font-family: monospace; pointer-events: none;">Build 1.4.9-beta</div>
-    </nav>
+        
+        <!-- CENTERED INLINE CLOCK -->
+        <div class="flex items-center justify-center gap-6 text-[11px] font-bold text-sky-100/60 font-mono tracking-[0.2em] pointer-events-none select-none flex-1 drop-shadow-md">
+            <span id="zuluDate">--/--/----</span>
+            <span id="zuluTime">--:-- UTC / --:-- LOCAL</span>
+        </div>
 
-    <!-- Main Content Area -->
-    <main id="main-content">
-        <!-- Top Drag Bar -->
-        <header id="top-bar">
-            <div class="title">Flight Supervisor</div>
-            <div class="spacer"></div>
-            <div class="window-controls">
-                <button class="win-btn" id="btnMin" title="Minimize to Tray">_</button>
-                <button class="win-btn close" id="btnClose" title="Quit">&#10005;</button>
+        <!-- Right Side Icons -->
+        <div class="flex items-center gap-1 justify-end flex-1">
+            <button class="no-drag w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-white/5" id="btnPin" title="Toggle Always on Top" onmousedown="event.stopPropagation();" style="opacity: 0.4;">
+                <span class="material-symbols-outlined text-[16px] font-light">push_pin</span>
+            </button>
+            <button class="no-drag w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-white/5" id="btnMin" title="Minimize" onmousedown="event.stopPropagation();">
+                <span class="material-symbols-outlined text-[16px] font-light">remove</span>
+            </button>
+            <button class="no-drag w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-white/5" id="btnMax" title="Maximize" onmousedown="event.stopPropagation();">
+                <span class="material-symbols-outlined text-[16px] font-light">crop_square</span>
+            </button>
+            <div class="w-[1px] h-4 bg-white/10 mx-1"></div>
+            <button class="no-drag w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500/20 rounded-lg transition-colors border border-transparent hover:border-red-500/30 group" title="Close" onmousedown="event.stopPropagation();" onclick="document.getElementById('quitConfirmModal').classList.replace('opacity-0', 'opacity-100'); document.getElementById('quitConfirmModal').classList.remove('pointer-events-none'); document.getElementById('quitConfirmModal').children[0].classList.replace('scale-95', 'scale-100');">
+                <span class="material-symbols-outlined text-[16px] group-hover:text-red-400 font-light">close</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- GLOBAL TOP PROGRESS BAR (For Ground Ops Flow) -->
+    <div id="globalProgressContainer" class="fixed top-[48px] left-0 w-full h-[3px] bg-transparent z-50 overflow-hidden" style="display: none;">
+        <div id="globalProgressBar" class="h-full bg-gradient-to-r from-sky-400 to-emerald-400 shadow-[0_0_15px_rgba(56,189,248,0.8)] rounded-r-full transition-all duration-1000 ease-out w-[0%]">
+        </div>
+    </div>
+
+    <!-- GLOBAL CRISIS BANNER -->
+    <div id="crisisBanner" class="fixed top-0 left-0 w-full z-[100] bg-red-600/90 backdrop-blur-xl text-white flex flex-col items-center justify-center py-4 transform translate-y-[-500px] transition-transform duration-500 no-drag pt-8">
+        <div class="flex items-center gap-6">
+            <span class="material-symbols-outlined text-[48px] animate-pulse drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">emergency</span>
+            <div>
+                <h1 class="text-2xl font-black font-headline tracking-widest uppercase drop-shadow-lg" id="crisisTitle">CRITICAL ALERT</h1>
+                <p class="text-xs font-mono tracking-widest text-red-100 mt-1" id="crisisDesc">Immediate crew action required in the cabin.</p>
             </div>
-        </header>
+            <div class="ml-12 text-center bg-black/40 px-6 py-2 rounded-xl border border-white/20 shadow-inner">
+                <span class="text-[9px] uppercase tracking-[0.3em] font-bold text-red-200 block mb-1">Time to Respond</span>
+                <span class="text-2xl font-mono font-black tracking-widest text-white" id="crisisTimer">00:00</span>
+            </div>
+        </div>
+        <audio id="crisisAudio" src="assets/sounds/chime_emergency.wav" preload="auto"></audio>
+    </div>
 
-        <!-- Content Sections -->
-        <div class="content-container">
-            <section id="dashboard" class="active">
-                <h2 style="margin-bottom: 15px;">Dashboard</h2>
-                <div id="dashFlightHeader" style="display: none; background: #1E2433; padding: 15px 25px; border-radius: 8px; border: 1px solid #2B3347; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 25px; text-align: center; width: 100%;">
-                    <div style="display: flex; align-items: center; justify-content: center; gap: 20px; font-size: 24px; font-weight: 800; color: #F8FAFC; letter-spacing: 1px;">
-                        <span id="dhOrigin">---- (----)</span>
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="#0F172A" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(90deg); flex-shrink: 0;">
-                            <path d="M21 16V14L13 9V3.5C13 2.67 12.33 2 11.5 2C10.67 2 10 2.67 10 3.5V9L2 14V16L10 13.5V19L8 20.5V22L11.5 21L15 22V20.5L13 19V13.5L21 16Z" />
-                        </svg>
-                        <span id="dhDest">---- (----)</span>
+    <!-- SIDE NAV BAR (Aviation Logistics Layout) -->
+    <aside id="sidebar" class="fixed left-0 top-0 h-full z-40 bg-[#14161a]/95 backdrop-blur-2xl w-16 flex flex-col pt-16 items-center border-r border-white/5 shadow-[5px_0_30px_rgba(0,0,0,0.5)]">
+        <!-- Logo Container (More obvious, centered perfectly) -->
+
+        <ul class="menu flex-1 w-full flex flex-col items-center mt-4 font-manrope text-sm tracking-wide gap-3">
+            <li id="navDashboardBtn" class="no-drag flex justify-center items-center w-12 h-12 rounded-xl opacity-30 cursor-not-allowed pointer-events-none transition-all duration-300" data-target="dashboard" title="Locked: Select a flight and sign off dispatch first">
+                <span class="material-symbols-outlined shrink-0 text-[20px] font-light">dashboard</span>
+            </li>
+            <li id="navBriefingBtn" class="active no-drag flex justify-center items-center w-12 h-12 rounded-xl cursor-pointer text-slate-400 hover:bg-white/5 transition-all duration-300 group" data-target="briefing" title="Briefing">
+                <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] group-[.active]:text-white group-[.active]:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">assignment</span>
+            </li>
+            <li class="no-drag flex justify-center items-center w-12 h-12 rounded-xl cursor-pointer text-slate-400 hover:bg-white/5 hover:text-sky-300 transition-all duration-300 group" onclick="if(window.chrome && window.chrome.webview) { const score = document.getElementById('topScoreValue')?.innerText || '1000'; const history = document.getElementById('penaltyLogs')?.innerHTML || ''; window.chrome.webview.postMessage({action: 'openLogsWindow', payload: {score, history}}); }" title="Flight Logs">
+                <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">receipt_long</span>
+            </li>
+            <li class="no-drag flex justify-center items-center w-12 h-12 rounded-xl mt-4 cursor-pointer text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition-all duration-300 group" onclick="document.getElementById('sandboxModal').classList.remove('opacity-0', 'pointer-events-none'); document.getElementById('sandboxModal').classList.add('opacity-100');" title="Sandbox Controls">
+                <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(2fb,113,133,0.5)]">science</span>
+            </li>
+            <li class="no-drag mt-auto flex justify-center items-center w-12 h-12 rounded-xl mb-4 text-slate-500 hover:bg-white/5 hover:text-slate-300 transition-all duration-300 group" data-target="options" title="Settings">
+                <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:rotate-45 transition-transform duration-500">settings</span>
+            </li>
+        </ul>
+        
+        <!-- USER PROFILE MINI -->
+        <div class="w-full flex justify-center pb-4 shrink-0 border-b border-transparent">
+            <div class="flex items-center justify-center p-2 rounded-xl hover:bg-white/10 cursor-pointer transition-colors border border-transparent hover:border-white/10 no-drag menu-profile-btn" onclick="document.querySelector('[data-target=\'profile\']').click()" title="Pilot Profile">
+                <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-600 shadow-inner overflow-hidden flex items-center justify-center shrink-0">
+                    <img id="sbProfileImg" src="" alt="Pilot" class="w-full h-full object-cover hidden" />
+                    <span id="sbProfileIcon" class="material-symbols-outlined text-[#b6b6b6] text-xl">person</span>
+                </div>
+                <!-- Texts are hidden for narrow sidebar -->
+                <div class="hidden flex-col overflow-hidden">
+                    <span id="sbProfileCallsign" class="text-xs font-bold text-slate-200 truncate font-headline tracking-wide">MAVERICK</span>
+                    <span id="sbProfileRank" class="text-[9px] text-sky-400 font-label tracking-widest uppercase truncate">Trainee</span>
+                </div>
+            </div>
+            <!-- Invisible trigger for the actual tab system -->
+            <li class="no-drag hidden" data-target="profile"></li>
+        </div>
+
+        <!-- SIDEBAR FOOTER (Aligned with main footer) -->
+        <div class="h-[90px] border-t border-white/5 flex flex-col items-center justify-center px-1 gap-2 w-full">
+            <button id="btnSmartConnect" title="Not Connected" class="flex items-center justify-center w-10 h-10 rounded-xl bg-red-900/20 text-red-500 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:bg-red-900/40 transition-colors">
+                <span class="material-symbols-outlined text-[18px]">wifi_off</span>
+            </button>
+            <!-- Hidden build string to preserve logic -->
+            <span id="appBuildString" class="hidden">BUILD ---</span>
+        </div>
+    </aside>
+
+
+
+    <!-- MAIN CONTENT CANVAS -->
+    <main id="main-content" class="ml-16 pt-12 h-screen overflow-y-auto px-12 py-10 bg-[#0d0e12] relative block w-[calc(100%-64px)] selection:bg-sky-500/30">
+        <div class="w-full pb-36">
+            
+            <!-- DASHBOARD TAB -->
+            <section id="dashboard" class="tab-content space-y-4 w-full pt-8">
+                <!-- HERO BENTO SECTION -->
+                <div class="grid grid-cols-12 gap-4 relative w-full">
+                    <!-- HERO METADATA -->
+                    <div class="col-span-12 lg:col-span-12 flex flex-col justify-center min-h-[250px] relative">
+
+                        <div id="dashFlightVisualContainer" class="flex flex-col gap-4 relative z-10 w-full mb-0">
+                            <!-- Default Empty State -->
+                            <div id="dashFlightVisualEmpty" class="w-full relative transition-all duration-500">
+                                <div class="w-full flex flex-col gap-4">
+                                    <!-- Top Row: Banner -->
+                                    <div class="flex items-stretch justify-between w-full bg-[#1a1d24]/60 backdrop-blur-md rounded-2xl border border-white/5 py-4 px-2 shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
+                                        <div class="flex flex-col flex-1 items-center justify-center border-r border-white/10 px-4">
+                                            <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Airline</div>
+                                            <div class="text-[20px] font-black text-white tracking-widest mt-1 uppercase">---</div>
+                                        </div>
+                                        <div class="flex flex-col flex-1 items-center justify-center border-r border-white/10 px-4">
+                                            <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Flight N&deg;</div>
+                                            <div class="text-[20px] font-black text-white tracking-widest mt-1 uppercase">---</div>
+                                        </div>
+                                        <div class="flex flex-col flex-[1.5] items-center justify-center border-r border-white/10 px-4">
+                                            <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Airframe</div>
+                                            <div class="text-[20px] font-black text-white tracking-widest mt-1 whitespace-nowrap text-ellipsis">---</div>
+                                        </div>
+                                        <div class="flex flex-col flex-1 items-center justify-center px-4">
+                                            <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Registration</div>
+                                            <div class="text-[20px] font-black text-white tracking-widest mt-1 uppercase">---</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Bottom Row: Leg Pill + Add Button -->
+                                    <div class="flex items-stretch w-full gap-2">
+                                        
+                                        <!-- Main Leg Pill -->
+                                        <div class="flex-1 bg-[#1a1d24]/60 backdrop-blur-md rounded-2xl border border-white/5 flex shadow-[0_8px_30px_rgba(0,0,0,0.5)] overflow-hidden h-[164px]">
+                                            
+                                            <!-- Left Arrow Button -->
+                                            <div role="button" tabindex="-1" class="px-6 flex items-center justify-center opacity-20 transition-colors pointer-events-none group">
+                                               <svg viewBox="0 0 24 24" class="w-10 h-10 fill-white"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg> 
+                                            </div>
+
+                                            <!-- Clickable Leg Content Area -->
+                                            <div role="button" tabindex="-1" class="flex-1 border-x border-solid border-white/10 flex justify-between items-center py-4 px-10 relative cursor-default text-left">
+                                                
+                                                <!-- Left: FROM -->
+                                                <div class="flex flex-col z-10 w-[25%] pointer-events-none">
+                                                    <div class="text-[10px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">From</div>
+                                                    <div class="text-[44px] font-black text-[#58586c] tracking-widest mt-1 leading-none uppercase">---</div>
+                                                    <div class="text-[11px] font-bold text-[#7b7b7b] uppercase mt-3 tracking-wider whitespace-nowrap">RWY:--- / QNH:---</div>
+                                                    <div class="text-[14px] font-bold text-white uppercase mt-1 tracking-widest">--:--</div>
+                                                </div>
+
+                                                <!-- Center: ROUTE & ETE -->
+                                                <div class="flex flex-col items-center flex-1 px-8 z-10 w-full overflow-hidden pointer-events-none">
+                                                    <div class="text-[12px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase text-center">ETE --H--</div>
+                                                    <div class="text-[16px] font-bold text-white tracking-widest uppercase mt-1 text-center">FL---</div>
+                                                    
+                                                    <div class="w-full flex items-center justify-center my-4 relative pointer-events-none h-6">
+                                                        <!-- Glowing gradient line without arrowheads -->
+                                                        <div class="absolute w-[96%] h-[2px] bg-gradient-to-r from-sky-500/0 via-sky-400/60 to-sky-500/0 drop-shadow-[0_0_5px_rgba(56,189,248,0.4)]"></div>
+                                                        <!-- Larger airplane icon with no box background -->
+                                                        <span class="material-symbols-outlined text-slate-200 absolute left-1/2 -translate-x-1/2 -translate-y-1/2 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" style="top:50%; transform: translate(-50%, -50%) rotate(90deg) scale(1.8);">flight</span>
+                                                    </div>
+                                                    
+                                                    <div class="text-[10px] font-mono tracking-[0.2em] text-[#7b7b7b] uppercase text-center w-[120%] px-2 mt-2" style="line-height:1.2;">
+                                                        NO FLIGHT LOADED
+                                                    </div>
+                                                </div>
+
+                                                <!-- Right: TO -->
+                                                <div class="flex flex-col text-right items-end z-10 w-[25%] pointer-events-none">
+                                                    <div class="text-[10px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">To</div>
+                                                    <div class="text-[44px] font-black text-[#58586c] tracking-widest mt-1 leading-none uppercase">---</div>
+                                                    <div class="text-[11px] font-bold text-[#7b7b7b] uppercase mt-3 tracking-wider whitespace-nowrap">RWY:--- / QNH:---</div>
+                                                    <div class="text-[14px] font-bold text-white uppercase mt-1 tracking-widest">--:--</div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Right Arrow Button -->
+                                            <div role="button" tabindex="-1" class="px-6 flex items-center justify-center opacity-20 transition-colors pointer-events-none group">
+                                                <svg viewBox="0 0 24 24" class="w-10 h-10 fill-white"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Active State (Injected by JS) -->
+                            <div id="dashFlightVisualActive" class="w-full relative flex flex-col" style="display: none;">
+                                <!-- Javascript will render the current leg here -->
+                            </div>
+                        </div>
+
                     </div>
-                    <div style="margin-top: 12px; font-size: 15px; color: #94A3B8;">
-                        <span id="dhFlight" style="font-weight: 700; color: #4A90E2;">Flight ---</span>
-                        <span style="margin: 0 15px; color: #475569;">|</span>
-                        <span id="dhAirline" style="font-weight: 600;">Unknown Airline</span>
+
+                    <div class="hidden col-span-12 lg:col-span-4 glass-panel rounded-xl p-8 flex flex-col items-center justify-center text-center">
+                        <div class="text-xs font-label tracking-[0.4em] text-[#7b7b7b] uppercase mb-6" data-i18n="dash_eff_score">Efficiency Score</div>
+                        <div class="relative flex items-center justify-center">
+                            <svg class="w-48 h-48 -rotate-90">
+                                <circle class="text-white/5" cx="96" cy="96" fill="transparent" r="80" stroke="currentColor" stroke-width="4"></circle>
+                                <circle id="topScoreRing" class="text-sky-400 transition-all duration-1000 ease-out drop-shadow-[0_0_8px_rgba(56,189,248,0.6)]" cx="96" cy="96" fill="transparent" r="80" stroke="currentColor" stroke-dasharray="502" stroke-dashoffset="0" stroke-width="6" stroke-linecap="round"></circle>
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span id="mainScoreValue" class="text-5xl font-black font-headline text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)]">1000</span>
+                                <span class="text-[10px] text-[#7b7b7b] font-bold tracking-[0.2em] uppercase mt-2" data-i18n="dash_pts">PTS</span>
+                            </div>
+                        </div>
+
+                        <!-- LIVE FEEDBACK LOG (Story 40) -->
+                        <div class="w-full h-32 mt-6 bg-black/40 rounded-lg border border-white/5 overflow-y-auto custom-scrollbar p-3 text-left">
+                            <ul id="liveScoreLog" class="flex flex-col gap-2">
+                                <li class="text-[10px] font-mono text-[#7b7b7b] text-center tracking-widest mt-8">AWAITING EVENTS...</li>
+                            </ul>
+                        </div>
                     </div>
+
+                    <!-- AIRLINE IDENTITY CARD COMPLETELY REMOVED PER TRUE AIRMANSHIP DIRECTIVE -->
+
+                    <!-- FULL ROW WRAPPER FOR SIDE-BY-SIDE PANELS -->
+                    <div class="col-span-12 grid grid-cols-12 gap-5 mb-8 pb-8 border-b border-white/5 w-full">
+
+                        <div class="col-span-4 bg-[#1a1d24]/60 backdrop-blur-xl rounded-2xl overflow-hidden flex flex-col border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.4)] transition-all">
+                            
+                            <!-- FLIGHT PHASE HEADER WITH CAROUSEL ARROWS -->
+                            <div class="px-3 md:px-6 py-4 flex flex-row items-center justify-between gap-1 md:gap-4 bg-gradient-to-b from-white/5 to-transparent relative border-b border-white/5 overflow-hidden">
+                                <button onclick="window.toggleDashPage && window.toggleDashPage(-1)" class="text-white/80 hover:text-white transition-colors relative z-10 cursor-pointer p-1 shrink-0">
+                                    <span class="material-symbols-outlined text-[28px] md:text-[36px] font-black">chevron_left</span>
+                                </button>
+                                
+                                <div class="flex flex-col 2xl:flex-row items-center gap-1 2xl:gap-4 flex-1 justify-center min-w-0">
+                                    <span id="flightPhase" class="text-[16px] xl:text-[22px] font-black text-white tracking-widest uppercase inline-block font-headline text-center whitespace-nowrap">OFF</span>
+                                    <div class="hidden 2xl:block h-8 w-px bg-white/20 shrink-0"></div>
+                                    <div id="flightCountdown" class="text-[16px] xl:text-[22px] font-black tracking-widest text-[#4fa4ff] uppercase font-headline text-center whitespace-nowrap" style="font-family: 'Manrope', sans-serif;">--:-- UTC</div>
+                                </div>
+
+                                <button onclick="window.toggleDashPage && window.toggleDashPage(1)" class="text-white/80 hover:text-white transition-colors relative z-10 cursor-pointer p-1 shrink-0">
+                                    <span class="material-symbols-outlined text-[28px] md:text-[36px] font-black">chevron_right</span>
+                                </button>
+                            </div>
+
+                            <!-- PAGE 1: TIMING AND ROTATION -->
+                            <div id="dashPage1_Timing" class="flex flex-col flex-1 w-full animate-fade-in relative">
+                                <div id="globalRotationBanner" class="hidden bg-[#2a2a2b]/60 border-b border-white/5 py-4 px-8 flex items-center justify-between shadow-[inset_0_-10px_20px_rgba(0,0,0,0.2)] gap-4">
+                                    <!-- CURRENT LEG -->
+                                    <div class="flex-1 flex items-center justify-between border-r border-white/10 pr-4">
+                                        <div class="flex items-center">
+                                            <div class="flex flex-col">
+                                                <span class="text-[9px] font-bold uppercase tracking-widest text-[#7b7b7b]">Current Leg Status</span>
+                                                <span class="text-xs text-[#b6b6b6] font-medium tracking-wide mt-1" id="currentLegStatus">Leg X</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-col items-end">
+                                            <div class="font-mono text-xl font-black text-emerald-400 tracking-wider drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]" id="currentLegTimer">--:--:--</div>
+                                            <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mt-1">Est. Block Time</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- GLOBAL ROTATION -->
+                                    <div class="flex-1 flex items-center justify-between pl-2">
+                                        <div class="flex items-center">
+                                            <div class="flex flex-col">
+                                                <span class="text-[9px] font-bold uppercase tracking-widest text-[#7b7b7b]">Global Rotation</span>
+                                                <span class="text-[10px] text-[#b6b6b6] font-medium tracking-wide mt-0.5" id="globalRotationStatus">Leg 1 of 1</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-col items-end">
+                                            <div class="font-mono text-xl font-black text-sky-400 tracking-wider drop-shadow-[0_0_10px_rgba(56,189,248,0.3)]" id="globalRotationTimer">--:--:--</div>
+                                            <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mt-1">Total Est. Time</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="p-8 flex-1 w-full">
+                                    <table class="w-full text-left">
+                                        <thead>
+                                            <tr class="text-[9px] uppercase tracking-[0.2em] text-[#7b7b7b] font-bold">
+                                                <th class="pb-5" data-i18n="dash_th_milestone">Milestone</th>
+                                                <th class="pb-5" data-i18n="dash_th_sched">Scheduled</th>
+                                                <th class="pb-5" data-i18n="dash_th_actual">Actual</th>
+                                                <th class="pb-5 text-right" data-i18n="dash_th_status">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="text-sm font-medium">
+                                            <tr class="border-t border-white/5">
+                                                <td class="py-4">
+                                                    <div class="flex items-center">
+                                                        <span class="material-symbols-outlined text-xl mr-3 text-[#b6b6b6]">flight_takeoff</span>
+                                                        <div class="flex flex-col">
+                                                            <span class="text-slate-200 font-bold tracking-wide">DEPARTURE</span>
+                                                            <span class="text-[9px] text-[#7b7b7b] font-mono">OFF-BLOCK / SOBT</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="py-4 font-mono text-[#b6b6b6]" id="ttSchedDep">--:--Z</td>
+                                                <td class="py-4 font-mono text-sky-400 font-bold" id="ttActDep">--:--Z</td>
+                                                <td class="py-4 text-right" id="ttDepBadgeContainer">
+                                                    <span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-[#7b7b7b] uppercase font-bold tracking-wider" id="ttDepStatus">STANDBY</span>
+                                                </td>
+                                            </tr>
+                                            <tr class="border-t border-white/5">
+                                                <td class="py-4">
+                                                    <div class="flex items-center">
+                                                        <span class="material-symbols-outlined text-xl mr-3 text-[#b6b6b6]">flight_land</span>
+                                                        <div class="flex flex-col">
+                                                            <span class="text-slate-200 font-bold tracking-wide">ARRIVAL</span>
+                                                            <span class="text-[9px] text-[#7b7b7b] font-mono">IN-BLOCK / SIBT</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="py-4 font-mono text-[#b6b6b6]" id="ttSchedArr">--:--Z</td>
+                                                <td class="py-4 font-mono text-sky-400 font-bold" id="ttActArr">--:--Z</td>
+                                                <td class="py-4 text-right" id="ttArrBadgeContainer">
+                                                    <span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-[#7b7b7b] uppercase font-bold tracking-wider" id="ttArrStatus">STANDBY</span>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    
+                                    <div class="mt-4 border-t border-white/5 pt-6 hidden">
+                                        <!-- ACARS Button removed upon request -->
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- PAGE 2: GROUND OPERATIONS (Hidden by default) -->
+                            <div id="dashPage2_GroundOps" class="flex flex-col flex-1 w-full hidden animate-fade-in relative bg-[#242430]">
+                                <div id="dashMetaBar" class="px-8 py-4 border-b border-white/5 bg-[#1a1a24]" style="display: none;">
+                                    <div class="flex justify-between items-center px-1">
+                                        <span id="dashMetaTitle" class="text-[12px] font-bold uppercase tracking-[0.05em] text-white/90 font-sans">Ground Operations</span>
+                                        <span id="dashMetaText" class="text-[10px] text-[#b6b6b6] uppercase font-bold tracking-widest hidden">Standing By.</span>
+                                    </div>
+                                    <div class="h-2.5 w-full bg-[#2a382e] rounded-full overflow-hidden shadow-inner mt-2">
+                                        <div id="dashMetaFill" class="h-full bg-[#42804b] w-0 transition-all duration-1000 ease-out"></div>
+                                    </div>
+                                    <div class="flex justify-end gap-3 mt-3">
+                                        <button onclick="event.stopPropagation(); window.requestTimeSkip(1)" class="bg-white/20 hover:bg-white/30 text-white text-[12px] font-medium font-mono px-3 py-0.5 rounded shadow transition-colors">+1m</button>
+                                        <button onclick="event.stopPropagation(); window.requestTimeSkip(5)" class="bg-white/20 hover:bg-white/30 text-white text-[12px] font-medium font-mono px-3 py-0.5 rounded shadow transition-colors">+5m</button>
+                                        <button onclick="event.stopPropagation(); window.requestTimeSkip(10)" class="bg-white/20 hover:bg-white/30 text-white text-[12px] font-medium font-mono px-3 py-0.5 rounded shadow transition-colors">+10m</button>
+                                    </div>
+                                </div>
+                                
+                                <div id="dashboardGroundOpsPillsGrid" class="flex flex-col w-full">
+                                    <div class="px-6 py-8 flex items-center justify-center border-b border-white/5 last:border-b-0 w-full h-full">
+                                        <p class="text-[#7b7b7b] font-mono text-center" data-i18n="ground_pending">Ground operations pending SimBrief initialization...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-span-4 bg-[#1a1d24]/60 backdrop-blur-xl rounded-2xl p-6 flex flex-col border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.4)] cursor-pointer hover:bg-[#1a1d24]/80 transition-all hover:border-white/10 group" onclick="window.chrome.webview.postMessage({action: 'openManifestWindow'})" title="Open Manifest View">
+                        <div class="mb-6 flex flex-col items-center justify-center">
+                            <span class="text-xs font-label tracking-[0.4em] text-[#b6b6b6] font-bold uppercase" data-i18n="dash_cabin_exp">Cabin Experience</span>
+                        </div>
+                        <div class="mt-auto flex flex-col gap-5">
+                            <!-- Comfort Gauge -->
+                            <div>
+                                <div class="flex items-end justify-between mb-2">
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-[#b6b6b6]">Comfort</span>
+                                    <span class="text-2xl font-black font-headline text-[#7b7b7b] leading-none" id="paxComfortValue">--<span class="text-sm text-slate-600 font-light ml-1">%</span></span>
+                                </div>
+                                <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5">
+                                    <div id="paxComfortBar" class="h-full bg-slate-500 w-0 transition-all duration-700 shadow-[0_0_8px_rgba(100,116,139,0.5)]"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Anxiety Gauge -->
+                            <div>
+                                <div class="flex items-end justify-between mb-2">
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-[#b6b6b6] flex items-center gap-1">
+                                        Anxiety
+                                        <span id="satietyIcon" class="material-symbols-outlined text-[12px] text-emerald-400 hidden" title="Satiety Buff Active (-50% Anxiety)">restaurant</span>
+                                    </span>
+                                    <span class="text-2xl font-black font-headline text-[#7b7b7b] leading-none" id="paxAnxietyValue">--<span class="text-sm text-slate-600 font-light ml-1">%</span></span>
+                                </div>
+                                <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5">
+                                    <div id="paxAnxietyBar" class="h-full bg-slate-500 w-0 transition-all duration-700 shadow-[0_0_8px_rgba(100,116,139,0.5)]"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Satisfaction Gauge -->
+                            <div>
+                                <div class="flex items-end justify-between mb-2">
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-[#b6b6b6] flex items-center gap-1">
+                                        Satisfaction
+                                    </span>
+                                    <span class="text-2xl font-black font-headline text-[#7b7b7b] leading-none" id="paxSatisfactionValue">--<span class="text-sm text-slate-600 font-light ml-1">%</span></span>
+                                </div>
+                                <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5">
+                                    <div id="paxSatisfactionBar" class="h-full bg-slate-500 w-0 transition-all duration-700 shadow-[0_0_8px_rgba(100,116,139,0.5)]"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Resource Metrics (Clean, Water, Waste, Food) -->
+                            <div class="grid grid-cols-2 gap-3 mt-1">
+                                <div class="bg-black/20 p-2 rounded-lg border border-white/5 text-center flex flex-col justify-center">
+                                    <span class="text-[8px] font-bold tracking-[0.2em] uppercase text-[#7b7b7b] block mb-1 line-clamp-1">Cleanliness</span>
+                                    <span class="text-xs font-black text-emerald-400 font-mono tracking-wider" id="cleanlinessVal">--%</span>
+                                </div>
+                                <div class="bg-black/20 p-2 rounded-lg border border-white/5 text-center flex flex-col justify-center">
+                                    <span class="text-[8px] font-bold tracking-[0.2em] uppercase text-[#7b7b7b] block mb-1 line-clamp-1">Catering</span>
+                                    <span class="text-xs font-black text-amber-500 font-mono tracking-wider" id="cateringRationsVal">--</span>
+                                </div>
+                                <div class="bg-black/20 p-2 rounded-lg border border-white/5 text-center flex flex-col justify-center">
+                                    <span class="text-[8px] font-bold tracking-[0.2em] uppercase text-[#7b7b7b] block mb-1 line-clamp-1">Potable Water</span>
+                                    <span class="text-xs font-black text-blue-400 font-mono tracking-wider" id="waterLevelVal">--%</span>
+                                </div>
+                                <div class="bg-black/20 p-2 rounded-lg border border-white/5 text-center flex flex-col justify-center">
+                                    <span class="text-[8px] font-bold tracking-[0.2em] uppercase text-[#7b7b7b] block mb-1 line-clamp-1">Waste Tanks</span>
+                                    <span class="text-xs font-black text-orange-400 font-mono tracking-wider" id="wasteLevelVal">--%</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Turbulence Gauge -->
+                            <div id="turbProgressBox" class="mt-2 transition-all duration-500">
+                                <div class="flex items-end justify-between mb-2">
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-[#b6b6b6]">Turbulence Level</span>
+                                    <span class="text-sm font-black font-headline text-[#b6b6b6] leading-none uppercase tracking-widest" id="turbSeverityValue">NONE</span>
+                                </div>
+                                <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5">
+                                    <div id="turbSeverityBar" class="h-full bg-slate-500 w-0 transition-all duration-700 shadow-[0_0_8px_rgba(148,163,184,0.5)]"></div>
+                                </div>
+                            </div>
+
+                            <!-- Cabin Temperature Thermometer -->
+                            <div class="mt-2 transition-all duration-500">
+                                <div class="flex items-end justify-between mb-2">
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-[#b6b6b6] flex items-center gap-1">
+                                        <span class="material-symbols-outlined text-[12px] text-[#b6b6b6]">device_thermostat</span> Température
+                                    </span>
+                                    <span class="text-sm font-black font-headline text-slate-200 leading-none" id="thermalValue">22.0<span class="text-[10px] text-[#7b7b7b] font-light ml-1">°C</span></span>
+                                </div>
+                                <div class="relative h-1.5 w-full rounded-full ring-1 ring-white/5 bg-gradient-to-r from-blue-500 via-emerald-500 to-red-500">
+                                    <div id="thermalNeedle" class="absolute top-1/2 -translate-y-1/2 h-3 w-1 bg-white rounded-full shadow-[0_0_6px_rgba(255,255,255,0.8)] transition-all duration-1000" style="left: 50%;"></div>
+                                </div>
+                                <div class="flex justify-between mt-1 px-1">
+                                    <span class="text-[8px] text-[#7b7b7b] font-mono">18°C</span>
+                                    <span class="text-[8px] text-[#7b7b7b] font-mono">24°C</span>
+                                    <span class="text-[8px] text-[#7b7b7b] font-mono">30°C</span>
+                                </div>
+                            </div>
+
+                            <!-- Catering Service Progress -->
+                            <div id="cateringProgressBox" class="mt-2 transition-all duration-500 opacity-0 h-0 overflow-hidden">
+                                <div class="flex items-end justify-between mb-2">
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-[#b6b6b6] flex items-center gap-1">
+                                        <span class="material-symbols-outlined text-[12px] text-sky-400">room_service</span> In-Flight Service
+                                    </span>
+                                    <span class="text-sm font-black font-headline text-sky-400 leading-none" id="cateringValue">0<span class="text-[10px] text-[#7b7b7b] font-light ml-1">%</span></span>
+                                </div>
+                                <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5">
+                                    <div id="cateringBar" class="h-full bg-sky-400 w-0 transition-all duration-1000 shadow-[0_0_8px_rgba(56,189,248,0.5)]"></div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                        <div class="col-span-4 bg-[#1a1d24]/60 backdrop-blur-xl rounded-2xl p-6 flex flex-col h-full overflow-hidden border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
+                        <div class="mb-6 flex flex-col items-center justify-center relative">
+                            <span class="text-xs font-label tracking-[0.4em] text-[#b6b6b6] font-bold uppercase" data-i18n="dash_pnc_comms">PNC Comms</span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse drop-shadow-[0_0_4px_rgba(56,189,248,0.8)] absolute -right-2 top-1.5 hidden"></span>
+                        </div>
+
+                        <!-- Status Indicator -->
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] uppercase tracking-widest text-[#7b7b7b] font-bold">Status</span>
+                            <div class="flex items-center gap-2">
+                                <div id="pncStatusDot" class="w-2 h-2 rounded-full bg-slate-500 animate-pulse"></div>
+                                <span id="pncStatusLabel" class="text-xs font-semibold text-white tracking-wide">Standing By</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Virtual Crew Roster Stats -->
+                        <div class="grid grid-cols-3 gap-2 mb-4 pb-3 border-b border-white/5">
+                            <div class="flex flex-col items-center justify-center p-2 rounded-lg bg-black/20 border border-white/5 shadow-inner" title="Higher proactivity = Crew takes autonomous actions">
+                                <span class="text-[8px] uppercase tracking-widest text-[#7b7b7b] font-bold mb-1">Proact</span>
+                                <span id="crewProactivityLabel" class="text-xs font-black tracking-widest text-[#b6b6b6]">--</span>
+                            </div>
+                            <div class="flex flex-col items-center justify-center p-2 rounded-lg bg-black/20 border border-white/5 shadow-inner" title="Higher efficiency = Faster meal and clean services">
+                                <span class="text-[8px] uppercase tracking-widest text-[#7b7b7b] font-bold mb-1">Efficncy</span>
+                                <span id="crewEfficiencyLabel" class="text-xs font-black tracking-widest text-[#b6b6b6]">--</span>
+                            </div>
+                            <div class="flex flex-col items-center justify-center p-2 rounded-lg bg-black/20 border border-white/5 shadow-inner" title="High morale = Passengers are happier. Manual orders drop morale.">
+                                <span class="text-[8px] uppercase tracking-widest text-[#7b7b7b] font-bold mb-1">Morale</span>
+                                <span id="crewMoraleLabel" class="text-xs font-black tracking-widest text-[#b6b6b6]">--</span>
+                            </div>
+                        </div>
+
+                        <!-- Securing Progress Bar -->
+                        <div id="pncProgressBox" class="mb-0 transition-all duration-500 opacity-0 h-0 overflow-hidden">
+                            <div class="h-1 w-full bg-black/40 rounded-full overflow-hidden ring-1 ring-white/5">
+                                <div id="pncProgressBar" class="h-full bg-orange-500 w-0 transition-all duration-300 shadow-[0_0_8px_rgba(249,115,22,0.5)]"></div>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar mb-4">
+                            <ul id="cabinLogsList" class="space-y-3 font-body text-xs">
+                                <li class="text-[#7b7b7b] text-center text-[10px] uppercase tracking-widest mt-4" data-i18n="dash_pnc_standby">Standing by...</li>
+                            </ul>
+                        </div>
+
+                        <!-- Intercom / PA Controls -->
+                        <div id="paSection" class="mt-4 pt-4 border-t border-white/5 flex items-stretch">
+                            <div class="flex-shrink-0 flex items-center justify-center pr-5 border-r border-white/10 w-20" title="Broadcast general announcements to passengers">
+                                <div class="bg-sky-600/80 text-white font-bold text-[10px] w-12 h-10 flex items-center justify-center rounded text-center tracking-widest leading-tight shadow-sm">
+                                    TO<br>PA
+                                </div>
+                            </div>
+                            <div class="flex-1 flex items-center justify-center pl-4 py-1">
+                                <div id="paButtonsContainer" class="flex flex-wrap items-center justify-center gap-2"></div>
+                            </div>
+                        </div>
+
+                        <div id="pncSection" class="mt-4 pt-4 border-t border-white/5 flex items-stretch mb-2">
+                            <div class="flex-shrink-0 flex items-center justify-center pr-5 border-r border-white/10 w-20" title="Communicate direct instructions to the Cabin Crew">
+                                <div class="bg-amber-500/80 text-white font-bold text-[10px] w-12 h-10 flex items-center justify-center rounded text-center tracking-widest leading-tight shadow-sm">
+                                    TO<br>PNC
+                                </div>
+                            </div>
+                            <div class="flex-1 flex items-center justify-center pl-4 py-1">
+                                <div id="pncButtonsContainer" class="flex flex-wrap items-center justify-center gap-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                    </div> <!-- CLÔTURE DU ROW WRAPPER -->
                 </div>
                 
-                <!-- NEW META BAR -->
-                <div id="dashMetaBar" class="card" style="display: none; margin-bottom: 20px; padding: 15px; border: 1px solid #2B3347; background: #161A25;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="font-size: 13px; font-weight: 600; color: #cbd5e1; text-transform: uppercase;">Turnaround Progress</span>
-                        <span id="dashMetaText" style="font-size: 13px; font-weight: bold; color: #94A3B8;">Ground Operations Standing By</span>
-                    </div>
-                    <div style="height: 6px; background: #0F172A; border-radius: 3px; overflow: hidden; width: 100%;">
-                        <div id="dashMetaFill" style="height: 100%; width: 0%; background: #334155; transition: width 1s linear, background-color 0.5s;"></div>
-                    </div>
-                </div>
-                
-                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom:20px;">
-                    <div class="card" style="flex: 1; min-width: 200px; text-align:center; padding: 20px;">
-                        <h3 style="font-size:12px; font-weight:600; border:none; margin-bottom:5px; color:#94A3B8; text-transform:uppercase; letter-spacing:1px;">Current Phase</h3>
-                        <div id="flightPhase" style="font-size:32px; font-weight:800; color:#FACC15;">Off</div>
-                    </div>
-                    <div class="card" style="flex: 1; min-width: 200px; text-align:center; padding: 20px;">
-                        <h3 style="font-size:12px; font-weight:600; border:none; margin-bottom:5px; color:#94A3B8; text-transform:uppercase; letter-spacing:1px;">Zulu Time</h3>
-                        <div id="zuluTime" style="font-size:32px; font-family:monospace; font-weight:800; color:#4A90E2;">--:--z</div>
-                        <div id="flightCountdown" style="margin-top:5px; font-size:14px; color:#94A3B8; font-weight:bold;">No plan loaded</div>
-                    </div>
-                    <div class="card" style="flex: 1; min-width: 250px; padding: 20px;">
-                        <h3 style="font-size:12px; font-weight:600; border:none; margin-bottom:10px; color:#94A3B8; text-transform:uppercase; letter-spacing:1px; text-align:center;">Timetable (UTC)</h3>
-                        <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:8px;">
-                            <span><strong style="color:#94A3B8;">SOBT:</strong> <span id="bdSobt" style="color:#cbd5e1; font-family:monospace; font-weight:bold;">--:--z</span></span>
-                            <span><strong style="color:#94A3B8;">AOBT:</strong> <span id="bdAobt" style="color:#FACC15; font-family:monospace; font-weight:bold;">--:--z</span></span>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; font-size:14px;">
-                            <span><strong style="color:#94A3B8;">SIBT:</strong> <span id="bdSibt" style="color:#cbd5e1; font-family:monospace; font-weight:bold;">--:--z</span></span>
-                            <span><strong style="color:#94A3B8;">AIBT:</strong> <span id="bdAibt" style="color:#FACC15; font-family:monospace; font-weight:bold;">--:--z</span></span>
-                        </div>
-                        <div id="puncBarContainer" style="margin-top: 15px; position: relative; height: 20px; display: none;">
-                            <div style="width: 100%; height: 6px; background: linear-gradient(to right, #60A5FA 0%, #34D399 20%, #34D399 50%, #F59E0B 80%, #EF4444 100%); border-radius: 3px; position: absolute; top: 8px;"></div>
-                            <div id="puncPointer" style="position: absolute; top: 2px; left: 35%; transform: translateX(-50%); width: 3px; height: 18px; background: white; border-radius:1px; box-shadow: 0 0 4px rgba(0,0,0,0.8); transition: left 0.5s ease-out;"></div>
-                            <div id="puncLabel" style="position: absolute; top: -12px; left: 35%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: white; transition: left 0.5s ease-out;">0m</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card" style="margin-top:20px; display: flex; flex-direction: column; align-items: center; border: 1px solid rgba(52,211,153,0.2);">
-                    <h3 style="font-size:14px; border:none; margin-bottom:5px; color:#94A3B8; text-transform:uppercase; letter-spacing:1px;">Flight Performance</h3>
-                    <div id="mainScoreValue" style="font-size:64px; font-weight:900; color:#34D399; text-shadow: 0 0 20px rgba(52,211,153,0.3);">1000</div>
-                    <div style="width: 100%; max-height: 120px; overflow-y: auto; background: #0F172A; border-radius: 8px; padding: 10px; margin-top: 10px;">
-                        <ul id="scoreFeed" style="list-style: none; margin: 0; padding: 0; font-family: monospace; font-size: 13px;">
-                            <li style="color:#64748b; text-align:center;">Tracking standing by...</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top:20px;">
-                    <!-- Action buttons relocated to sidebar -->
+                <div class="flex gap-4 mb-4 mt-6">
+                    <div id="fetchStatus" class="flex-1 text-xs bg-sky-900/20 text-sky-400 p-4 rounded-lg border border-sky-500/20 font-mono tracking-wide" style="display:none;"></div>
                 </div>
             </section>
 
-            <section id="briefing">
-                <h2>Briefing</h2>
-                
-                <div id="flightBreakdown" class="breakdown-grid" style="display:none;">
-                    <div class="card">
-                        <h3>Flight Details</h3>
-                        <p><strong>Airline:</strong> <span id="bdAirline"></span></p>
-                        <p><strong>Flight:</strong> <span id="bdFlightNum"></span></p>
-                        <p><strong>Aircraft:</strong> <span id="bdAircraft"></span></p>
-                        <p><strong>Cruise Alt:</strong> <span id="bdCruise"></span></p>
+            <!-- BRIEFING TAB -->
+            <section id="briefing" class="tab-content active flex flex-col min-h-[calc(100vh-120px)] w-full">
+                <!-- Timeline de Rotation (Dynamique) -->
+                <div class="flex flex-col items-center gap-6 mb-6 flex-none w-full max-w-7xl mx-auto relative">
+                    <div id="briefing-timeline" class="flex items-center gap-4 py-4 w-full overflow-x-auto min-h-[160px] custom-thin-scrollbar snap-x snap-mandatory scroll-smooth pr-8">
+                        <!-- Généré dynamiquement par app.js -->
                     </div>
-                    <div class="card">
-                        <h3>Routing</h3>
-                        <p><strong>Origin:</strong> <span id="bdOrigin"></span></p>
-                        <p><strong>Dest:</strong> <span id="bdDest"></span></p>
-                        <p><strong>Route:</strong> <span id="bdRoute" style="display:block; margin-top:5px; line-height:1.4;"></span></p>
-                    </div>
-                    <div class="card">
-                        <h3>Payload &amp; Fuel</h3>
-                        <p><strong>Pax:</strong> <span id="bdPax"></span></p>
-                        <p><strong>ZFW:</strong> <span id="bdZfw"></span></p>
-                        <p><strong>LDW:</strong> <span id="bdLdw"></span></p>
-                        <p><strong>Block Fuel:</strong> <span id="bdFuel"></span></p>
-                    </div>
-                    <div class="card">
-                        <h3>Flight Time</h3>
-                        <p><strong>ETE:</strong> <span id="bdEte"></span></p>
-                    </div>
+                    
+                    <!-- Validation Button Area Removed Per User Request -->
 
-                </div>
+                </div> <!-- End of Top Elements Container -->
 
-                <div id="briefingContent">No flight plan loaded. Go to Dashboard to fetch plan.</div>
-
-                <div id="weatherBreakdown" style="display:none; margin-top:20px;">
-                    <h3>Raw Weather Data</h3>
-                    <div id="weatherContent" class="weather-text"></div>
-                </div>
-            </section>
-
-            <section id="groundops">
-                <h2>Ground Operations</h2>
-                <div id="groundOpsContainer">
-                    <p>Ground operations pending SimBrief initialization...</p>
-                </div>
-            </section>
-
-            <section id="logs">
-                <h2>Logs & Black Box</h2>
-                <ul id="penaltyLogs"></ul>
-            </section>
-
-            <section id="options">
-                <h2>Settings</h2>
-                <div class="card" style="max-width: 400px; margin-top:20px;">
-                    <h3>SimBrief Account</h3>
-                    <p style="margin-bottom: 15px; font-size:12px;">Set your SimBrief username below. Fetches are now performed from the Dashboard.</p>
-                    <div class="form-group">
-                        <label>Simbrief Username:</label>
-                        <input type="text" id="sbUsername" placeholder="username" />
-                    </div>
-                    <div class="form-group checkbox">
-                        <input type="checkbox" id="sbRemember" checked />
-                        <label for="sbRemember">Remember Me</label>
-                    </div>
-                </div>
-
-                <div class="card" style="max-width: 400px; margin-top:20px;">
-                    <h3>Regional & Locale</h3>
-                    <div class="form-group" style="margin-top: 10px;">
-                        <label>Language:</label>
-                        <select id="selLanguage" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                            <option value="EN">English (EN)</option>
-                            <option value="FR">Français (FR)</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="margin-top: 15px;">
-                        <label>Time Format:</label>
-                        <select id="selTimeFormat" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                            <option value="24H">24-Hour (14:30Z)</option>
-                            <option value="12H">12-Hour (02:30 PM Z)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="card" style="max-width: 400px; margin-top:20px;">
-                    <h3>Aviation Units</h3>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
-                        <div class="form-group">
-                            <label>Speed:</label>
-                            <select id="selUnitSpeed" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                                <option value="KTS">Knots (KTS)</option>
-                                <option value="KMH">km/h</option>
-                            </select>
+                <!-- Empty State (No Flight Plan yet) -->
+                <div id="briefing-empty-state" class="flex-1 flex flex-col items-center justify-center animate-fade-in pb-20 w-full mt-10">
+                    <div class="bg-[#1C1F26]/60 backdrop-blur-xl border border-white/5 rounded-[2rem] p-12 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col items-center max-w-xl text-center">
+                        <div class="w-24 h-24 bg-sky-500/10 rounded-full flex items-center justify-center mb-6 shadow-inner border border-sky-400/20">
+                            <span class="material-symbols-outlined text-[40px] text-sky-400">add_task</span>
                         </div>
-                        <div class="form-group">
-                            <label>Altitude:</label>
-                            <select id="selUnitAlt" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                                <option value="FT">Feet (FT)</option>
-                                <option value="M">Meters (M)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Weight:</label>
-                            <select id="selUnitWeight" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                                <option value="KG">Kilograms (KG)</option>
-                                <option value="LBS">Pounds (LBS)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Temperature:</label>
-                            <select id="selUnitTemp" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                                <option value="C">Celsius (°C)</option>
-                                <option value="F">Fahrenheit (°F)</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="grid-column: span 2;">
-                            <label>Pressure:</label>
-                            <select id="selUnitPress" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                                <option value="HPA">Hectopascals / Millibars (hPa / mb)</option>
-                                <option value="INHG">Inches of Mercury (inHg)</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card" style="max-width: 400px; margin-top:20px;">
-                    <h3>Realism & Rules</h3>
-                    <div class="form-group checkbox" style="margin-top: 10px;">
-                        <input type="checkbox" id="chkHardcore" />
-                        <label for="chkHardcore">Enable Hardcore Mode</label>
-                    </div>
-                    <p style="margin-top: 5px; font-size:11px; color:#94A3B8; line-height:1.4;">
-                        Strict adherence to procedures. Fines are doubled and safety violations will immediately cancel the flight.
-                    </p>
-                </div>
-
-                <div class="card" style="max-width: 400px; margin-top:20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px;">
-                        <h3 style="margin: 0;">Ground Operations</h3>
-                        <button id="btnResetGroundOps" title="Reset to Defaults" style="background:none; border:none; color:#94A3B8; cursor:pointer; padding: 2px; transition: color 0.2s;" onmouseover="this.style.color='#F8FAFC'" onmouseout="this.style.color='#94A3B8'">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                        <h2 class="text-xl font-bold text-white tracking-[0.2em] uppercase mb-4 font-headline">No Active Rotation</h2>
+                        <p class="text-[12px] text-slate-400 leading-relaxed max-w-md mx-auto mb-10">
+                            Begin your session by establishing an Operational Flight Plan. You can import an existing plan or generate a new one via the integrated SimBrief Dispatch platform.
+                        </p>
+                        <button onclick="window.openIntegratedSimBrief();" class="bg-gradient-to-r from-sky-500 to-sky-400 text-slate-900 px-10 py-5 rounded-2xl hover:brightness-110 transition-all shadow-[0_0_30px_rgba(14,165,233,0.3)] uppercase font-black text-sm tracking-[0.2em] flex items-center gap-4 group cursor-pointer w-full justify-center">
+                            <span class="material-symbols-outlined text-[20px] group-hover:rotate-12 transition-transform">language</span>
+                            Open SimBrief Dispatch
                         </button>
                     </div>
-                    <p style="margin-bottom: 15px; font-size:12px; margin-top: 0;">Configure how long ground services take. Changes apply to the next flight plan fetched.</p>
-                    <div class="form-group">
-                        <label>Duration Speed:</label>
-                        <select id="selGroundOpsSpeed" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                            <option value="Realistic">Realistic (1x)</option>
-                            <option value="Short">Short (~0.4x)</option>
-                            <option value="Instant">Instant (Flash)</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="margin-top: 15px;">
-                        <label>Random Events Probability: <span id="lblProb">20%</span></label>
-                        <input type="range" id="rngProb" min="0" max="100" value="20" style="width: 100%; margin-top: 5px; accent-color: #38BDF8;">
-                    </div>
                 </div>
 
-                <div class="card" style="max-width: 400px; margin-top:20px;">
-                    <h3>Weather Source</h3>
-                    <p style="margin-bottom: 15px; font-size:12px;">Choose the source for weather briefings. Active Sky requires the app to be running.</p>
-                    <div class="form-group">
-                        <label>Briefing METAR/TAF Provider:</label>
-                        <select id="selWeatherSource" style="width:100%; padding:8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px;">
-                            <option value="SimBrief">SimBrief (Real-World NOAA)</option>
-                            <option value="ActiveSky">Active Sky</option>
-                            <option value="MSFS" disabled>MSFS Live Weather (Coming Soon)</option>
-                        </select>
+                                <div id="briefing-content" class="hidden w-full max-w-7xl mx-auto flex flex-col gap-6 pb-20 animate-fade-in relative z-10 transition-opacity duration-500 opacity-0">
+                    
+                    <!-- TOP: Route Summary -->
+                    <div id="briefingRouteSummary" class="w-full">
+                        <!-- Populated by JS -->
                     </div>
-                </div>
 
-                <div class="card" style="max-width: 400px; margin-top:20px;">
-                    <h3>GSX Pro Integration</h3>
-                    <p style="margin-bottom: 15px; font-size:12px;">Synchronize Ground Operations with FSDT GSX. <span style="color:#FACC15;">Experimental.</span></p>
-                    <div class="form-group checkbox">
-                        <input type="checkbox" id="chkGsxSync" />
-                        <label for="chkGsxSync">Auto-Sync Ground Ops with GSX</label>
+                    <div class="flex gap-6 w-full">
+                        <!-- COLONNE GAUCHE: M+�t+�o / Op+�rationnel -->
+                        <div class="flex-grow flex flex-col gap-6 w-2/3">
+                            <div class="bg-[#1C1F26]/60 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
+                                <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-lg">flight_takeoff</span> Departure Weather</h3>
+                                <div id="legDepartureMetarBox" class="bg-black/40 rounded-xl p-4 border border-white/5 font-mono text-[11px] text-[#b6b6b6] min-h-[80px]">
+                                    Awaiting data...
+                                </div>
+                            </div>
+    
+                            <div class="bg-[#1C1F26]/60 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
+                                <h3 class="text-xs font-label tracking-[0.4em] text-emerald-400 uppercase opacity-80 mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-lg">flight_land</span> Arrival Weather</h3>
+                                <div id="legArrivalMetarBox" class="bg-black/40 rounded-xl p-4 border border-white/5 font-mono text-[11px] text-[#b6b6b6] min-h-[80px]">
+                                    Awaiting data...
+                                </div>
+                            </div>
+    
+                            <div class="bg-[#1C1F26]/60 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
+                                <h3 class="text-xs font-label tracking-[0.4em] text-blue-400 uppercase opacity-80 mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-lg">route</span> En Route Weather</h3>
+                                <div id="legEnRouteBox" class="bg-black/40 rounded-xl p-4 border border-white/5 font-mono text-[11px] text-[#b6b6b6] min-h-[80px]">
+                                    Awaiting data...
+                                </div>
+                            </div>
+
+                            <div class="bg-[#1C1F26]/60 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
+                                <h3 class="text-xs font-label tracking-[0.4em] text-violet-400 uppercase opacity-80 mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-lg">alt_route</span> Alternate Weather</h3>
+                                <div id="legAlternateMetarBox" class="bg-black/40 rounded-xl p-4 border border-white/5 font-mono text-[11px] text-[#b6b6b6] min-h-[80px]">
+                                    No alternate required.
+                                </div>
+                            </div>
+
+                        <div class="bg-[#1C1F26]/60 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
+                            <h3 class="text-xs font-label tracking-[0.4em] text-orange-400 uppercase opacity-80 mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-lg">warning</span> Operational NOTAMs</h3>
+                            <div id="legNotamsBox" class="bg-black/40 rounded-xl p-4 border border-white/5 font-mono text-[11px] text-[#b6b6b6] h-32 overflow-y-auto custom-scrollbar">
+                                Awaiting data...
+                            </div>
+                        </div>
                     </div>
-                    <p style="margin-top: 10px; font-size:11px; color:#EF4444; line-height:1.4;">
-                        ⚠️ <b>Important:</b> If enabled, you MUST disable any aircraft-specific GSX integrations (e.g., Fenix EFB GSX Sync, PMDG Auto-Doors) to prevent conflicts.
-                    </p>
-                </div>
 
-                <div style="max-width: 400px; margin-top: 25px; display: flex; align-items: center; justify-content: center; position: relative;">
-                    <button id="btnSaveSettings" class="btn-primary" style="background:#4A90E2; color:white; border:none; padding:12px 30px; border-radius:6px; font-weight:bold; cursor:pointer; width: 100%; font-size: 14px; transition: all 0.2s;">Save Settings</button>
+                    <!-- COLONNE DROITE: Fuel & Weight Load Sheet -->
+                    <div class="w-1/3 flex flex-col gap-6">
+                        <div class="bg-gradient-to-b from-[#1C1F26] to-[#121418] border border-white/10 rounded-2xl p-8 shadow-[0_10px_40px_rgba(0,0,0,0.6)] relative overflow-hidden flex flex-col min-h-[520px] h-auto">
+                            <!-- Glass highlight top -->
+                            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                            
+                            <h3 class="text-xs font-label tracking-[0.4em] text-white uppercase mb-8 flex items-center justify-between border-b border-white/10 pb-4">
+                                Load Sheet
+                                <span class="material-symbols-outlined text-slate-500">description</span>
+                            </h3>
+
+                            <div class="space-y-4 mb-8 flex-grow">
+                                <div class="grid grid-cols-2 gap-4 mb-4">
+                                    <div class="flex flex-col bg-black/40 p-3 rounded-lg border border-white/5">
+                                        <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest font-bold mb-1">Pax</span>
+                                        <span id="loadPaxField" class="text-sm font-mono text-white font-bold">---</span>
+                                    </div>
+                                    <div class="flex flex-col bg-black/40 p-3 rounded-lg border border-white/5">
+                                        <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest font-bold mb-1">Payload</span>
+                                        <div class="flex items-end"><span id="loadPayloadField" class="text-sm font-mono text-white font-bold leading-none">---</span><span class="text-[9px] text-white/50 ml-1 font-bold leading-none mb-0.5">KG</span></div>
+                                    </div>
+                                    <div class="flex flex-col bg-black/40 p-3 rounded-lg border border-white/5">
+                                        <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest font-bold mb-1">Est ZFW</span>
+                                        <div class="flex items-end"><span id="loadZfwField" class="text-sm font-mono text-white font-bold leading-none">---</span><span class="text-[9px] text-white/50 ml-1 font-bold leading-none mb-0.5">KG</span></div>
+                                    </div>
+                                    <div class="flex flex-col bg-black/40 p-3 rounded-lg border border-white/5">
+                                        <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest font-bold mb-1">Est LDW</span>
+                                        <div class="flex items-end"><span id="loadLdwField" class="text-sm font-mono text-white font-bold leading-none">---</span><span class="text-[9px] text-white/50 ml-1 font-bold leading-none mb-0.5">KG</span></div>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center bg-black/30 p-3 rounded-lg border border-white/5">
+                                    <span class="text-[10px] text-[#7b7b7b] uppercase tracking-widest font-bold">Trip Fuel</span>
+                                    <div><span id="fuelTripField" class="text-sm font-mono text-emerald-400 font-bold">---</span><span class="fuelUnitLabel text-[9px] text-emerald-400/50 ml-1 font-bold">KG</span></div>
+                                </div>
+                                <div class="flex justify-between items-center bg-black/30 p-3 rounded-lg border border-white/5">
+                                    <span class="text-[10px] text-[#7b7b7b] uppercase tracking-widest font-bold">Alternate</span>
+                                    <div><span id="fuelAltnField" class="text-sm font-mono text-sky-400 font-bold">---</span><span class="fuelUnitLabel text-[9px] text-sky-400/50 ml-1 font-bold">KG</span></div>
+                                </div>
+                                <div class="flex justify-between items-center bg-black/30 p-3 rounded-lg border border-white/5">
+                                    <span class="text-[10px] text-[#7b7b7b] uppercase tracking-widest font-bold">Reserve</span>
+                                    <div><span id="fuelResField" class="text-sm font-mono text-orange-400 font-bold">---</span><span class="fuelUnitLabel text-[9px] text-orange-400/50 ml-1 font-bold">KG</span></div>
+                                </div>
+                                <div class="flex justify-between items-center bg-black/30 p-3 rounded-lg border border-white/5">
+                                    <span class="text-[10px] text-[#7b7b7b] uppercase tracking-widest font-bold">Cost Index</span>
+                                    <div class="flex items-center gap-2">
+                                        <button id="btnSubCi" class="w-6 h-6 rounded bg-slate-500/10 text-slate-400 hover:bg-slate-500/30 flex items-center justify-center transition-colors font-bold">-</button>
+                                        <span id="dispCiField" class="text-sm font-mono text-white font-bold w-12 text-center" contenteditable="true" spellcheck="false">--</span>
+                                        <button id="btnAddCi" class="w-6 h-6 rounded bg-slate-500/10 text-slate-400 hover:bg-slate-500/30 flex items-center justify-center transition-colors font-bold">+</button>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center bg-black/30 p-3 rounded-lg border border-white/5">
+                                    <span class="text-[10px] text-[#7b7b7b] uppercase tracking-widest font-bold">Cruise Alt</span>
+                                    <div class="flex items-center gap-2">
+                                        <button id="btnSubFl" class="w-6 h-6 rounded bg-slate-500/10 text-slate-400 hover:bg-slate-500/30 flex items-center justify-center transition-colors font-bold">-</button>
+                                        <span id="dispFlField" class="text-sm font-mono text-white font-bold w-16 text-center" contenteditable="true" spellcheck="false">FL---</span>
+                                        <button id="btnAddFl" class="w-6 h-6 rounded bg-slate-500/10 text-slate-400 hover:bg-slate-500/30 flex items-center justify-center transition-colors font-bold">+</button>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center bg-black/30 p-3 rounded-lg border border-sky-500/20 shadow-inner group">
+                                    <span class="text-[10px] text-sky-400 uppercase tracking-widest font-bold">Extra</span>
+                                    <div class="flex items-center gap-2">
+                                        <button id="btnSubExtra" class="w-6 h-6 rounded bg-sky-500/10 text-sky-400 hover:bg-sky-500/30 flex items-center justify-center transition-colors font-bold">-</button>
+                                        <div><span id="fuelExtraField" class="text-sm font-mono text-white font-bold w-12 text-center" contenteditable="true" spellcheck="false">0</span><span class="fuelUnitLabel text-[9px] text-sky-400 ml-1 font-bold">KG</span></div>
+                                        <button id="btnAddExtra" class="w-6 h-6 rounded bg-sky-500/10 text-sky-400 hover:bg-sky-500/30 flex items-center justify-center transition-colors font-bold">+</button>
+                                    </div>
+                                </div>
+
+
+                                <div class="mt-8 pt-6 border-t border-white/10 flex justify-between items-end">
+                                    <span class="text-xs text-white uppercase tracking-widest font-black">Block Fuel</span>
+                                    <span id="fuelBlockField" class="text-2xl font-mono text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">----</span>
+                                </div>
+                            </div>
+
+                            <button id="fuelValidateBtn" onclick="if(window.requestFuelValidation) window.requestFuelValidation();" class="w-full bg-sky-500/20 text-sky-400 hover:bg-sky-500 hover:text-white border border-sky-500/50 py-4 rounded-xl font-bold tracking-[0.2em] uppercase transition-all duration-300 shadow-[0_0_20px_rgba(14,165,233,0.15)] hover:shadow-[0_0_30px_rgba(14,165,233,0.4)] flex items-center justify-center gap-2 relative overflow-hidden group">
+                                <span class="material-symbols-outlined text-[18px]">verified</span>
+                                <span id="fuelValidateBtnText">Validate Fuel</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </section>
+
+
+            <!-- CABIN & MANIFEST TAB -->
+            
+            <!-- GROUND OPERATIONS TAB -->
+            <section id="groundops" class="tab-content">
+                <div class="flex items-center justify-between mb-8">
+                    <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80" data-i18n="ground_title">Ground Operations</h2>
+                </div>
+                
+
+                
+                <div id="airportTierPanel" class="hidden mb-6 bg-[#2a2a2b] p-5 rounded-xl border border-white/10 shadow-lg flex items-center gap-6 transition-all duration-500">
+                    <div class="flex flex-col items-center justify-center min-w-[80px]">
+                        <span class="text-[10px] uppercase tracking-widest text-[#7b7b7b] mb-1 font-bold">Category</span>
+                        <div id="aptTierLetterBox" class="w-14 h-14 rounded-lg flex items-center justify-center font-black text-2xl border drop-shadow-md">S</div>
+                    </div>
+                    <div class="flex flex-col flex-grow">
+                        <span class="text-xs font-bold text-slate-200 uppercase tracking-widest mb-1 flex items-center gap-2"><span class="material-symbols-outlined text-[16px]">account_balance</span> Infrastructure & Efficiency</span>
+                        <span id="aptTierDesc" class="text-xs text-[#b6b6b6] leading-relaxed italic border-l-2 border-white/10 pl-3">Most of the time, this airport has excellent infrastructure...</span>
+                    </div>
+                </div>
+
+                <div id="groundOpsContainer" class="bg-[#2a2a2b] p-8 rounded-xl border border-white/5 relative pb-20">
+                    <p class="text-[#7b7b7b] font-mono text-center" data-i18n="ground_pending">Ground operations pending SimBrief initialization...</p>
+                </div>
+                
+
+            </section>
+
+
+
+            <!-- PROFILE TAB -->
+            <section id="profile" class="tab-content space-y-6">
+                <!-- Profile Header & Identity -->
+                <div class="flex items-center justify-between mb-8">
+                    <div class="flex items-center gap-8">
+                        <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80" data-i18n="prof_title">Pilot Profile & Career</h2>
+                        <h2 class="text-xl font-label tracking-[0.4em] text-[#7b7b7b] uppercase opacity-50 hover:opacity-100 hover:text-sky-400 transition-colors cursor-pointer" onclick="document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active')); document.getElementById('logbook').classList.add('active'); if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'fetchLogbook'});">Flight Archives</h2>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button id="btnSaveIdentity" class="py-2 px-6 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/40 border border-emerald-500/30 rounded-full font-bold text-xs uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                            Save Infos
+                        </button>
+                        <button id="btnEditAvatar" class="py-2 px-6 bg-sky-600/20 text-sky-400 hover:bg-sky-600/40 border border-sky-500/30 rounded-full font-bold text-xs uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(14,165,233,0.3)]">
+                            Upload ID Photo
+                        </button>
+                    </div>
+                    <!-- Hidden file input for Avatar -->
+                    <input type="file" id="avatarUploadInput" accept="image/png, image/jpeg" class="hidden" />
+                </div>
+
+                <div class="grid grid-cols-12 gap-6">
+                    <!-- Identity Card -->
+                    <div class="col-span-12 lg:col-span-4 glass-panel rounded-xl p-8 flex flex-col items-center text-center relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                            <span class="material-symbols-outlined text-[100px] leading-none">admin_panel_settings</span>
+                        </div>
+                        <div class="flex flex-col items-center">
+                            <div class="relative group">
+                                <div class="w-40 h-40 rounded-full bg-slate-800 flex items-center justify-center border-4 border-[#1C1F26] mb-4 overflow-hidden relative shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+                                    <img id="prfBigAvatar" src="" alt="Pilot" class="w-full h-full object-cover hidden" />
+                                    <span id="prfBigIcon" class="material-symbols-outlined text-[#7b7b7b] text-6xl">person</span>
+                                </div>
+                            </div>
+                            <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-sky-500 text-[#0B0C10] px-4 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase shadow-[0_0_15px_rgba(14,165,233,0.5)] z-20 whitespace-nowrap" id="prfRankBadge">
+                                Trainee
+                            </div>
+                        </div>
+                        <div class="mt-8 flex flex-col items-center w-full max-w-2xl px-4">
+                            <h3 style="line-height:1;" class="text-3xl font-black font-headline text-white tracking-wide hover:bg-white/10 rounded cursor-text px-4 py-1 -mx-4 transition-colors block text-center break-words max-w-full" id="prfCallsign" contenteditable="true" spellcheck="false" title="Click to edit">MAVERICK</h3>
+                            <div class="text-xl tracking-widest text-[#cbd5e1] font-mono mt-2 hover:bg-white/10 rounded cursor-text px-4 py-1 -mx-4 transition-colors block text-center opacity-90" id="prfFullName" contenteditable="true" spellcheck="false" title="Click to edit">John Doe</div>
+                        </div>
+                        <div class="mt-6 flex gap-4 w-full justify-center text-xs font-mono text-[#b6b6b6]">
+                            <div class="flex flex-col items-center bg-black/20 p-4 rounded-lg flex-1 border border-white/5">
+                                <span class="text-[10px] text-[#7b7b7b] uppercase tracking-widest mb-1">Home Hub</span>
+                                <span class="text-xl font-black text-sky-400 hover:bg-white/10 rounded cursor-text px-3 -mx-3 transition-colors tracking-widest" id="prfHomeBase" contenteditable="true" spellcheck="false" title="Click to edit">LFPG</span>
+                            </div>
+                            <div class="flex flex-col items-center bg-black/20 p-4 rounded-lg flex-1 border border-white/5">
+                                <span class="text-[10px] text-[#7b7b7b] uppercase tracking-widest mb-1">Country</span>
+                                <span class="text-xl font-black text-white hover:bg-white/10 rounded cursor-text px-3 -mx-3 transition-colors tracking-widest uppercase" id="prfCountry" contenteditable="true" spellcheck="false" title="Click to edit">FR</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Career Logbook Grid -->
+                    <div class="col-span-12 lg:col-span-8 space-y-6 flex flex-col">
+                        <!-- Top Stats -->
+                        <div class="grid grid-cols-3 gap-6">
+                            <div class="glass-panel p-6 rounded-xl border border-white/5 flex flex-col justify-center">
+                                <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest">Total Block Time</span>
+                                <div class="mt-2 text-3xl font-mono text-sky-400 font-bold" id="prfTotalTime">0h 0m</div>
+                            </div>
+                            <div class="glass-panel p-6 rounded-xl border border-white/5 flex flex-col justify-center">
+                                <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest">Total Flights</span>
+                                <div class="mt-2 text-3xl font-mono text-white font-bold" id="prfTotalFlights">0</div>
+                            </div>
+                            <div class="glass-panel p-6 rounded-xl border border-white/5 flex flex-col justify-center">
+                                <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest">Career SuperScore</span>
+                                <div class="mt-2 flex items-end gap-1">
+                                    <span class="text-3xl font-headline text-emerald-400 font-black drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]" id="prfAvgScore">0</span>
+                                    <span class="text-sm text-[#7b7b7b] font-bold mb-1">/1000</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Secondary Stats -->
+                        <div class="glass-panel p-8 rounded-xl border border-white/5 flex-1 relative overflow-hidden">
+                            <h3 class="text-xs font-label tracking-[0.4em] text-[#7b7b7b] uppercase mb-6 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[16px] text-sky-400">query_stats</span>
+                                Performance Telemetry
+                            </h3>
+                            <div class="grid grid-cols-2 gap-8 font-mono text-sm pl-4">
+                                <div class="flex justify-between border-b border-white/5 pb-3">
+                                    <span class="text-[#b6b6b6]">Highest Score</span>
+                                    <span class="text-white font-bold" id="prfHighestScore">0</span>
+                                </div>
+                                <div class="flex justify-between border-b border-white/5 pb-3">
+                                    <span class="text-[#b6b6b6]">Punctuality Rating</span>
+                                    <span class="text-emerald-400 font-bold" id="prfPunctuality">100%</span>
+                                </div>
+                                <div class="flex justify-between border-b border-white/5 pb-3">
+                                    <span class="text-[#b6b6b6]">Smoothest Touchdown</span>
+                                    <span class="text-sky-400 font-bold" id="prfBestFpm">--- fpm</span>
+                                </div>
+                                <div class="flex justify-between border-b border-white/5 pb-3">
+                                    <span class="text-[#b6b6b6]">Manual Flying Time</span>
+                                    <span class="text-white font-bold" id="prfManualTime">0h 0m</span>
+                                </div>
+                                <div class="flex justify-between border-b border-white/5 pb-3">
+                                    <span class="text-[#b6b6b6]">Go-Arounds</span>
+                                    <span class="text-orange-400 font-bold" id="prfGoArounds">0</span>
+                                </div>
+                                <div class="flex justify-between border-b border-white/5 pb-3">
+                                    <span class="text-[#b6b6b6]">Diversions</span>
+                                    <span class="text-red-400 font-bold" id="prfDiversions">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- WALL OF FAME (Achievements/Badges) -->
+                <div class="glass-panel p-8 rounded-xl border border-white/5 relative overflow-hidden mt-6">
+                    <div class="flex items-center justify-between mb-8">
+                        <h3 class="text-sm font-label tracking-[0.4em] text-[#b6b6b6] uppercase flex items-center gap-2">
+                            <span class="material-symbols-outlined text-orange-400">military_tech</span>
+                            Wall of Fame
+                        </h3>
+                        <span class="text-xs font-mono text-sky-400" id="prfBadgesCount">0 / 0 Unlocked</span>
+                    </div>
+
+                    <!-- Badges Grid will be populated by JS -->
+                    <div id="prfBadgesGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+                        <!-- Scaffolding format for JS generation -->
+                        <div class="bg-black/30 border border-white/5 rounded-xl p-4 flex flex-col items-center text-center opacity-40 grayscale">
+                            <div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mb-3 shadow-inner">
+                                <span class="material-symbols-outlined text-[#7b7b7b] text-3xl">lock</span>
+                            </div>
+                            <h4 class="text-[10px] font-bold text-white tracking-widest uppercase mb-1">Locked Badge</h4>
+                            <p class="text-[9px] text-[#7b7b7b] font-mono">Complete the criteria to unlock.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- FLIGHT ARCHIVES TAB -->
+            <section id="logbook" class="tab-content" style="padding-bottom: 100px;">
+                <div class="flex items-center justify-between mb-8">
+                    <div class="flex items-center gap-8">
+                        <h2 class="text-xl font-label tracking-[0.4em] text-[#7b7b7b] uppercase opacity-50 hover:opacity-100 hover:text-sky-400 transition-colors cursor-pointer" onclick="document.querySelector('li[data-target=\'profile\']').click()" data-i18n="prof_title">Pilot Profile & Career</h2>
+                        <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80">Flight Archives</h2>
+                    </div>
+                    <button class="py-3 px-6 bg-[#141414] hover:bg-white/10 border border-white/10 rounded-xl text-[#b6b6b6] font-bold uppercase tracking-widest text-[10px] transition-colors flex items-center gap-2" onclick="window.chrome.webview.postMessage({action: 'fetchLogbook'})">
+                        <span class="material-symbols-outlined text-[16px]">refresh</span> REFRESH
+                    </button>
+                </div>
+                <!-- Liste des vols (au lieu d'une grille) -->
+                <div id="logbookGrid" class="flex flex-col gap-3 pb-24">
+                    <!-- Populated dynamically by app.js -->
+                </div>
+            </section>
+
+            <!-- SETTINGS TAB -->
+            <section id="options" class="tab-content">
+                <div class="flex items-center justify-between mb-8">
+                    <h2 class="text-xl font-label tracking-[0.4em] text-sky-400 uppercase opacity-80" data-i18n="set_title">Settings</h2>
+                    <button id="btnSaveSettings" class="py-3 px-8 bg-sky-600 hover:bg-sky-500 rounded-full text-white font-bold text-xs uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] hover:brightness-110" data-i18n="set_save_btn">Save All Settings</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                    
+                    <!-- LEFT COLUMN -->
+                    <div class="flex flex-col gap-6">
+                        
+                        <!-- SimBrief Integration -->
+                        <div class="bg-[#2a2a2b] p-8 rounded-xl border border-white/5">
+                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2" data-i18n="set_sb_int">SimBrief Integration</h3>
+                            <p class="text-xs text-[#b6b6b6] mb-6" data-i18n="set_sb_desc">Link your account to fetch flight plans block.</p>
+                            <div class="mb-4">
+                                <label class="block text-[10px] font-bold text-[#7b7b7b] uppercase tracking-[0.2em] mb-3" data-i18n="set_sb_user">Username</label>
+                                <input type="text" id="sbUsername" placeholder="Enter Username" class="w-full bg-[#141414] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-shadow text-xs" />
+                            </div>
+                            <div class="mb-2 text-sm flex items-center gap-3">
+                                <input type="checkbox" id="sbRemember" checked class="rounded border-white/20 bg-black/40 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 cursor-pointer w-4 h-4"/>
+                                <label class="text-[#b6b6b6] text-xs font-medium" data-i18n="set_sb_rem">Remember Username</label>
+                            </div>
+                        </div>
+
+                        <!-- Aviation Units -->
+                        <div class="bg-[#2a2a2b] p-8 rounded-xl border border-white/5">
+                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2" data-i18n="set_units_title">Aviation Units</h3>
+                            <p class="text-xs text-[#b6b6b6] mb-6" data-i18n="set_units_desc">Preferred metrics for briefing and logs.</p>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-[#7b7b7b] uppercase tracking-[0.2em] mb-3" data-i18n="set_unit_speed">Speed</label>
+                                    <select id="selUnitSpeed" class="w-full bg-[#141414] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                        <option value="KTS">Knots (KTS)</option>
+                                        <option value="KMH">km/h</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-[#7b7b7b] uppercase tracking-[0.2em] mb-3" data-i18n="set_unit_alt">Altitude</label>
+                                    <select id="selUnitAlt" class="w-full bg-[#141414] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                        <option value="FT">Feet (FT)</option>
+                                        <option value="M">Meters (M)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-[#7b7b7b] uppercase tracking-[0.2em] mb-3" data-i18n="set_unit_weight">Weight</label>
+                                    <select id="selUnitWeight" class="w-full bg-[#141414] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                        <option value="KG">Kilograms (KG)</option>
+                                        <option value="LBS">Pounds (LBS)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-[#7b7b7b] uppercase tracking-[0.2em] mb-3" data-i18n="set_unit_temp">Temperature</label>
+                                    <select id="selUnitTemp" class="w-full bg-[#141414] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                        <option value="C">Celsius (°C)</option>
+                                        <option value="F">Fahrenheit (°F)</option>
+                                    </select>
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-[10px] font-bold text-[#7b7b7b] uppercase tracking-[0.2em] mb-3" data-i18n="set_unit_press">Pressure</label>
+                                    <select id="selUnitPress" class="w-full bg-[#141414] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                        <option value="HPA">Hectopascals / Millibars (hPa)</option>
+                                        <option value="INHG">Inches of Mercury (inHg)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- External Integrations -->
+                        <div class="bg-[#2a2a2b] p-8 rounded-xl border border-white/5">
+                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2" data-i18n="set_ext_title">Integrations & Wx</h3>
+                            <p class="text-xs text-[#b6b6b6] mb-6" data-i18n="set_ext_desc">Connections to external engines.</p>
+                            
+                            <div class="mb-6">
+                                <label class="block text-[10px] font-bold text-[#7b7b7b] uppercase tracking-[0.2em] mb-3" data-i18n="set_wx_src">Weather Source</label>
+                                <select id="selWeatherSource" class="w-full bg-[#141414] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                    <option value="SimBrief">SimBrief (NOAA Data)</option>
+                                    <option value="ActiveSky">Active Sky</option>
+                                    <option value="MSFS" disabled>MSFS Live Weather (Coming Soon)</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-6">
+                                <label class="block text-[10px] font-bold text-[#7b7b7b] uppercase tracking-[0.2em] mb-3">Fenix Export Path</label>
+                                <input type="text" id="fenixExportPath" placeholder="e.g. C:\ProgramData\Fenix\FenixSim A320" class="w-full bg-[#141414] border border-white/5 rounded-lg p-3 text-white focus:border-emerald-500 focus:ring-1 focus:outline-none text-xs" />
+                                <p class="text-[9px] text-[#7b7b7b] mt-2 font-mono">Fenix OFP Dropfolder. Usually found in <span class="text-sky-500">C:\ProgramData\Fenix\FenixSim A320</span></p>
+                            </div>
+
+                            <div class="flex items-start gap-3">
+                                <input type="checkbox" id="chkGsxSync" class="mt-1 rounded border-white/20 bg-black/40 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 cursor-pointer w-4 h-4"/>
+                                <div>
+                                    <label class="text-slate-200 text-xs font-bold mb-1 block" data-i18n="set_gsx_sync">GSX Pro Auto-Sync</label>
+                                    <p class="text-[10px] text-red-400 leading-relaxed font-bold" data-i18n="set_gsx_warn">⚠️ Disable aircraft-specific GSX automations (e.g Fenix EFB Sync).</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                    </div>
+
+                    <!-- RIGHT COLUMN -->
+                    <div class="flex flex-col gap-6">
+
+                        <!-- Regional & Locale -->
+                        <div class="bg-[#2a2a2b] p-8 rounded-xl border border-white/5">
+                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2" data-i18n="set_reg_title">Regional & Locale</h3>
+                            <p class="text-xs text-[#b6b6b6] mb-6" data-i18n="set_reg_desc">Configure application language and time formats.</p>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-[#7b7b7b] uppercase tracking-[0.2em] mb-3" data-i18n="set_lang">Language</label>
+                                    <select id="selLanguage" class="w-full bg-[#141414] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                        <option value="EN">English (EN)</option>
+                                        <option value="FR">Français (FR)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-[#7b7b7b] uppercase tracking-[0.2em] mb-3" data-i18n="set_time_fmt">Time Format</label>
+                                    <select id="selTimeFormat" class="w-full bg-[#141414] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                        <option value="24H">24-Hour (14:30Z)</option>
+                                        <option value="12H">12-Hour (02:30 PM Z)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ground Operations -->
+                        <div class="bg-[#2a2a2b] p-8 rounded-xl border border-white/5">
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 m-0" data-i18n="set_go_title">Ground Operations</h3>
+                                <button id="btnResetGroundOps" title="Reset to Defaults" class="text-[#7b7b7b] hover:text-white transition-colors">
+                                    <span class="material-symbols-outlined text-[16px]">refresh</span>
+                                </button>
+                            </div>
+                            <p class="text-xs text-[#b6b6b6] mb-6" data-i18n="set_go_desc">Behavior of the turnaround simulation.</p>
+                            <div class="mb-4">
+                                <label class="block text-[10px] font-bold text-[#7b7b7b] uppercase tracking-[0.2em] mb-3" data-i18n="set_go_speed">Duration Speed</label>
+                                <select id="selGroundOpsSpeed" class="w-full bg-[#141414] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                    <option value="Realistic">Realistic (1x)</option>
+                                    <option value="Short">Short (~0.4x)</option>
+                                    <option value="Instant">Instant (Flash)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="flex justify-between text-[10px] font-bold text-[#7b7b7b] uppercase tracking-[0.2em] mb-3">
+                                    <span data-i18n="set_go_prob">Random Events Prob.</span>
+                                    <span id="lblProb" class="text-sky-400">20%</span>
+                                </label>
+                                <input type="range" id="rngProb" min="0" max="100" value="20" class="w-full accent-sky-500">
+                            </div>
+                        </div>
+
+                        <!-- Realism & Rules -->
+                        <div class="bg-[#2a2a2b] p-8 rounded-xl border border-white/5">
+                            <h3 class="text-xs font-label tracking-[0.4em] text-sky-400 uppercase opacity-80 mb-2" data-i18n="set_real_title">Realism & App</h3>
+                            <p class="text-xs text-[#b6b6b6] mb-6" data-i18n="set_real_desc">Scoring rules and window behavior.</p>
+
+                            <div class="mb-5">
+                                <label class="block text-[10px] font-bold text-[#7b7b7b] uppercase tracking-[0.2em] mb-3">In-Flight Crisis Frequency</label>
+                                <select id="selCrisisFreq" class="w-full bg-[#141414] border border-white/5 rounded-lg p-3 text-white focus:border-sky-500 focus:ring-1 focus:outline-none text-xs">
+                                    <option value="Off">Off</option>
+                                    <option value="Realistic" selected>Realistic (~1% per min)</option>
+                                    <option value="Frequent">Frequent (~5% per min)</option>
+                                    <option value="Chaos">Chaos (~20% per min)</option>
+                                </select>
+                            </div>
+
+                            <div class="flex items-start gap-3 mb-5">
+                                <input type="checkbox" id="chkHardcore" class="mt-1 rounded border-white/20 bg-black/40 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 cursor-pointer w-4 h-4"/>
+                                <div>
+                                    <label class="text-slate-200 text-xs font-bold mb-1 block" data-i18n="set_hardcore">Hardcore Mode</label>
+                                    <p class="text-[10px] text-[#7b7b7b] leading-relaxed" data-i18n="set_hardcore_desc">Fines are doubled. Safety violations immediately cancel the flight.</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-3">
+                                <input type="checkbox" id="chkAlwaysOnTop" class="mt-1 rounded border-white/20 bg-black/40 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 cursor-pointer w-4 h-4"/>
+                                <div>
+                                    <label class="text-slate-200 text-xs font-bold mb-1 block" data-i18n="set_ontop">Always on Top</label>
+                                    <p class="text-[10px] text-[#7b7b7b] leading-relaxed" data-i18n="set_ontop_desc">TRUE AIRMANSHIP stays visible above MSFS.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sandbox Modal Moved -->
+                        
+                    </div>
+
+                </div>
+            </section>
+
         </div>
     </main>
-    <!-- Cancel Confirmation Modal -->
-    <div id="cancelModal" class="modal-overlay" style="display: none;">
-        <div class="modal-box chic-modal">
-            <h3 style="color: #EF4444; margin-bottom: 10px; font-size: 18px; border: none; padding: 0;">⚠️ Cancel Current Flight?</h3>
-            <p style="color: #94A3B8; margin-bottom: 25px; line-height: 1.5; font-size: 14px;">Are you sure you want to cancel the current flight plan?<br>All ground operations and telemetry progress will be reset.</p>
-            <div style="display: flex; gap: 15px; justify-content: center;">
-                <button id="btnCancelNo" class="modal-btn no">Keep Flight</button>
-                <button id="btnCancelYes" class="modal-btn yes">Yes, Cancel Flight</button>
+
+
+
+    <!-- BOTTOM ACTION BAR REMOVED PER USER DIRECTIVE -->
+
+    <!-- MODALS -->
+    <!-- Removed Warp Confirmation Modal -->
+
+    <!-- SimBrief Dispatch View Modal -->
+    <div id="simbriefDispatchModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md" style="display: none;">
+        <div class="bg-[#2a2a2b] border border-sky-500/20 rounded-2xl max-w-5xl w-full h-[85vh] shadow-[0_0_50px_rgba(14,165,233,0.15)] flex flex-col overflow-hidden">
+            <!-- Header -->
+            <!-- Header -->
+            <div class="p-6 border-b border-white/5 bg-black/20 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-4">
+                    <span class="material-symbols-outlined text-sky-400 text-3xl">description</span>
+                    <div>
+                        <h2 class="text-xl font-headline font-black text-white tracking-wide uppercase" id="simbriefDispatchTitle">Dispatch Release</h2>
+                        <p class="text-[#b6b6b6] text-xs mt-1" id="simbriefDispatchSub">Fetching operational flight plan...</p>
+                    </div>
+                </div>
+
+                <!-- Time Sync Toggle Switch -->
+                <div class="flex items-center gap-4 bg-[#141414] px-4 py-2 border border-white/5 shadow-inner rounded-xl">
+                    <div class="text-right">
+                        <div class="text-[10px] font-bold text-[#b6b6b6] uppercase tracking-widest leading-tight"><span class="text-sky-400">Time Sync</span> Mode</div>
+                        <div class="text-[9px] text-[#7b7b7b] uppercase mt-0.5" title="Aligns Leg 1 departure time with current MSFS simulator clock (+30 mins for prep)">Forces SIBT from Sim</div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="chkSyncTime" class="sr-only peer" onchange="window.saveLocalToggle('chkSyncTime', this.checked); document.getElementById('lblSyncTimeMode').innerText = this.checked ? 'MSFS SIM' : 'SIMBRIEF';">
+                        <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500"></div>
+                        <span class="ml-3 text-[10px] font-bold text-[#7b7b7b] uppercase tracking-widest peer-checked:text-sky-400 w-16" id="lblSyncTimeMode">SIMBRIEF</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Content (Embedded Iframe) -->
+            <div class="relative w-full flex-1 min-h-[60vh] bg-[#141414]" id="simbriefDispatchContent">
+                <iframe id="simbrief-iframe" class="absolute inset-0 w-full h-full border-none" src="about:blank"></iframe>
+            </div>
+
+            <!-- Global Footer -->
+            <div class="p-6 border-t border-white/5 bg-black/20 flex justify-end gap-4 shrink-0">
+                <button onclick="window.closeIntegratedSimBrief();" class="bg-[#2a2a2b] border border-white/10 text-[#b6b6b6] px-8 py-3 rounded-lg hover:bg-white/10 transition-all shadow-xl uppercase font-bold text-[12px] tracking-widest shrink-0">
+                    CANCEL
+                </button>
+                <div class="w-[1px] h-auto bg-white/10 mx-2"></div>
+                <button onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' });" class="text-[#b6b6b6] hover:text-white transition-colors px-6 uppercase font-bold text-[10px] tracking-widest shrink-0 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[16px]">open_in_new</span>
+                    EXTERNAL OUTRIGGER
+                </button>
+                <button onclick="document.getElementById('fenixWarningModal').style.display='flex';" class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-8 py-3 rounded-lg hover:bg-emerald-500 hover:text-white transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] uppercase font-bold text-[12px] tracking-widest shrink-0 flex items-center gap-2 cursor-pointer">
+                    <span class="material-symbols-outlined text-[16px]">sync</span>
+                    IMPORT LATEST OFP
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="fenixWarningModal" class="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-sm" style="display: none;">
+        <div class="bg-[#2a2a2b] p-8 rounded-xl max-w-sm text-center border border-gray-600 shadow-2xl">
+            <span class="material-symbols-outlined text-gray-400 text-4xl mb-4">info</span>
+            <h3 class="text-gray-300 font-bold mb-3 font-headline text-lg uppercase tracking-widest" data-i18n="fenix_modal_title">Fenix A320 Notice</h3>
+            <p class="text-gray-400 text-xs mb-8 leading-relaxed" data-i18n="fenix_ofp_warning">
+                FENIX A320 USERS:<br><br>Ensure you have imported your current flight plan into the aircraft EFB <strong>before</strong> generating the next leg's OFP. Otherwise, the aircraft will load the new one incorrectly.
+            </p>
+            <div class="flex justify-center font-manrope">
+                <button onclick="document.getElementById('fenixWarningModal').style.display='none'; window.triggerSimBriefImport();" class="bg-gray-700/50 border border-gray-500 text-gray-300 hover:text-white px-8 py-3 rounded-xl hover:bg-gray-600 transition-all shadow-xl uppercase font-bold text-[10px] tracking-widest" data-i18n="fenix_modal_ack">ACKNOWLEDGE & IMPORT</button>
             </div>
         </div>
     </div>
 
-    <script src="app.js?v=2"></script>
+    <div id="cancelModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm" style="display: none;">
+        <div class="bg-[#2a2a2b] p-8 rounded-xl max-w-sm text-center border border-white/5 shadow-2xl">
+            <h3 class="text-sky-400 font-bold mb-3 font-headline text-lg uppercase tracking-widest" data-i18n="modal_cancel_title">Cancel Flight?</h3>
+            <p class="text-[#b6b6b6] text-xs mb-8 leading-relaxed" data-i18n="modal_cancel_desc">Are you sure you want to cancel the current flight plan?<br>All ground operations and telemetry progress will be reset.</p>
+            <div class="flex gap-4 justify-center font-manrope">
+                <button id="btnCancelNo" class="bg-[#141414] border border-white/5 text-[#b6b6b6] hover:text-white px-6 py-3 rounded-xl hover:bg-white/10 transition-all shadow-xl uppercase font-bold text-[10px] tracking-widest" data-i18n="modal_cancel_no">KEEP FLIGHT</button>
+                <button id="btnCancelYes" class="bg-gradient-to-r from-sky-500 to-sky-400 text-slate-900 px-6 py-3 rounded-xl hover:brightness-110 transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] uppercase font-bold text-[10px] tracking-widest" data-i18n="modal_cancel_yes">CANCEL FLIGHT</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <div id="flightReportModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-[#0B0C10]/90 backdrop-blur-md p-4" style="display: none;">
+        <div class="bg-[#141414] w-full max-w-4xl max-h-[95vh] rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden relative">
+            <div class="h-1.5 w-full shrink-0 bg-gradient-to-r from-sky-500 via-emerald-400 to-sky-500"></div>
+            <div class="p-8 flex flex-col gap-8 overflow-y-auto custom-scrollbar">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h2 class="text-3xl font-black font-headline text-white tracking-tight uppercase" data-i18n="report_title">POST-FLIGHT DEBRIEF</h2>
+                        <div class="text-sky-400 font-label tracking-[0.2em] mt-2 text-xs bg-sky-900/30 inline-block px-3 py-1.5 rounded inline-flex items-center gap-2 border border-sky-500/20">
+                            <span class="material-symbols-outlined text-[16px]">flight_land</span>
+                            <span id="frFlightNo" class="font-bold">---</span>
+                            <span class="text-white/30">|</span>
+                            <span id="frRoute" class="font-bold">--- ➔ ---</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[10px] font-label tracking-[0.3em] text-[#7b7b7b] uppercase mb-1">SUPERSCORE</div>
+                        <div id="frScore" class="text-7xl font-black font-headline leading-none text-emerald-400 drop-shadow-[0_0_20px_rgba(52,211,153,0.3)]">---</div>
+                    </div>
+                </div>
+
+                <div id="frRotationSummaryContainer" class="bg-gradient-to-r from-sky-500/10 to-indigo-500/10 border-l-4 border-sky-400 p-6 rounded shadow-lg mb-2" style="display: none;">
+                    <h3 class="text-xs font-label tracking-[0.2em] text-sky-300 uppercase mb-4 border-b border-sky-400/20 pb-2">Full Rotation Averages</h3>
+                    <div class="grid grid-cols-5 gap-4">
+                        <div>
+                            <div class="text-[9px] text-sky-200/50 uppercase tracking-widest mb-1">Total Block Time</div>
+                            <div id="frRotBlockTime" class="text-xl font-mono text-white">--:--</div>
+                        </div>
+                        <div>
+                            <div class="text-[9px] text-sky-200/50 uppercase tracking-widest mb-1">Total Delay</div>
+                            <div id="frRotDelay" class="text-xl font-mono text-white">--m</div>
+                        </div>
+                        <div>
+                            <div class="text-[9px] text-sky-200/50 uppercase tracking-widest mb-1">Avg Safety</div>
+                            <div id="frRotSafety" class="text-xl font-bold font-headline text-sky-200">0</div>
+                        </div>
+                        <div>
+                            <div class="text-[9px] text-sky-200/50 uppercase tracking-widest mb-1">Avg Comfort</div>
+                            <div id="frRotComfort" class="text-xl font-bold font-headline text-sky-200">0</div>
+                        </div>
+                        <div>
+                            <div class="text-[9px] text-sky-200/50 uppercase tracking-widest mb-1">Super_Score</div>
+                            <div id="frRotSuper" class="text-2xl font-black font-headline text-fuchsia-400">1000</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-[#2a2a2b] p-5 rounded-xl border border-white/5 flex flex-col items-center text-center shadow-lg">
+                        <span class="material-symbols-outlined text-sky-400 mb-2 text-2xl">security</span>
+                        <span class="text-[10px] font-label tracking-widest text-[#7b7b7b] uppercase">Safety</span>
+                        <span id="frSafetyScore" class="text-3xl font-black font-headline text-white mt-1">0</span>
+                    </div>
+                    <div class="bg-[#2a2a2b] p-5 rounded-xl border border-white/5 flex flex-col items-center text-center shadow-lg">
+                        <span class="material-symbols-outlined text-emerald-400 mb-2 text-2xl">mood</span>
+                        <span class="text-[10px] font-label tracking-widest text-[#7b7b7b] uppercase">Comfort</span>
+                        <span id="frComfortScore" class="text-3xl font-black font-headline text-white mt-1">0</span>
+                    </div>
+                    <div class="bg-[#2a2a2b] p-5 rounded-xl border border-white/5 flex flex-col items-center text-center shadow-lg">
+                        <span class="material-symbols-outlined text-orange-400 mb-2 text-2xl">build</span>
+                        <span class="text-[10px] font-label tracking-widest text-[#7b7b7b] uppercase">Maintenance</span>
+                        <span id="frMaintScore" class="text-3xl font-black font-headline text-white mt-1">0</span>
+                    </div>
+                    <div class="bg-[#2a2a2b] p-5 rounded-xl border border-white/5 flex flex-col items-center text-center shadow-lg">
+                        <span class="material-symbols-outlined text-purple-400 mb-2 text-2xl">schedule</span>
+                        <span class="text-[10px] font-label tracking-widest text-[#7b7b7b] uppercase">Operations</span>
+                        <span id="frOpsScore" class="text-3xl font-black font-headline text-white mt-1">0</span>
+                    </div>
+                </div>
+
+                <div class="bg-[#2a2a2b] rounded-xl border border-white/5 p-6 shadow-lg mb-4" id="frObjectivesContainer" style="display: none;">
+                    <h3 class="text-[10px] font-label tracking-[0.2em] text-sky-400 uppercase mb-4 border-b border-white/5 pb-3">Company Challenges</h3>
+                    <div id="frObjectivesList" class="flex flex-col gap-3">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <div class="bg-[#2a2a2b] rounded-xl border border-white/5 p-6 shadow-lg mb-4">
+                    <h3 class="text-[10px] font-label tracking-[0.2em] text-[#7b7b7b] uppercase mb-4 border-b border-white/5 pb-3">Performance Metrics</h3>
+                    <div class="grid grid-cols-6 gap-6">
+                        <div>
+                            <div class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mb-1">Block Time</div>
+                            <div id="frBlock" class="text-xl font-mono text-slate-200">--:--</div>
+                        </div>
+                        <div>
+                            <div class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mb-1">Punctuality</div>
+                            <div id="frPunc" class="text-xs mt-1 font-bold bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded inline-block uppercase tracking-wider">On Time</div>
+                        </div>
+                        <div>
+                            <div class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mb-1">Block Fuel</div>
+                            <div id="frFuel" class="text-xl font-mono text-slate-200">----</div>
+                        </div>
+                        <div>
+                            <div class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mb-1">Turnaround</div>
+                            <div id="frTurnaround" class="text-xs mt-1 font-bold text-slate-400">---</div>
+                        </div>
+                        <div>
+                            <div class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mb-1">Touchdown</div>
+                            <div id="frFpm" class="text-xl font-mono font-bold text-slate-200">---</div>
+                        </div>
+                        <div>
+                            <div class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mb-1">Impact Force</div>
+                            <div id="frGForce" class="text-xl font-mono font-bold text-slate-200">-.- G</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NEW ACHIEVEMENTS UNLOCKED -->
+                <div class="bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/30 rounded-xl p-6 shadow-[0_0_30px_rgba(245,158,11,0.1)] mb-4" id="frAchievementsContainer" style="display: none;">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="material-symbols-outlined text-amber-400 text-2xl animate-pulse">workspace_premium</span>
+                        <h3 class="text-xs font-label tracking-[0.2em] text-amber-400 uppercase font-bold m-0 text-shadow" data-i18n="report_ach_unlc">New Achievements Unlocked!</h3>
+                    </div>
+                    <div id="frAchievementsList" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <div class="bg-[#2a2a2b] rounded-xl border border-white/5 p-6 shadow-lg mb-4 flex gap-6 items-start">
+                    <div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center shrink-0 border border-white/10 shadow-inner">
+                        <span class="material-symbols-outlined text-[#b6b6b6] text-2xl">record_voice_over</span>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-[10px] font-label tracking-[0.2em] text-[#b6b6b6] uppercase mb-2">Chief Pilot Debriefing</h3>
+                        <div id="frChiefPilotSpeech" class="text-sm font-body text-[#b6b6b6] italic leading-relaxed">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Debrief Detailed History Accordion -->
+                <details class="group bg-[#2a2a2b] rounded-xl border border-white/5 shadow-lg overflow-hidden">
+                    <summary class="flex justify-between items-center p-6 cursor-pointer hover:bg-white/10 transition-colors">
+                        <h3 class="text-[10px] font-label tracking-[0.2em] text-sky-400 uppercase font-bold m-0" data-i18n="report_details">Detailed Flight Log</h3>
+                        <span class="material-symbols-outlined text-[#7b7b7b] group-open:rotate-180 transition-transform duration-300">expand_more</span>
+                    </summary>
+                    <div class="p-6 pt-0 border-t border-white/5 max-h-64 overflow-y-auto custom-scrollbar flex flex-col gap-2" id="frEventLog">
+                        <!-- Populated dynamically by JS -->
+                    </div>
+                </details>
+
+                <div class="flex justify-end pt-2">
+                    <button onclick="window.acknowledgeFlightReport()" class="bg-gradient-to-r from-sky-500 to-emerald-400 text-[#0B0C10] px-10 py-3.5 rounded-xl font-bold text-xs uppercase tracking-[0.2em] hover:brightness-110 transition-all shadow-[0_0_20px_rgba(56,189,248,0.3)]">
+                        ACKNOWLEDGE DEBRIEF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ACARS MCDU Request Modal -->
+    <div id="acarsModal" class="fixed inset-0 bg-black/80 z-[60] p-4 flex items-center justify-center animate-fade-in" style="display: none;">
+        <div class="bg-[#1C1C1C] w-[450px] border-[12px] border-[#2A2A2A] rounded-[40px] shadow-[0_0_80px_rgba(0,0,0,0.8)] flex flex-col font-mono text-white tracking-widest relative overflow-hidden ring-1 ring-white/10">
+            
+            <!-- Screen Area -->
+            <div class="bg-[#0A1A0A] m-4 p-6 rounded-lg border-2 border-[#151515] flex flex-col min-h-[400px] shadow-inner relative">
+                
+                <!-- Status Bar Top -->
+                <div class="flex justify-between items-center mb-6 text-sm">
+                    <span class="text-emerald-500 font-bold">AOC WX REQ</span>
+                    <span class="text-emerald-500/60">1/1</span>
+                </div>
+
+                <!-- MCDU Content Rows -->
+                <div class="flex-1 flex flex-col gap-8">
+                    <!-- Origin Row -->
+                    <div class="flex flex-col">
+                        <span class="text-[#38BDF8] text-[10px] uppercase font-bold mb-1">Origin</span>
+                        <div class="flex justify-between items-end border-b border-emerald-500/10 pb-1">
+                            <span class="text-[#7b7b7b] text-base">< LSK 1L</span>
+                            <span id="acarsOrigin" class="text-emerald-400 text-2xl font-black tracking-[4px]">----</span>
+                        </div>
+                    </div>
+
+                    <!-- Destination Row -->
+                    <div class="flex flex-col">
+                        <span class="text-[#38BDF8] text-[10px] uppercase font-bold mb-1">Destination</span>
+                        <div class="flex justify-between items-end border-b border-emerald-500/10 pb-1">
+                            <span class="text-[#7b7b7b] text-base">< LSK 2L</span>
+                            <span id="acarsDest" class="text-emerald-400 text-2xl font-black tracking-[4px]">----</span>
+                        </div>
+                    </div>
+
+                    <!-- Alternate Row -->
+                    <div class="flex flex-col">
+                        <span class="text-[#38BDF8] text-[10px] uppercase font-bold mb-1">Alternate</span>
+                        <div class="flex justify-between items-end border-b border-emerald-500/10 pb-1">
+                            <span class="text-[#7b7b7b] text-base">< LSK 3L</span>
+                            <span id="acarsAltn" class="text-emerald-400 text-2xl font-black tracking-[4px]">----</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status / Message Area -->
+                <div class="mt-auto pt-6">
+                    <div id="acarsStatus" class="text-amber-500 text-sm animate-pulse w-full text-center tracking-[0.2em] font-bold h-6" style="display:none;">SENDING...</div>
+                    
+                    <!-- Prompt / Action Buttons Row -->
+                    <div class="flex justify-between items-center mt-4">
+                        <button id="btnAcarsClose" onclick="document.getElementById('acarsModal').style.display='none'" class="text-[#7b7b7b] hover:text-white transition-colors text-lg font-bold flex items-center gap-2">
+                            < RETURN
+                        </button>
+                        <button id="btnAcarsSend" onclick="window.sendAcarsReq()" class="text-emerald-400 hover:text-emerald-300 transition-all text-xl font-black tracking-widest flex items-center gap-2 group">
+                            SEND REQ *
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Scratchpad -->
+                <div class="absolute bottom-4 left-6 right-6 flex items-center gap-2 text-sky-400 text-sm font-bold border-t border-emerald-500/5 pt-2 mt-4">
+                    <span id="acarsScratchpad" class="flex-1"></span>
+                    <span class="w-3 h-5 bg-sky-400/80 animate-pulse"></span>
+                </div>
+            </div>
+
+            <!-- Hardware Bezel Accents -->
+            <div class="absolute top-8 left-1/2 -translate-x-1/2 w-20 h-1.5 bg-[#1a1a1a] rounded-full opacity-50"></div>
+        </div>
+    </div>
+
+
+
+    <!-- Hidden audio element -->
+    <audio id="chimeEmergency" src="assets/sounds/chime_emergency.wav" preload="auto"></audio>
+    <audio id="notifSound" src="notification.mp3" preload="auto"></audio>
+
+    <script src="locales.js?v=4" charset="utf-8"></script>
+    <script src="narrative.js?v=1" charset="utf-8"></script>
+    <script src="app.js?v=25" charset="utf-8"></script>
+    <script>
+        // Update top bar dynamically using the flight status
+        setInterval(() => {
+            const p = document.getElementById('flightPhase');
+            const z = document.getElementById('zuluTime');
+            
+            if(document.getElementById('topPhase') && p) document.getElementById('topPhase').innerText = p.innerText;
+            if(document.getElementById('topZulu') && z) document.getElementById('topZulu').innerText = z.innerText;
+            
+            if(document.getElementById('topDate')) {
+                const now = new Date();
+                const d = now.getDate().toString().padStart(2, '0');
+                const m = (now.getMonth() + 1).toString().padStart(2, '0');
+                const y = now.getFullYear();
+                document.getElementById('topDate').innerText = `${d}/${m}/${y}`;
+            }
+            
+            const origin = document.getElementById('dhOrigin')?.innerText || '---';
+            const dest = document.getElementById('dhDest')?.innerText || '---';
+            const origin2 = document.getElementById('bdOrigin')?.innerText || '---';
+            const dest2 = document.getElementById('bdDest')?.innerText;
+            
+            if (origin !== '---' && document.getElementById('bdOrigin')) {
+                document.getElementById('bdOrigin').innerText = origin;
+                document.getElementById('dhOrigin2').innerText = origin;
+            }
+            if (dest !== '---' && document.getElementById('bdDest')) {
+                document.getElementById('bdDest').innerText = dest;
+                document.getElementById('dhDest2').innerText = dest;
+            }
+            
+            // Check flight plan state and enable/disable the briefing nav button
+            const navBriefingBtn = document.getElementById('navBriefingBtn');
+            if (navBriefingBtn) {
+                if (window.allRotations && window.allRotations.length > 0) {
+                    navBriefingBtn.classList.remove('opacity-30', 'pointer-events-none', 'cursor-not-allowed');
+                } else {
+                    navBriefingBtn.classList.add('opacity-30', 'pointer-events-none', 'cursor-not-allowed');
+                    if (navBriefingBtn.classList.contains('active')) {
+                        const dashboardBtn = document.querySelector('[data-target="dashboard"]');
+                        // if we're locked out of briefing, force fallback to dashboard
+                        if (dashboardBtn) dashboardBtn.click();
+                    }
+                }
+            }
+        }, 1000);
+
+        // Intro Animation Trigger (Bypassed, immediately start)
+        document.addEventListener('DOMContentLoaded', () => {
+            handleStartAction();
+        });
+
+        // Start Action Handler
+        function handleStartAction() {
+            // Establish pristine shift as default setup behavior
+            let ffClean = localStorage.getItem('firstFlightClean') !== 'false';
+            localStorage.setItem('firstFlightClean', ffClean);
+
+            window.allRotations = [];
+            window.plannedDummyLegs = [];
+            
+            // Initialize Dashboard State for Blank App
+            if (typeof isFlightCancelled !== 'undefined') isFlightCancelled = false;
+            window.isFlightActive = true;
+            
+            const btnFetchLabel = document.getElementById('btnFetchPlanLabel');
+            if (btnFetchLabel) btnFetchLabel.innerText = 'CANCEL FLIGHT';
+            const btnFetch = document.getElementById('btnFetchPlan');
+            if (btnFetch) btnFetch.querySelector('.material-symbols-outlined').innerText = 'cancel';
+            
+            const mScore = document.getElementById('mainScoreValue');
+            if (mScore) mScore.innerText = "1000";
+            const tScore = document.getElementById('topScoreValue');
+            if (tScore) tScore.innerText = "1000";
+            const pLogs = document.getElementById('penaltyLogs');
+            if (pLogs) pLogs.innerHTML = "";
+            const sFeed = document.getElementById('scoreFeed');
+            if (sFeed) sFeed.innerHTML = "<li style=\"color:#64748b; text-align:center;\">Awaiting Flight Plan...</li>";
+
+            if (window.renderBriefingTabs) window.renderBriefingTabs();
+            if (window.updateDashboard) window.updateDashboard();
+
+            // Switch to Dashboard Tab automatically
+            const dashMenuBtn = document.querySelector('.menu li[data-target="dashboard"]');
+            if (dashMenuBtn) dashMenuBtn.click();
+        }
+    </script>
+    
+
+    
+    <script>
+        window.requestTimeSkip = function(minutes) {
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage({ action: 'requestTimeSkip', minutes: minutes });
+            }
+        };
+
+        function dragElement(elmnt, header) {
+            var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            if (header) {
+                header.onmousedown = dragMouseDown;
+            } else {
+                elmnt.onmousedown = dragMouseDown;
+            }
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+                elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+        
+        // Initialize dragging
+        setTimeout(() => {
+            const timeSkipModal = document.getElementById('timeSkipModal');
+            const timeSkipHeader = document.getElementById('timeSkipModalHeader');
+            if (timeSkipModal && timeSkipHeader) dragElement(timeSkipModal, timeSkipHeader);
+
+            const sandboxModal = document.getElementById('sandboxModal');
+            const sandboxHeader = document.getElementById('sandboxModalHeader');
+            if (sandboxModal && sandboxHeader) dragElement(sandboxModal, sandboxHeader);
+        }, 1000);
+    </script>
+    <!-- Location Mismatch Warning Modal -->
+    <div id="locationMismatchModal" class="fixed inset-0 z-[201] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-md"></div>
+        <div class="relative w-full max-w-sm bg-[#1a1b1c] border border-amber-500 rounded-2xl shadow-[0_0_50px_rgba(245,158,11,0.2)] overflow-hidden">
+            <div class="px-6 py-4 border-b border-amber-500/20 bg-amber-500/10 flex items-center gap-3">
+                <span class="material-symbols-outlined text-amber-400">location_off</span>
+                <h3 class="text-[11px] font-black uppercase tracking-[0.2em] text-amber-400">Location Mismatch</h3>
+            </div>
+            <div class="p-8 text-center">
+                <p class="text-[13px] text-slate-400 leading-relaxed font-medium mb-6">You are currently too far from the planned origin airport.</p>
+                <div class="bg-black/40 rounded-xl p-6 border border-amber-500/20 inline-block mx-auto mb-2">
+                    <span id="modalOriginIcao" class="text-3xl font-black text-amber-500 font-mono tracking-tighter">----</span>
+                </div>
+                <p class="text-[9px] text-slate-500 uppercase tracking-[0.3em] font-bold mt-2">Planned Origin</p>
+                <div id="modalDistanceInfo" class="mt-8 text-[11px] font-bold text-amber-400">
+                    <span class="opacity-50 uppercase tracking-widest text-[9px] mr-2">Distance</span><span id="modalOriginDistance" class="text-xl">--</span> NM
+                </div>
+            </div>
+            <div class="px-6 py-6 bg-black/20 flex items-center justify-center">
+                <button onclick="document.getElementById('locationMismatchModal').classList.add('hidden')" class="px-12 py-3 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/50 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-amber-400 transition-all active:scale-95">Acknowledge</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Confirmation Modal -->
+    <div id="systemConfirmModal" class="fixed inset-0 z-[200] hidden items-center justify-center p-4">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm animate-modal-backdrop" onclick="/* Optional: prevent close on backdrop if critical */"></div>
+        
+        <!-- Modal Card -->
+        <div class="relative w-full max-w-md bg-[#2a2a2b] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-modal-card">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-white/5 bg-black/20 flex items-center gap-3">
+                <span id="modalIcon" class="material-symbols-outlined text-slate-400">help_outline</span>
+                <h3 id="modalTitle" class="text-[12px] font-black uppercase tracking-[0.2em] text-white">Confirmation</h3>
+            </div>
+            
+            <!-- Body -->
+            <div class="p-8">
+                <p id="modalMessage" class="text-sm text-[#b6b6b6] leading-relaxed font-medium">Are you sure you want to proceed with this action?</p>
+            </div>
+            
+            <!-- Footer -->
+            <div class="px-6 py-4 bg-black/10 flex items-center justify-end gap-3">
+                <button id="btnModalCancel" class="px-5 py-2 text-[11px] font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-colors">Cancel</button>
+                <button id="btnModalConfirm" class="px-6 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-[11px] font-black uppercase tracking-widest text-white transition-all shadow-lg active:scale-95">Confirm</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- QUIT APP MODAL OVERLAY -->
+    <div id="quitConfirmModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-[#1C1F26] border border-slate-700/50 rounded-xl shadow-2xl w-[400px] overflow-hidden transform scale-95 transition-transform duration-300 relative">
+            <div class="px-6 py-4 flex items-center justify-between border-b border-slate-700/50">
+                <span class="text-[12px] font-bold text-[#b6b6b6] tracking-[0.2em] flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[16px]">power_settings_new</span>
+                    QUIT FLIGHT
+                </span>
+                <button onclick="document.getElementById('quitConfirmModal').classList.replace('opacity-100', 'opacity-0'); document.getElementById('quitConfirmModal').classList.add('pointer-events-none'); document.getElementById('quitConfirmModal').children[0].classList.replace('scale-100', 'scale-95');" class="text-slate-400 hover:text-white"><span class="material-symbols-outlined text-[18px]">close</span></button>
+            </div>
+            
+            <!-- Body -->
+            <div class="p-8">
+                <p class="text-sm text-[#b6b6b6] leading-relaxed font-medium text-center">Are you sure you want to end this session?</p>
+            </div>
+            
+            <!-- Footer -->
+            <div class="px-6 py-4 bg-black/10 flex items-center justify-end gap-3">
+                <button onclick="document.getElementById('quitConfirmModal').classList.replace('opacity-100', 'opacity-0'); document.getElementById('quitConfirmModal').classList.add('pointer-events-none'); document.getElementById('quitConfirmModal').children[0].classList.replace('scale-100', 'scale-95');" class="px-5 py-2 text-[11px] font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-colors">Cancel</button>
+                <button onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'closeApp'});" class="px-6 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-[11px] font-black uppercase tracking-widest text-white transition-all shadow-lg active:scale-95">Quit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden trackers for app.js to maintain the penalty history state without modifying its logic -->
+    <div style="display: none;" id="hiddenLogTrackers">
+        <span id="topScoreValue">1000</span>
+        <ul id="penaltyLogs"></ul>
+    </div>
+
+    <!-- Sandbox Modal -->
+    <div id="sandboxModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-[#141414] border border-rose-500/30 rounded-xl w-full max-w-xl shadow-[0_0_40px_rgba(225,29,72,0.15)] flex flex-col font-manrope">
+            <!-- Header -->
+            <div id="sandboxModalHeader" class="p-4 border-b border-rose-500/20 flex justify-between items-center cursor-move bg-rose-900/10 rounded-t-xl">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-rose-400">science</span>
+                    <h2 class="text-sm font-label tracking-widest text-rose-400 uppercase font-black drop-shadow-md">Simulator Sandbox Mode</h2>
+                </div>
+                <button onclick="document.getElementById('sandboxModal').classList.remove('opacity-100'); document.getElementById('sandboxModal').classList.add('opacity-0', 'pointer-events-none');" class="text-[#7b7b7b] hover:text-white transition-colors">
+                    <span class="material-symbols-outlined text-[18px]">close</span>
+                </button>
+            </div>
+            <!-- Body -->
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <p class="text-[11px] text-rose-200/70 leading-relaxed max-w-sm font-semibold">Mock telemetry offline to test game loops without MSFS. Easily manipulate physical limits and phase transitions.</p>
+                        <p class="text-[10px] py-1 px-2 border border-rose-500/30 text-rose-300 uppercase inline-block mt-2 font-bold tracking-widest">⚠️ Do not use while actively flying in MSFS</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer ml-4">
+                        <input type="checkbox" id="chkSimMode" class="sr-only peer" onchange="window.chrome.webview.postMessage({action: 'debugToggleSimulation', enabled: this.checked});">
+                        <div class="w-11 h-6 bg-rose-950 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-500"></div>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 pb-2 border-t border-white/5 pt-6">
+                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'AtGate'})" class="bg-black/50 border border-rose-500/20 text-rose-300 py-3 px-1 rounded-md hover:bg-rose-500/30 transition-colors uppercase font-mono text-[10px] tracking-widest font-black">AT GATE</button>
+                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Pushback'})" class="bg-black/50 border border-rose-500/20 text-rose-300 py-3 px-1 rounded-md hover:bg-rose-500/30 transition-colors uppercase font-mono text-[10px] tracking-widest font-black">PUSHBACK</button>
+                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Takeoff'})" class="bg-black/50 border border-rose-500/20 text-rose-300 py-3 px-1 rounded-md hover:bg-rose-500/30 transition-colors uppercase font-mono text-[10px] tracking-widest font-black">TAKEOFF (+15m)</button>
+                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Cruise'})" class="bg-black/50 border border-sky-500/20 text-sky-400 py-3 px-1 rounded-md hover:bg-sky-500/30 transition-colors uppercase font-mono text-[10px] tracking-widest font-black shadow-[0_0_15px_rgba(14,165,233,0.1)]">CRUISE (+30m)</button>
+                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Descent'})" class="bg-black/50 border border-amber-500/20 text-amber-400 py-3 px-1 rounded-md hover:bg-amber-500/30 transition-colors uppercase font-mono text-[10px] tracking-widest font-black">DESCENT (+ETE)</button>
+                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Arrived'})" class="bg-black/50 border border-emerald-500/40 text-emerald-400 py-3 px-1 rounded-md hover:bg-emerald-500/40 transition-colors uppercase font-mono text-[10px] tracking-widest font-black shadow-[0_0_15px_rgba(16,185,129,0.1)]">ARRIVED (+15m)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AIRLINE IDENTITY MODAL -->
+    <div id="airlineIdentityModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 backdrop-blur-sm bg-black/40">
+        <!-- Draggable Container -->
+        <div class="bg-[#1C1F26]/95 border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.8)] w-[450px] flex flex-col overflow-hidden transform scale-95 transition-transform duration-300" id="airlineIdentityBox">
+            
+            <!-- Draggable Header / Logo Banner -->
+            <div class="h-32 w-full bg-slate-900 border-b border-white/10 relative flex items-center justify-center cursor-move draggable-handle relative group">
+                <img src="easyjet-logo.png" alt="Airline Logo" class="h-24 object-contain brightness-110 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]" />
+                <button onclick="document.getElementById('airlineIdentityModal').classList.add('opacity-0', 'pointer-events-none'); document.getElementById('airlineIdentityBox').classList.replace('scale-100', 'scale-95');" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/50 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors">
+                    <span class="material-symbols-outlined text-[18px]">close</span>
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div class="p-6 flex flex-col gap-8">
+                
+                <!-- COMMERCIAL METRICS SECTION -->
+                <div class="flex flex-col gap-4">
+                    <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                        <span class="text-[12px] uppercase tracking-[0.3em] font-bold text-emerald-400 font-headline">Commercial</span>
+                        <span class="material-symbols-outlined text-emerald-500/50 text-[18px]">corporate_fare</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+                        <!-- Pax Satisfaction -->
+                        <div class="flex flex-col">
+                            <div class="group relative inline-block cursor-help"><span class="text-[9px] uppercase tracking-widest text-[#7b7b7b] font-bold mb-1">Pax Contentment <span class="text-white/30 text-[8px]">(Target)</span></span><div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 opacity-0 transition-opacity duration-300 group-hover:opacity-100 bg-black/90 text-[#b6b6b6] font-sans font-normal text-[11px] p-2.5 rounded-lg border border-white/10 z-[110] text-center shadow-lg leading-snug tracking-normal normal-case">Target overall passenger satisfaction level determined by airline policy for this flight.</div></div>
+                            <div class="w-full bg-black/50 h-1.5 rounded-full overflow-hidden mt-1 ring-1 ring-white/5">
+                                <div class="h-full bg-emerald-400 w-[60%] shadow-[0_0_10px_rgba(52,211,153,0.5)]"></div>
+                            </div>
+                            <span class="text-xs font-mono font-bold text-white mt-1">60%</span>
+                        </div>
+                        <!-- Hard Product -->
+                        <div class="flex flex-col">
+                            <div class="group relative inline-block cursor-help"><span class="text-[9px] uppercase tracking-widest text-[#7b7b7b] font-bold mb-1">Hard Product</span><div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 opacity-0 transition-opacity duration-300 group-hover:opacity-100 bg-black/90 text-[#b6b6b6] font-sans font-normal text-[11px] p-2.5 rounded-lg border border-white/10 z-[110] text-center shadow-lg leading-snug tracking-normal normal-case">Aircraft cabin quality: seat comfort, legroom pitch, WiFi availability, IFE screens, and power outlets.</div></div>
+                            <div class="w-full bg-black/50 h-1.5 rounded-full overflow-hidden mt-1 ring-1 ring-white/5">
+                                <div class="h-full bg-sky-400 w-[40%] shadow-[0_0_10px_rgba(56,189,248,0.5)]"></div>
+                            </div>
+                            <span class="text-xs font-mono font-bold text-white mt-1">4.0 <span class="text-[9px] text-[#7b7b7b]">/10</span></span>
+                        </div>
+                        <!-- Soft Product -->
+                        <div class="flex flex-col">
+                            <div class="group relative inline-block cursor-help"><span class="text-[9px] uppercase tracking-widest text-[#7b7b7b] font-bold mb-1">Soft Product</span><div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 opacity-0 transition-opacity duration-300 group-hover:opacity-100 bg-black/90 text-[#b6b6b6] font-sans font-normal text-[11px] p-2.5 rounded-lg border border-white/10 z-[110] text-center shadow-lg leading-snug tracking-normal normal-case">In-flight service quality: meal standards, snack/beverage variety, and comfort kits.</div></div>
+                            <div class="w-full bg-black/50 h-1.5 rounded-full overflow-hidden mt-1 ring-1 ring-white/5">
+                                <div class="h-full bg-sky-400 w-[60%] shadow-[0_0_10px_rgba(56,189,248,0.5)]"></div>
+                            </div>
+                            <span class="text-xs font-mono font-bold text-white mt-1">6.0 <span class="text-[9px] text-[#7b7b7b]">/10</span></span>
+                        </div>
+                        <!-- PNC Morale Base -->
+                        <div class="flex flex-col">
+                            <div class="group relative inline-block cursor-help"><span class="text-[9px] uppercase tracking-widest text-[#7b7b7b] font-bold mb-1">Crew Friendliness</span><div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 opacity-0 transition-opacity duration-300 group-hover:opacity-100 bg-black/90 text-[#b6b6b6] font-sans font-normal text-[11px] p-2.5 rounded-lg border border-white/10 z-[110] text-center shadow-lg leading-snug tracking-normal normal-case">Service standards, courtesy, and welcoming attitude expected from the cabin crew.</div></div>
+                            <div class="w-full bg-black/50 h-1.5 rounded-full overflow-hidden mt-1 ring-1 ring-white/5">
+                                <div class="h-full bg-amber-400 w-[70%] shadow-[0_0_10px_rgba(251,191,36,0.5)]"></div>
+                            </div>
+                            <span class="text-xs font-mono font-bold text-white mt-1">7.0 <span class="text-[9px] text-[#7b7b7b]">/10</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OPERATIONS SECTION -->
+                <div class="flex flex-col gap-4">
+                    <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                        <span class="text-[12px] uppercase tracking-[0.3em] font-bold text-orange-400 font-headline">Operations</span>
+                        <span class="material-symbols-outlined text-orange-500/50 text-[18px]">rule</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-black/30 p-3 rounded-xl border border-white/5">
+                            <div class="group relative inline-block cursor-help"><span class="bg-indigo-500/20 text-indigo-300 text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded block w-fit mb-2">Framework</span><div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 opacity-0 transition-opacity duration-300 group-hover:opacity-100 bg-black/90 text-[#b6b6b6] font-sans font-normal text-[11px] p-2.5 rounded-lg border border-white/10 z-[110] text-center shadow-lg leading-snug tracking-normal normal-case">Strict regulatory framework governing operations (e.g., EASA, FAR, FAA).</div></div>
+                            <span class="text-sm font-bold text-white tracking-widest uppercase">EASA Ops</span>
+                        </div>
+                        <div class="bg-black/30 p-3 rounded-xl border border-white/5">
+                            <div class="group relative inline-block cursor-help"><span class="bg-emerald-500/20 text-emerald-300 text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded block w-fit mb-2">Cost Index</span><div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 opacity-0 transition-opacity duration-300 group-hover:opacity-100 bg-black/90 text-[#b6b6b6] font-sans font-normal text-[11px] p-2.5 rounded-lg border border-white/10 z-[110] text-center shadow-lg leading-snug tracking-normal normal-case">Ratio of time-related cost to fuel cost. A higher index means faster flights but higher fuel consumption.</div></div>
+                            <span class="text-xl font-black font-headline text-white tracking-widest block">12 <span class="text-[9px] text-[#7b7b7b] uppercase tracking-normal">Optimal</span></span>
+                        </div>
+                        <div class="bg-black/30 p-3 rounded-xl border border-white/5">
+                            <div class="group relative inline-block cursor-help"><span class="bg-sky-500/20 text-sky-300 text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded block w-fit mb-2">Fuel Logic</span><div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 opacity-0 transition-opacity duration-300 group-hover:opacity-100 bg-black/90 text-[#b6b6b6] font-sans font-normal text-[11px] p-2.5 rounded-lg border border-white/10 z-[110] text-center shadow-lg leading-snug tracking-normal normal-case">Dispatch fuel calculation methodology (e.g., Statistical Flight Planning).</div></div>
+                            <span class="text-xs font-bold text-white tracking-widest uppercase block mt-1 leading-tight">SFP Mode<br/><span class="text-[9px] text-[#7b7b7b]">Statistical Cont.</span></span>
+                        </div>
+                        <div class="bg-black/30 p-3 rounded-xl border border-white/5">
+                            <div class="group relative inline-block cursor-help"><span class="bg-rose-500/20 text-rose-300 text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded block w-fit mb-2">Contingency</span><div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 opacity-0 transition-opacity duration-300 group-hover:opacity-100 bg-black/90 text-[#b6b6b6] font-sans font-normal text-[11px] p-2.5 rounded-lg border border-white/10 z-[110] text-center shadow-lg leading-snug tracking-normal normal-case">Mandatory reserve fuel percentage allocated to cover unforeseen en-route weather or delays.</div></div>
+                            <span class="text-sm font-bold text-white tracking-widest uppercase">5% Default</span>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+    <script>
+        window.showAirlineIdentityModal = function(icao) {
+            // For now, it's globally EasyJet just for demo, we'll populate dynamicaly soon
+            const modal = document.getElementById('airlineIdentityModal');
+            const box = document.getElementById('airlineIdentityBox');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            box.classList.replace('scale-95', 'scale-100');
+        };
+        // Very basic dragging logic for modals
+        document.querySelectorAll('.draggable-handle').forEach(handle => {
+            let isDragging = false, startX, startY, initialX, initialY;
+            const target = handle.parentElement;
+            handle.addEventListener('mousedown', (e) => {
+                if(e.target.tagName.toLowerCase() === 'button' || e.target.closest('button')) return;
+                isDragging = true;
+                startX = e.clientX; startY = e.clientY;
+                const rect = target.getBoundingClientRect();
+                initialX = rect.left; initialY = rect.top;
+                target.style.position = 'absolute';
+                target.style.left = initialX + 'px';
+                target.style.top = initialY + 'px';
+                target.style.margin = '0';
+                target.style.transform = 'none';
+            });
+            document.addEventListener('mousemove', (e) => {
+                if(!isDragging) return;
+                target.style.left = (initialX + (e.clientX - startX)) + 'px';
+                target.style.top = (initialY + (e.clientY - startY)) + 'px';
+            });
+            document.addEventListener('mouseup', () => isDragging = false);
+        });
+    </script>
+
 </body>
 </html>
+
+
+
+
+
+
+

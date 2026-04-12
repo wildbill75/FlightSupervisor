@@ -43,6 +43,8 @@ namespace FlightSupervisor.UI.Services
         public FlightSupervisor.UI.Models.AirportDestinationType CurrentDestinationType { get; set; } = FlightSupervisor.UI.Models.AirportDestinationType.Business;
         public DateTime CurrentSimLocalTime { get; set; } = DateTime.MinValue;
         public DateTime CurrentSimZuluTime { get; set; } = DateTime.MinValue;
+        public bool IsLowCost { get; set; } = false;
+        public bool IsServiceHurried { get; set; } = false;
         
         private bool _isTempInitialized = false;
         private double _currentAmbientTemperature = 15.0;
@@ -553,8 +555,8 @@ namespace FlightSupervisor.UI.Services
                     OnCrewMessage?.Invoke("info", LocalizationService.Translate("PA: Cabin crew, nearing top of descent.", "PA: PNC, début de descente imminent."), null);
                     if (State == CabinState.ServingMeals)
                     {
-                        InFlightServiceProgress = Math.Max(InFlightServiceProgress, 85.0);
-                        OnPncStatusChanged?.Invoke("Service securing...", State);
+                        IsServiceHurried = true;
+                        OnPncStatusChanged?.Invoke("Service securing (HURRIED)...", State);
                     }
                     break;
                 case "ARM_DOORS":
@@ -1456,8 +1458,9 @@ namespace FlightSupervisor.UI.Services
 
                 if (!IsServiceHalted && !isHaltedByBelts && !isHaltedByAlt && !isHaltedByDescent)
                 {
-                    double prevProgress = InFlightServiceProgress;
-                    double baseRate = 0.5 * (100.0 / Math.Max(1, PassengerManifest.Count)) * (Math.Max(5.0, CrewEfficiency) / 100.0);
+                    double lccMultiplier = IsLowCost ? 0.6 : 1.0;
+                    double hurryMultiplier = IsServiceHurried ? 2.0 : 1.0;
+                    double baseRate = 0.5 * (100.0 / Math.Max(1, PassengerManifest.Count)) * (Math.Max(5.0, CrewEfficiency) / 100.0) * lccMultiplier * hurryMultiplier;
                     InFlightServiceProgress += baseRate;
                     
                     int totalPax = Math.Max(1, PassengerManifest.Count);
@@ -1477,10 +1480,17 @@ namespace FlightSupervisor.UI.Services
                     {
                         InFlightServiceProgress = 100.0;
                         State = CabinState.Idle;
+                        IsServiceHurried = false;
                         OnCrewMessage?.Invoke("green", LocalizationService.Translate("Meal service is complete, cabin is clear.", "Le service des repas est terminé, la cabine est dégagée."), null);
                         OnPncStatusChanged?.Invoke("Idle", State);
                     }
                 }
+            }
+            
+            // --- TICKET: PREVIOUS LEGS CLEANUP ---
+            if (State == CabinState.Deboarding && PassengerManifest.Count == 0 && PreviousLegManifest.Count > 0)
+            {
+                PreviousLegManifest.Clear();
             }
             
             // Validate Meal Shortage (Catering Stock empty during cruise or service)

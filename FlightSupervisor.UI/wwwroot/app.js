@@ -3472,28 +3472,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 }
+                 if (cd && payload.rawUnix && currentSobtUnix > 0) {
+                    // --- ALTERNATING HEADER LOGIC ---
+                    const cycleSec = 7;
+                    const isDeviationView = Math.floor(payload.rawUnix / cycleSec) % 2 === 1;
 
-                if (cd && payload.rawUnix && currentSobtUnix > 0) {
-                    let d = 0; // Delay in seconds
-                    let isArrTimer = false;
+                    if (isDeviationView) {
+                        // View 1: Schedule Deviation
+                        let d = 0; 
+                        if (window.finalAibtUnix && window.currentSibtUnix > 0) {
+                            d = payload.rawUnix - (window.finalAibtUnix + 2100);
+                        } else if (window.finalAobtUnix) {
+                            d = window.finalAobtUnix - currentSobtUnix;
+                        } else {
+                            d = payload.rawUnix - currentSobtUnix;
+                        }
 
-                    const getPunc = (planned, actual) => {
-                        let diff = actual - planned;
-                        if (diff < -300) return { t: 'Early', c: '#3b82f6', d: diff };
-                        if (diff <= 180) return { t: 'On Time', c: '#10b981', d: diff };
-                        if (diff <= 420) return { t: 'Light Delay', c: '#eab308', d: diff };
-                        if (diff <= 600) return { t: 'Mod Late', c: '#f97316', d: diff };
-                        return { t: 'Sig Late', c: '#ef4444', d: diff };
-                    };
-                    const fmt = (diffSec) => {
-                        let a = Math.abs(diffSec);
-                        let h = Math.floor(a / 3600);
-                        let m = Math.floor((a % 3600) / 60);
-                        return (h > 0 ? `${h}h ` : '') + `${m}m`;
-                    };
-
-                    if (window.finalAibtUnix && window.currentSibtUnix > 0) {
-                        d = payload.rawUnix - (window.finalAibtUnix + 2100);
                         let isLate = d > 0;
                         let absDiff = Math.floor(Math.abs(d));
                         let h = Math.floor(absDiff / 3600);
@@ -3510,47 +3504,58 @@ document.addEventListener('DOMContentLoaded', () => {
                         else if (d <= 600) cCol = '#f97316';
                         else cCol = '#ef4444';
                         cd.style.color = cCol;
+                    } else {
+                        // View 2: Flight Time (since Off-Block)
+                        if (window.finalAobtUnix) {
+                            let ft = payload.rawUnix - window.finalAobtUnix;
+                            if (window.finalAibtUnix) ft = window.finalAibtUnix - window.finalAobtUnix;
 
+                            let absFT = Math.floor(Math.abs(ft));
+                            let h = Math.floor(absFT / 3600);
+                            let m = Math.floor((absFT % 3600) / 60);
+                            let s = absFT % 60;
+                            cd.innerText = `FT ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                            cd.style.color = '#38bdf8';
+                        } else {
+                            // Fallback to Departure Countdown
+                            let diff = currentSobtUnix - payload.rawUnix;
+                            let absDiff = Math.floor(Math.abs(diff));
+                            let h = Math.floor(absDiff / 3600);
+                            let m = Math.floor((absDiff % 3600) / 60);
+                            let s = absDiff % 60;
+                            let prefix = diff > 0 ? '-' : '+';
+                            cd.innerText = `DEP ${prefix}${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                            cd.style.color = '#cbd5e1';
+                        }
+                    }
+
+                    if (window.finalAibtUnix && window.currentSibtUnix > 0) {
                         let aibtSp = document.getElementById('bdAibt');
                         if (aibtSp) {
-                            let st = getPunc(window.currentSibtUnix, window.finalAibtUnix);
-                            aibtSp.style.color = st.c;
+                            let diff = window.finalAibtUnix - window.currentSibtUnix;
+                            let cCol = '#10b981';
+                            if (diff < -300) cCol = '#3b82f6';
+                            else if (diff <= 180) cCol = '#10b981';
+                            else if (diff <= 420) cCol = '#eab308';
+                            else if (diff <= 600) cCol = '#f97316';
+                            else cCol = '#ef4444';
+                            aibtSp.style.color = cCol;
                         }
-                    } else if (window.finalAobtUnix) {
-                        d = window.finalAobtUnix - currentSobtUnix;
-                        let st = getPunc(currentSobtUnix, window.finalAobtUnix);
-
-                        let etaText = `Airborne`;
-                        let curIdx = window.activeLegIndex || 0;
-                        if (window.allRotations && window.allRotations[curIdx]?.data?.times?.sched_in) {
-                            let schedIn = parseInt(window.allRotations[curIdx].data.times.sched_in);
-                            let delay = d > 0 ? d : 0;
-                            etaText = `ETA: ${getFormattedTime(schedIn + delay).replace(/z/gi, ' UTC')}`;
-                        }
-                        cd.innerText = etaText;
-                        cd.style.color = '#38bdf8';
-                        let aobtSp = document.getElementById('bdAobt');
-                        if (aobtSp) aobtSp.style.color = st.c;
-                    } else {
-                        d = payload.rawUnix - currentSobtUnix;
-                        let isLate = d > 0;
-                        let absDiff = Math.floor(Math.abs(d));
-                        let h = Math.floor(absDiff / 3600);
-                        let m = Math.floor((absDiff % 3600) / 60);
-                        let s = absDiff % 60;
-                        let timeStr = (h > 0 ? `${h}h ` : '') + `${m}m ${s}s`;
-                        let prefix = isLate ? '+' : '-';
-                        cd.innerText = prefix + timeStr;
-                        let cCol = '#10b981';
-                        if (d < -300) cCol = '#3b82f6';
-                        else if (d <= 180) cCol = '#10b981';
-                        else if (d <= 420) cCol = '#eab308';
-                        else if (d <= 600) cCol = '#f97316';
-                        else cCol = '#ef4444';
-                        cd.style.color = cCol;
-                        let aobtSp = document.getElementById('bdAobt');
-                        if (aobtSp) aobtSp.style.color = '#FACC15';
                     }
+                    if (window.finalAobtUnix) {
+                        let aobtSp = document.getElementById('bdAobt');
+                        if (aobtSp) {
+                            let diff = window.finalAobtUnix - currentSobtUnix;
+                            let cCol = '#10b981';
+                            if (diff < -300) cCol = '#3b82f6';
+                            else if (diff <= 180) cCol = '#10b981';
+                            else if (diff <= 420) cCol = '#eab308';
+                            else if (diff <= 600) cCol = '#f97316';
+                            else cCol = '#ef4444';
+                            aobtSp.style.color = cCol;
+                        }
+                    }
+                }
 
                     // --- Global Rotation Timer Logic ---
                     const globalBanner = document.getElementById('globalRotationBanner');
@@ -5148,7 +5153,7 @@ window.renderManifest = function (manifest) {
         let fastenedCount = 0;
         let injuredCount = 0;
 
-        // PRE-CLEAR ALL DOM SEATS to avoid "Ghosts" from previous leg if seat assignment changed.
+        // PRE-CLEAR ALL DOM SEATS to avoid "Ghosts"
         const allSeats = existingMap.querySelectorAll('.seat');
         allSeats.forEach(s => {
             s.className = 'seat';
@@ -5157,14 +5162,16 @@ window.renderManifest = function (manifest) {
         });
 
         passengers.forEach(p => {
-            if (p.IsBoarded === true || p.isBoarded === true) {
+            const isBoarded = p.IsBoarded === true || p.isBoarded === true;
+            if (isBoarded) {
                 boardedCount++;
                 if (p.IsSeatbeltFastened) fastenedCount++;
                 if (p.IsInjured) injuredCount++;
             }
+            
             let seatEl = document.getElementById('seat-' + p.Seat);
             if (seatEl) {
-                if (p.IsBoarded === true || p.isBoarded === true) {
+                if (isBoarded) {
                     const seatClass = p.IsSeatbeltFastened ? 'fastened' : 'unfastened';
                     seatEl.className = `seat ${seatClass} relative`;
                     const injuryHtml = p.IsInjured ? '<span class="material-symbols-outlined text-[10px] text-red-500 absolute -top-1 -left-1 animate-pulse" style="z-index:10;">medical_services</span>' : '';
@@ -5175,6 +5182,7 @@ window.renderManifest = function (manifest) {
                         seatEl.innerHTML = `${injuryHtml}<span class="tooltip">${p.Seat} : ${p.Name} (${p.Nationality})</span>`;
                     }
                 } else {
+                    // Force clear if not boarded
                     seatEl.className = 'seat';
                     seatEl.innerHTML = '';
                     seatEl.dataset.initialized = '';
