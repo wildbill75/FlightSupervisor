@@ -25,11 +25,12 @@ namespace FlightSupervisor.UI
         private bool _isFenixStrobeSyncActive = false;
         private DateTime _lastWindingTrigger = DateTime.MinValue;
 
-        // -- STORY: GHOST FUEL TRACKER --
         private bool _ghostFuelTrackerActive = false;
         private double _virtualFobKg = 0;
         private DateTime _lastFuelFlowUpdate = DateTime.MinValue;
         private bool _isApuRunning = false;
+        private bool _isFenixEng1MasterOn = false;
+        private bool _isFenixEng2MasterOn = false;
         // -------------------------------
 
         private bool _isParkingBrakeSet = false;
@@ -846,6 +847,12 @@ namespace FlightSupervisor.UI
                 }
                 _lastLogSeatbelts = sb;
             };
+
+            _simConnectService.OnEngineSwitchesChanged += (mode, m1, m2) => {
+                _isFenixEng1MasterOn = m1;
+                _isFenixEng2MasterOn = m2;
+            };
+
             _simConnectService.OnApuStateChanged += (mst, start, bleed) => {
                 _phaseManager.FenixApuMaster = mst;
                 _phaseManager.FenixApuStart = start;
@@ -961,8 +968,9 @@ namespace FlightSupervisor.UI
                         double deltaSec = (now - _lastFuelFlowUpdate).TotalSeconds;
                         if (deltaSec > 0 && deltaSec < 5) // normal tick
                         {
-                            bool eng1Running = _phaseManager?.Eng1N1 > 2.0; 
-                            bool eng2Running = _phaseManager?.Eng2N1 > 2.0; 
+                            bool isWasm = _simConnectService?.IsWasmOverriding ?? false;
+                            bool eng1Running = isWasm ? _isFenixEng1MasterOn : (_cabinManager?.AreEnginesRunning ?? false);
+                            bool eng2Running = isWasm ? _isFenixEng2MasterOn : (_cabinManager?.AreEnginesRunning ?? false);
 
                             double flow1 = eng1Running ? Math.Max(0, eng1) * 0.453592 / 3600.0 : 0.0; 
                             double flow2 = eng2Running ? Math.Max(0, eng2) * 0.453592 / 3600.0 : 0.0;
