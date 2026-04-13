@@ -139,6 +139,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
         [JsonPropertyName("icaocode")]
         public string? IcaoCode { get; set; }
 
+        [JsonPropertyName("internal_id")]
+        public string? InternalId { get; set; }
+
         [JsonPropertyName("name")]
         public string? Name { get; set; }
 

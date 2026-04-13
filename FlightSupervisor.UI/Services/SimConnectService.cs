@@ -365,6 +365,11 @@ namespace FlightSupervisor.UI.Services
                 OnLightTaxiReceived?.Invoke(data.NoseLight == 1); // 1 = Taxi, 2 = TO
                 OnLightLandingReceived?.Invoke(data.LandingLightL > 0.5 || data.LandingLightR > 0.5);
                 OnGsxBoardingStateReceived?.Invoke(data.GsxBoardingState, data.GsxDeboardingState);
+                
+                if (data.FenixEcamFob > 0)
+                    OnFuelTotalReceived?.Invoke(data.FenixEcamFob);
+                else if (data.FbwTotalMass > 0)
+                    OnFuelTotalReceived?.Invoke(data.FbwTotalMass);
             }
         }
 

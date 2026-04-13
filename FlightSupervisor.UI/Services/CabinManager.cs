@@ -1461,6 +1461,8 @@ namespace FlightSupervisor.UI.Services
                     double lccMultiplier = IsLowCost ? 0.6 : 1.0;
                     double hurryMultiplier = IsServiceHurried ? 2.0 : 1.0;
                     double baseRate = 0.5 * (100.0 / Math.Max(1, PassengerManifest.Count)) * (Math.Max(5.0, CrewEfficiency) / 100.0) * lccMultiplier * hurryMultiplier;
+                    
+                    double prevProgress = InFlightServiceProgress;
                     InFlightServiceProgress += baseRate;
                     
                     int totalPax = Math.Max(1, PassengerManifest.Count);

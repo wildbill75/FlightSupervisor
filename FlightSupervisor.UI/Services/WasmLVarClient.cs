@@ -71,6 +71,8 @@ namespace FlightSupervisor.UI.Services
             public float Pack2;           // Offset 100
             public float GsxBoardingState; // Offset 104
             public float GsxDeboardingState; // Offset 108
+            public float FenixEcamFob;       // Offset 112
+            public float FbwTotalMass;       // Offset 116
         }
 
         public WasmLVarClient(SimConnect simConnect)
@@ -188,6 +190,8 @@ namespace FlightSupervisor.UI.Services
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_OH_PNEUMATIC_ENG2_BLEED,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_OH_PNEUMATIC_PACK_1,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_OH_PNEUMATIC_PACK_2,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:E_WD_FOB,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:A32NX_FUEL_TOTAL_MASS,Number)");
 
                 // Map variables to our client area in the exact struct order
                 SendCommand(CLIENT_DATA_ID.FS_Command, $"MF.SimVars.SetTarget.FlightSupervisor"); // Tell WASM which client area we are building
@@ -221,6 +225,8 @@ namespace FlightSupervisor.UI.Services
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_OH_PNEUMATIC_PACK_2,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:FSDT_GSX_BOARDING_STATE,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:FSDT_GSX_DEBOARDING_STATE,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:E_WD_FOB,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:A32NX_FUEL_TOTAL_MASS,Number)");
             }
             catch (Exception ex)
             {

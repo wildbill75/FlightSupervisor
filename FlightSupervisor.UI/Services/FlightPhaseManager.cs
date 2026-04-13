@@ -93,8 +93,8 @@ namespace FlightSupervisor.UI.Services
         public double WindVelocity { get; private set; } = 0.0;
         public double Latitude { get; private set; } = 0.0;
         public double Longitude { get; private set; } = 0.0;
-        public bool Eng1Combustion { get; private set; } = true;
-        public bool Eng2Combustion { get; private set; } = true;
+        public bool Eng1Combustion { get; set; } = true;
+        public bool Eng2Combustion { get; set; } = true;
         private int _taxiOverspeedSeconds = 0;
         private int _overspeedSeconds = 0;
         public bool IsGoAroundActive { get; private set; } = false;
@@ -283,10 +283,10 @@ namespace FlightSupervisor.UI.Services
                     break;
                 case FlightPhase.Arrived:
                     Eng1Combustion = false;
-                    Eng2Combustion = false;
-                    IsBeaconLightOn = false;
-                    IsSeatbeltsOn = false;
-                    IsMainDoorOpen = true;
+                    Eng2Combustion = false; // Engines are usually shutting down when arriving at gate
+                    IsBeaconLightOn = true; // MUST be true until engines are fully secured, triggers Turnaround when false
+                    IsSeatbeltsOn = true;   // MUST be true until engines are fully secured 
+                    IsMainDoorOpen = false; // Cannot open door until beacon is off
                     IsOnGround = true;
                     Altitude = 100;
                     break;
@@ -853,6 +853,10 @@ namespace FlightSupervisor.UI.Services
                 
                 case FlightPhase.TaxiIn:
                     if (groundSpeed < 0.5 && isParkingBrakeSet) ChangePhase(FlightPhase.Arrived);
+                    break;
+
+                case FlightPhase.Arrived:
+                    if (!IsBeaconLightOn) ChangePhase(FlightPhase.Turnaround);
                     break;
             }
         }

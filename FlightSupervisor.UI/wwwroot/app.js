@@ -301,7 +301,7 @@ window.populateBriefingView = (index = 0) => {
     const elAltn = document.getElementById('fuelAltnField');
     const elRes = document.getElementById('fuelResField');
     const elExtra = document.getElementById('fuelExtraField');
-    const elBlock = document.getElementById('fuelBlockField');
+    const elBlock = document.getElementById('modalFuelBlockField');
     
     if (rd && rd.fuel) {
         let weightUnit = (rd.general && rd.general.units && rd.general.units.toLowerCase() === "lbs") ? "LBS" : "KG";
@@ -315,28 +315,28 @@ window.populateBriefingView = (index = 0) => {
         
         const elPax = document.getElementById('loadPaxField');
         const elPayload = document.getElementById('loadPayloadField');
-        if (elPax && rd.weights && rd.weights.pax_count) {
+        if (elPax && rd.weights?.pax_count) {
             elPax.innerText = rd.weights.pax_count;
         }
-        if (elPayload && rd.weights && rd.weights.payload) {
+        if (elPayload && rd.weights?.payload) {
             elPayload.innerText = Math.round(parseFloat(rd.weights.payload));
         }
         
         const elZfw = document.getElementById('loadZfwField');
         const elLdw = document.getElementById('loadLdwField');
-        if (elZfw && rd.weights && rd.weights.est_zfw) {
+        if (elZfw && rd.weights?.est_zfw) {
             elZfw.innerText = Math.round(parseFloat(rd.weights.est_zfw));
         }
-        if (elLdw && rd.weights && rd.weights.est_ldw) {
+        if (elLdw && rd.weights?.est_ldw) {
             elLdw.innerText = Math.round(parseFloat(rd.weights.est_ldw));
         }
         
         // Populate CI and Altitude from raw data
         const elCi = document.getElementById('dispCiField');
         const elFl = document.getElementById('dispFlField');
-        if (elCi) elCi.innerText = rd.general.cost_index || '30';
+        if (elCi) elCi.innerText = rd.general?.cost_index || '30';
         if (elFl) {
-            let fl = Math.round(parseInt(rd.general.initial_alt || '30000') / 100);
+            let fl = Math.round(parseInt(rd.general?.initial_alt || '30000') / 100);
             elFl.innerText = 'FL' + fl;
         }
 
@@ -351,8 +351,10 @@ window.populateBriefingView = (index = 0) => {
         
         if (btnValidate && btnValidateText) {
             const activeLegIdx = window.activeLegIndex || 0;
-            const isItPast = index < activeLegIdx;
-            const isItFuture = index > activeLegIdx;
+            const isTurnaroundOrGate = window.currentPhase === 'Turnaround' || window.currentPhase === 'AtGate' || window.currentPhase === 'Arrived';
+            const isEligibleFuture = (index === window.dashboardActiveLegIndex + 1) && isTurnaroundOrGate;
+            const isItPast = index < window.dashboardActiveLegIndex;
+            const isItFuture = index > window.dashboardActiveLegIndex && !isEligibleFuture;
             const isItValidated = rd.isFuelValidated;
             
             // Reset base classes
@@ -380,8 +382,8 @@ window.populateBriefingView = (index = 0) => {
                     btnValidateText.innerText = "FUEL VALIDATED";
                     if (btnValidateIcon) btnValidateIcon.innerText = "check_circle";
                 } else {
-                    btnValidate.classList.add('bg-sky-500/20', 'text-sky-400', 'hover:bg-sky-500', 'hover:text-white', 'border', 'border-sky-500/50', 'shadow-[0_0_20px_rgba(14,165,233,0.15)]', 'hover:shadow-[0_0_30px_rgba(14,165,233,0.4)]', 'cursor-pointer');
-                    btnValidate.onclick = () => { if(window.requestFuelValidation) window.requestFuelValidation(); };
+                    btnValidate.classList.add('bg-sky-500/20', 'text-sky-400', 'hover:bg-sky-500', 'hover:text-white', 'border', 'border-sky-500/50', 'shadow-[0_0_20px_rgba(14,165,233,0.15)]', 'hover:shadow-[0_0_30px_rgba(14,165,233,0.4)]', 'cursor-pointer', 'group', 'group-hover:scale-105');
+                    btnValidate.onclick = () => { if(window.requestFuelValidation) window.requestFuelValidation(index); };
                     btnValidate.title = "Confirm load sheet and start fueling operations.";
                     btnValidateText.innerText = "Validate Fuel";
                     if (btnValidateIcon) btnValidateIcon.innerText = "verified";
@@ -396,9 +398,10 @@ window.calculateBlockFuel = () => {
     const elAltn = document.getElementById('fuelAltnField');
     const elRes = document.getElementById('fuelResField');
     const elExtra = document.getElementById('fuelExtraField');
-    const elBlock = document.getElementById('fuelBlockField');
+    const elBlockModal = document.getElementById('modalFuelBlockField');
+    const elBlockDash = document.getElementById('dashFuelBlockField');
     
-    if (!elTrip || !elAltn || !elRes || !elExtra || !elBlock) return;
+    if (!elTrip || !elAltn || !elRes || !elExtra) return;
     
     const trip = parseInt(elTrip.innerText) || 0;
     const altn = parseInt(elAltn.innerText) || 0;
@@ -433,7 +436,8 @@ window.calculateBlockFuel = () => {
         }
     }
     
-    elBlock.innerText = blockFuelVal;
+    if (elBlockModal) elBlockModal.innerText = blockFuelVal;
+    if (elBlockDash) elBlockDash.innerText = blockFuelVal;
     
     const elZfw = document.getElementById('loadZfwField');
     const elTow = document.getElementById('loadTowField');
@@ -442,30 +446,92 @@ window.calculateBlockFuel = () => {
     if (elZfw) elZfw.innerText = zfw > 0 ? zfw : '---';
     if (elTow) elTow.innerText = computedTow > 0 ? computedTow : '---';
     if (elLdw) elLdw.innerText = computedLdw > 0 ? computedLdw : '---';
+
+    if (typeof window.updateFuelTelemetry === 'function') window.updateFuelTelemetry();
 };
 
-window.requestFuelValidation = () => {
-    const elBlock = document.getElementById('fuelBlockField');
-    const blockFuel = elBlock ? elBlock.innerText : '0';
+window.updateFuelTelemetry = () => {
+    const elDashBlock = document.getElementById('dashFuelBlockField');
+    const elDashFob = document.getElementById('dashInitialFobField');
+    const elDashUplift = document.getElementById('dashRequiredUpliftField');
     
-    const activeIdx = window.dashboardActiveLegIndex || 0;
-    if (window.allRotations && window.allRotations[activeIdx] && window.allRotations[activeIdx].data) {
-        window.allRotations[activeIdx].data.isFuelValidated = true;
+    if (!elDashBlock || !elDashFob || !elDashUplift) return;
+    
+    let blockFuelVal = parseInt(elDashBlock.innerText) || 0;
+    let initialFob = 0;
+    
+    if (window.lastTelemetry && window.lastTelemetry.aircraftState) {
+        console.log("AIRCRAFT STATE IN FUEL UPDATE:", window.lastTelemetry.aircraftState);
+        initialFob = window.lastTelemetry.aircraftState.InitialFobKg || window.lastTelemetry.aircraftState.initialFobKg || 0;
+        initialFob = Math.round(initialFob);
     }
 
-    const btn = document.getElementById('fuelValidateBtn');
-    const btnText = document.getElementById('fuelValidateBtnText');
-    
-    // Update UI 
-    if (btn) {
-        btn.onclick = null;
-        btn.classList.remove('bg-sky-500/20', 'text-sky-400', 'hover:bg-sky-500', 'border-sky-500/50', 'hover:shadow-[0_0_30px_rgba(14,165,233,0.4)]');
-        btn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/50', 'cursor-not-allowed', 'shadow-[0_0_20px_rgba(16,185,129,0.15)]');
+    if (initialFob > 0 || (window.lastTelemetry && window.lastTelemetry.aircraftState)) {
+        elDashFob.innerText = initialFob;
+        elDashFob.classList.remove('text-[#7b7b7b]');
+        elDashFob.classList.add('text-emerald-400');
         
-        if (btnText) btnText.innerText = "FUEL VALIDATED";
-        const icon = btn.querySelector('.material-symbols-outlined');
-        if (icon) icon.innerText = "check_circle";
+        let reqUplift = blockFuelVal - initialFob;
+        if (reqUplift < 0) reqUplift = 0;
+        
+        elDashUplift.innerText = reqUplift;
+        if (reqUplift > 0) {
+            elDashUplift.classList.remove('text-emerald-400', 'text-[#7b7b7b]');
+            elDashUplift.classList.add('text-amber-500');
+        } else {
+            elDashUplift.classList.remove('text-amber-500', 'text-[#7b7b7b]');
+            elDashUplift.classList.add('text-emerald-400');
+        }
+    } else {
+        elDashFob.innerText = "----";
+        elDashFob.classList.add('text-[#7b7b7b]');
+        elDashFob.classList.remove('text-emerald-400');
+        
+        elDashUplift.innerText = "----";
+        elDashUplift.classList.add('text-[#7b7b7b]');
+        elDashUplift.classList.remove('text-amber-500', 'text-emerald-400');
     }
+};
+
+window.requestFuelValidation = (idxToValidate) => {
+    const elBlockModal = document.getElementById('modalFuelBlockField');
+    const elBlockDash = document.getElementById('dashFuelBlockField');
+    const blockFuel = elBlockDash ? elBlockDash.innerText : (elBlockModal ? elBlockModal.innerText : '0');
+    
+    const idx = (typeof idxToValidate !== 'undefined' && !isNaN(idxToValidate)) ? idxToValidate : (window.dashboardActiveLegIndex || 0);
+    
+    // Mark specifically as validated
+    if (window.allRotations && window.allRotations[idx]) {
+        window.allRotations[idx].data.isFuelValidated = true;
+    }
+ 
+    // Update UI 
+    const dashBtn = document.getElementById('fuelValidateBtn');
+    const dashBtnText = document.getElementById('fuelValidateBtnText');
+    if (dashBtn) {
+        dashBtn.onclick = null;
+        dashBtn.classList.remove('bg-sky-500/20', 'text-sky-400', 'hover:bg-sky-500', 'hover:text-white', 'border-sky-500/50', 'hover:shadow-[0_0_30px_rgba(14,165,233,0.4)]', 'cursor-pointer', 'group', 'group-hover:scale-105');
+        dashBtn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/50', 'cursor-not-allowed', 'shadow-[0_0_20px_rgba(16,185,129,0.15)]');
+        if (dashBtnText) dashBtnText.innerText = 'FUEL VALIDATED';
+        const icon = dashBtn.querySelector('.material-symbols-outlined');
+        if (icon) icon.innerText = 'check_circle';
+    }
+    
+    // Also try updating generic modal button if it exists
+    const modalBtn = document.getElementById('modalFuelValidateBtn');
+    if (modalBtn) {
+        modalBtn.onclick = null;
+        modalBtn.classList.remove('bg-sky-500/20', 'text-sky-400', 'hover:bg-sky-500', 'border-sky-500/50', 'hover:shadow-[0_0_30px_rgba(14,165,233,0.4)]');
+        modalBtn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/50', 'cursor-not-allowed', 'shadow-[0_0_20px_rgba(16,185,129,0.15)]');
+        
+        modalBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">check_circle</span><span>FUEL VALIDATED</span>';
+    }
+    
+    // Hide Modal after short delay
+    setTimeout(() => {
+        const modal = document.getElementById('fuelValidationModal');
+        if (modal) modal.close();
+    }, 1500);
     
     const finalBtn = document.getElementById('btnToggleLoadSheet');
     if (finalBtn) {
@@ -1081,7 +1147,7 @@ window.unlockDashboard = (silent = false) => {
     const qmZfw = document.getElementById('qmZfw');
     const qmTow = document.getElementById('qmTow');
     
-    if (qmBlock) qmBlock.innerText = document.getElementById('fuelBlockField')?.innerText || '---';
+    if (qmBlock) qmBlock.innerText = document.getElementById('modalFuelBlockField')?.innerText || '---';
     if (qmCi) qmCi.innerText = document.getElementById('dispCiField')?.innerText || '---';
     if (qmCrz) qmCrz.innerText = document.getElementById('dispFlField')?.innerText || '---';
 
@@ -1469,6 +1535,7 @@ window.renderBriefingTabs = () => {
                                     <div class="mt-4 text-[11px] font-serif italic text-emerald-200/90 p-3 bg-emerald-900/20 border-l-2 border-emerald-500/50 rounded-r shadow-inner">
                                         "Dispatch computation requires ${convertWeight(rd.fuel?.plan_ramp)} ${uiWeightUnit} of block fuel for this sector. This incorporates ${convertWeight(rd.fuel?.extra)} ${uiWeightUnit} of extra padding calculated based on routing complexities and destination weather margins."
                                     </div>
+
                                 </div>
                             </div>
                             
@@ -2455,31 +2522,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnFetchPlan) {
         btnFetchPlan.addEventListener('click', () => {
             if (window.isFlightActive) {
-                if (window.flightPhase === 'Turnaround' || window.flightPhase === 'Arrived') {
-                    let username = localStorage.getItem('sbUsername') || '';
-                    if (!username || username.trim() === '') {
-                        alert('Please configure your SimBrief ID/Username in the Settings tab first!');
-                        return;
-                    }
-                    const dispatchModal = document.getElementById('simbriefDispatchModal');
-                    if (dispatchModal) {
-                        dispatchModal.style.display = 'flex';
-                        const loader = document.getElementById('simbriefLoadingState');
-                        if (loader) {
-                            loader.style.display = 'none';
-                            loader.classList.add('hidden');
-                        }
-
-                        const btnValidate = document.getElementById('btnValidateLeg');
-                        if (btnValidate) {
-                            btnValidate.disabled = false;
-                            btnValidate.classList.remove('opacity-50', 'cursor-not-allowed');
-                            window.currentLegCounter++;
-                            document.getElementById('lblValidateLeg').innerText = 'VALIDATE LEG ' + window.currentLegCounter;
-                            btnValidate.dataset.username = username;
-                            btnValidate.dataset.pristine = "false";
-                        }
-                    }
+                if (window.flightPhase === 'Turnaround' || window.flightPhase === 'AtGate') {
+                    // Send to backend to advance the leg queue
+                    window.chrome.webview.postMessage({ action: 'prepareNextLeg' });
                     return;
                 }
                 if (cancelModal) cancelModal.style.display = 'flex';
@@ -2859,10 +2904,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const fvBtnText = document.getElementById('fuelValidateBtnText');
                 if (fvBtn) {
                     fvBtn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/50', 'cursor-not-allowed', 'shadow-[0_0_20px_rgba(16,185,129,0.15)]');
-                    fvBtn.classList.add('bg-sky-500/20', 'text-sky-400', 'hover:bg-sky-500', 'border-sky-500/50', 'shadow-[0_0_20px_rgba(14,165,233,0.15)]');
-                    if (fvBtnText) fvBtnText.innerText = "Validate Fuel";
+                    fvBtn.classList.add('bg-sky-500/20', 'text-sky-400', 'hover:bg-sky-500', 'hover:text-white', 'border-sky-500/50', 'shadow-[0_0_20px_rgba(14,165,233,0.15)]', 'group', 'group-hover:scale-105');
+                    if (fvBtnText) fvBtnText.innerText = "Validate & Sign";
                     const fvIcon = fvBtn.querySelector('.material-symbols-outlined');
-                    if (fvIcon) fvIcon.innerText = "verified";
+                    if (fvIcon) fvIcon.innerText = "verified_user";
+                    fvBtn.onclick = () => { if(window.requestFuelValidation) window.requestFuelValidation(window.dashboardActiveLegIndex || 0); };
                 }
                 break;
             case 'flightReset':
@@ -2898,8 +2944,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 break;
             case 'phaseChanged':
-                console.log(`[IPC] Phase changed to ${payload.phase || msg.phase}`);
-                if (payload.phase === 'GroundOps' || msg.phase === 'GroundOps') {
+                console.log(`[IPC] Phase changed to ${payload.phase}`);
+                if (payload.phase === 'GroundOps') {
                     // ONLY switch to dashboard automatically if dispatch is signed off AND we are NOT booting
                     if (window.isDispatchSignedOff && !window.isAppBooting) {
                         const navDashboard = document.getElementById('navDashboardBtn');
@@ -3357,6 +3403,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 }
+                
+                if (typeof window.updateFuelTelemetry === 'function') window.updateFuelTelemetry();
                 break;
             case 'pncStatus':
                 const pncDot = document.getElementById('pncStatusDot');
@@ -3627,7 +3675,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else if (globalBanner) {
                         globalBanner.classList.add('hidden');
                     }
-                }
                 break;
             case 'crisisTriggered':
                 const crisisBanner = document.getElementById('crisisBanner');

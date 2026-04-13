@@ -190,7 +190,7 @@
             <li class="no-drag flex justify-center items-center w-12 h-12 rounded-xl cursor-pointer text-slate-400 hover:bg-white/5 hover:text-sky-300 transition-all duration-300 group" onclick="if(window.chrome && window.chrome.webview) { const score = document.getElementById('topScoreValue')?.innerText || '1000'; const history = document.getElementById('penaltyLogs')?.innerHTML || ''; window.chrome.webview.postMessage({action: 'openLogsWindow', payload: {score, history}}); }" title="Flight Logs">
                 <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">receipt_long</span>
             </li>
-            <li class="no-drag flex justify-center items-center w-12 h-12 rounded-xl mt-4 cursor-pointer text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition-all duration-300 group" onclick="document.getElementById('sandboxModal').classList.remove('opacity-0', 'pointer-events-none'); document.getElementById('sandboxModal').classList.add('opacity-100');" title="Sandbox Controls">
+            <li class="no-drag flex justify-center items-center w-12 h-12 rounded-xl mt-4 cursor-pointer text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition-all duration-300 group" onclick="if(window.chrome && window.chrome.webview) { window.chrome.webview.postMessage({action: 'openSandboxWindow'}); }" title="Sandbox Mode">
                 <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(2fb,113,133,0.5)]">science</span>
             </li>
             <li class="no-drag mt-auto flex justify-center items-center w-12 h-12 rounded-xl mb-4 text-slate-500 hover:bg-white/5 hover:text-slate-300 transition-all duration-300 group" data-target="options" title="Settings">
@@ -805,18 +805,35 @@
                                         <button id="btnAddExtra" class="w-6 h-6 rounded bg-sky-500/10 text-sky-400 hover:bg-sky-500/30 flex items-center justify-center transition-colors font-bold">+</button>
                                     </div>
                                 </div>
-
-
-                                <div class="mt-8 pt-6 border-t border-white/10 flex justify-between items-end">
-                                    <span class="text-xs text-white uppercase tracking-widest font-black">Block Fuel</span>
-                                    <span id="fuelBlockField" class="text-2xl font-mono text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">----</span>
+                                <!-- Added validation button directly to Load Sheet -->
+                                <div class="mt-8 flex justify-between items-center bg-black/30 p-4 rounded-lg border border-white/5 my-2">
+                                    <span class="text-sm text-[#7b7b7b] uppercase tracking-widest font-black">Block Fuel</span>
+                                    <div class="flex items-end gap-1">
+                                        <span id="dashFuelBlockField" class="text-3xl font-mono text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">----</span>
+                                        <span class="fuelUnitLabel text-[10px] text-sky-400 font-bold mb-1">KG</span>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center py-2 px-2 border-b border-white/5 border-dashed">
+                                    <span class="text-xs text-slate-500 uppercase tracking-widest font-bold">FOB on Aircraft</span>
+                                    <div class="flex items-end gap-1">
+                                        <span id="dashInitialFobField" class="text-lg font-mono text-emerald-400 font-bold">----</span>
+                                        <span class="fuelUnitLabel text-[9px] text-slate-500 font-bold mb-0.5">KG</span>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center py-2 px-2 rounded-b-lg">
+                                    <span class="text-xs text-slate-500 uppercase tracking-widest font-bold">Req Uplift</span>
+                                    <div class="flex items-end gap-1">
+                                        <span id="dashRequiredUpliftField" class="text-lg font-mono text-amber-500 font-bold">----</span>
+                                        <span class="fuelUnitLabel text-[9px] text-slate-500 font-bold mb-0.5">KG</span>
+                                    </div>
+                                </div>
+                                <div class="mt-4 mt-auto">
+                                    <button id="fuelValidateBtn" class="w-full bg-sky-500/20 text-sky-400 hover:bg-sky-500 hover:text-white border border-sky-500/50 py-4 flex items-center justify-center gap-2 rounded-xl font-bold tracking-[0.2em] uppercase transition-all duration-300 shadow-[0_0_20px_rgba(14,165,233,0.15)] hover:shadow-[0_0_30px_rgba(14,165,233,0.4)] group group-hover:scale-105 cursor-pointer">
+                                        <span class="material-symbols-outlined text-[18px]">verified_user</span>
+                                        <span id="fuelValidateBtnText">Validate & Sign</span>
+                                    </button>
                                 </div>
                             </div>
-
-                            <button id="fuelValidateBtn" onclick="if(window.requestFuelValidation) window.requestFuelValidation();" class="w-full bg-sky-500/20 text-sky-400 hover:bg-sky-500 hover:text-white border border-sky-500/50 py-4 rounded-xl font-bold tracking-[0.2em] uppercase transition-all duration-300 shadow-[0_0_20px_rgba(14,165,233,0.15)] hover:shadow-[0_0_30px_rgba(14,165,233,0.4)] flex items-center justify-center gap-2 relative overflow-hidden group">
-                                <span class="material-symbols-outlined text-[18px]">verified</span>
-                                <span id="fuelValidateBtnText">Validate Fuel</span>
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -1203,7 +1220,36 @@
     <!-- BOTTOM ACTION BAR REMOVED PER USER DIRECTIVE -->
 
     <!-- MODALS -->
-    <!-- Removed Warp Confirmation Modal -->
+    
+    <!-- Fuel Validation Modal -->
+    <dialog id="fuelValidationModal" class="bg-transparent m-auto p-0 rounded-2xl shadow-[0_0_80px_rgba(14,165,233,0.3)] backdrop:bg-black/80 backdrop:backdrop-blur-md open:animate-fade-in z-[300]">
+        <div class="bg-gradient-to-b from-[#1C1F26] to-[#121418] border border-sky-500/30 rounded-2xl w-[450px] flex flex-col overflow-hidden relative">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-sky-400 to-transparent"></div>
+            
+            <div class="p-8 pb-4 flex flex-col items-center text-center">
+                <div class="w-16 h-16 rounded-full bg-sky-500/10 flex items-center justify-center mb-6 shadow-inner border border-sky-400/20">
+                    <span class="material-symbols-outlined text-[32px] text-sky-400">local_gas_station</span>
+                </div>
+                <h3 class="text-lg font-bold text-white tracking-[0.2em] uppercase font-headline">Fuel Dispatch</h3>
+                <p class="text-xs text-slate-400 mt-2">Captain's final signature required before ground handling and boarding can commence.</p>
+            </div>
+            
+            <div class="px-8 py-6 bg-black/30 border-y border-white/5 my-2 flex justify-between items-center">
+                <span class="text-sm text-[#7b7b7b] uppercase tracking-widest font-black">Block Fuel</span>
+                <div class="flex items-end gap-1">
+                    <span id="modalFuelBlockField" class="text-3xl font-mono text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">----</span>
+                    <span class="text-xs text-sky-400 font-bold mb-1">KG</span>
+                </div>
+            </div>
+
+            <div class="p-8 pt-4">
+                <button id="modalFuelValidateBtn" onclick="if(window.requestFuelValidation) window.requestFuelValidation();" class="w-full bg-sky-500/20 text-sky-400 hover:bg-sky-500 hover:text-white border border-sky-500/50 py-4 rounded-xl font-bold tracking-[0.2em] uppercase transition-all duration-300 shadow-[0_0_20px_rgba(14,165,233,0.15)] hover:shadow-[0_0_30px_rgba(14,165,233,0.4)] flex items-center justify-center gap-2 group">
+                    <span class="material-symbols-outlined text-[18px]">verified_user</span>
+                    <span>Validate & Sign</span>
+                </button>
+            </div>
+        </div>
+    </dialog>
 
     <!-- SimBrief Dispatch View Modal -->
     <div id="simbriefDispatchModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md" style="display: none;">
@@ -1509,7 +1555,7 @@
 
     <script src="locales.js?v=4" charset="utf-8"></script>
     <script src="narrative.js?v=1" charset="utf-8"></script>
-    <script src="app.js?v=25" charset="utf-8"></script>
+    <script src="app.js?v=27" charset="utf-8"></script>
     <script>
         // Update top bar dynamically using the flight status
         setInterval(() => {
@@ -1730,44 +1776,6 @@
     <div style="display: none;" id="hiddenLogTrackers">
         <span id="topScoreValue">1000</span>
         <ul id="penaltyLogs"></ul>
-    </div>
-
-    <!-- Sandbox Modal -->
-    <div id="sandboxModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
-        <div class="bg-[#141414] border border-rose-500/30 rounded-xl w-full max-w-xl shadow-[0_0_40px_rgba(225,29,72,0.15)] flex flex-col font-manrope">
-            <!-- Header -->
-            <div id="sandboxModalHeader" class="p-4 border-b border-rose-500/20 flex justify-between items-center cursor-move bg-rose-900/10 rounded-t-xl">
-                <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-rose-400">science</span>
-                    <h2 class="text-sm font-label tracking-widest text-rose-400 uppercase font-black drop-shadow-md">Simulator Sandbox Mode</h2>
-                </div>
-                <button onclick="document.getElementById('sandboxModal').classList.remove('opacity-100'); document.getElementById('sandboxModal').classList.add('opacity-0', 'pointer-events-none');" class="text-[#7b7b7b] hover:text-white transition-colors">
-                    <span class="material-symbols-outlined text-[18px]">close</span>
-                </button>
-            </div>
-            <!-- Body -->
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <div>
-                        <p class="text-[11px] text-rose-200/70 leading-relaxed max-w-sm font-semibold">Mock telemetry offline to test game loops without MSFS. Easily manipulate physical limits and phase transitions.</p>
-                        <p class="text-[10px] py-1 px-2 border border-rose-500/30 text-rose-300 uppercase inline-block mt-2 font-bold tracking-widest">⚠️ Do not use while actively flying in MSFS</p>
-                    </div>
-                    <label class="relative inline-flex items-center cursor-pointer ml-4">
-                        <input type="checkbox" id="chkSimMode" class="sr-only peer" onchange="window.chrome.webview.postMessage({action: 'debugToggleSimulation', enabled: this.checked});">
-                        <div class="w-11 h-6 bg-rose-950 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-500"></div>
-                    </label>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3 pb-2 border-t border-white/5 pt-6">
-                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'AtGate'})" class="bg-black/50 border border-rose-500/20 text-rose-300 py-3 px-1 rounded-md hover:bg-rose-500/30 transition-colors uppercase font-mono text-[10px] tracking-widest font-black">AT GATE</button>
-                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Pushback'})" class="bg-black/50 border border-rose-500/20 text-rose-300 py-3 px-1 rounded-md hover:bg-rose-500/30 transition-colors uppercase font-mono text-[10px] tracking-widest font-black">PUSHBACK</button>
-                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Takeoff'})" class="bg-black/50 border border-rose-500/20 text-rose-300 py-3 px-1 rounded-md hover:bg-rose-500/30 transition-colors uppercase font-mono text-[10px] tracking-widest font-black">TAKEOFF (+15m)</button>
-                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Cruise'})" class="bg-black/50 border border-sky-500/20 text-sky-400 py-3 px-1 rounded-md hover:bg-sky-500/30 transition-colors uppercase font-mono text-[10px] tracking-widest font-black shadow-[0_0_15px_rgba(14,165,233,0.1)]">CRUISE (+30m)</button>
-                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Descent'})" class="bg-black/50 border border-amber-500/20 text-amber-400 py-3 px-1 rounded-md hover:bg-amber-500/30 transition-colors uppercase font-mono text-[10px] tracking-widest font-black">DESCENT (+ETE)</button>
-                    <button onclick="window.chrome.webview.postMessage({action: 'debugForcePhase', phase: 'Arrived'})" class="bg-black/50 border border-emerald-500/40 text-emerald-400 py-3 px-1 rounded-md hover:bg-emerald-500/40 transition-colors uppercase font-mono text-[10px] tracking-widest font-black shadow-[0_0_15px_rgba(16,185,129,0.1)]">ARRIVED (+15m)</button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- AIRLINE IDENTITY MODAL -->
