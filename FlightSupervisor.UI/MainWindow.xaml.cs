@@ -961,8 +961,13 @@ namespace FlightSupervisor.UI
                         double deltaSec = (now - _lastFuelFlowUpdate).TotalSeconds;
                         if (deltaSec > 0 && deltaSec < 5) // normal tick
                         {
-                            double flow1 = Math.Max(0, eng1) * 0.453592 / 3600.0; 
-                            double flow2 = Math.Max(0, eng2) * 0.453592 / 3600.0;
+                            bool eng1Running = _phaseManager?.Eng1N1 > 2.0; 
+                            bool eng2Running = _phaseManager?.Eng2N1 > 2.0; 
+
+                            double flow1 = eng1Running ? Math.Max(0, eng1) * 0.453592 / 3600.0 : 0.0; 
+                            double flow2 = eng2Running ? Math.Max(0, eng2) * 0.453592 / 3600.0 : 0.0;
+                            
+                            // A320 APU nominal fuel flow without pack demand is around 130 kg/hr
                             double apuFlow = (_cabinManager?.IsApuRunning ?? false) ? (130.0 / 3600.0) : 0.0;
                             
                             double totalConsumedKg = (flow1 + flow2 + apuFlow) * deltaSec;
