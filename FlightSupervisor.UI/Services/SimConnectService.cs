@@ -60,6 +60,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<bool, bool, bool>? OnAntiIceChanged;
         public event Action<int, bool, bool>? OnEngineSwitchesChanged;
         public event Action<double, double>? OnEngineN1Received;
+        public event Action<double, double>? OnEngineFuelFlowReceived;
         public event Action<bool, bool>? OnDoorsReceived; // MainDoor, Jetway
         public event Action<float, float, float>? OnCabinTemperatureTargetsChanged;
         public event Action<int>? OnNoseLightChanged;
@@ -100,6 +101,8 @@ namespace FlightSupervisor.UI.Services
             public double GForce;
             public double Eng1Combustion;
             public double Eng2Combustion;
+            public double Eng1FuelFlow;
+            public double Eng2FuelFlow;
             public double Heading;
             public double WindDirection;
             public double WindVelocity;
@@ -182,6 +185,8 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "G FORCE", "GForce", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GENERAL ENG COMBUSTION:1", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GENERAL ENG COMBUSTION:2", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "ENG FUEL FLOW PPH:1", "Pounds per hour", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "ENG FUEL FLOW PPH:2", "Pounds per hour", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "ENG N1 RPM:1", "Percent", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "ENG N1 RPM:2", "Percent", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "INTERACTIVE POINT OPEN:0", "Percent", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
@@ -298,6 +303,7 @@ namespace FlightSupervisor.UI.Services
                 }
                 
                 OnAmbientTemperatureReceived?.Invoke(planeData.AmbientTemperature);
+                
                 OnFuelTotalReceived?.Invoke(planeData.FuelTotalMass);
 
                 OnGearDownReceived?.Invoke(planeData.GearHandle > 0.5);
@@ -318,6 +324,7 @@ namespace FlightSupervisor.UI.Services
                 OnAirframeDynamicsReceived?.Invoke(planeData.VelocityBodyZ, planeData.AccelerationBodyZ);
 
                 OnEngineN1Received?.Invoke(planeData.Eng1N1, planeData.Eng2N1);
+                OnEngineFuelFlowReceived?.Invoke(planeData.Eng1FuelFlow, planeData.Eng2FuelFlow);
                 OnDoorsReceived?.Invoke(planeData.InteractivePoint0 > 0.5, planeData.InteractivePoint12 > 0.5);
 
                 if (!IsWasmOverriding)

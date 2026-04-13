@@ -138,6 +138,11 @@
 
         <!-- Right Side Icons -->
         <div class="flex items-center gap-1 justify-end flex-1">
+            <div class="flex items-center gap-1.5 font-mono text-emerald-400 font-bold text-[11px] mr-3 
+tracking-wider">
+                <span class="material-symbols-outlined text-[13px] text-[#7b7b7b]">local_gas_station</span>
+                <span id="topFuelTracker" class="drop-shadow-lg">---</span><span class="text-[9px] text-emerald-600/80">KG</span>
+            </div>
             <button class="no-drag w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-white/5" id="btnPin" title="Toggle Always on Top" onmousedown="event.stopPropagation();" style="opacity: 0.4;">
                 <span class="material-symbols-outlined text-[16px] font-light">push_pin</span>
             </button>
@@ -1555,7 +1560,7 @@
 
     <script src="locales.js?v=4" charset="utf-8"></script>
     <script src="narrative.js?v=1" charset="utf-8"></script>
-    <script src="app.js?v=27" charset="utf-8"></script>
+    <script src="app.js?v=28" charset="utf-8"></script>
     <script>
         // Update top bar dynamically using the flight status
         setInterval(() => {

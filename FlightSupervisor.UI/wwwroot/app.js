@@ -3031,6 +3031,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 updateIntercomButtons(payload);
                 document.getElementById('flightPhase').innerText = `${payload.phase}`;
+                
+                const topFuelTracker = document.getElementById('topFuelTracker');
+                if (topFuelTracker) {
+                    if (payload.fob && payload.fob > 0) {
+                        topFuelTracker.innerText = Math.round(payload.fob);
+                    } else {
+                        topFuelTracker.innerText = "---";
+                    }
+                }
+                
                 if (typeof window.updateDashboardAnimation === 'function') window.updateDashboardAnimation(payload);
 
                 // Start Ops Button Lifecycle (Point 11)

@@ -22,6 +22,16 @@ namespace FlightSupervisor.UI
         private double _lastKnownAirspeed = 0;
         private double _lastKnownAltitude = 0;
         private double _lastKnownRadioHeight = 0;
+        private bool _isFenixStrobeSyncActive = false;
+        private DateTime _lastWindingTrigger = DateTime.MinValue;
+
+        // -- STORY: GHOST FUEL TRACKER --
+        private bool _ghostFuelTrackerActive = false;
+        private double _virtualFobKg = 0;
+        private DateTime _lastFuelFlowUpdate = DateTime.MinValue;
+        private bool _isApuRunning = false;
+        // -------------------------------
+
         private bool _isParkingBrakeSet = false;
         private double _lastKnownThrottle = 0;
         private double _lastKnownPitch = 0;
@@ -911,7 +921,18 @@ namespace FlightSupervisor.UI
             };
 
             _simConnectService.OnFuelTotalReceived += fuel => {
-                _currentFobKg = fuel;
+                if (fuel > 0)
+                {
+                    // Protection against WASM telemetry blackouts during TimeWarp:
+                    // If fuel drops instantly by an impossible amount (> 500kg in <1s), ignore the tick.
+                    if (_currentFobKg > 500 && (_currentFobKg - fuel) > 500)
+                    {
+                        return;
+                    }
+
+                    _currentFobKg = fuel;
+                    _ghostFuelTrackerActive = false; // We have positive native fuel, disable ghost tracker safely.
+                }
 
                 // For the very first leg, if the user hasn't yet validated the load sheet (locked it),
                 // continuously track the simulator's live fuel as the "Initial" FOB so it populates correctly
@@ -928,6 +949,33 @@ namespace FlightSupervisor.UI
                         }
                         _cabinManager.StateOfAircraft.InitialFobKg = fuel;
                     }
+                }
+            };
+
+            _simConnectService.OnEngineFuelFlowReceived += (eng1, eng2) => {
+                if (_ghostFuelTrackerActive)
+                {
+                    DateTime now = DateTime.UtcNow;
+                    if (_lastFuelFlowUpdate != DateTime.MinValue)
+                    {
+                        double deltaSec = (now - _lastFuelFlowUpdate).TotalSeconds;
+                        if (deltaSec > 0 && deltaSec < 5) // normal tick
+                        {
+                            double flow1 = Math.Max(0, eng1) * 0.453592 / 3600.0; 
+                            double flow2 = Math.Max(0, eng2) * 0.453592 / 3600.0;
+                            double apuFlow = (_cabinManager?.IsApuRunning ?? false) ? (130.0 / 3600.0) : 0.0;
+                            
+                            double totalConsumedKg = (flow1 + flow2 + apuFlow) * deltaSec;
+
+                            if (totalConsumedKg > 0)
+                            {
+                                _virtualFobKg -= totalConsumedKg;
+                                if (_virtualFobKg < 0) _virtualFobKg = 0;
+                                _currentFobKg = Math.Round(_virtualFobKg);
+                            }
+                        }
+                    }
+                    _lastFuelFlowUpdate = now;
                 }
             };
 
@@ -1466,6 +1514,14 @@ namespace FlightSupervisor.UI
                         }
 
                         _groundOpsManager.IsFuelSheetValidated = true;
+
+                        // -- GHOST FUEL TRACKER INITIATION --
+                        // If simulator lacks native fuel telemetry, or is cold and dark,
+                        // this will act as the master baseline and simulate the burn natively via Flow Integration.
+                        _ghostFuelTrackerActive = true;
+                        _virtualFobKg = double.TryParse(blockFuel, out double bf) ? bf : 3000.0;
+                        _currentFobKg = Math.Round(_virtualFobKg);
+                        // -----------------------------------
                         
                         if (_currentResponse != null)
                         {
@@ -2475,7 +2531,7 @@ namespace FlightSupervisor.UI
                 isBeaconOn = _phaseManager.IsBeaconLightOn,
                 gsxBoardingState = _phaseManager.GsxBoardingState,
                 gsxDeboardingState = _phaseManager.GsxDeboardingState,
-                
+                fob = _currentFobKg,
                 aircraftState = _cabinManager.StateOfAircraft
             });
             
