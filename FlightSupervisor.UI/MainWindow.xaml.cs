@@ -530,6 +530,19 @@ namespace FlightSupervisor.UI
                             p.LastFlightDate = DateTime.Now;
                             _profileManager.SaveProfile();
 
+                            double expectedBurn = 0;
+                            double actualBurn = 0;
+                            double initialFob = _cabinManager?.StateOfAircraft?.InitialFobKg ?? 0;
+                            if (initialFob > 0)
+                            {
+                                actualBurn = initialFob - _currentFobKg;
+                            }
+                            if (_currentResponse?.Fuel != null && double.TryParse(_currentResponse.Fuel.PlanRamp, out double pr) && double.TryParse(_currentResponse.Fuel.PlanLanding, out double pl))
+                            {
+                                expectedBurn = pr - pl;
+                                if (actualBurn == 0) actualBurn = pr - _currentFobKg;
+                            }
+
                             var report = new FlightSupervisor.UI.Models.FlightArchive
                             {
                                 Score = _scoreManager.CurrentScore,
@@ -551,6 +564,8 @@ namespace FlightSupervisor.UI
                                 Zfw = _currentResponse?.Weights?.EstZfw ?? "0",
                                 Tow = _currentResponse?.Weights?.EstTow ?? "0",
                                 BlockFuel = _currentResponse?.Fuel?.PlanRamp ?? "0",
+                                ExpectedBlockBurnKg = expectedBurn,
+                                ActualBlockBurnKg = actualBurn,
                                 DelaySec = effectiveDelaySec,
                                 RawDelaySec = rawDelaySec,
                                 TurnaroundEfficiencySec = _turnaroundEfficiencySec
@@ -566,6 +581,19 @@ namespace FlightSupervisor.UI
                         }
                         else
                         {
+                            double expectedBurn = 0;
+                            double actualBurn = 0;
+                            double initialFob = _cabinManager?.StateOfAircraft?.InitialFobKg ?? 0;
+                            if (initialFob > 0)
+                            {
+                                actualBurn = initialFob - _currentFobKg;
+                            }
+                            if (_currentResponse?.Fuel != null && double.TryParse(_currentResponse.Fuel.PlanRamp, out double pr) && double.TryParse(_currentResponse.Fuel.PlanLanding, out double pl))
+                            {
+                                expectedBurn = pr - pl;
+                                if (actualBurn == 0) actualBurn = pr - _currentFobKg;
+                            }
+
                             var fallbackReport = new FlightSupervisor.UI.Models.FlightArchive
                             {
                                 Score = _scoreManager.CurrentScore,
@@ -587,6 +615,8 @@ namespace FlightSupervisor.UI
                                 Zfw = _currentResponse?.Weights?.EstZfw ?? "0",
                                 Tow = _currentResponse?.Weights?.EstTow ?? "0",
                                 BlockFuel = _currentResponse?.Fuel?.PlanRamp ?? "0",
+                                ExpectedBlockBurnKg = expectedBurn,
+                                ActualBlockBurnKg = actualBurn,
                                 DelaySec = effectiveDelaySec,
                                 RawDelaySec = rawDelaySec,
                                 TurnaroundEfficiencySec = _turnaroundEfficiencySec

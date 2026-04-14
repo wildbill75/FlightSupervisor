@@ -1,0 +1,69 @@
+{
+  "Timestamp": "2026-04-14T00:01:19.9975362Z",
+  "Session": {
+    "CurrentPhase": "Turnaround",
+    "SessionFlightsCompleted": 0,
+    "InternalClock": "2026-04-14T14:05:10.0000000Z"
+  },
+  "Cabin": {
+    "PassengerCount": 110,
+    "Satisfaction": 89.1,
+    "Anxiety": 0,
+    "SecuringProgress": 0,
+    "IsFirstFlightClean": false,
+    "WaterLevel": 100,
+    "WasteLevel": 0
+  },
+  "GroundOps": {
+    "IsStarted": false,
+    "IsFuelSheetValidated": true,
+    "TargetSobt": "2026-04-13T12:58:43.0000000Z",
+    "Services": [
+      {
+        "Name": "Refueling",
+        "State": 3,
+        "ElapsedSec": 942,
+        "TotalDurationSec": 595,
+        "IsAvailable": true
+      },
+      {
+        "Name": "Boarding",
+        "State": 3,
+        "ElapsedSec": 1019,
+        "TotalDurationSec": 1019,
+        "IsAvailable": true
+      },
+      {
+        "Name": "Cargo/Luggage",
+        "State": 3,
+        "ElapsedSec": 943,
+        "TotalDurationSec": 628,
+        "IsAvailable": true
+      },
+      {
+        "Name": "Catering",
+        "State": 3,
+        "ElapsedSec": 320,
+        "TotalDurationSec": 320,
+        "IsAvailable": true
+      },
+      {
+        "Name": "PNC Chores",
+        "State": 3,
+        "ElapsedSec": 13,
+        "TotalDurationSec": 13,
+        "IsAvailable": true
+      },
+      {
+        "Name": "Water/Waste",
+        "State": 3,
+        "ElapsedSec": 314,
+        "TotalDurationSec": 96,
+        "IsAvailable": true
+      }
+    ]
+  },
+  "Telemetry": {
+    "FobKg": 2823
+  }
+}

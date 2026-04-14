@@ -3900,6 +3900,66 @@ document.addEventListener('DOMContentLoaded', () => {
                         else gEl.classList.add('text-slate-200');
                     }
 
+                    const ecoContainer = document.getElementById('frEcoContainer');
+                    if (ecoContainer) {
+                        let expectedFu = rep.ExpectedBlockBurnKg ?? rep.expectedBlockBurnKg ?? 0;
+                        let actualFu = rep.ActualBlockBurnKg ?? rep.actualBlockBurnKg ?? 0;
+                        
+                        // only show if expectations are > 0 (e.g. simbrief was properly loaded)
+                        if (expectedFu > 0 && actualFu > 0) {
+                            ecoContainer.style.display = 'flex';
+                            let deltaParams = actualFu - expectedFu;
+                            
+                            const ecoBg = document.getElementById('frEcoBg');
+                            const ecoIcon = document.getElementById('frEcoIcon');
+                            const ecoStatus = document.getElementById('frEcoStatus');
+                            const ecoDetails = document.getElementById('frEcoDetails');
+                            const ecoDelta = document.getElementById('frEcoDelta');
+                            
+                            ecoDetails.innerText = `Expected: ${Math.round(expectedFu)} kg | Realized: ${Math.round(actualFu)} kg`;
+                            
+                            let deltaPrefix = deltaParams > 0 ? "+" : "";
+                            ecoDelta.innerText = `${deltaPrefix}${Math.round(deltaParams)} kg`;
+                            
+                            const resetStyles = () => {
+                                ecoBg.className = 'w-16 h-full absolute left-0 top-0 flex items-center justify-center border-r';
+                                ecoIcon.className = 'material-symbols-outlined text-3xl';
+                                ecoStatus.className = 'font-black font-headline text-2xl uppercase tracking-widest leading-none';
+                                ecoDelta.className = 'text-xl font-mono font-bold';
+                            };
+                            
+                            resetStyles();
+                            
+                            if (deltaParams <= 0) {
+                                // Efficient (Saved fuel)
+                                ecoBg.classList.add('bg-emerald-500/10', 'border-emerald-500/20');
+                                ecoIcon.classList.add('text-emerald-400');
+                                ecoIcon.innerText = 'eco';
+                                ecoStatus.classList.add('text-emerald-400');
+                                ecoStatus.innerText = 'EFFICIENT BURN';
+                                ecoDelta.classList.add('text-emerald-400');
+                            } else if (deltaParams <= 200) {
+                                // Mild overburn
+                                ecoBg.classList.add('bg-amber-500/10', 'border-amber-500/20');
+                                ecoIcon.classList.add('text-amber-400');
+                                ecoIcon.innerText = 'local_gas_station';
+                                ecoStatus.classList.add('text-amber-400');
+                                ecoStatus.innerText = 'MARGINAL OVERBURN';
+                                ecoDelta.classList.add('text-amber-400');
+                            } else {
+                                // Wasted fuel
+                                ecoBg.classList.add('bg-rose-500/10', 'border-rose-500/20');
+                                ecoIcon.classList.add('text-rose-500');
+                                ecoIcon.innerText = 'warning';
+                                ecoStatus.classList.add('text-rose-500');
+                                ecoStatus.innerText = 'EXCESSIVE BURN';
+                                ecoDelta.classList.add('text-rose-500');
+                            }
+                        } else {
+                            ecoContainer.style.display = 'none';
+                        }
+                    }
+
                     const objContainer = document.getElementById('frObjectivesContainer');
                     const objList = document.getElementById('frObjectivesList');
                     if (objContainer && objList) {

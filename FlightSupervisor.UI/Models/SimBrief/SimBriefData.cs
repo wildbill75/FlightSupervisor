@@ -241,6 +241,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
         [JsonPropertyName("plan_ramp")]
         public string? PlanRamp { get; set; }
 
+        [JsonPropertyName("plan_landing")]
+        public string? PlanLanding { get; set; }
+
         [JsonPropertyName("extra")]
         public string? Extra { get; set; }
 

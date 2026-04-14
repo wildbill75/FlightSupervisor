@@ -35,6 +35,8 @@ namespace FlightSupervisor.UI.Models
         public string Zfw { get; set; }
         public string Tow { get; set; }
         public string BlockFuel { get; set; }
+        public double ExpectedBlockBurnKg { get; set; }
+        public double ActualBlockBurnKg { get; set; }
         
         public long DelaySec { get; set; }
         public long RawDelaySec { get; set; }
