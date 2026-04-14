@@ -3477,14 +3477,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     const setBadge = (statusSpan, delaySec) => {
                         if (!statusSpan) return;
                         let m = Math.floor(Math.abs(delaySec) / 60);
-                        if (delaySec <= 180) {
+                        let h = Math.floor(m / 60);
+                        m = m % 60;
+                        let timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+                        
+                        if (delaySec >= -300 && delaySec <= 300) {
                             statusSpan.innerText = `ON TIME`;
                             statusSpan.className = "px-2 py-0.5 rounded bg-emerald-500/10 text-[10px] text-emerald-400 uppercase font-bold tracking-wider";
+                        } else if (delaySec < -300) {
+                            statusSpan.innerText = `EARLY : ${timeStr}`;
+                            statusSpan.className = "px-2 py-0.5 rounded bg-sky-500/10 text-[10px] text-sky-400 uppercase font-bold tracking-wider";
                         } else if (delaySec <= 900) {
-                            statusSpan.innerText = `+ ${m}m DELAY`;
+                            statusSpan.innerText = `LATE : ${timeStr}`;
                             statusSpan.className = "px-2 py-0.5 rounded bg-amber-500/10 text-[10px] text-amber-500 uppercase font-bold tracking-wider";
                         } else {
-                            statusSpan.innerText = `+ ${m}m DELAY`;
+                            statusSpan.innerText = `LATE : ${timeStr}`;
                             statusSpan.className = "px-2 py-0.5 rounded bg-rose-500/10 text-[10px] text-rose-500 uppercase font-bold tracking-wider";
                         }
                     };
@@ -3522,70 +3529,57 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         } else {
                             let arrDelay = currDelay;
+                            if (window.flightPhase === "Landing" || window.flightPhase === "Taxi In") {
+                                arrDelay = payload.rawUnix - window.currentSibtUnix;
+                            } else if (payload.rawUnix + currDelay > window.currentSibtUnix) {
+                                arrDelay = payload.rawUnix - window.currentSibtUnix;
+                            }
                             if (ttActArr) {
                                 ttActArr.innerText = getFormattedTime(window.currentSibtUnix + arrDelay);
-                                ttActArr.className = arrDelay > 180 ? "py-4 font-mono text-rose-400 font-bold animate-pulse" : "py-4 font-mono text-sky-400 font-bold animate-pulse";
+                                ttActArr.className = arrDelay > 300 ? "py-4 font-mono text-rose-400 font-bold animate-pulse" : "py-4 font-mono text-sky-400 font-bold animate-pulse";
                             }
                             setBadge(ttArrStatus, arrDelay);
                         }
                     }
                 }
                  if (cd && payload.rawUnix && currentSobtUnix > 0) {
-                    // --- ALTERNATING HEADER LOGIC ---
-                    const cycleSec = 7;
-                    const isDeviationView = Math.floor(payload.rawUnix / cycleSec) % 2 === 1;
-
-                    if (isDeviationView) {
-                        // View 1: Schedule Deviation
-                        let d = 0; 
-                        if (window.finalAibtUnix && window.currentSibtUnix > 0) {
-                            d = payload.rawUnix - (window.finalAibtUnix + 2100);
-                        } else if (window.finalAobtUnix) {
-                            d = window.finalAobtUnix - currentSobtUnix;
-                        } else {
-                            d = payload.rawUnix - currentSobtUnix;
+                    let d = 0; 
+                    let phase = payload.phase || window.flightPhase;
+                    
+                    if (window.finalAibtUnix && window.currentSibtUnix > 0) {
+                        d = window.finalAibtUnix - window.currentSibtUnix;
+                    } else if ((phase === 'Landing' || phase === 'Taxi In') && window.currentSibtUnix > 0) {
+                        d = payload.rawUnix - window.currentSibtUnix;
+                    } else if (window.finalAobtUnix && window.currentSibtUnix > 0) {
+                        d = window.finalAobtUnix - currentSobtUnix;
+                        if (payload.rawUnix > window.currentSibtUnix) {
+                            d = payload.rawUnix - window.currentSibtUnix;
                         }
-
-                        let isLate = d > 0;
-                        let absDiff = Math.floor(Math.abs(d));
-                        let h = Math.floor(absDiff / 3600);
-                        let m = Math.floor((absDiff % 3600) / 60);
-                        let s = absDiff % 60;
-                        let timeStr = (h > 0 ? `${h}h ` : '') + `${m}m ${s}s`;
-                        let prefix = isLate ? '+' : '-';
-                        cd.innerText = prefix + timeStr;
-                        
-                        let cCol = '#10b981';
-                        if (d < -300) cCol = '#3b82f6';
-                        else if (d <= 180) cCol = '#10b981';
-                        else if (d <= 420) cCol = '#eab308';
-                        else if (d <= 600) cCol = '#f97316';
-                        else cCol = '#ef4444';
-                        cd.style.color = cCol;
                     } else {
-                        // View 2: Flight Time (since Off-Block)
-                        if (window.finalAobtUnix) {
-                            let ft = payload.rawUnix - window.finalAobtUnix;
-                            if (window.finalAibtUnix) ft = window.finalAibtUnix - window.finalAobtUnix;
-
-                            let absFT = Math.floor(Math.abs(ft));
-                            let h = Math.floor(absFT / 3600);
-                            let m = Math.floor((absFT % 3600) / 60);
-                            let s = absFT % 60;
-                            cd.innerText = `FT ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-                            cd.style.color = '#38bdf8';
-                        } else {
-                            // Fallback to Departure Countdown
-                            let diff = currentSobtUnix - payload.rawUnix;
-                            let absDiff = Math.floor(Math.abs(diff));
-                            let h = Math.floor(absDiff / 3600);
-                            let m = Math.floor((absDiff % 3600) / 60);
-                            let s = absDiff % 60;
-                            let prefix = diff > 0 ? '-' : '+';
-                            cd.innerText = `DEP ${prefix}${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-                            cd.style.color = '#cbd5e1';
-                        }
+                        d = payload.rawUnix - currentSobtUnix;
                     }
+
+                    let absDiff = Math.floor(Math.abs(d));
+                    let mTotal = Math.floor(absDiff / 60);
+                    let hStr = Math.floor(mTotal / 60).toString().padStart(2, '0');
+                    let mStr = (mTotal % 60).toString().padStart(2, '0');
+                    let timeStr = `${hStr}:${mStr}`;
+
+                    let cCol = '#10b981';
+                    if (d < -300) {
+                        cd.innerText = `EARLY : ${timeStr}`;
+                        cCol = '#38bdf8';
+                    } else if (d <= 300) {
+                        cd.innerText = "ON TIME";
+                        cCol = '#10b981';
+                    } else if (d <= 900) {
+                        cd.innerText = `LATE : ${timeStr}`;
+                        cCol = '#f59e0b';
+                    } else {
+                        cd.innerText = `LATE : ${timeStr}`;
+                        cCol = '#ef4444';
+                    }
+                    cd.style.color = cCol;
 
                     if (window.finalAibtUnix && window.currentSibtUnix > 0) {
                         let aibtSp = document.getElementById('bdAibt');
