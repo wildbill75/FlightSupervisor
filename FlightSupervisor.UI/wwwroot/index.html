@@ -195,6 +195,9 @@ tracking-wider">
             <li id="navFuelBtn" class="no-drag flex justify-center items-center w-12 h-12 rounded-xl cursor-pointer text-slate-400 hover:bg-white/5 hover:text-sky-300 transition-all duration-300 group opacity-30 pointer-events-none cursor-not-allowed" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'openFuelSheetWindow'});" title="Consult Load Sheet & Fuel Dispatch">
                 <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">local_gas_station</span>
             </li>
+            <li id="navAirframeBtn" class="no-drag flex justify-center items-center w-12 h-12 rounded-xl cursor-pointer text-slate-400 hover:bg-white/5 hover:text-sky-300 transition-all duration-300 group" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'openAirframeWindow'});" title="Airframe Tech Log">
+                <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">menu_book</span>
+            </li>
             <li class="no-drag flex justify-center items-center w-12 h-12 rounded-xl cursor-pointer text-slate-400 hover:bg-white/5 hover:text-sky-300 transition-all duration-300 group" onclick="if(window.chrome && window.chrome.webview) { const score = document.getElementById('topScoreValue')?.innerText || '1000'; const history = document.getElementById('penaltyLogs')?.innerHTML || ''; window.chrome.webview.postMessage({action: 'openLogsWindow', payload: {score, history}}); }" title="Flight Logs">
                 <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">receipt_long</span>
             </li>

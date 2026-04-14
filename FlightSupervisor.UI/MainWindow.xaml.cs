@@ -85,6 +85,7 @@ namespace FlightSupervisor.UI
         private CrisisManager _crisisManager;
         public AirlineProfile? CurrentAirline { get; private set; }
         private ProfileManager _profileManager;
+        private AirframeManager _airframeManager;
         private ActiveSkyService _activeSkyService;
         private NoaaWeatherService _noaaWeatherService;
         private System.Windows.Threading.DispatcherTimer _weatherUpdateTimer;
@@ -95,6 +96,8 @@ namespace FlightSupervisor.UI
         private Window _groundOpsWindow;
         private Microsoft.Web.WebView2.Wpf.WebView2 _fuelSheetWebView;
         private Window _fuelSheetWindow;
+        private Microsoft.Web.WebView2.Wpf.WebView2 _airframeWebView;
+        private Window _airframeWindow;
         
         private Microsoft.Web.WebView2.Wpf.WebView2 _logsWebView;
         private Window _logsWindow;
@@ -141,6 +144,7 @@ namespace FlightSupervisor.UI
 
             _airlineDb = new AirlineProfileManager(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Airlines.json"));
             _profileManager = new ProfileManager();
+            _airframeManager = new AirframeManager();
 
             _groundOpsManager = new GroundOpsManager();
             _groundOpsManager.OnPenaltyTriggered += (points, reason) => {
@@ -1222,6 +1226,112 @@ namespace FlightSupervisor.UI
             }
         }
 
+        private void OpenAirframeWindow()
+        {
+            if (_airframeWindow != null)
+            {
+                _airframeWindow.Activate();
+                return;
+            }
+            try
+            {
+                var afWin = new Window
+                {
+                    Title = "Airframe Tech Log",
+                    Width = 1100,
+                    Height = 700,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Owner = this,
+                    Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#141414"),
+                    WindowStyle = WindowStyle.None,
+                    ResizeMode = ResizeMode.CanResize
+                };
+                System.Windows.Shell.WindowChrome.SetWindowChrome(afWin, new System.Windows.Shell.WindowChrome { CaptionHeight = 0, ResizeBorderThickness = new System.Windows.Thickness(8), GlassFrameThickness = new System.Windows.Thickness(0), CornerRadius = new System.Windows.CornerRadius(0), UseAeroCaptionButtons = false });
+                
+                afWin.Closed += (s, ev) => {
+                    _airframeWebView = null;
+                    _airframeWindow = null;
+                };
+
+                var webView = new Microsoft.Web.WebView2.Wpf.WebView2();
+                webView.Margin = new System.Windows.Thickness(0);
+                _airframeWebView = webView;
+                _airframeWindow = afWin;
+                
+                afWin.Content = new System.Windows.Controls.Border {
+                    BorderThickness = new System.Windows.Thickness(4),
+                    BorderBrush = System.Windows.Media.Brushes.Transparent,
+                    Background = System.Windows.Media.Brushes.Transparent,
+                    Child = webView
+                };
+                
+                afWin.Show();
+
+                _ = System.Threading.Tasks.Task.Run(async () =>
+                {
+                    await Dispatcher.InvokeAsync(async () =>
+                    {
+                        var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, System.IO.Path.Combine(System.IO.Path.GetTempPath(), "FlightSupervisorAirframe"));
+                        await webView.EnsureCoreWebView2Async(env);
+                        webView.CoreWebView2.SetVirtualHostNameToFolderMapping("app.local", System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot"), Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+                        
+                        webView.CoreWebView2.WebMessageReceived += async (s, ev) => {
+                            await ProcessWebMessage(ev.WebMessageAsJson, webView.CoreWebView2, afWin);
+                        };
+
+                        webView.CoreWebView2.Navigate("https://app.local/airframe_window.html");
+                        
+                        webView.CoreWebView2.NavigationCompleted += async (s, ev) => {
+                            await System.Threading.Tasks.Task.Delay(500);
+                            try {
+                                string reg = _currentResponse?.Aircraft?.Reg ?? "F-HBNJ";
+                                string btype = _currentResponse?.Aircraft?.BaseType ?? "A320neo";
+                                string op = _currentResponse?.General?.Airline ?? "True Airmanship";
+                                string icao = _currentResponse?.Origin?.IcaoCode ?? "LFPG";
+                                var state = _airframeManager.GetOrCreateAirframe(reg, btype, op, icao);
+
+                                // Auto-populate technical specs from SimBrief if available
+                                if (_currentResponse?.Aircraft?.ExtensionData != null)
+                                {
+                                    if (state.EngineType == "Unknown" && _currentResponse.Aircraft.ExtensionData.TryGetValue("engines", out var engType)) state.EngineType = engType.ToString();
+                                }
+                                if (state.MaxFuelCapacity == 0 && _currentResponse?.Fuel?.ExtensionData != null && _currentResponse.Fuel.ExtensionData.TryGetValue("max_tanks", out var maxTanks) && double.TryParse(maxTanks.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double mf)) state.MaxFuelCapacity = mf;
+                                
+                                if (_currentResponse?.Aircraft?.MaxPassengers != null && state.MaxPassengers == 0 && int.TryParse(_currentResponse.Aircraft.MaxPassengers, out int mpax))
+                                {
+                                    state.MaxPassengers = mpax;
+                                }
+
+                                _airframeManager.SyncLocation(state, icao);
+                                if (_currentResponse?.Weights?.ExtensionData != null)
+                                {
+                                    if (state.MaxTakeoffWeight == 0 && _currentResponse.Weights.ExtensionData.TryGetValue("max_tow", out var maxTow) && double.TryParse(maxTow.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double mtow)) state.MaxTakeoffWeight = mtow;
+                                    if (state.MaxZeroFuelWeight == 0 && _currentResponse.Weights.ExtensionData.TryGetValue("max_zfw", out var maxZfw) && double.TryParse(maxZfw.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double mzfw)) state.MaxZeroFuelWeight = mzfw;
+                                    if (state.MaxLandingWeight == 0 && _currentResponse.Weights.ExtensionData.TryGetValue("max_ldw", out var maxLdw) && double.TryParse(maxLdw.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double mldw)) state.MaxLandingWeight = mldw;
+                                    if (state.EmptyWeight == 0) {
+                                        if (_currentResponse.Weights.ExtensionData.TryGetValue("oew", out var oew) && double.TryParse(oew.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double oewd)) state.EmptyWeight = oewd;
+                                        else if (_currentResponse.Weights.ExtensionData.TryGetValue("bow", out var bow) && double.TryParse(bow.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double bowd)) state.EmptyWeight = bowd;
+                                    }
+                                    
+                                    _airframeManager.SaveAirframe(state);
+                                }
+
+                                var msgObj = new { type = "initAirframeLog", airframeData = state };
+                                webView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(msgObj));
+                            } catch (Exception ex) {
+                                var errObj = new { type = "initAirframeLog", airframeData = new { registration = "ERR: " + ex.Message }};
+                                webView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(errObj));
+                            }
+                        };
+                    });
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show("Error opening Airframe Window: " + ex.Message);
+            }
+        }
+
         private async Task ProcessWebMessage(string json, Microsoft.Web.WebView2.Core.CoreWebView2 senderWebView, Window parentWindow)
         {
             try 
@@ -1236,6 +1346,42 @@ namespace FlightSupervisor.UI
                         ReleaseCapture();
                         SendMessage(helper.Handle, 0xA1, 2, 0);
                     });
+                }
+                else if (action == "ready" && parentWindow.Title == "Airframe Tech Log")
+                {
+                    string reg = _currentResponse?.Aircraft?.Reg ?? "F-HBNJ";
+                    string btype = _currentResponse?.Aircraft?.BaseType ?? "A320neo";
+                    string op = _currentResponse?.General?.Airline ?? "True Airmanship";
+                    string icao = _currentResponse?.Origin?.IcaoCode ?? "LFPG";
+                    var state = _airframeManager.GetOrCreateAirframe(reg, btype, op, icao);
+
+                    if (_currentResponse?.Aircraft?.ExtensionData != null)
+                    {
+                        if (state.EngineType == "Unknown" && _currentResponse.Aircraft.ExtensionData.TryGetValue("engines", out var engType)) state.EngineType = engType.ToString();
+                    }
+                    if (state.MaxFuelCapacity == 0 && _currentResponse?.Fuel?.ExtensionData != null && _currentResponse.Fuel.ExtensionData.TryGetValue("max_tanks", out var maxTanks) && double.TryParse(maxTanks.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double mf)) state.MaxFuelCapacity = mf;
+
+                    if (_currentResponse?.Aircraft?.MaxPassengers != null && state.MaxPassengers == 0 && int.TryParse(_currentResponse.Aircraft.MaxPassengers, out int mpax))
+                    {
+                        state.MaxPassengers = mpax;
+                    }
+
+                    _airframeManager.SyncLocation(state, icao);
+                    if (_currentResponse?.Weights?.ExtensionData != null)
+                    {
+                        if (state.MaxTakeoffWeight == 0 && _currentResponse.Weights.ExtensionData.TryGetValue("max_tow", out var maxTow) && double.TryParse(maxTow.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double mtow)) state.MaxTakeoffWeight = mtow;
+                        if (state.MaxZeroFuelWeight == 0 && _currentResponse.Weights.ExtensionData.TryGetValue("max_zfw", out var maxZfw) && double.TryParse(maxZfw.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double mzfw)) state.MaxZeroFuelWeight = mzfw;
+                        if (state.MaxLandingWeight == 0 && _currentResponse.Weights.ExtensionData.TryGetValue("max_ldw", out var maxLdw) && double.TryParse(maxLdw.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double mldw)) state.MaxLandingWeight = mldw;
+                        if (state.EmptyWeight == 0) {
+                            if (_currentResponse.Weights.ExtensionData.TryGetValue("oew", out var oew) && double.TryParse(oew.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double oewd)) state.EmptyWeight = oewd;
+                            else if (_currentResponse.Weights.ExtensionData.TryGetValue("bow", out var bow) && double.TryParse(bow.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double bowd)) state.EmptyWeight = bowd;
+                        }
+                        
+                        _airframeManager.SaveAirframe(state);
+                    }
+
+                    var msgObj = new { type = "initAirframeLog", airframeData = state };
+                    senderWebView.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(msgObj));
                 }
                 else if (action == "requestManifest")
                 {
@@ -1526,6 +1672,10 @@ namespace FlightSupervisor.UI
                 else if (action == "openFuelSheetWindow")
                 {
                     OpenFuelSheetWindow();
+                }
+                else if (action == "openAirframeWindow")
+                {
+                    OpenAirframeWindow();
                 }
                 else if (action == "openSimbriefWindow")
                 {

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>TRUE AIRMANSHIP | Airframe Tech Log</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="app.css?v=6">
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        background: "#141414",
+                        primary: "#95ccff",
+                        "primary-container": "#00a8ff",
+                    },
+                    fontFamily: {
+                        headline: ["Manrope", "sans-serif"],
+                        body: ["Inter", "sans-serif"],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: transparent;
+            color: #b6b6b6;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            border-radius: 8px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        header {
+            -webkit-app-region: drag;
+        }
+        button, a, .no-drag, select {
+            -webkit-app-region: no-drag;
+        }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .animate-fade {
+            animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-[#14161a] flex flex-col overflow-hidden h-screen w-screen m-0 relative select-none animate-fade">
+    
+    <header class="w-full h-12 bg-white/5 border-b border-white/10 flex items-center px-4 shrink-0 relative overflow-hidden backdrop-blur-md z-10 cursor-move text-slate-200" onmousedown="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action:'drag'});">
+        <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-[20px] text-sky-400">menu_book</span>
+            <div class="font-headline font-medium tracking-wide uppercase text-sm">AIRFRAME LOGBOOK</div>
+            <div id="topReg" class="font-headline font-bold text-sky-400 ml-4 tracking-widest text-lg">---</div>
+            <div id="topType" class="bg-white/10 px-2 py-0.5 rounded text-xs font-medium text-slate-300 ml-2">---</div>
+        </div>
+        <div class="flex-1"></div>
+        <button onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'closeApp'});" class="w-8 h-8 rounded hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-colors no-drag">
+            <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden p-6 gap-6">
+        
+        <aside class="w-1/3 flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-2 pb-2">
+            
+
+
+            <div class="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col gap-3">
+                <div class="text-xs font-bold tracking-widest text-slate-500 uppercase mb-1 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[14px]">info</span>
+                    Status Overview
+                </div>
+                
+                <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                    <span class="text-sm text-slate-400">Total Hours</span>
+                    <span class="text-sm font-semibold text-white font-mono" id="valTotalHours">--</span>
+                </div>
+                <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                    <span class="text-sm text-slate-400">Cycles</span>
+                    <span class="text-sm font-semibold text-white font-mono" id="valCycles">--</span>
+                </div>
+                <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                    <span class="text-sm text-slate-400">Delivered</span>
+                    <span class="text-sm font-semibold text-white" id="valDelivered">--</span>
+                </div>
+                <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                    <span class="text-sm text-slate-400">Age</span>
+                    <span class="text-sm font-semibold text-white" id="valAge">--</span>
+                </div>
+                <div class="flex items-center justify-between pt-1">
+                    <span class="text-sm text-slate-400">Condition Grade</span>
+                    <div class="flex items-center gap-1">
+                        <span id="valGrade" class="text-lg font-bold text-emerald-400">A</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col gap-3">
+                <div class="text-xs font-bold tracking-widest text-slate-500 uppercase mb-1 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[14px]">settings_account_box</span>
+                    Technical Specs
+                </div>
+                <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                    <span class="text-sm text-slate-400">Engines</span>
+                    <span class="text-[11px] font-semibold text-white truncate max-w-[120px]" id="valEngine">--</span>
+                </div>
+                <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                    <span class="text-sm text-slate-400">Max Pax</span>
+                    <span class="text-sm font-semibold text-white font-mono" id="valMaxPax">--</span>
+                </div>
+                <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                    <span class="text-sm text-slate-400 opacity-70">Operating Empty Weight (OEW)</span>
+                    <span class="text-sm font-semibold text-slate-300 font-mono" id="valOew">--</span>
+                </div>
+                <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                    <span class="text-sm text-slate-400 opacity-70">Max Zero Fuel (MZFW)</span>
+                    <span class="text-sm font-semibold text-slate-300 font-mono" id="valMzfw">--</span>
+                </div>
+                <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                    <span class="text-sm text-slate-400 opacity-70">Max Takeoff Weight (MTOW)</span>
+                    <span class="text-sm font-semibold text-sky-200 font-mono" id="valMtow">--</span>
+                </div>
+                <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                    <span class="text-sm text-slate-400 opacity-70">Max Landing Weight (MLW)</span>
+                    <span class="text-sm font-semibold text-slate-300 font-mono" id="valMlw">--</span>
+                </div>
+                <div class="flex items-center justify-between pt-1">
+                    <span class="text-sm text-slate-400">Max Fuel</span>
+                    <div class="flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px] text-sky-400 opacity-60">water_drop</span>
+                        <span class="text-sm font-semibold text-sky-300 font-mono" id="valMaxFuel">--</span>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <section class="w-2/3 flex flex-col h-full bg-black/20 border border-white/5 rounded-xl overflow-hidden relative">
+            <div class="bg-white/5 px-4 py-3 border-b border-white/5 flex items-center justify-between">
+                <div class="text-sm font-bold tracking-widest text-slate-300 uppercase flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[16px] text-sky-400">history</span>
+                    Technical History
+                </div>
+                <div class="flex items-center gap-3 no-drag">
+                    <button id="btnPrevDay" onclick="changeDay(1)" class="w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-sky-500/20 text-slate-400 hover:text-sky-400 rounded transition-colors">
+                        <span class="material-symbols-outlined text-[14px]">arrow_back_ios_new</span>
+                    </button>
+                    <span id="currentDayLabel" class="text-xs font-semibold text-slate-300 w-24 text-center font-mono">--/--/----</span>
+                    <button id="btnNextDay" onclick="changeDay(-1)" class="w-6 h-6 flex items-center justify-center bg-white/5 hover:bg-sky-500/20 text-slate-400 hover:text-sky-400 rounded transition-colors">
+                        <span class="material-symbols-outlined text-[14px]">arrow_forward_ios</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 bg-black/10" id="logContainer">
+                <div class="flex flex-col gap-4 relative" id="logInnerContainer">
+                    <div class="absolute left-[31px] top-2 bottom-2 w-px bg-white/10 z-0"></div>
+                    <div id="loadingLogs" class="text-center text-sm text-slate-500 py-10">Synchronizing records...</div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        const IpcCmd = {
+            init: 'initAirframeLog'
+        };
+
+        let cachedEvents = [];
+        let datesMap = [];
+        let currentIndex = 0;
+
+        if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.addEventListener('message', event => {
+                try {
+                    let data = event.data;
+                    if (typeof data === 'string') {
+                        data = JSON.parse(data);
+                    }
+                    if (data.type === IpcCmd.init) {
+                        populateData(data.airframeData);
+                    } else if (data.type === 'initAirframeLog') {
+                        populateData(data.airframeData);
+                    }
+                } catch (e) {
+                    console.error("Failed to parse IPC message", e);
+                }
+            });
+        }
+
+        function populateData(data) {
+            if (!data) return;
+            
+            document.getElementById('topReg').textContent = data.registration || "---";
+            document.getElementById('topType').textContent = data.baseType || "---";
+            
+            document.getElementById('valTotalHours').textContent = (data.totalHours || 0).toLocaleString() + " hrs";
+            document.getElementById('valCycles').textContent = (data.totalCycles || 0).toLocaleString();
+            let dDate = data.deliveryDate ? new Date(data.deliveryDate).toLocaleDateString() : "---";
+            document.getElementById('valDelivered').textContent = dDate;
+            document.getElementById('valAge').textContent = data.ageInYears + " Years";
+            document.getElementById('valGrade').textContent = data.maintenanceGrade || "---";
+
+            document.getElementById('valEngine').textContent = data.engineType || "Unknown";
+            document.getElementById('valMaxPax').textContent = (data.maxPassengers && data.maxPassengers > 0) ? data.maxPassengers : "---";
+            document.getElementById('valOew').textContent = (data.emptyWeight && data.emptyWeight > 0) ? data.emptyWeight.toLocaleString() : "---";
+            document.getElementById('valMzfw').textContent = (data.maxZeroFuelWeight && data.maxZeroFuelWeight > 0) ? data.maxZeroFuelWeight.toLocaleString() : "---";
+            document.getElementById('valMtow').textContent = (data.maxTakeoffWeight && data.maxTakeoffWeight > 0) ? data.maxTakeoffWeight.toLocaleString() : "---";
+            document.getElementById('valMlw').textContent = (data.maxLandingWeight && data.maxLandingWeight > 0) ? data.maxLandingWeight.toLocaleString() : "---";
+            document.getElementById('valMaxFuel').textContent = (data.maxFuelCapacity && data.maxFuelCapacity > 0) ? data.maxFuelCapacity.toLocaleString() : "---";
+            
+            if (data.events && Array.isArray(data.events)) {
+                cachedEvents = data.events;
+                
+                let grouped = {};
+                cachedEvents.forEach(ev => {
+                    let d = ev.timestamp ? ev.timestamp.substring(0,10) : 'Unknown';
+                    if (!grouped[d]) grouped[d] = [];
+                    grouped[d].push(ev);
+                });
+                
+                datesMap = Object.keys(grouped).sort((a,b) => b.localeCompare(a));
+                currentIndex = 0;
+                
+                renderDay();
+            } else {
+                document.getElementById('logInnerContainer').innerHTML = '<div class="text-center text-sm text-slate-500 py-10 relative z-10 bg-[#14161a] rounded">No historical data found.</div>';
+            }
+        }
+
+        function changeDay(delta) {
+            let nextId = currentIndex + delta;
+            if (nextId >= 0 && nextId < datesMap.length) {
+                currentIndex = nextId;
+                renderDay();
+            }
+        }
+
+        function renderDay() {
+            const btnPrev = document.getElementById('btnPrevDay');
+            const btnNext = document.getElementById('btnNextDay');
+            
+            btnNext.style.opacity = (currentIndex > 0) ? '1' : '0.2';
+            btnNext.style.pointerEvents = (currentIndex > 0) ? 'auto' : 'none';
+            
+            btnPrev.style.opacity = (currentIndex < datesMap.length - 1) ? '1' : '0.2';
+            btnPrev.style.pointerEvents = (currentIndex < datesMap.length - 1) ? 'auto' : 'none';
+            
+            if (datesMap.length === 0) return;
+            
+            let curDate = datesMap[currentIndex];
+            let dateObj = new Date(curDate);
+            document.getElementById('currentDayLabel').textContent = dateObj.toLocaleDateString();
+            
+            const logContainer = document.getElementById('logInnerContainer');
+            logContainer.innerHTML = '<div class="absolute left-[31px] top-2 bottom-2 w-px bg-white/10 z-0"></div>';
+            
+            let dayEvents = cachedEvents.filter(ev => ev.timestamp && ev.timestamp.startsWith(curDate));
+            dayEvents.forEach(item => {
+                logContainer.appendChild(createLogEntry(item));
+            });
+        }
+
+        function createLogEntry(item) {
+            const wrapper = document.createElement('div');
+            wrapper.className = "flex gap-4 relative z-10 no-drag";
+            
+            let dTime = item.timestamp ? new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
+            
+            let iconCode = 'flight_takeoff';
+            let iconColor = 'text-slate-400';
+            let bgRing = 'bg-[#14161a]';
+            let borderRing = 'border-white/10';
+
+            if (item.type === 'incident') {
+                iconCode = 'warning';
+                iconColor = 'text-rose-400';
+                borderRing = 'border-rose-500/30';
+            } else if (item.type === 'maintenance') {
+                iconCode = 'build';
+                iconColor = 'text-sky-400';
+                borderRing = 'border-sky-500/30';
+            } else if (item.type === 'defect_open') {
+                iconCode = 'error';
+                iconColor = 'text-amber-400';
+                borderRing = 'border-amber-500/30';
+            } else if (item.type === 'defect_closed') {
+                iconCode = 'check_circle';
+                iconColor = 'text-emerald-400';
+                borderRing = 'border-emerald-500/30';
+            } else {
+                iconCode = 'flight';
+            }
+
+            let stateStamp = '';
+            if (item.type === 'defect_open') {
+                stateStamp = '<span class="text-[10px] font-bold text-rose-500/80 uppercase tracking-widest border border-rose-500/20 px-1 rounded bg-rose-500/10">Active</span>';
+            } else if (item.type === 'defect_closed') {
+                stateStamp = '<span class="text-[10px] font-bold text-emerald-500/80 uppercase tracking-widest border border-emerald-500/20 px-1 rounded bg-emerald-500/10">Resolved</span>';
+            } else if (item.location) {
+                 stateStamp = `<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest border border-slate-700 px-1 rounded bg-slate-800">${item.location}</span>`;
+            }
+
+            let titleTxt = (item.type === 'flight') ? `Flight Sector -> ${item.location}` : item.type.toUpperCase();
+
+            wrapper.innerHTML = `
+                <div class="w-16 shrink-0 flex flex-col items-center justify-start pt-1">
+                    <div class="w-8 h-8 rounded-full ${bgRing} border ${borderRing} flex items-center justify-center mb-1 shadow-md">
+                        <span class="material-symbols-outlined text-[16px] ${iconColor}">${iconCode}</span>
+                    </div>
+                    <span class="text-[10px] font-mono font-semibold text-slate-500">${dTime}</span>
+                </div>
+                <div class="flex-1 bg-white/[0.02] border border-white/5 rounded-lg p-3 hover:bg-white/[0.04] transition-colors">
+                    <div class="flex justify-between items-start mb-1">
+                        <h4 class="text-sm font-semibold text-white/90 font-headline">${titleTxt}</h4>
+                        ${stateStamp}
+                    </div>
+                    <p class="text-xs text-slate-400 leading-relaxed font-body">
+                        ${item.description}
+                    </p>
+                </div>
+            `;
+            return wrapper;
+        }
+        
+        document.addEventListener('contextmenu', event => event.preventDefault());
+
+        if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.postMessage({action: 'ready'});
+        }
+    </script>
+</body>
+</html>
