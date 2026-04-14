@@ -1,33 +1,24 @@
-# Bilan de la Session - Révolution Architecturale & UX (Startup, Briefing & Pilot Profile)
+# Bilan de la Session - Turnaround Fix & Airframe Persistence Design
 
-## Ce qui a été accompli (Aujourd'hui)
+## Ce qui a été accompli
+1. **Implémentation et Résolution des Bugs de Turnaround / Ground Ops** :
+   - _Bug 1 (Chaining Cargo)_ : Résolu. Distinguo formel entre "Cargo Unloading" (ajouté automatiquement à l'arrivée/Turnaround) et "Cargo Loading" (ajouté pour la préparation du vol suivant). Le `GroundOpsManager` attend correctement que l'Unloading soit fini avant d'autoriser le Loading.
+   - _Bug 2 & 3 (Deboarding bloqué)_ : Résolu. Le `GroundOpsResourceService` cible désormais dynamiquement le manifeste de passagers (`PreviousLegManifest` si vol précédent existant, sinon `PassengerManifest` direct). Les passagers débarquent jusqu'à zéro. Une fois vide, le Deboarding s'achève et libère (dé-inhibe) le "Catering, Cleaning, Boarding" du prochain vol.
+   - _Bug 4 (Water/Waste/Cleanliness Persistence)_ : Résolu. La condition stricte `!_seatbeltsOn` a été assouplie. Même avec les ceintures allumées, la cabine consomme un filet de ressource (20% de base). 
+   - _Bonus Immersion_ : Si les ceintures restent allumées en croisière sans interruption pendant une longue période (ex: > 45 minutes), une alerte (PNC Voice) retentit et génère une pénalité d'impatience des passagers (`-30` points).
 
-### 1. Refonte Radicale du Startup Workflow ("Blank Slate")
-- Suppression complète de la modal bloquante `dutySetupModal` (Company Roster, Customs Flights, etc.).
-- L'application démarre directement sur un Dashboard vide avec un workflow fluide "Relève" (Handover) ou "Vol Initial" (Pristine).
+2. **Rédaction du Document `Design_Gameplay_Airframe_Persistence.md`** :
+   - Validation de la base des Soft / Hard Failures de la cabine (Toilettes HS causant du bruit et de la saleté, Machine à café empêchant des bons scores matutinaux).
+   - Ajout de pannes système réelles en mode Tolérance MEL (Inverseurs, APU, Sensors).
+   - Officialisation de la règle des 3 minutes *"Engine Cooldown"* avant coupure. Les oublis provoquent une usure du *Thermal Shock*.
+   - Conséquences temporelles : Les pannes ou usures provoquent des Ground Services d'intervention "réels" (Temps rallongés en minute par exemple pour "Brake Cooling" ou "Maintenance Check" figeant le block et bloquant le Pushback).
+   - Ajout à la racine GIT sous `docs/game_design/Design_Gameplay_Airframe_Persistence.md` du concept de rendu visuel (Le "Carnet de Vol" horizontal en modal) et du Rapport Global de Rotation multi-legs.
 
-### 2. Création du Planificateur Multi-Leg (Briefing UI)
-- Le joueur peut désormais importer un vol SimBrief à la volée directement depuis l'application.
-- **Drag and Drop** fonctionnel pour réorganiser l'ordre des vols prévus au sein d'une rotation.
-- **Recalcul Dynamique** : Les temps "Block" (SOBT/SIBT) sont calculés en cascade lors des glisser-déposer, garantissant une cohérence temporelle pour les turnarounds (35 mins).
-
-### 3. Stabilisation de la Persistance & Migration Windows (`%APPDATA%`)
-- **Bug Fix "Silent Wipe"** : L'effacement intempestif des profils et des états de vol après un "Clean Solution" de MS Visual Studio a été annulé en migrant toutes les données (JSON, image Avatar) sur le chemin sécurisé de Windows (`%APPDATA%\FlightSupervisor`).
-- Redirection correcte du WebView2 localHost (`fsv.local`) pour pointer vers le répertoire sécurisé, autorisant l'affichage asynchrone sécurisé de l'image de profil.
-- Découverte et correction d'un bug majeur Javascript de sérialisation JSON (`payload.payload`) qui masquait l'efficacité des sauvegardes du profil.
-
-### 4. Expérience Utilisateur : Profile Hub & Flight Archives
-- Absorption complète de l'historique de vols (Logbook) dans l'onglet des caractéristiques du PNT (`PILOT PROFILE & CAREER`).
-- Le bouton obsolète "Logs / DEV" a été supprimé du menu de navigation pour purifier l'interface de commande latérale.
-- La vue de l'historique a été totalement repensée : on abandonne les carrés pour une disposition en Liste Horizontale haut de gamme (Route, Block Time, Touchdown FPM, Score), facilement lisible et sans surcharger l'espace.
-- Un système de navigation par sous-onglet (simulé et intuitif) a été ajouté en sommet de la page Profile pour basculer gracieusement entre "Identity" (Profil & Badges) et "Archives".
-
-## Prochaine Épreuve / Tâche pour le Prochain Agent
-Le cœur absolu de la prochaine séance sera l'épreuve du crash test logiciel ("Flight Test Validations") par l'utilisateur final.
-
-1. **Validation MSFS End-to-End ("Le Test Multi-Leg")** : 
-   - Dés que le simulateur sera prêt, l'utilisateur devra effectuer au moins **deux vols (Legs) consécutifs** en situation réelle (avec Start Ops, Service Passagers, Arrivée, Débarquement).
-   - *Objectif de validation principal* : Confirmer que lors de la fin du débarquement, le logiciel bascule sans aucune corruption vers sa vue de "Turnaround", appelant le deuxième tableau JSON de la file `_rotationQueue`, et remettant correctement à zéro les données pour la relève (Handover).
-
-2. **Veille Technologique sur l'Interaction C# / JS (Glisser-Déposer)** :
-   - Vérifier, avec de vrais avions et du temps qui s'écoule pour de vrai dans le simulateur, que l'état de l'application C# suit fidèlement la timeline altérée ou imposée manuellement par l'User Experience Javascript.
+## Prochain Chantier (Next Agent)
+1. **Intégration UI du Logbook Horizontal (Airframe Persistence)** : 
+   - Coder l'interface sous forme de petit carnet (horizontal modal) pour le panneau latéral. 
+   - Utiliser ce layout pour naviguer parmi les identifiants d'avions possédés/utilisés (Aircraft Identity, First Used, Hours flown, Known Defects).
+2. **Global Flight Report** :
+   - Développer le rendu final d'une Rotation à plusieurs étapes (Global Rotation Flight Report) listant l'ensemble de la flotte utilisée pour un trip.
+3. **Tester sur MSFS** :
+   - Assurer les tests opérationnels avec le joueur pour attester que les compteurs d'arrivée et de changement de vol (FlightPhase *AtGate* vs *Turnaround*) s'enchaînent désormais parfaitement en flux réel.

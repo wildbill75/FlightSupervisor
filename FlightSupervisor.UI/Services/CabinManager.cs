@@ -303,6 +303,8 @@ namespace FlightSupervisor.UI.Services
 
         public bool IsSeatbeltsOn => _seatbeltsOn;
         private bool _seatbeltsOn = true;
+        private double _seatbeltsOnDurationInCruise = 0;
+        private bool _hasComplainedAboutSeatbelts = false;
 
         private bool _hasWarnedTempHot = false;
         private bool _hasWarnedTempCold = false;
@@ -851,25 +853,45 @@ namespace FlightSupervisor.UI.Services
                 int paxCount = Math.Max(1, PassengerManifest.Count(p => p.IsBoarded));
                 double paxMultiplier = paxCount / 150.0; // Baseline normalized
 
-                // User Rule: Passenger resource consumption (Water, Waste, Dirt) ONLY happens when Seatbelts are OFF
-                if (!_seatbeltsOn)
+                // Seatbelt duration tracking in Cruise
+                if (phase == FlightPhase.Cruise)
                 {
-                    // Cleanliness degrades faster with Grumpy passengers
-                    int grumpyCount = PassengerManifest.Count(p => p.IsBoarded && p.Demographic == PassengerDemographic.Grumpy);
-                    double grumpyMultiplier = 1.0 + (grumpyCount / (double)paxCount) * 1.5; // Up to 2.5x if all grumpy
-                    CabinCleanliness -= 0.003 * paxMultiplier * grumpyMultiplier * deltaTimeSeconds; 
-                    if (CabinCleanliness < 0) CabinCleanliness = 0;
-
-                    // Water consumption peaks if Stress > 50%
-                    double waterStressMultiplier = PassengerAnxiety > 50.0 ? 3.0 : 1.0;
-                    WaterLevel -= 0.004 * paxMultiplier * waterStressMultiplier * deltaTimeSeconds; 
-                    if (WaterLevel < 0) WaterLevel = 0;
-
-                    // Waste generation +40% for Holiday destination
-                    double wasteDestMultiplier = CurrentDestinationType == FlightSupervisor.UI.Models.AirportDestinationType.Holiday ? 1.4 : 1.0;
-                    double stressMultiplier = PassengerAnxiety > 60.0 ? 3.0 : 1.0; // Keep existing stress multiplier for waste
-                    WasteLevel += 0.005 * paxMultiplier * stressMultiplier * wasteDestMultiplier * deltaTimeSeconds;
+                    if (_seatbeltsOn)
+                    {
+                        _seatbeltsOnDurationInCruise += deltaTimeSeconds;
+                        if (_seatbeltsOnDurationInCruise > 2700 && !_hasComplainedAboutSeatbelts) // 45 mins
+                        {
+                            _hasComplainedAboutSeatbelts = true;
+                            OnPncStatusChanged?.Invoke("Captain, passengers are asking to use the restrooms. It's been a long time with seatbelts on.", State);
+                            OnPenaltyTriggered?.Invoke(-30, LocalizationService.Translate("Passenger Impatience: Seatbelts left on excessively during cruise.", "Impatience des passagers : Ceintures laissées allumées trop longtemps."));
+                        }
+                    }
+                    else
+                    {
+                        _seatbeltsOnDurationInCruise = 0; // Reset if turned off
+                        _hasComplainedAboutSeatbelts = false;
+                    }
                 }
+
+                // Passenger resource consumption (Water, Waste, Dirt)
+                double seatbeltFactor = _seatbeltsOn ? 0.20 : 1.0; 
+
+                // Cleanliness degrades faster with Grumpy passengers
+                int grumpyCount = PassengerManifest.Count(p => p.IsBoarded && p.Demographic == PassengerDemographic.Grumpy);
+                double grumpyMultiplier = 1.0 + (grumpyCount / (double)paxCount) * 1.5; // Up to 2.5x if all grumpy
+                CabinCleanliness -= 0.003 * paxMultiplier * grumpyMultiplier * seatbeltFactor * deltaTimeSeconds; 
+                if (CabinCleanliness < 0) CabinCleanliness = 0;
+
+                // Water consumption peaks if Stress > 50%
+                double waterStressMultiplier = PassengerAnxiety > 50.0 ? 3.0 : 1.0;
+                WaterLevel -= 0.004 * paxMultiplier * waterStressMultiplier * seatbeltFactor * deltaTimeSeconds; 
+                if (WaterLevel < 0) WaterLevel = 0;
+
+                // Waste generation +40% for Holiday destination
+                double wasteDestMultiplier = CurrentDestinationType == FlightSupervisor.UI.Models.AirportDestinationType.Holiday ? 1.4 : 1.0;
+                double stressMultiplier = PassengerAnxiety > 60.0 ? 3.0 : 1.0; // Keep existing stress multiplier for waste
+                WasteLevel += 0.005 * paxMultiplier * stressMultiplier * wasteDestMultiplier * seatbeltFactor * deltaTimeSeconds;
+                if (WasteLevel > 100) WasteLevel = 100;
                 
                 if (WasteLevel >= 100) 
                 {

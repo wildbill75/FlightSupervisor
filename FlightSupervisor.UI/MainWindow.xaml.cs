@@ -648,7 +648,7 @@ namespace FlightSupervisor.UI
                         _groundOpsManager.StopOps();
                         _groundOpsManager.Services.Clear();
                         _groundOpsManager.Services.Add(new GroundService { Name = "Deboarding", TotalDurationSec = 900, StatusMessage = "Pending", State = GroundServiceState.NotStarted, ElapsedSec = 0, RequiresManualStart = true, IsAvailable = true });
-                        _groundOpsManager.Services.Add(new GroundService { Name = "Cargo/Luggage", TotalDurationSec = 600, StatusMessage = "Pending", State = GroundServiceState.NotStarted, ElapsedSec = 0, RequiresManualStart = true, IsAvailable = true });
+                        _groundOpsManager.Services.Add(new GroundService { Name = "Cargo Unloading", TotalDurationSec = 600, StatusMessage = "Pending", State = GroundServiceState.NotStarted, ElapsedSec = 0, RequiresManualStart = true, IsAvailable = true });
                         _groundOpsManager.StartOps();
 
                         if (_rotationQueue.Count == 0)
@@ -1818,7 +1818,7 @@ namespace FlightSupervisor.UI
                                 _groundOpsManager.IsFuelSheetValidated = false;
                                 _groundOpsManager.Services.Clear();
                                 _groundOpsManager.Services.Add(new GroundService { Name = "Deboarding", TotalDurationSec = 900, StatusMessage = "Pending", State = GroundServiceState.NotStarted, ElapsedSec = 0, RequiresManualStart = true, IsAvailable = true });
-                                _groundOpsManager.Services.Add(new GroundService { Name = "Cargo/Luggage", TotalDurationSec = 600, StatusMessage = "Pending", State = GroundServiceState.NotStarted, ElapsedSec = 0, RequiresManualStart = true, IsAvailable = true });
+                                _groundOpsManager.Services.Add(new GroundService { Name = "Cargo Unloading", TotalDurationSec = 600, StatusMessage = "Pending", State = GroundServiceState.NotStarted, ElapsedSec = 0, RequiresManualStart = true, IsAvailable = true });
                                 _groundOpsManager.StartOps();
                             }
                         }

@@ -112,7 +112,7 @@ namespace FlightSupervisor.UI.Services
         public void InitializeFromSimBrief(SimBriefResponse? sb, bool firstFlightClean = false, double currentFobKg = 0, double initialCleanliness = 100.0, double initialCatering = 100.0, double initialWater = 100.0, double initialWaste = 0.0, DateTime? overrideSobt = null)
         {
             var existingDeboarding = Services.FirstOrDefault(x => x.Name == "Deboarding");
-            var existingCargo = Services.FirstOrDefault(x => x.Name == "Cargo/Luggage");
+            var existingCargo = Services.FirstOrDefault(x => x.Name == "Cargo Unloading");
 
             Services.Clear();
             TargetSobt = null;
@@ -255,10 +255,8 @@ namespace FlightSupervisor.UI.Services
                 existingCargo.TotalDurationSec = applyTime(Math.Max(600, pax * 6));
                 Services.Add(existingCargo);
             }
-            else
-            {
-                Services.Add(new GroundService { Name = "Cargo/Luggage", TotalDurationSec = applyTime(Math.Max(600, pax * 6)), IsOptional = false, RequiresManualStart = true, StartOffsetMinutes = cargoOffset, IsAvailable = true });
-            }
+            
+            Services.Add(new GroundService { Name = "Cargo Loading", TotalDurationSec = applyTime(Math.Max(600, pax * 6)), IsOptional = false, RequiresManualStart = true, StartOffsetMinutes = cargoOffset, IsAvailable = true });
 
             Services.Add(new GroundService { Name = "Catering", TotalDurationSec = applyTime(cateringBase), IsOptional = true, RequiresManualStart = true, StartOffsetMinutes = caterOffset, IsAvailable = true });
             Services.Add(new GroundService { Name = cleanName, TotalDurationSec = applyTime(cleaningBase), IsOptional = true, RequiresManualStart = true, StartOffsetMinutes = cleanOffset, IsAvailable = true });
@@ -327,7 +325,8 @@ namespace FlightSupervisor.UI.Services
             // --- INHIBITION LOGIC (Story 43) ---
             // 1. Deboarding must be finished before Boarding starts.
             bool isUnloadingActive = Services.Any(s => s.Name == "Deboarding" && s.State != GroundServiceState.Completed && s.State != GroundServiceState.Skipped);
-            
+            bool isCargoUnloadingActive = Services.Any(s => s.Name == "Cargo Unloading" && s.State != GroundServiceState.Completed && s.State != GroundServiceState.Skipped);
+
             foreach (var s in Services)
             {
                 // Reset availability first
@@ -335,6 +334,7 @@ namespace FlightSupervisor.UI.Services
 
                 // Dependencies
                 if (s.Name == "Boarding" && isUnloadingActive) s.IsAvailable = false;
+                if (s.Name == "Cargo Loading" && isCargoUnloadingActive) s.IsAvailable = false;
                 if (s.Name == "Refueling" && !IsFuelSheetValidated) s.IsAvailable = false;
                 
                 // You can't cater or clean while deboarding is in progress
@@ -407,7 +407,7 @@ namespace FlightSupervisor.UI.Services
 
                 if (CurrentPhase == FlightPhase.Turnaround)
                 {
-                    if (s.Name != "Deboarding" && s.Name != "Cargo/Luggage")
+                    if (s.Name != "Deboarding" && s.Name != "Cargo Unloading")
                     {
                         s.StatusMessage = LocalizationService.Translate("Wait Turnaround", "Attente Turnaround");
                         return;
@@ -417,7 +417,7 @@ namespace FlightSupervisor.UI.Services
                         s.StatusMessage = LocalizationService.Translate("Wait Seatbelts", "Attentes Signes");
                         return;
                     }
-                    else if (s.Name == "Cargo/Luggage" && IsBeaconOn)
+                    else if (s.Name == "Cargo Unloading" && IsBeaconOn)
                     {
                         s.StatusMessage = LocalizationService.Translate("Wait Beacon", "Attente Beacon");
                         return;
@@ -567,7 +567,7 @@ namespace FlightSupervisor.UI.Services
                     {
                         if (CurrentPhase == FlightPhase.Turnaround)
                         {
-                            if (s.Name != "Deboarding" && s.Name != "Cargo/Luggage")
+                            if (s.Name != "Deboarding" && s.Name != "Cargo Unloading")
                             {
                                 s.StatusMessage = LocalizationService.Translate("Wait Turnaround", "Attente Turnaround");
                                 continue;
@@ -577,7 +577,7 @@ namespace FlightSupervisor.UI.Services
                                 s.StatusMessage = LocalizationService.Translate("Wait Seatbelts", "Attentes Signes");
                                 continue;
                             }
-                            else if (s.Name == "Cargo/Luggage" && IsBeaconOn)
+                            else if (s.Name == "Cargo Unloading" && IsBeaconOn)
                             {
                                 s.StatusMessage = LocalizationService.Translate("Wait Beacon", "Attente Beacon");
                                 continue;
@@ -655,7 +655,7 @@ namespace FlightSupervisor.UI.Services
                     {
                         if (CurrentPhase == FlightPhase.Turnaround)
                         {
-                            if (s.Name != "Deboarding" && s.Name != "Cargo/Luggage")
+                            if (s.Name != "Deboarding" && s.Name != "Cargo Unloading")
                             {
                                 s.StatusMessage = LocalizationService.Translate("Wait Turnaround", "Attente Turnaround");
                                 continue;
@@ -665,7 +665,7 @@ namespace FlightSupervisor.UI.Services
                                 s.StatusMessage = LocalizationService.Translate("Wait Seatbelts", "Attentes Signes");
                                 continue;
                             }
-                            else if (s.Name == "Cargo/Luggage" && IsBeaconOn)
+                            else if (s.Name == "Cargo Unloading" && IsBeaconOn)
                             {
                                 s.StatusMessage = LocalizationService.Translate("Wait Beacon", "Attente Beacon");
                                 continue;

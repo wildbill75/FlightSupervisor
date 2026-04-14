@@ -130,14 +130,17 @@ namespace FlightSupervisor.UI.Services
             }
 
             var deboardSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Deboarding");
-            if (deboardSvc != null && _cabinManager.PreviousLegManifest != null && _cabinManager.PreviousLegManifest.Any(p => p.IsBoarded))
+            
+            var targetManifest = (_cabinManager.PreviousLegManifest != null && _cabinManager.PreviousLegManifest.Any(p => p.IsBoarded)) ? _cabinManager.PreviousLegManifest : _cabinManager.PassengerManifest;
+
+            if (deboardSvc != null && targetManifest != null && targetManifest.Any(p => p.IsBoarded))
             {
                 if (deboardSvc.State == GroundServiceState.InProgress)
                 {
                     double ratio = (double)deboardSvc.ElapsedSec / Math.Max(1, deboardSvc.TotalDurationSec);
                     ratio = Math.Max(0.0, Math.Min(1.0, ratio));
-                    int expectedRemaining = (int)(_cabinManager.PreviousLegManifest.Count * (1.0 - ratio));
-                    int currentlyBoarded = _cabinManager.PreviousLegManifest.Count(p => p.IsBoarded);
+                    int expectedRemaining = (int)(targetManifest.Count * (1.0 - ratio));
+                    int currentlyBoarded = targetManifest.Count(p => p.IsBoarded);
                     
                     if (currentlyBoarded > expectedRemaining)
                     {
@@ -147,7 +150,7 @@ namespace FlightSupervisor.UI.Services
                 }
                 else if (deboardSvc.State == GroundServiceState.Completed)
                 {
-                    int currentlyBoarded = _cabinManager.PreviousLegManifest.Count(p => p.IsBoarded);
+                    int currentlyBoarded = targetManifest.Count(p => p.IsBoarded);
                     if (currentlyBoarded > 0)
                     {
                         _cabinManager.DeboardPassenger(currentlyBoarded);
