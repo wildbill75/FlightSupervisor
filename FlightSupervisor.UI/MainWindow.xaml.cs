@@ -76,7 +76,7 @@ namespace FlightSupervisor.UI
         private SuperScoreManager _scoreManager;
         private List<FlightSupervisor.UI.Models.FlightArchive> _sessionArchives = new List<FlightSupervisor.UI.Models.FlightArchive>();
         
-        private double _currentFobKg = 0;
+        private double _currentFobKg = 3000;
 
         private CabinManager _cabinManager;
         private GroundOpsResourceService _groundOpsResourceService;
@@ -93,6 +93,8 @@ namespace FlightSupervisor.UI
         private Window _manifestWindow;
         private Microsoft.Web.WebView2.Wpf.WebView2 _groundOpsWebView;
         private Window _groundOpsWindow;
+        private Microsoft.Web.WebView2.Wpf.WebView2 _fuelSheetWebView;
+        private Window _fuelSheetWindow;
         
         private Microsoft.Web.WebView2.Wpf.WebView2 _logsWebView;
         private Window _logsWindow;
@@ -249,6 +251,16 @@ namespace FlightSupervisor.UI
                 _groundOpsManager.IsBeaconOn = _phaseManager.IsBeaconLightOn;
                 _groundOpsManager.EngineMaxN1 = Math.Max(_phaseManager.Eng1N1, _phaseManager.Eng2N1);
                 _groundOpsManager.Tick(_currentSimTime);
+
+                // --- TURNAROUND FUEL SHEET TRIGGER ---
+                if (_phaseManager.CurrentPhase == FlightPhase.Turnaround && !_groundOpsManager.IsFuelSheetValidated)
+                {
+                    bool tasksPending = _groundOpsManager.Services.Any(s => (s.Name == "Deboarding" || s.Name.StartsWith("Cargo")) && s.State != GroundServiceState.Completed && s.State != GroundServiceState.Skipped);
+                    if (!tasksPending && _fuelSheetWindow == null)
+                    {
+                        OpenFuelSheetWindow();
+                    }
+                }
 
                 // --- MULTI-LEG PROGRESSIVE GROUND OP REFILLS ---
                 _groundOpsResourceService.Tick((int)_uiTimer.Interval.TotalMilliseconds);
@@ -535,7 +547,7 @@ namespace FlightSupervisor.UI
                             double initialFob = _cabinManager?.StateOfAircraft?.InitialFobKg ?? 0;
                             if (initialFob > 0)
                             {
-                                actualBurn = initialFob - _currentFobKg;
+                                actualBurn = (initialFob - _currentFobKg) + 200;
                             }
                             if (_currentResponse?.Fuel != null && double.TryParse(_currentResponse.Fuel.PlanRamp, out double pr) && double.TryParse(_currentResponse.Fuel.PlanLanding, out double pl))
                             {
@@ -586,7 +598,7 @@ namespace FlightSupervisor.UI
                             double initialFob = _cabinManager?.StateOfAircraft?.InitialFobKg ?? 0;
                             if (initialFob > 0)
                             {
-                                actualBurn = initialFob - _currentFobKg;
+                                actualBurn = (initialFob - _currentFobKg) + 200;
                             }
                             if (_currentResponse?.Fuel != null && double.TryParse(_currentResponse.Fuel.PlanRamp, out double pr) && double.TryParse(_currentResponse.Fuel.PlanLanding, out double pl))
                             {
@@ -1135,6 +1147,81 @@ namespace FlightSupervisor.UI
             await ProcessWebMessage(e.WebMessageAsJson, MainWebView.CoreWebView2, this);
         }
 
+        private void OpenFuelSheetWindow()
+        {
+            if (_fuelSheetWindow != null)
+            {
+                _fuelSheetWindow.Activate();
+                return;
+            }
+            try
+            {
+                var fuelWin = new Window
+                {
+                    Title = "Fuel Dispatch",
+                    Width = 480,
+                    Height = 780,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Owner = this,
+                    Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#141414"),
+                    WindowStyle = WindowStyle.None,
+                    ResizeMode = ResizeMode.CanResize
+                };
+                System.Windows.Shell.WindowChrome.SetWindowChrome(fuelWin, new System.Windows.Shell.WindowChrome { CaptionHeight = 0, ResizeBorderThickness = new System.Windows.Thickness(8), GlassFrameThickness = new System.Windows.Thickness(0), CornerRadius = new System.Windows.CornerRadius(0), UseAeroCaptionButtons = false });
+                
+                fuelWin.Closed += (s, ev) => {
+                    _fuelSheetWebView = null;
+                    _fuelSheetWindow = null;
+                };
+
+                var webView = new Microsoft.Web.WebView2.Wpf.WebView2();
+                webView.Margin = new System.Windows.Thickness(0);
+                _fuelSheetWebView = webView;
+                _fuelSheetWindow = fuelWin;
+                fuelWin.Content = webView;
+                
+                fuelWin.Show();
+
+                _ = System.Threading.Tasks.Task.Run(async () =>
+                {
+                    await Dispatcher.InvokeAsync(async () =>
+                    {
+                        var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, System.IO.Path.Combine(System.IO.Path.GetTempPath(), "FlightSupervisorFuelSheet"));
+                        await webView.EnsureCoreWebView2Async(env);
+                        webView.CoreWebView2.SetVirtualHostNameToFolderMapping("app.local", System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot"), Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+                        
+                        webView.CoreWebView2.WebMessageReceived += async (s, ev) => {
+                            await ProcessWebMessage(ev.WebMessageAsJson, webView.CoreWebView2, fuelWin);
+                        };
+
+                        webView.CoreWebView2.Navigate("https://app.local/fuelsheet_window.html");
+                        
+                        // Send the complete flight data for the Fuel/Load Sheet window
+                        webView.CoreWebView2.NavigationCompleted += (s, ev) => {
+                            var isFirstFlight = _cabinManager.SessionFlightsCompleted == 0 && _phaseManager.CurrentPhase == FlightPhase.AtGate;
+                            var targetRes = isFirstFlight ? _currentResponse : (_rotationQueue?.FirstOrDefault() ?? _currentResponse);
+                            int effectiveLegIndex = isFirstFlight ? 0 : 1;
+                            bool isVal = _groundOpsManager?.IsFuelSheetValidated ?? false;
+                            
+                            var msgObj = new {
+                                type = "initFuelSheet",
+                                blockFuel = targetRes?.Fuel?.PlanRamp ?? "0",
+                                fob = _currentFobKg,
+                                legIndex = effectiveLegIndex,
+                                isValidated = isVal,
+                                flightData = targetRes
+                            };
+                            webView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(msgObj));
+                        };
+                    });
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show("Error opening Fuel Sheet Window: " + ex.Message);
+            }
+        }
+
         private async Task ProcessWebMessage(string json, Microsoft.Web.WebView2.Core.CoreWebView2 senderWebView, Window parentWindow)
         {
             try 
@@ -1436,6 +1523,10 @@ namespace FlightSupervisor.UI
                         System.Windows.MessageBox.Show("Error opening Ground Ops Window: " + ex.Message);
                     }
                 }
+                else if (action == "openFuelSheetWindow")
+                {
+                    OpenFuelSheetWindow();
+                }
                 else if (action == "openSimbriefWindow")
                 {
                     try
@@ -1542,6 +1633,9 @@ namespace FlightSupervisor.UI
                         string blockFuel = payload.TryGetProperty("blockFuel", out var bProp) ? bProp.GetString() ?? "0" : "0";
                         int legIndex = payload.TryGetProperty("legIndex", out var lProp) ? lProp.GetInt32() : 0;
 
+                        bool isFirstFlightValidation = _cabinManager.SessionFlightsCompleted == 0 && _phaseManager.CurrentPhase == FlightPhase.AtGate;
+                        if (isFirstFlightValidation) legIndex = 0; // Force it to 0 for initial flight regardless of HTML hardcoding
+
                         // STORY 38: LEG VALIDATION GUARD (Anti-Cheat)
                         // legIndex 0 is current active. legIndex > 0 is future.
                         // We only allow validating legIndex > 0 if we are in Turnaround phase of current leg.
@@ -1556,6 +1650,21 @@ namespace FlightSupervisor.UI
                             return;
                         }
 
+                        if (legIndex > 0)
+                        {
+                            var deboarding = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Deboarding");
+                            if (deboarding != null && deboarding.State != GroundServiceState.Completed)
+                            {
+                                SendToWeb(new { 
+                                    type = "fuelValidationRejected", 
+                                    message = "Validation impossible : Le débarquement du vol précédent n'est pas terminé." 
+                                });
+                                return;
+                            }
+                        }
+
+
+
                         _groundOpsManager.IsFuelSheetValidated = true;
 
                         // -- GHOST FUEL TRACKER INITIATION --
@@ -1566,9 +1675,26 @@ namespace FlightSupervisor.UI
                         _currentFobKg = Math.Round(_virtualFobKg);
                         // -----------------------------------
                         
-                        if (_currentResponse != null)
+                        // POINT 1.2: SILENT RELOAD SIMBRIEF DISPATCH FOR THE NEXT LEG BEFORE INITIALIZATION
+                        if (legIndex > 0)
                         {
-                            _groundOpsManager.InitializeFromSimBrief(_currentResponse, _cabinManager.SessionFlightsCompleted == 0 && _cabinManager.FirstFlightClean, _currentFobKg, _cabinManager.CabinCleanliness, _cabinManager.CateringCompletion, _cabinManager.WaterLevel, _cabinManager.WasteLevel, _nextSobtOverride);
+                            string simbriefUser = _profileManager.CurrentProfile.SimBriefUsername ?? "";
+                            if (!string.IsNullOrEmpty(simbriefUser))
+                            {
+                                try {
+                                    // Wait up to a few seconds, the UI spinner "Please Wait" handles the delay for the pilot.
+                                    await FetchFlightPlan(simbriefUser, false, null, _profileManager.CurrentProfile.WeatherSource ?? "simbrief", false);
+                                } catch (Exception innerEx) {
+                                    System.IO.File.AppendAllText("sync_debug.txt", $"\n[ERROR] FetchFlightPlan threw: {innerEx.Message}\n");
+                                }
+                            }
+                        }
+
+                        var targetResponse = legIndex > 0 && _rotationQueue.Count > 0 ? _rotationQueue[0] : _currentResponse;
+
+                        if (targetResponse != null)
+                        {
+                            _groundOpsManager.InitializeFromSimBrief(targetResponse, _cabinManager.SessionFlightsCompleted == 0 && _cabinManager.FirstFlightClean, _currentFobKg, _cabinManager.CabinCleanliness, _cabinManager.CateringCompletion, _cabinManager.WaterLevel, _cabinManager.WasteLevel, _nextSobtOverride);
                             if (_cabinManager.SessionFlightsCompleted == 0)
                             {
                                 _groundOpsManager.Services.RemoveAll(x => x.Name == "Deboarding");
@@ -1580,6 +1706,17 @@ namespace FlightSupervisor.UI
                         
                         // Let Dispatch know
                         SendToWeb(new { type = "cabinLog", level = "cyan", message = $"[DISPATCH] Final Load Sheet validated by Captain. Block Fuel confirmed at {blockFuel} kg." });
+                        SendToWeb(new { type = "fuelValidationSuccess" });
+
+                        // Fermeture auto de la Modale détachable Fuel Sheet en s'assurant d'être sur le Dispatcher UI
+                        Dispatcher.Invoke(() => {
+                            try {
+                                if (_fuelSheetWindow != null)
+                                {
+                                    _fuelSheetWindow.Close();
+                                }
+                            } catch (Exception) { /* Ignored */ }
+                        });
                     }
                 }
                 else if (action == "prepareNextLeg")
@@ -1926,6 +2063,16 @@ namespace FlightSupervisor.UI
                     ShiftStateManager.ClearState();
                     SendToWeb(new { type = "shiftCleared" });
                 }
+                else if (action == "requestSimbriefReload")
+                {
+                    string username = _profileManager.CurrentProfile.SimBriefUsername ?? "";
+                    if (!string.IsNullOrEmpty(username))
+                    {
+                        var weatherSource = _profileManager.CurrentProfile.WeatherSource ?? "simbrief";
+                        _ = FetchFlightPlan(username, false, null, weatherSource, false);
+                        SendToWeb(new { type = "log", message = "[SYSTEM] Reloading SimBrief Data..." });
+                    }
+                }
                 else if (action == "requestAcarsUpdate")
                 {
                     _ = RefreshLiveWeatherAsync();
@@ -2216,6 +2363,9 @@ namespace FlightSupervisor.UI
                             System.IO.File.AppendAllText(logPath, $"[DEBUG] Calling LoadNextLeg()!\n");
                             SendToWeb(new { type = "log", message = $"[DEBUG] LoadNextLeg() is being called!" });
                             LoadNextLeg();
+                            
+                            // POPUP FUEL SHEET AUTOMATICALLY FOR THE FIRST LEG!
+                            OpenFuelSheetWindow();
                         }
                         else if (_currentResponse != null)
                         {
@@ -2246,16 +2396,6 @@ namespace FlightSupervisor.UI
                         {
                             SendToWeb(new { type = "log", message = $"[SYSTEM] Action Denied. Time Skip is ONLY available during Ground Operations." });
                             minutes = 0;
-                        }
-                        else if (_groundOpsManager.TargetSobt.HasValue && _currentSimTime.AddMinutes(minutes) >= _groundOpsManager.TargetSobt.Value.AddMinutes(-5))
-                        {
-                            SendToWeb(new { type = "log", message = $"[SYSTEM] Time Skip clamped. Aircraft is within 5 minutes of Scheduled Off Block Time." });
-                            int allowedMinutes = (int)(_groundOpsManager.TargetSobt.Value.AddMinutes(-5) - _currentSimTime).TotalMinutes;
-                            if (allowedMinutes > 0) {
-                                minutes = allowedMinutes;
-                            } else {
-                                minutes = 0;
-                            }
                         }
 
                         if (minutes > 0) 
@@ -2320,6 +2460,10 @@ namespace FlightSupervisor.UI
                             }
                             string destName = _currentResponse?.Destination?.Name ?? _currentResponse?.Destination?.IcaoCode ?? "our destination";
                             _cabinManager.AnnounceDelay(reason, destName);
+                        }
+                        else if (annType == "Descent" || annType == "ArrivalWeather")
+                        {
+                            _cabinManager.AnnounceToCabin("Descent");
                         }
                         else
                         {

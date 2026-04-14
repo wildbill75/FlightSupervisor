@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>TRUE AIRMANSHIP | Fuel Dispatch</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="app.css?v=6">
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        background: "#141414",
+                        primary: "#95ccff",
+                        "primary-container": "#00a8ff",
+                    },
+                    fontFamily: {
+                        headline: ["Manrope", "sans-serif"],
+                        body: ["Inter", "sans-serif"],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: transparent;
+            color: #b6b6b6;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+        }
+        .window-drag-area {
+            -webkit-app-region: drag;
+        }
+        .no-drag { -webkit-app-region: no-drag; }
+        .glass-panel {
+            background: rgba(51, 53, 58, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(136, 146, 157, 0.1);
+        }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+        
+        /* Custom scrollbar for small areas if needed */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(14, 165, 233, 0.2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(14, 165, 233, 0.4); }
+    </style>
+</head>
+<body class="bg-[#141414] text-[#b6b6b6] overflow-hidden select-none">
+    <div class="h-screen w-screen flex flex-col disable-drag">
+        <!-- Title Bar -->
+        <div id="top-bar" class="window-drag-area flex-none flex items-center justify-between px-4 h-10 bg-[#1d1d1d] border-b border-white/5" onmousedown="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action:'drag'});">
+            <div class="text-[10px] font-label tracking-[0.4em] text-[#7b7b7b] uppercase pointer-events-none select-none whitespace-nowrap truncate flex-1">
+                TRUE AIRMANSHIP | LOAD SHEET <span id="legLabel" class="text-sky-400 ml-2 font-black">LEG 0</span>
+            </div>
+            <div class="flex items-center gap-2 justify-end flex-1">
+                <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-sky-400 hover:bg-sky-500/10 rounded transition-colors" title="Reload SimBrief" onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'requestSimbriefReload'});">
+                    <span class="material-symbols-outlined text-[14px]">refresh</span>
+                </button>
+                <button class="no-drag w-8 h-8 flex items-center justify-center text-[#b6b6b6] hover:text-white hover:bg-rose-500 rounded transition-colors" title="Close" onmousedown="event.stopPropagation()" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'closeApp'});">
+                    <span class="material-symbols-outlined text-[14px]">close</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="flex-1 flex flex-col p-6 overflow-y-auto" id="mainContent">
+            <div class="bg-gradient-to-b from-[#1C1F26] to-[#121418] border border-white/10 rounded-2xl p-6 shadow-[0_10px_40px_rgba(0,0,0,0.6)] relative flex flex-col h-full overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                
+                <h3 class="text-xs font-label tracking-[0.4em] text-white uppercase mb-4 flex items-center justify-between border-b border-white/10 pb-4">
+                    Load Sheet & Dispatch
+                    <span class="material-symbols-outlined text-sky-400">description</span>
+                </h3>
+
+                <div class="space-y-4 mb-4 flex-grow overflow-y-auto custom-scrollbar pr-2">
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="flex flex-col bg-black/40 p-3 rounded-lg border border-white/5">
+                            <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest font-bold mb-1">Pax</span>
+                            <span id="loadPaxField" class="text-sm font-mono text-white font-bold">---</span>
+                        </div>
+                        <div class="flex flex-col bg-black/40 p-3 rounded-lg border border-white/5">
+                            <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest font-bold mb-1">Payload</span>
+                            <div class="flex items-end"><span id="loadPayloadField" class="text-sm font-mono text-white font-bold leading-none">---</span><span class="text-[9px] text-white/50 ml-1 font-bold leading-none mb-0.5">KG</span></div>
+                        </div>
+                        <div class="flex flex-col bg-black/40 p-3 rounded-lg border border-white/5">
+                            <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest font-bold mb-1">Est ZFW</span>
+                            <div class="flex items-end"><span id="loadZfwField" class="text-sm font-mono text-white font-bold leading-none">---</span><span class="text-[9px] text-white/50 ml-1 font-bold leading-none mb-0.5">KG</span></div>
+                        </div>
+                        <div class="flex flex-col bg-black/40 p-3 rounded-lg border border-white/5">
+                            <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest font-bold mb-1">Est LDW</span>
+                            <div class="flex items-end"><span id="loadLdwField" class="text-sm font-mono text-white font-bold leading-none">---</span><span class="text-[9px] text-white/50 ml-1 font-bold leading-none mb-0.5">KG</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center bg-black/30 p-3 rounded-lg border border-white/5">
+                        <span class="text-[10px] text-[#7b7b7b] uppercase tracking-widest font-bold">Trip Fuel</span>
+                        <div><span id="fuelTripField" class="text-sm font-mono text-emerald-400 font-bold">---</span><span class="text-[9px] text-emerald-400/50 ml-1 font-bold">KG</span></div>
+                    </div>
+                    <div class="flex justify-between items-center bg-black/30 p-3 rounded-lg border border-white/5">
+                        <span class="text-[10px] text-[#7b7b7b] uppercase tracking-widest font-bold">Alternate</span>
+                        <div><span id="fuelAltnField" class="text-sm font-mono text-sky-400 font-bold">---</span><span class="text-[9px] text-sky-400/50 ml-1 font-bold">KG</span></div>
+                    </div>
+                    <div class="flex justify-between items-center bg-black/30 p-3 rounded-lg border border-white/5">
+                        <span class="text-[10px] text-[#7b7b7b] uppercase tracking-widest font-bold">Reserve</span>
+                        <div><span id="fuelResField" class="text-sm font-mono text-orange-400 font-bold">---</span><span class="text-[9px] text-orange-400/50 ml-1 font-bold">KG</span></div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center bg-black/30 p-3 rounded-lg border border-white/5">
+                        <span class="text-[10px] text-[#7b7b7b] uppercase tracking-widest font-bold">Cost Index</span>
+                        <div class="flex items-center gap-2">
+                            <button id="btnSubCi" class="w-6 h-6 rounded bg-slate-500/10 text-slate-400 hover:bg-slate-500/30 flex items-center justify-center transition-colors font-bold">-</button>
+                            <span id="dispCiField" class="text-sm font-mono text-white font-bold w-12 text-center" contenteditable="true" spellcheck="false">--</span>
+                            <button id="btnAddCi" class="w-6 h-6 rounded bg-slate-500/10 text-slate-400 hover:bg-slate-500/30 flex items-center justify-center transition-colors font-bold">+</button>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center bg-black/30 p-3 rounded-lg border border-white/5">
+                        <span class="text-[10px] text-[#7b7b7b] uppercase tracking-widest font-bold">Cruise Alt</span>
+                        <div class="flex items-center gap-2">
+                            <button id="btnSubFl" class="w-6 h-6 rounded bg-slate-500/10 text-slate-400 hover:bg-slate-500/30 flex items-center justify-center transition-colors font-bold">-</button>
+                            <span id="dispFlField" class="text-sm font-mono text-white font-bold w-16 text-center" contenteditable="true" spellcheck="false">FL---</span>
+                            <button id="btnAddFl" class="w-6 h-6 rounded bg-slate-500/10 text-slate-400 hover:bg-slate-500/30 flex items-center justify-center transition-colors font-bold">+</button>
+                        </div>
+                    </div>
+                    
+                    <div id="extraContainer" class="flex justify-between items-center bg-black/30 p-3 rounded-lg border border-sky-500/20 shadow-inner group">
+                        <span class="text-[10px] text-sky-400 uppercase tracking-widest font-bold">Extra</span>
+                        <div class="flex items-center gap-2">
+                            <button id="btnSubExtra" class="w-6 h-6 rounded bg-sky-500/10 text-sky-400 hover:bg-sky-500/30 flex items-center justify-center transition-colors font-bold">-</button>
+                            <div><span id="fuelExtraField" class="text-sm font-mono text-white font-bold w-12 text-center" contenteditable="true" spellcheck="false">0</span><span class="text-[9px] text-sky-400 ml-1 font-bold">KG</span></div>
+                            <button id="btnAddExtra" class="w-6 h-6 rounded bg-sky-500/10 text-sky-400 hover:bg-sky-500/30 flex items-center justify-center transition-colors font-bold">+</button>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 flex justify-between items-center bg-black/40 p-4 rounded-lg border border-white/5">
+                        <span class="text-sm text-[#7b7b7b] uppercase tracking-widest font-black">Block Fuel</span>
+                        <div class="flex items-end gap-1">
+                            <span id="dashFuelBlockField" class="text-3xl font-mono text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">----</span>
+                            <span class="text-[10px] text-sky-400 font-bold mb-1">KG</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center py-2 px-2 border-b border-white/5 border-dashed">
+                        <span class="text-xs text-slate-500 uppercase tracking-widest font-bold">FOB on Aircraft</span>
+                        <div class="flex items-end gap-1">
+                            <span id="dashInitialFobField" class="text-lg font-mono text-emerald-400 font-bold">----</span>
+                            <span class="text-[9px] text-slate-500 font-bold mb-0.5">KG</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center py-2 px-2 rounded-b-lg">
+                        <span class="text-xs text-amber-500 uppercase tracking-widest font-bold">Req Uplift</span>
+                        <div class="flex items-end gap-1">
+                            <span id="dashRequiredUpliftField" class="text-lg font-mono text-amber-500 font-bold">----</span>
+                            <span class="text-[9px] text-slate-500 font-bold mb-0.5">KG</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-auto pt-4 border-t border-white/5" id="btnContainer">
+                    <button id="btnValidateFuel" class="w-full bg-sky-500/20 text-sky-400 hover:bg-sky-500 hover:text-white border border-sky-500/50 py-4 rounded-xl font-bold tracking-[0.2em] uppercase transition-all duration-300 shadow-[0_0_20px_rgba(14,165,233,0.15)] flex items-center justify-center gap-2 group cursor-pointer">
+                        <span class="material-symbols-outlined text-[18px]">verified_user</span>
+                        <span>Validate & Sign</span>
+                    </button>
+                    <button id="btnConsulted" class="w-full bg-slate-500/10 text-slate-400 border border-slate-500/30 py-4 rounded-xl font-bold tracking-[0.2em] uppercase transition-all duration-300 flex items-center justify-center gap-2 cursor-not-allowed hidden">
+                        <span class="material-symbols-outlined text-[18px]">task_alt</span>
+                        <span>Load Sheet Validated</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let baseBlockFuel = 0;
+        let extraFuel = 0;
+        let effectiveLegIndex = 0;
+        let fob = 0;
+        let isValidated = false;
+
+        function updateCalculations() {
+            // Read extra fuel
+            let extTxt = document.getElementById('fuelExtraField').innerText.replace(/[^\d.-]/g, '');
+            let ext = parseInt(extTxt);
+            if (isNaN(ext)) ext = 0;
+            extraFuel = ext;
+            
+            // Calculate final block fuel
+            const finalBlock = baseBlockFuel + extraFuel;
+            document.getElementById('dashFuelBlockField').innerText = finalBlock;
+            
+            // Calculate uplift
+            const uplift = Math.max(0, finalBlock - fob);
+            document.getElementById('dashRequiredUpliftField').innerText = uplift;
+            
+            // Re-apply to textfield to clean it
+            if (document.activeElement !== document.getElementById('fuelExtraField')) {
+                document.getElementById('fuelExtraField').innerText = extraFuel;
+            }
+        }
+
+        // Setup incrementers
+        const setupInc = (btnId, fieldId, increment) => {
+            const btn = document.getElementById(btnId);
+            const fld = document.getElementById(fieldId);
+            if (!btn || !fld) return;
+            btn.addEventListener('click', () => {
+                if(isValidated) return;
+                let valTxt = fld.innerText.replace(/[^\d.-]/g, '');
+                let val = parseInt(valTxt);
+                if (isNaN(val)) val = 0;
+                val += increment;
+                if (val < 0) val = 0;
+                if (fieldId === 'dispFlField') fld.innerText = 'FL' + val;
+                else fld.innerText = val;
+                
+                if (fieldId === 'fuelExtraField') updateCalculations();
+            });
+        };
+
+        setupInc('btnAddCi', 'dispCiField', 1);
+        setupInc('btnSubCi', 'dispCiField', -1);
+        setupInc('btnAddFl', 'dispFlField', 10);
+        setupInc('btnSubFl', 'dispFlField', -10);
+        setupInc('btnAddExtra', 'fuelExtraField', 100);
+        setupInc('btnSubExtra', 'fuelExtraField', -100);
+
+        document.getElementById('fuelExtraField').addEventListener('input', updateCalculations);
+
+        if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.addEventListener('message', event => {
+                const p = event.data;
+                if (p.type === 'initFuelSheet') {
+                    isValidated = p.isValidated === true;
+                    effectiveLegIndex = p.legIndex || 0;
+                    fob = p.fob || 0;
+                    
+                    document.getElementById('legLabel').innerText = `LEG ${effectiveLegIndex + 1}`;
+                    
+                    const d = p.flightData;
+                    if (d) {
+                        if (d.weights) {
+                            if (d.weights.pax_count) document.getElementById('loadPaxField').innerText = d.weights.pax_count;
+                            if (d.weights.payload) document.getElementById('loadPayloadField').innerText = d.weights.payload;
+                            if (d.weights.est_zfw) document.getElementById('loadZfwField').innerText = d.weights.est_zfw;
+                            if (d.weights.est_ldw) document.getElementById('loadLdwField').innerText = d.weights.est_ldw;
+                        }
+                        if (d.fuel) {
+                            if (d.fuel.enroute_burn) document.getElementById('fuelTripField').innerText = d.fuel.enroute_burn;
+                            if (d.fuel.alternate_burn) document.getElementById('fuelAltnField').innerText = d.fuel.alternate_burn;
+                            if (d.fuel.reserve) document.getElementById('fuelResField').innerText = d.fuel.reserve;
+                            if (d.fuel.extra) {
+                                document.getElementById('fuelExtraField').innerText = d.fuel.extra;
+                                extraFuel = parseInt(d.fuel.extra) || 0;
+                            }
+                            if (d.fuel.plan_ramp) {
+                                baseBlockFuel = parseInt(d.fuel.plan_ramp) || 0;
+                            }
+                        }
+                        if (d.general) {
+                            let ci = d.general.costindex || d.general.CostIndex || d.general.cost_index;
+                            if (ci) document.getElementById('dispCiField').innerText = ci;
+                            
+                            let initAlt = d.general.initial_altitude || d.general.InitialAlt;
+                            if (initAlt) {
+                                let alt = initAlt;
+                                if (alt.length >= 3 && alt.endsWith("00")) alt = "FL" + alt.substring(0, alt.length - 2);
+                                document.getElementById('dispFlField').innerText = alt;
+                            }
+                        }
+                    }
+                    
+                    baseBlockFuel = baseBlockFuel - extraFuel; // Because simbrief plan_ramp includes extra! 
+                    if(baseBlockFuel < 0) baseBlockFuel = parseInt(p.blockFuel) || 0;
+                    
+                    document.getElementById('dashInitialFobField').innerText = fob;
+                    updateCalculations();
+
+                    if (isValidated) {
+                        // Enter Consultation Mode
+                        document.getElementById('btnValidateFuel').classList.add('hidden');
+                        document.getElementById('btnValidateFuel').classList.remove('flex');
+                        document.getElementById('btnConsulted').classList.remove('hidden');
+                        document.getElementById('btnConsulted').classList.add('flex');
+                        
+                        document.getElementById('fuelExtraField').contentEditable = false;
+                        document.getElementById('dispCiField').contentEditable = false;
+                        document.getElementById('dispFlField').contentEditable = false;
+                        
+                        const actions = document.querySelectorAll('button[id^="btnSub"], button[id^="btnAdd"]');
+                        actions.forEach(b => {
+                            b.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+                        });
+                        document.getElementById('extraContainer').classList.remove('border-sky-500/20');
+                        document.getElementById('extraContainer').classList.add('border-white/5');
+                    }
+                }
+            });
+        }
+
+        document.getElementById('btnValidateFuel').addEventListener('click', () => {
+            if (isValidated) return;
+            
+            const finalBlock = baseBlockFuel + extraFuel;
+            
+            // Transform UI into Please Wait Spinner
+            const btnContainer = document.getElementById('btnContainer');
+            btnContainer.innerHTML = `
+                <div class="w-full bg-black/20 text-sky-400 border border-sky-500/20 py-4 rounded-xl font-bold tracking-[0.2em] uppercase flex flex-col items-center justify-center gap-3">
+                    <span class="material-symbols-outlined text-[24px] animate-spin text-sky-400 opacity-70">autorenew</span>
+                    <span class="text-[10px] animate-pulse">VAL STATUS PENDING...</span>
+                </div>
+            `;
+
+            // Send IPC to backend (with blockFuel value to use)
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage({ 
+                    action: 'validateFuel', 
+                    payload: { blockFuel: finalBlock.toString(), legIndex: effectiveLegIndex }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

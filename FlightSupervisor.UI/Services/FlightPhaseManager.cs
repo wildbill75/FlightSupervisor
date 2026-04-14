@@ -383,10 +383,10 @@ namespace FlightSupervisor.UI.Services
                 _hasFoWarnedSeatbeltTaxi = true;
                 OnFoMessage?.Invoke("Captain, aircraft is moving, seatbelts are off.");
             }
-            if ((CurrentPhase == FlightPhase.Climb || CurrentPhase == FlightPhase.Cruise) && altitude > 10500 && IsSeatbeltsOn && !_hasFoWarnedSeatbelt10k)
+            if ((CurrentPhase == FlightPhase.Climb || CurrentPhase == FlightPhase.Cruise) && altitude > TargetCruiseAltitude - 500 && altitude > 10000 && IsSeatbeltsOn && !_hasFoWarnedSeatbelt10k)
             {
                 _hasFoWarnedSeatbelt10k = true;
-                OnFoMessage?.Invoke("Passing 10,000, consider releasing the cabin.");
+                OnFoMessage?.Invoke("We've reached cruise altitude, consider releasing the cabin.");
             }
             if ((CurrentPhase == FlightPhase.Descent || CurrentPhase == FlightPhase.Approach) && altitude < 9500 && !IsSeatbeltsOn && !_hasFoWarnedSeatbeltDesc)
             {
@@ -422,7 +422,7 @@ namespace FlightSupervisor.UI.Services
                         ));
                     }
                 }
-                else if (indicatedAirspeed <= 250.0)
+                else if (indicatedAirspeed <= 260.0)
                 {
                     _overspeedSeconds = 0;
                 }
@@ -506,8 +506,8 @@ namespace FlightSupervisor.UI.Services
                     }
                 }
 
-                // Landing Lights Rule
-                if (altitude < 9500 && radioHeight > 50 && 
+                // Landing Lights Rule (Tolerant Buffer 9,000ft - 11,000ft)
+                if (altitude < 9000 && radioHeight > 50 && 
                    (CurrentPhase == FlightPhase.Climb || CurrentPhase == FlightPhase.Descent || CurrentPhase == FlightPhase.Approach || CurrentPhase == FlightPhase.Takeoff || CurrentPhase == FlightPhase.InitialClimb))
                 {
                     if (!IsLandingLightOn && (DateTime.Now - _lastLightPenalty).TotalMinutes > 0.5)
@@ -516,7 +516,7 @@ namespace FlightSupervisor.UI.Services
                         OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Safety Violation: Landing Lights OFF below 10,000ft", "Violation Sécurité: Phares d'atterrissage ETEINTS sous 10,000ft"));
                     }
                 }
-                else if (altitude >= 10500 && (IsLandingLightOn || FenixNoseLight == 2) && (DateTime.Now - _lastLightPenalty).TotalMinutes > 0.5)
+                else if (altitude >= 11000 && (IsLandingLightOn || FenixNoseLight == 2) && (DateTime.Now - _lastLightPenalty).TotalMinutes > 0.5)
                 {
                     _lastLightPenalty = DateTime.Now;
                     OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Safety Violation: Landing Lights ON above 10,000ft", "Violation Sécurité: Phares d'atterrissage ALLUMES au-dessus de 10,000ft"));
@@ -560,9 +560,16 @@ namespace FlightSupervisor.UI.Services
             }
 
             // Global Taxi Ground Speed Limit (30kts)
+            // Global Taxi Ground Speed Limit (30kts, 45kts burst allowed for TaxiIn high-speed turnoff)
             if (CurrentPhase == FlightPhase.TaxiOut || CurrentPhase == FlightPhase.TaxiIn)
             {
-                if (groundSpeed > 30.0)
+                double speedLimit = 30.0;
+                if (CurrentPhase == FlightPhase.TaxiIn && _taxiInStartTime.HasValue && (DateTime.Now - _taxiInStartTime.Value).TotalSeconds <= 30)
+                {
+                    speedLimit = 45.0;
+                }
+
+                if (groundSpeed > speedLimit)
                 {
                     _taxiOverspeedSeconds++;
                     // 10 seconds tolerance for taxi bursts

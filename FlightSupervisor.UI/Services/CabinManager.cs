@@ -590,7 +590,7 @@ namespace FlightSupervisor.UI.Services
                     break;
                 case "PREPARE_TAKEOFF":
                     _isSecuring = true;
-                    _currentSecuringRate = 3.3; 
+                    _currentSecuringRate = 0.33; // Approx 5 minutes to reach 100%
                     _targetState = CabinState.TakeoffSecured;
                     State = CabinState.SecuringForTakeoff;
                     SecuringProgress = 0;
@@ -610,7 +610,7 @@ namespace FlightSupervisor.UI.Services
                     break;
                 case "PREPARE_LANDING":
                     _isSecuring = true;
-                    _currentSecuringRate = 5.0; 
+                    _currentSecuringRate = 0.50; 
                     _targetState = CabinState.LandingSecured;
                     State = CabinState.SecuringForLanding;
                     SecuringProgress = 0;
@@ -1163,16 +1163,15 @@ namespace FlightSupervisor.UI.Services
                 }
                 else
                 {
-                    _holdTurnAccumulator -= (deltaTimeSeconds * 0.2); // Slow decay when flying straight
-                    if (_holdTurnAccumulator < 0) _holdTurnAccumulator = 0;
+                    _holdTurnAccumulator = 0; // Instant decay to eliminate false positives in approach S-turns
                 }
 
-                if (_holdTurnAccumulator > 150) // Approx 2.5 minutes of pure turning (more than one standard hold)
+                if (_holdTurnAccumulator > 120) // Exactly 2 minutes (360 degrees continuous at standard rate)
                 {
                     if ((DateTime.Now - _timeOfLastDelayPA).TotalMinutes > 15 && (DateTime.Now - _lastHoldPenaltyTime).TotalMinutes > 5)
                     {
                         _lastHoldPenaltyTime = DateTime.Now;
-                        _holdTurnAccumulator = 60; // Reset partially so it doesn't spam, but keeps them close if they keep holding
+                        _holdTurnAccumulator = 0; // Clear it out to require another full 360
                         
                         ModifySatisfaction(-15.0);
                         IncreaseAnxiety(15.0, phase, false);
@@ -1312,7 +1311,7 @@ namespace FlightSupervisor.UI.Services
 
                 if (!IsSecuringHalted)
                 {
-                    double effectiveRate = _currentSecuringRate * (Math.Max(5.0, CrewEfficiency) / 100.0);
+                    double effectiveRate = _currentSecuringRate * (Math.Max(5.0, CrewEfficiency) / 100.0) * deltaTimeSeconds;
                     if (_strategicPenaltyEndTime.HasValue && DateTime.Now < _strategicPenaltyEndTime.Value)
                     {
                         effectiveRate *= 0.5; // Strategic Penalty: PNC distracted by Intercom Query
@@ -1463,6 +1462,36 @@ namespace FlightSupervisor.UI.Services
                 }
             }
 
+            // Environmental Anxiety (Night & Low Altitude Approach)
+            if (phase != FlightPhase.AtGate && phase != FlightPhase.Turnaround && CurrentSimLocalTime != DateTime.MinValue)
+            {
+                if (CurrentSimLocalTime.Hour <= 5 || CurrentSimLocalTime.Hour >= 20)
+                {
+                    IncreaseAnxiety(0.002 * deltaTimeSeconds * (IsLowCost ? 1.5 : 1.0), phase, isCrisisActive);
+                }
+                if (altitude < 1000 && phase == FlightPhase.Approach)
+                {
+                    IncreaseAnxiety(0.02 * deltaTimeSeconds * (IsLowCost ? 1.5 : 1.0), phase, isCrisisActive);
+                }
+            }
+
+            if (phase == FlightPhase.TaxiOut && groundSpeed < 1.0 && isBoarded)
+            {
+                _cumulativeHoldSeconds += deltaTimeSeconds;
+                if (_cumulativeHoldSeconds > 600 && (DateTime.Now - _lastHoldPenaltyTime).TotalMinutes > 10)
+                {
+                    _lastHoldPenaltyTime = DateTime.Now;
+                    ModifySatisfaction(-10.0);
+                    IncreaseAnxiety(10.0, phase, false);
+                    OnPenaltyTriggered?.Invoke(-30, LocalizationService.Translate("Ground Delay: Aircraft immobilized > 10 min", "Retard au sol : Avion immobilisé > 10 min"));
+                    OnCrewMessage?.Invoke("orange", LocalizationService.Translate("Captain, we've been sitting here without moving for over 10 minutes. Passengers are getting impatient.", "Commandant, on est immobiles depuis plus de 10 minutes. L'impatience monte."), null);
+                }
+            }
+            else if (phase == FlightPhase.TaxiOut) 
+            {
+                _cumulativeHoldSeconds = 0;
+            }
+
             if (State == CabinState.ServingMeals)
             {
                 bool isHaltedByBelts = _seatbeltsOn;
@@ -1480,19 +1509,25 @@ namespace FlightSupervisor.UI.Services
 
                 if (!IsServiceHalted && !isHaltedByBelts && !isHaltedByAlt && !isHaltedByDescent)
                 {
+                    int totalPax = Math.Max(1, PassengerManifest.Count);
                     double lccMultiplier = IsLowCost ? 0.6 : 1.0;
-                    double hurryMultiplier = IsServiceHurried ? 2.0 : 1.0;
-                    double baseRate = 0.5 * (100.0 / Math.Max(1, PassengerManifest.Count)) * (Math.Max(5.0, CrewEfficiency) / 100.0) * lccMultiplier * hurryMultiplier;
+                    double hurryMultiplier = IsServiceHurried ? 0.5 : 1.0;
+                    
+                    // Target 15-20 mins for full cabin. 1080 seconds max (18 mins)
+                    double passTimeCost = totalPax * 6.5; // ~6.5 seconds per pax
+                    double efficiencyFactor = 100.0 / Math.Max(5.0, CrewEfficiency);
+                    double projectedSeconds = passTimeCost * efficiencyFactor * lccMultiplier * hurryMultiplier;
+                    
+                    double baseRate = (100.0 / Math.Max(1.0, projectedSeconds)) * deltaTimeSeconds;
                     
                     double prevProgress = InFlightServiceProgress;
                     InFlightServiceProgress += baseRate;
                     
-                    int totalPax = Math.Max(1, PassengerManifest.Count);
                     double prevRatio = prevProgress / 100.0;
                     double currentRatio = InFlightServiceProgress / 100.0;
                     
-                    int prevExpectedEaten = (int)(prevRatio * totalPax * 0.90);
-                    int currentExpectedEaten = (int)(currentRatio * totalPax * 0.90);
+                    int prevExpectedEaten = (int)Math.Round(prevRatio * totalPax * 0.95);
+                    int currentExpectedEaten = (int)Math.Round(currentRatio * totalPax * 0.95);
                     int eatenThisTick = currentExpectedEaten - prevExpectedEaten;
                     
                     if (eatenThisTick > 0)
@@ -1600,13 +1635,13 @@ namespace FlightSupervisor.UI.Services
                 _audio?.SpeakAsCaptain(spokenText);
                 OnCrewMessage?.Invoke("info", LocalizationService.Translate("PA: Apology for the earlier delay.", "PA: Nouvelles excuses pour le retard passé."), null);
             }
-            else if (announcementType == "ArrivalWeather")
+            else if (announcementType == "Descent")
             {
                 DecreaseAnxiety(10.0);
                 string destName = CurrentFlight?.Destination?.Name ?? CurrentFlight?.Destination?.IcaoCode ?? "our destination";
                 string spokenText = $"Ladies and gentlemen, we'll be starting our descent for {destName} shortly. Weather at our destination is currently looking favorable. We'll have another update for you right before landing.";
                 _audio?.SpeakAsCaptain(spokenText);
-                OnCrewMessage?.Invoke("info", LocalizationService.Translate($"PA: Weather update for {destName}.", $"PA: Point sur la météo à l'arrivée ({destName})."), null);
+                OnCrewMessage?.Invoke("info", LocalizationService.Translate($"PA: Descent update for {destName}.", $"PA: Point sur la descente vers {destName}."), null);
             }
         }
 
@@ -1670,13 +1705,10 @@ namespace FlightSupervisor.UI.Services
             string airlineName = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(ActiveAirlineId.Replace("_", " "));
             string aircraftType = CurrentFlight?.Aircraft?.BaseType ?? CurrentFlight?.Aircraft?.IcaoCode ?? "aircraft";
             
-            string arrTimeStr = "shortly after";
-            if (CurrentFlight?.Times?.SchedIn != null && long.TryParse(CurrentFlight.Times.SchedIn, out long schedInUnixUTC))
-            {
-                arrTimeStr = "at " + DateTimeOffset.FromUnixTimeSeconds(schedInUnixUTC).UtcDateTime.ToString("HH:mm") + " zulu";
-            }
-
-            string spokenText = $"Ladies and gentlemen, this is your Captain speaking. First of all, welcome aboard our {airlineName} flight. We'll be operating an {aircraftType} today for our trip to {destName}. We are expecting a flight time of approximately {flightTime}. The weather en route looks {wxcText}, and we should be arriving {arrTimeStr}. For now, please settle in, and thank you for choosing to fly with us.";
+            int hr = DateTime.UtcNow.Hour;
+            string greeting = hr < 12 ? "Morning" : (hr < 18 ? "Afternoon" : "Evening");
+            string wxcConditions = !badWeather ? "smooth flight" : "few bumps along the way";
+            string spokenText = $"Ladies and gentlemen, good {greeting} from the flightdeck this is your captain speaking, and in the name of {airlineName} I would like to welcome you all on board this {aircraftType} on our flight to {destName}. Today flight time will be approximately {flightTime} and we're expecting a {wxcConditions}. We're just finishing the last paper work and once completed we will start our pushback. We will get back to you with the latest weather information from our destination airport when we start the approach. Thank you very much for being our guests. Sit back, relax, and enjoy this flight with us.";
             _audio?.SpeakAsCaptain(spokenText);
 
             OnCrewMessage?.Invoke("green", LocalizationService.Translate(
