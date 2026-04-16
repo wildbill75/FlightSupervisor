@@ -52,9 +52,9 @@ window.generateChiefPilotDebrief = function(rep, lang = 'en') {
     // 2. Category Focus (Analyze Safety vs Comfort vs Ops)
     // Assume base scores: Safety (500), Comfort (300), Ops (200), Maint (0 base).
     // Let's see what they lost.
-    let lostSafety = 500 - rep.SafetyPoints;
-    let lostComfort = 300 - rep.ComfortPoints;
-    let lostOps = 200 - rep.OperationsPoints;
+    let lostSafety = 500 - ((rep.AirmanshipPoints ?? 0) + (rep.AbnormalOperationsPoints ?? 0));
+    let lostComfort = 300 - (rep.PassengerExperiencePoints ?? rep.ComfortPoints ?? 0);
+    let lostOps = 200 - ((rep.FlightPhaseFlowsPoints ?? 0) + (rep.CommunicationPoints ?? 0));
 
     if (lostSafety > 100) {
         p2 = isFr

@@ -51,6 +51,21 @@ namespace FlightSupervisor.UI.Models
         [JsonPropertyName("maxFuelCapacity")]
         public double MaxFuelCapacity { get; set; } = 0;
 
+        [JsonPropertyName("engineWear")]
+        public double EngineWear { get; set; } = 0.0;
+
+        [JsonPropertyName("gearAndBrakeWear")]
+        public double GearAndBrakeWear { get; set; } = 0.0;
+
+        [JsonPropertyName("flapsWear")]
+        public double FlapsWear { get; set; } = 0.0;
+
+        [JsonPropertyName("structureWear")]
+        public double StructureWear { get; set; } = 0.0;
+
+        [JsonPropertyName("activeDefects")]
+        public List<string> ActiveDefects { get; set; } = new List<string>();
+
         [JsonPropertyName("events")]
         public List<AirframeLogEvent> Events { get; set; } = new List<AirframeLogEvent>();
     }

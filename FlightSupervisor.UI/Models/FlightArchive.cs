@@ -11,10 +11,12 @@ namespace FlightSupervisor.UI.Models
 
         // Scores
         public int Score { get; set; }
-        public int SafetyPoints { get; set; }
-        public int ComfortPoints { get; set; }
+        public int FlightPhaseFlowsPoints { get; set; }
+        public int CommunicationPoints { get; set; }
+        public int AirmanshipPoints { get; set; }
         public int MaintenancePoints { get; set; }
-        public int OperationsPoints { get; set; }
+        public int AbnormalOperationsPoints { get; set; }
+        public int PassengerExperiencePoints { get; set; }
 
         public List<object> FlightEvents { get; set; } = new List<object>();
         public List<object> Objectives { get; set; } = new List<object>();

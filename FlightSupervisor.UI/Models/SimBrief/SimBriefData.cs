@@ -1,4 +1,7 @@
+using System;
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Collections.Generic;
 
 namespace FlightSupervisor.UI.Models.SimBrief
 {
@@ -26,7 +29,8 @@ namespace FlightSupervisor.UI.Models.SimBrief
         public AirportInfo? Destination { get; set; }
 
         [JsonPropertyName("alternate")]
-        public AirportInfo? Alternate { get; set; }
+        [JsonConverter(typeof(SingleOrArrayConverter<AirportInfo>))]
+        public List<AirportInfo>? Alternates { get; set; }
 
         [JsonPropertyName("times")]
         public TimesInfo? Times { get; set; }
@@ -279,5 +283,43 @@ namespace FlightSupervisor.UI.Models.SimBrief
 
         [JsonExtensionData]
         public System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? ExtensionData { get; set; }
+    }
+
+    public class SingleOrArrayConverter<T> : JsonConverter<List<T>>
+    {
+        public override List<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.StartArray)
+            {
+                var list = new List<T>();
+                while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
+                {
+                    list.Add(JsonSerializer.Deserialize<T>(ref reader, options)!);
+                }
+                return list;
+            }
+            else
+            {
+                var singleItem = JsonSerializer.Deserialize<T>(ref reader, options);
+                return singleItem != null ? new List<T> { singleItem } : new List<T>();
+            }
+        }
+
+        public override void Write(Utf8JsonWriter writer, List<T> value, JsonSerializerOptions options)
+        {
+            if (value.Count == 1)
+            {
+                JsonSerializer.Serialize(writer, value[0], options);
+            }
+            else
+            {
+                writer.WriteStartArray();
+                foreach (var item in value)
+                {
+                    JsonSerializer.Serialize(writer, item, options);
+                }
+                writer.WriteEndArray();
+            }
+        }
     }
 }

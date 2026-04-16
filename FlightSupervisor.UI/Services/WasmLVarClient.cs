@@ -73,6 +73,10 @@ namespace FlightSupervisor.UI.Services
             public float GsxDeboardingState; // Offset 108
             public float FenixEcamFob;       // Offset 112
             public float FbwTotalMass;       // Offset 116
+            public float GsxRefuelingState;  // Offset 120
+            public float GsxCateringState;   // Offset 124
+            public float WiperL;             // Offset 128
+            public float WiperR;             // Offset 132
         }
 
         public WasmLVarClient(SimConnect simConnect)
@@ -192,6 +196,12 @@ namespace FlightSupervisor.UI.Services
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_OH_PNEUMATIC_PACK_2,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:E_WD_FOB,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:A32NX_FUEL_TOTAL_MASS,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:FSDT_GSX_BOARDING_STATE,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:FSDT_GSX_DEBOARDING_STATE,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:FSDT_GSX_REFUELING_STATE,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:FSDT_GSX_CATERING_STATE,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_OH_WIPER_L,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_OH_WIPER_R,Number)");
 
                 // Map variables to our client area in the exact struct order
                 SendCommand(CLIENT_DATA_ID.FS_Command, $"MF.SimVars.SetTarget.FlightSupervisor"); // Tell WASM which client area we are building
@@ -227,6 +237,10 @@ namespace FlightSupervisor.UI.Services
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:FSDT_GSX_DEBOARDING_STATE,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:E_WD_FOB,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:A32NX_FUEL_TOTAL_MASS,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:FSDT_GSX_REFUELING_STATE,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:FSDT_GSX_CATERING_STATE,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_OH_WIPER_L,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_OH_WIPER_R,Number)");
             }
             catch (Exception ex)
             {

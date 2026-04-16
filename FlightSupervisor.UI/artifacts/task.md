@@ -1,0 +1,25 @@
+# Task List: Airframe Wear & Tech Comms Integration
+
+- [x] **1. Modèle de données & `AirframeData.cs`**
+  - [x] Ajouter les champs de santé (EngineWear, GearAndBrakeWear, FlapsWear, StructureWear)
+  - [x] Ajouter `ActiveDefects` (liste de chaînes)
+- [x] **2. Générateur de passé (AirframeHistoryGenerator.cs)**
+  - [x] Créer le dictionnaire Airline -> Maintenance Quality
+  - [x] Logique d'initialisation (génération de dégradations selon l'âge et la compagnie)
+  - [x] Tirage au sort des pannes initiales (Soft / Hard products)
+- [x] **3. Moniteur d'Usure (WearAndTearManager.cs)**
+  - [x] Créer le service avec hook sur `SimConnectService`
+  - [x] Implémenter Hard Landings (VS < -400 fpm)
+  - [x] Implémenter Tail Strikes (Pitch > 11.5 au sol)
+  - [x] Implémenter Flaps Overspeed (IAS vs Flaps index)
+  - [x] Implémenter Hot Brakes (virtuel: Freinage appuyé à haute vitesse)
+  - [x] Implémenter Moteur Cooldown (< 3 mins post atterro)
+  - [x] Implémenter Icing (Temp < 10 && vol && Anti-Ice off)
+- [ ] **4. Gameplay Ground Ops & Comms (UI & C#)**
+  - [ ] `index.html`: Ajouter la ligne TECH Comms sous PNC Comms
+  - [ ] `app.js`: Rendre l'apparition des boutons dynamique pour les pannes existantes
+  - [ ] Backend: Gérer la requête de réparation (API IPC)
+  - [ ] `GroundOpsResourceService`: Appliquer une pénalité de temps au Turnaround lorsqu'un Tech est appelé
+  - [ ] Ajouter l'événement "Tech Report: Réparé" dans le logbook
+- [ ] **5. Interface Tech Log HTML (airframe_window.html)**
+  - [ ] Ajouter section visuelle (Barres de vie, Liste MEL) `[OPTIONNEL / BONUS LATER]`

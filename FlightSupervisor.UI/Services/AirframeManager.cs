@@ -10,6 +10,8 @@ namespace FlightSupervisor.UI.Services
     {
         private readonly string _baseDirPath;
 
+        public AirframeState? CurrentAirframe { get; private set; }
+
         public AirframeManager(string basePath = null)
         {
             if (basePath == null) 
@@ -36,7 +38,8 @@ namespace FlightSupervisor.UI.Services
                 try
                 {
                     string json = File.ReadAllText(filePath);
-                    return JsonSerializer.Deserialize<AirframeState>(json) ?? GenerateSeededAirframe(registration, baseType, airline, currentIcao);
+                    CurrentAirframe = JsonSerializer.Deserialize<AirframeState>(json) ?? GenerateSeededAirframe(registration, baseType, airline, currentIcao);
+                    return CurrentAirframe;
                 }
                 catch
                 {
@@ -47,6 +50,7 @@ namespace FlightSupervisor.UI.Services
             {
                 var newAirframe = GenerateSeededAirframe(registration, baseType, airline, currentIcao);
                 SaveAirframe(newAirframe);
+                CurrentAirframe = newAirframe;
                 return newAirframe;
             }
         }
@@ -138,13 +142,14 @@ namespace FlightSupervisor.UI.Services
                         Type = "defect_closed",
                         Location = dest,
                         Severity = "warn",
-                        Description = incidentPool[rand.Next(incidentPool.Length)] + " - Rectified by engineering."
+                        Description = "Minor maintenance check completed."
                     });
                 }
 
                 lastLocation = dest;
             }
 
+            AirframeHistoryGenerator.GenerateHistory(state, rand);
             state.Events.Reverse();
 
             return state;

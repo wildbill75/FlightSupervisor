@@ -33,6 +33,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<bool>? OnAutothrustReceived;
         public event Action<double>? OnThrottleReceived;
         public event Action<double>? OnSpoilersReceived;
+        public event Action<bool>? OnSpoilersArmedReceived;
         public event Action<bool>? OnLightBeaconReceived;
         public event Action<bool>? OnLightStrobeReceived;
         public event Action<int>? OnFenixStrobeStateChanged;
@@ -62,6 +63,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<double, double>? OnEngineN1Received;
         public event Action<double, double>? OnEngineFuelFlowReceived;
         public event Action<bool, bool>? OnDoorsReceived; // MainDoor, Jetway
+        public event Action<bool, bool>? OnWipersStateReceived;
         public event Action<float, float, float>? OnCabinTemperatureTargetsChanged;
         public event Action<int>? OnNoseLightChanged;
         public event Action<bool>? OnRunwayTurnoffChanged;
@@ -130,6 +132,7 @@ namespace FlightSupervisor.UI.Services
             public double LocalYear;
             public double LocalMonth;
             public double LocalDay;
+            public double SpoilersArmed;
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
@@ -212,6 +215,7 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "LOCAL YEAR", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "LOCAL MONTH OF YEAR", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "LOCAL DAY OF MONTH", "Number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "SPOILERS ARMED", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
 
                 _simconnect.AddToDataDefinition(DEFINITIONS.GForceData, "G FORCE", "GForce", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
 
@@ -312,6 +316,7 @@ namespace FlightSupervisor.UI.Services
                 OnAutothrustReceived?.Invoke(planeData.AutothrustMaster > 0.5);
                 OnThrottleReceived?.Invoke(planeData.ThrottleLever);
                 OnSpoilersReceived?.Invoke(planeData.SpoilersHandle);
+                OnSpoilersArmedReceived?.Invoke(planeData.SpoilersArmed > 0.5);
                 OnPitchReceived?.Invoke(-planeData.Pitch);
                 OnBankReceived?.Invoke(-planeData.Bank);
                 OnSimOnGroundReceived?.Invoke(planeData.SimOnGround != 0);
@@ -372,6 +377,9 @@ namespace FlightSupervisor.UI.Services
                 OnLightTaxiReceived?.Invoke(data.NoseLight == 1); // 1 = Taxi, 2 = TO
                 OnLightLandingReceived?.Invoke(data.LandingLightL > 0.5 || data.LandingLightR > 0.5);
                 OnGsxBoardingStateReceived?.Invoke(data.GsxBoardingState, data.GsxDeboardingState);
+                OnGsxRefuelingStateReceived?.Invoke(data.GsxRefuelingState);
+                OnGsxCateringStateReceived?.Invoke(data.GsxCateringState);
+                OnWipersStateReceived?.Invoke(data.WiperL > 0.5, data.WiperR > 0.5);
                 
                 if (data.FenixEcamFob > 0)
                     OnFuelTotalReceived?.Invoke(data.FenixEcamFob);
@@ -381,6 +389,8 @@ namespace FlightSupervisor.UI.Services
         }
 
         public event Action<double, double>? OnGsxBoardingStateReceived;
+        public event Action<double>? OnGsxRefuelingStateReceived;
+        public event Action<double>? OnGsxCateringStateReceived;
     }
 }
 

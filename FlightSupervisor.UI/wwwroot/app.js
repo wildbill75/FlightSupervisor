@@ -472,6 +472,40 @@ window.populateDashboardActiveLeg = (index = 0) => {
         const leftOpacity = disableLeft ? 'opacity-20 pointer-events-none' : 'opacity-100 hover:bg-white/10 cursor-pointer';
         const rightOpacity = index === window.allRotations.length - 1 ? 'opacity-20 pointer-events-none' : 'opacity-100 hover:bg-white/10 cursor-pointer';
 
+        // Update dashboard global header metadata
+        if (index === 0) {
+            const dashFlightHeader = document.getElementById('dashFlightHeader');
+            if (dashFlightHeader) dashFlightHeader.style.display = 'block';
+            if (document.getElementById('dashMetaBar')) document.getElementById('dashMetaBar').style.display = 'block';
+
+            const dhOrigin = document.getElementById('dhOrigin');
+            const dhDest = document.getElementById('dhDest');
+            const dhFlight = document.getElementById('dhFlight');
+            const dhAirline = document.getElementById('dhAirline');
+
+            if (dhOrigin) dhOrigin.innerHTML = `${rd.origin?.icao_code || '---'} <span style="font-size: 15px; color: #94A3B8; font-weight: 600;">(${rd.origin?.name || rd.origin?.city || ''})</span>`;
+            if (dhDest) dhDest.innerHTML = `${rd.destination?.icao_code || '---'} <span style="font-size: 15px; color: #94A3B8; font-weight: 600;">(${rd.destination?.name || rd.destination?.city || ''})</span>`;
+            if (dhFlight) dhFlight.innerText = `Flight ${rd.general?.icao_airline || ''}${rd.general?.flight_number || ''}`;
+            if (dhAirline) {
+                dhAirline.innerText = rd.general?.airline_name || rd.general?.icao_airline || 'Unknown';
+                const aCode = rd.general?.icao_airline || '';
+                dhAirline.onclick = () => { if(window.showAirlineIdentityModal) window.showAirlineIdentityModal(aCode); };
+                dhAirline.classList.add('cursor-pointer', 'hover:text-emerald-400', 'transition-colors');
+            }
+
+            if (rd.weather) {
+                let wTxt = `Origin METAR: ${rd.weather.orig_metar || ''}\nOrigin TAF: ${rd.weather.orig_taf || ''}\n\n`;
+                wTxt += `Dest METAR: ${rd.weather.dest_metar || ''}\nDest TAF: ${rd.weather.dest_taf || ''}\n\n`;
+
+                const formatArr = (arr) => Array.isArray(arr) ? arr.join('\\n') : (arr || '');
+                if (rd.weather.altn_metar) wTxt += `Altn METAR(s):\n${formatArr(rd.weather.altn_metar)}\n\n`;
+                if (rd.weather.enrt_metar) wTxt += `Enroute METAR(s):\n${formatArr(rd.weather.enrt_metar)}\n\n`;
+
+                const weatherElem = document.getElementById('weatherContent');
+                if (weatherElem) weatherElem.innerText = wTxt.trim();
+            }
+        }
+
         activeContainer.innerHTML = `
             <div class="w-full flex flex-col gap-2 animate-fade-in">
                 <!-- Top Row: Banner -->
@@ -1559,7 +1593,8 @@ document.addEventListener('DOMContentLoaded', () => {
             options: {
                 groundSpeed: localStorage.getItem('groundSpeed') || 'Realistic',
                 groundProb: localStorage.getItem('groundProb') || '25',
-                firstFlightClean: localStorage.getItem('firstFlightClean') === 'true'
+                firstFlightClean: localStorage.getItem('firstFlightClean') === 'true',
+                gsxSync: localStorage.getItem('gsxSync') === 'true'
             }
         });
     }, 500);
@@ -1591,7 +1626,12 @@ document.addEventListener('DOMContentLoaded', () => {
     window.acknowledgeFlightReport = function() {
         const modal = document.getElementById('flightReportModal');
         if(modal) modal.style.display = 'none';
-        window.chrome.webview.postMessage({ action: 'acknowledgeFlightReport' });
+        
+        if (window.isViewingHistoricalReport) {
+            window.isViewingHistoricalReport = false;
+        } else {
+            window.chrome.webview.postMessage({ action: 'acknowledgeFlightReport' });
+        }
     };
 
     window.cancelRotations = function () {
@@ -1738,15 +1778,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const propName = action === 'resolveCrisis' ? 'crisisType' : (type === 'PA' ? 'annType' : 'command');
             
             let onclickStr = '';
+            const lockStr = `this.classList.add('opacity-50', 'pointer-events-none');`;
             if (type === 'PA') {
-                onclickStr = `window.chrome.webview.postMessage({action: '${action}', ${propName}: '${o.val}'})`;
+                onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', ${propName}: '${o.val}'})`;
             } else {
                 if (action === 'pncCommand') {
-                    onclickStr = `window.chrome.webview.postMessage({action: '${action}', command: '${o.val}'})`;
+                    onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', command: '${o.val}'})`;
                 } else if (action === 'resolveCrisis') {
-                    onclickStr = `window.chrome.webview.postMessage({action: '${action}', crisisType: '${o.val}'})`;
+                    onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', crisisType: '${o.val}'})`;
                 } else {
-                    onclickStr = `window.chrome.webview.postMessage({action: '${action}'})`;
+                    onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}'})`;
                 }
             }
 
@@ -1763,7 +1804,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateIntercomButtons(payload) {
         const phase = payload.phaseEnum;
-        const used = payload.issuedIntercomCommands || [];
+        const used = payload.issuedCommands || [];
 
         // 1. FLIGHT DECK PA ACTIONS
         const paOptions = [];
@@ -1785,19 +1826,19 @@ document.addEventListener('DOMContentLoaded', () => {
             paOptions.push({ val: 'Descent', text: 'DESCENT' });
         }
 
-        if (flightHasExperiencedDelay) {
+        if (flightHasExperiencedDelay && !used.includes('PA_Delay') && !used.includes('PA_DelayApology')) {
             paOptions.push({ val: 'DelayApology', text: 'DELAY', disabled: false });
         }
 
-        if (flightHasExperiencedTurbulence) {
+        if (flightHasExperiencedTurbulence && !used.includes('PA_TurbulenceApology')) {
             const isInAir = ['Takeoff', 'Climb', 'Cruise', 'Descent', 'Approach', 'FinalApproach'].includes(phase);
-            paOptions.push({ val: 'TurbulenceApology', text: 'TURBULENCE', disabled: !isInAir });
+            paOptions.push({ val: 'TurbulenceApology', text: 'TURB. APOLOGY', disabled: !isInAir });
         }
 
-        if (payload.isGoAroundActive) {
+        if (payload.isGoAroundActive && !used.includes('PA_GoAround')) {
             paOptions.push({ val: 'GoAround', text: 'GO-AROUND', disabled: false });
         }
-        if (payload.isSevereTurbulenceActive && phase === 'Cruise') {
+        if (payload.isSevereTurbulenceActive && phase === 'Cruise' && !used.includes('PA_Turbulence')) {
             paOptions.push({ val: 'Turbulence', text: 'SEVERE TURB', disabled: false });
         }
         if (payload.activeCrisis === 'MedicalEmergency') {
@@ -1823,6 +1864,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (!used.includes('PREPARE_TAKEOFF') && phase === 'TaxiOut') {
             pncOptions.push({ val: 'PREPARE_TAKEOFF', text: 'PREP TAKEOFF', disabled: false, action: 'pncCommand' });
+        } else if (used.includes('PREPARE_TAKEOFF') && payload.securingProgress > 0 && payload.securingProgress < 100 && !payload.isSecuringHurried) {
+            pncOptions.push({ val: 'HURRY_SECURING', text: 'HURRY PNC', disabled: false, action: 'pncCommand' });
         }
         if (!used.includes('SEATS_TAKEOFF') && phase === 'TaxiOut' && used.includes('PREPARE_TAKEOFF')) {
             const isReady = payload.securingProgress >= 100;
@@ -1834,6 +1877,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!used.includes('PREPARE_LANDING') && ['Cruise', 'Descent', 'Approach', 'FinalApproach'].includes(phase)) {
             const ok = payload.altitude <= 10000 && phase !== 'Cruise';
             pncOptions.push({ val: 'PREPARE_LANDING', text: 'PREP LANDING', disabled: !ok, action: 'pncCommand' });
+        } else if (used.includes('PREPARE_LANDING') && payload.securingProgress > 0 && payload.securingProgress < 100 && !payload.isSecuringHurried) {
+            pncOptions.push({ val: 'HURRY_SECURING', text: 'HURRY PNC', disabled: false, action: 'pncCommand' });
         }
         if (!used.includes('SEATS_LANDING') && ['Descent', 'Approach'].includes(phase)) {
             const ok = phase === 'Approach' || payload.altitude <= 5000;
@@ -1850,6 +1895,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         renderActionButtons('paButtonsContainer', 'paSection', paOptions, 'bg-sky-900/40 text-sky-400 border-sky-500/20 hover:bg-sky-800/60 shadow-[0_0_10px_rgba(14,165,233,0.1)] hover:shadow-[0_0_15px_rgba(14,165,233,0.2)]', 'PA');
         renderActionButtons('pncButtonsContainer', 'pncSection', pncOptions, 'bg-amber-900/40 text-amber-400 border-amber-500/20 hover:bg-amber-800/60 shadow-[0_0_10px_rgba(245,158,11,0.1)] hover:shadow-[0_0_15px_rgba(245,158,11,0.2)]', 'PNC');
+
+        // 3. FLIGHT DECK TO TECH ACTIONS
+        const techOptions = [];
+        if (['AtGate', 'Turnaround'].includes(phase) && payload.isMaintenanceRequired) {
+            techOptions.push({ val: 'repair', text: 'REQUEST REPAIR', disabled: false, action: 'requestTechRepair' });
+        }
+
+        renderActionButtons('techButtonsContainer', 'techSection', techOptions, 'bg-emerald-900/40 text-emerald-400 border-emerald-500/20 hover:bg-emerald-800/60 shadow-[0_0_10px_rgba(16,185,129,0.1)] hover:shadow-[0_0_15px_rgba(16,185,129,0.2)]', 'TECH');
     }
 
 
@@ -1965,7 +2018,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 options: {
                     groundSpeed: groundSpeed,
                     groundProb: groundProb,
-                    firstFlightClean: ffClean
+                    firstFlightClean: ffClean,
+                    gsxSync: gsxSync
                 }
             });
             localStorage.setItem('weatherSource', weatherSrc);
@@ -2172,7 +2226,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnDismissReport = document.getElementById('btnDismissReport');
     if (btnDismissReport) btnDismissReport.addEventListener('click', () => {
         document.getElementById('flightReportModal').style.display = 'none';
-        window.chrome.webview.postMessage({ action: 'acknowledgeDebrief' });
+        if (window.isViewingHistoricalReport) {
+            window.isViewingHistoricalReport = false;
+        } else {
+            window.chrome.webview.postMessage({ action: 'acknowledgeDebrief' });
+        }
     });
 
     let currentDutyState = null;
@@ -3508,8 +3566,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         allReps.forEach(r => {
                             totalBlock += parseInt(r.BlockTime) || 0;
                             totalDelay += parseInt(r.DelaySec) || 0;
-                            sumSafety += parseInt(r.SafetyPoints) || 0;
-                            sumComfort += parseInt(r.ComfortPoints) || 0;
+                            sumSafety += parseInt(r.AirmanshipPoints) || 0;
+                            sumComfort += parseInt(r.PassengerExperiencePoints) || 0;
                             sumSuper += parseInt(r.Score) || 0;
                         });
 
@@ -3549,10 +3607,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         else el.classList.add('text-white');
                     };
 
-                    setSubScore('frSafetyScore', rep.SafetyPoints ?? rep.safetyPoints ?? 0);
-                    setSubScore('frComfortScore', rep.ComfortPoints ?? rep.comfortPoints ?? 0);
-                    setSubScore('frMaintScore', rep.MaintenancePoints ?? rep.maintenancePoints ?? 0);
-                    setSubScore('frOpsScore', rep.OperationsPoints ?? rep.operationsPoints ?? 0);
+                    setSubScore('frFlightPhaseFlowsScore', rep.FlightPhaseFlowsPoints ?? rep.flightPhaseFlowsPoints ?? 0);
+                    setSubScore('frCommunicationScore', rep.CommunicationPoints ?? rep.communicationPoints ?? 0);
+                    setSubScore('frAirmanshipScore', rep.AirmanshipPoints ?? rep.airmanshipPoints ?? 0);
+                    setSubScore('frMaintenanceScore', rep.MaintenancePoints ?? rep.maintenancePoints ?? 0);
+                    setSubScore('frAbnormalOperationsScore', rep.AbnormalOperationsPoints ?? rep.abnormalOperationsPoints ?? 0);
+                    setSubScore('frPassengerExperienceScore', rep.PassengerExperiencePoints ?? rep.passengerExperiencePoints ?? 0);
 
                     let btHours = Math.floor(rep.blockTime ? rep.blockTime / 60 : 0);
                     let btMins = (rep.blockTime || 0) % 60;
@@ -3669,37 +3729,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
 
-                    const objContainer = document.getElementById('frObjectivesContainer');
-                    const objList = document.getElementById('frObjectivesList');
-                    if (objContainer && objList) {
-                        objList.innerHTML = '';
-                        objContainer.style.display = 'block';
-
-                        if (rep.Objectives && rep.Objectives.length > 0) {
-                            rep.Objectives.forEach(obj => {
-                                const isPass = obj.Passed;
-                                const icon = isPass ? 'check_circle' : 'cancel';
-                                const iconColor = isPass ? 'text-emerald-400' : 'text-red-400';
-                                const bgColor = isPass ? 'bg-emerald-500/10' : 'bg-red-500/10';
-                                const ptsStr = obj.Points > 0 ? `+${obj.Points} pts` : `${obj.Points} pts`;
-
-                                const row = document.createElement('div');
-                                row.className = `flex items-center justify-between p-3 rounded-xl border border-white/5 ${bgColor}`;
-                                row.innerHTML = `
-                                <div class="flex items-center gap-3">
-                                    <span class="material-symbols-outlined ${iconColor}">${icon}</span>
-                                    <span class="text-sm text-slate-200 font-medium">${obj.Description}</span>
-                                </div>
-                                <div class="font-mono font-bold text-sm ${iconColor}">${ptsStr}</div>
-                            `;
-                                objList.appendChild(row);
-                            });
-                        } else {
-                            objList.innerHTML = `
-                            <div class="flex items-center justify-center p-3 rounded-xl border border-white/5 bg-slate-800/30">
-                                <span class="text-sm text-slate-400 font-medium italic">No Company Challenge taken</span>
-                            </div>
-                        `;
+                    // Store flight events for category filtering
+                    window._currentFlightEvents = rep.FlightEvents || [];
+                    
+                    const detailsContainer = document.getElementById('frCategoryDetailsContainer');
+                    if (detailsContainer) {
+                        detailsContainer.style.display = 'none'; // hidden by default until a tab is clicked
+                    }
+                    
+                    // Reset tab styles
+                    for (let i = 0; i < 6; i++) {
+                        const box = document.getElementById(`frBoxCat${i}`);
+                        if (box) {
+                            box.classList.remove('ring-2', 'ring-sky-400', 'bg-white/10');
+                            box.classList.add('border-white/5');
                         }
                     }
 
@@ -3734,36 +3777,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
 
-                    const eventLogContainer = document.getElementById('frEventLog');
-                    if (eventLogContainer) {
-                        eventLogContainer.innerHTML = '';
-                        if (rep.FlightEvents && rep.FlightEvents.length > 0) {
-                            rep.FlightEvents.forEach(evt => {
-                                const isPenalty = evt.Amount < 0;
-                                const colorClass = isPenalty ? 'text-red-400' : 'text-emerald-400';
-                                const sign = isPenalty ? '' : '+';
 
-                                let icon = 'military_tech';
-                                if (evt.Category === 0) icon = 'security';
-                                else if (evt.Category === 1) icon = 'mood';
-                                else if (evt.Category === 2) icon = 'build';
-                                else if (evt.Category === 3) icon = 'schedule';
-
-                                const row = document.createElement('div');
-                                row.className = 'flex items-center justify-between p-3 rounded bg-black/20 border border-white/5 hover:bg-white/5 transition-colors';
-                                row.innerHTML = `
-                                <div class="flex items-center gap-3">
-                                    <span class="material-symbols-outlined text-[16px] text-slate-500">${icon}</span>
-                                    <span class="text-xs text-slate-300 font-medium">${evt.Reason}</span>
-                                </div>
-                                <div class="font-mono font-bold text-sm ${colorClass}">${sign}${evt.Amount}</div>
-                            `;
-                                eventLogContainer.appendChild(row);
-                            });
-                        } else {
-                            eventLogContainer.innerHTML = '<div class="text-xs text-slate-500 italic p-3 text-center">No recorded events for this flight.</div>';
-                        }
-                    }
 
                     if (window.generateChiefPilotDebrief) {
                         const lang = localStorage.getItem('selLanguage') || 'en';
@@ -4113,15 +4127,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     elBar.style.width = pct + '%';
                 };
 
-                const ptsSafety = payload.safety !== undefined ? payload.safety : (payload.Safety !== undefined ? payload.Safety : 0);
-                const ptsComfort = payload.comfort !== undefined ? payload.comfort : (payload.Comfort !== undefined ? payload.Comfort : 0);
-                const ptsMaint = payload.maint !== undefined ? payload.maint : (payload.Maint !== undefined ? payload.Maint : 0);
-                const ptsOps = payload.ops !== undefined ? payload.ops : (payload.Ops !== undefined ? payload.Ops : 0);
+                const ptsFlightPhaseFlows = payload.flightPhaseFlows || 0;
+                const ptsCommunication = payload.communication || 0;
+                const ptsAirmanship = payload.airmanship || 0;
+                const ptsMaintenance = payload.maintenance || 0;
+                const ptsAbnormalOperations = payload.abnormalOperations || 0;
+                const ptsPassengerExperience = payload.passengerExperience || 0;
 
-                updateSubBar('b_safetyPts', 'b_safetyBar', ptsSafety);
-                updateSubBar('b_comfortPts', 'b_comfortBar', ptsComfort);
-                updateSubBar('b_maintPts', 'b_maintBar', ptsMaint);
-                updateSubBar('b_opsPts', 'b_opsBar', ptsOps);
+                updateSubBar('b_flightPhaseFlowsPts', 'b_flightPhaseFlowsBar', ptsFlightPhaseFlows);
+                updateSubBar('b_communicationPts', 'b_communicationBar', ptsCommunication);
+                updateSubBar('b_airmanshipPts', 'b_airmanshipBar', ptsAirmanship);
+                updateSubBar('b_maintenancePts', 'b_maintenanceBar', ptsMaintenance);
+                updateSubBar('b_abnormalOperationsPts', 'b_abnormalOperationsBar', ptsAbnormalOperations);
+                updateSubBar('b_passengerExperiencePts', 'b_passengerExperienceBar', ptsPassengerExperience);
 
                 const finalScore = payload.score !== undefined ? payload.score : (payload.Score !== undefined ? payload.Score : 1000);
                 const finalDelta = payload.delta !== undefined ? payload.delta : (payload.Delta !== undefined ? payload.Delta : 0);
@@ -4499,41 +4517,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (window.renderBriefingTabs) window.renderBriefingTabs();
                 if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
 
-                // Dashboard Header Logic (Metadata) - Only update to the newest leg payload
-                const dashFlightHeader = document.getElementById('dashFlightHeader');
-                if (dashFlightHeader) dashFlightHeader.style.display = 'block';
-                if (document.getElementById('dashMetaBar')) document.getElementById('dashMetaBar').style.display = 'block';
-
-                const dhOrigin = document.getElementById('dhOrigin');
-                const dhDest = document.getElementById('dhDest');
-                const dhFlight = document.getElementById('dhFlight');
-                const dhAirline = document.getElementById('dhAirline');
-
-                if (dhOrigin) dhOrigin.innerHTML = `${d.origin?.icao_code || '---'} <span style="font-size: 15px; color: #94A3B8; font-weight: 600;">(${d.origin?.name || d.origin?.city || ''})</span>`;
-                if (dhDest) dhDest.innerHTML = `${d.destination?.icao_code || '---'} <span style="font-size: 15px; color: #94A3B8; font-weight: 600;">(${d.destination?.name || d.destination?.city || ''})</span>`;
-                if (dhFlight) dhFlight.innerText = `Flight ${d.general?.icao_airline || ''}${d.general?.flight_number || ''}`;
-                if (dhAirline) {
-                    dhAirline.innerText = d.general?.airline_name || d.general?.icao_airline || 'Unknown';
-                    const aCode = d.general?.icao_airline || '';
-                    dhAirline.onclick = () => { if(window.showAirlineIdentityModal) window.showAirlineIdentityModal(aCode); };
-                    dhAirline.classList.add('cursor-pointer', 'hover:text-emerald-400', 'transition-colors');
-                }
-
                 if (payload.manifest && !window.manifest) {
                     window.manifest = payload.manifest;
                     if (window.renderManifest) window.renderManifest(payload.manifest);
-                }
-
-                if (d.weather) {
-                    let wTxt = `Origin METAR: ${d.weather.orig_metar || ''}\nOrigin TAF: ${d.weather.orig_taf || ''}\n\n`;
-                    wTxt += `Dest METAR: ${d.weather.dest_metar || ''}\nDest TAF: ${d.weather.dest_taf || ''}\n\n`;
-
-                    const formatArr = (arr) => Array.isArray(arr) ? arr.join('\n') : (arr || '');
-                    if (d.weather.altn_metar) wTxt += `Altn METAR(s):\n${formatArr(d.weather.altn_metar)}\n\n`;
-                    if (d.weather.enrt_metar) wTxt += `Enroute METAR(s):\n${formatArr(d.weather.enrt_metar)}\n\n`;
-
-                    const weatherElem = document.getElementById('weatherContent');
-                    if (weatherElem) weatherElem.innerText = wTxt.trim();
                 }
 
                 } catch (flightDataError) {
@@ -5473,6 +5459,8 @@ function renderLogbook(history) {
 function replayFlightLog(encodedPayload) {
     try {
         const report = JSON.parse(decodeURIComponent(encodedPayload));
+        
+        window.isViewingHistoricalReport = true;
 
         // Dispatch synthetic message to the webview listeners
         const spoofedEvent = new MessageEvent('message', {
@@ -5633,6 +5621,81 @@ window.toggleDashPage = function (dir) {
             // Clean up old tailwind 'hidden' class just in case to prevent specificity conflicts
             page1.classList.remove('hidden');
             page2.classList.remove('hidden');
+        }
+    }
+};
+
+window.filterFlightEvents = function(categoryIdx) {
+    const detailsContainer = document.getElementById('frCategoryDetailsContainer');
+    const titleElement = document.getElementById('frCategoryDetailsTitle');
+    const logContainer = document.getElementById('frEventLog');
+    
+    // Reset all box styles
+    for (let i = 0; i < 6; i++) {
+        const box = document.getElementById(`frBoxCat${i}`);
+        if (box) {
+            box.classList.remove('ring-2', 'ring-sky-400', 'bg-white/10');
+            box.classList.add('border-white/5');
+        }
+    }
+    
+    // Highlight selected box
+    const selectedBox = document.getElementById(`frBoxCat${categoryIdx}`);
+    if (selectedBox) {
+        selectedBox.classList.remove('border-white/5');
+        selectedBox.classList.add('ring-2', 'ring-sky-400', 'bg-white/10');
+    }
+    
+    // Set titles
+    const categoryNames = [
+        "Flight Phase Flows",
+        "Communications",
+        "Airmanship",
+        "Maintenance",
+        "Abnormal Operations",
+        "Passenger Experience"
+    ];
+    if (titleElement) titleElement.innerText = categoryNames[categoryIdx] + " Events";
+    
+    // Filter and render
+    if (detailsContainer && logContainer) {
+        detailsContainer.style.display = 'block';
+        logContainer.innerHTML = '';
+        
+        const events = (window._currentFlightEvents || []).filter(e => e.Category === categoryIdx);
+        
+        if (events.length > 0) {
+            events.forEach(evt => {
+                const isPenalty = evt.Amount < 0;
+                const colorClass = isPenalty ? 'text-red-400' : 'text-emerald-400';
+                const sign = isPenalty ? '' : '+';
+
+                let icon = 'military_tech';
+                if (evt.Category === 0) icon = 'checklist';
+                else if (evt.Category === 1) icon = 'headset_mic';
+                else if (evt.Category === 2) icon = 'flight_takeoff';
+                else if (evt.Category === 3) icon = 'build';
+                else if (evt.Category === 4) icon = 'warning';
+                else if (evt.Category === 5) icon = 'sentiment_satisfied';
+
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between p-3 rounded bg-black/20 border border-white/5 hover:bg-white/5 transition-colors';
+                row.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-[16px] text-slate-500">${icon}</span>
+                    <span class="text-xs text-slate-300 font-medium">${evt.Reason}</span>
+                </div>
+                <div class="font-mono font-bold text-sm ${colorClass}">${sign}${evt.Amount}</div>
+            `;
+                logContainer.appendChild(row);
+            });
+        } else {
+            logContainer.innerHTML = `
+                <div class="flex items-center justify-center p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                    <span class="material-symbols-outlined mr-2">check_circle</span>
+                    <span class="text-xs font-bold uppercase tracking-widest">No Infractions. Expectations Fully Met.</span>
+                </div>
+            `;
         }
     }
 };

@@ -66,7 +66,9 @@ namespace FlightSupervisor.UI.Services
             }
         }
         
+        public event Action<FlightPhase>? OnPhaseEnding;
         public event Action<FlightPhase>? OnPhaseChanged;
+        public event Action? OnGoAroundFinished;
         public event Action<string>? OnPenaltyTriggered;
         public event Action<string>? OnFoMessage;
         
@@ -148,6 +150,8 @@ namespace FlightSupervisor.UI.Services
         public double Eng2N1 { get; set; } = 0.0;
         public double GsxBoardingState { get; set; } = 0.0;
         public double GsxDeboardingState { get; set; } = 0.0;
+        public double GsxCateringState { get; set; } = 0.0;
+        public double GsxRefuelingState { get; set; } = 0.0;
         
         public float FenixCabinTempCockpit { get; set; } = 0f;
         public float FenixCabinTempFwd { get; set; } = 0f;
@@ -709,12 +713,17 @@ namespace FlightSupervisor.UI.Services
 
                     if (IsOnGround)
                     {
-                        IsGoAroundActive = false;
+                        if (IsGoAroundActive)
+                        {
+                            IsGoAroundActive = false;
+                            OnGoAroundFinished?.Invoke();
+                        }
                         _goAroundStartTime = null;
                         if (_vsHistory.Count > 0)
                         {
-                            // On prend la pire valeur (Min = descente la plus forte)
-                            TouchdownFpm = _vsHistory.Min(); 
+                            // On prend la valeur la plus ancienne (Peek) enregistrée juste avant le posé (environ -0.5s)
+                            // pour éviter les pics de compression physiques absurdes de MSFS au moment du contact sol.
+                            TouchdownFpm = _vsHistory.Peek(); 
                         }
                         else
                         {
@@ -877,6 +886,7 @@ namespace FlightSupervisor.UI.Services
         {
             if (CurrentPhase != newPhase)
             {
+                OnPhaseEnding?.Invoke(CurrentPhase);
                 CurrentPhase = newPhase;
                 
                 if (CurrentPhase == FlightPhase.TaxiIn)

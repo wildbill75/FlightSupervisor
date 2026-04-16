@@ -222,7 +222,7 @@ namespace FlightSupervisor.UI.Services
             if (IsLowCost) cleanName = "PNC Chores";
 
             // TICKET 34 & 38 : REALISTIC DURATIONS SCALED BY METRICS
-            int deboardingBase = IsLowCost ? 1500 : 2700; // 25m for LCC, 45m for Legacy
+            int deboardingBase = IsLowCost ? 600 : 900; // 10m for LCC, 15m for Legacy
             double boardingEfficiencyRatio = Math.Max(50.0, CurrentCrewEfficiency) / 100.0;
             int boardingBase = (int)((IsLowCost ? 900 : 1200) / boardingEfficiencyRatio);
             
@@ -320,32 +320,7 @@ namespace FlightSupervisor.UI.Services
 
         public void TimeSkip(int minutes)
         {
-            if (!_isStarted) return;
-            int secondsToAdd = minutes * 60;
-            // --- INHIBITION LOGIC (Story 43) ---
-            // 1. Deboarding must be finished before Boarding starts.
-            bool isUnloadingActive = Services.Any(s => s.Name == "Deboarding" && s.State != GroundServiceState.Completed && s.State != GroundServiceState.Skipped);
-            bool isCargoUnloadingActive = Services.Any(s => s.Name == "Cargo Unloading" && s.State != GroundServiceState.Completed && s.State != GroundServiceState.Skipped);
-
-            foreach (var s in Services)
-            {
-                // Reset availability first
-                s.IsAvailable = true;
-
-                // Dependencies
-                if (s.Name == "Boarding" && isUnloadingActive) s.IsAvailable = false;
-                if (s.Name == "Cargo Loading" && isCargoUnloadingActive) s.IsAvailable = false;
-                if (s.Name == "Refueling" && !IsFuelSheetValidated) s.IsAvailable = false;
-                
-                // You can't cater or clean while deboarding is in progress
-                if ((s.Name == "Catering" || s.Name.Contains("Clean") || s.Name.Contains("PNC")) && isUnloadingActive) s.IsAvailable = false;
-
-                if (s.State == GroundServiceState.InProgress || s.State == GroundServiceState.Delayed)
-                {
-                    s.ElapsedSec += secondsToAdd;
-                }
-            }
-            // The next real MSFS UI tick will evaluate completions correctly
+            // Now fully handled externally via ExecuteTimeSkip 1-second iterative loop to ensure cascaded dependency constraints are respected.
             OnOpsUpdated?.Invoke();
         }
 
@@ -422,7 +397,7 @@ namespace FlightSupervisor.UI.Services
                         s.StatusMessage = LocalizationService.Translate("Wait Beacon", "Attente Beacon");
                         return;
                     }
-                    else if (EngineMaxN1 > 5.0 && !_hasEmittedN1Warning)
+                    else if (EngineMaxN1 > 15.0 && !_hasEmittedN1Warning)
                     {
                         _hasEmittedN1Warning = true;
                         OnOpsLog?.Invoke(LocalizationService.Translate("[WARNING] Ground Ops started while engines are running! This is extremely dangerous. Penalty applied.", "[WARNING] Opération lancée moteurs allumés ! Très dangereux. Pénalité affectée."));
@@ -670,7 +645,7 @@ namespace FlightSupervisor.UI.Services
                                 s.StatusMessage = LocalizationService.Translate("Wait Beacon", "Attente Beacon");
                                 continue;
                             }
-                            else if (EngineMaxN1 > 5.0 && !_hasEmittedN1Warning)
+                            else if (EngineMaxN1 > 15.0 && !_hasEmittedN1Warning)
                             {
                                 _hasEmittedN1Warning = true;
                                 OnOpsLog?.Invoke(LocalizationService.Translate("[WARNING] Ground Ops started while engines are running! This is extremely dangerous. Penalty applied.", "[WARNING] Opération lancée moteurs allumés ! Très dangereux. Pénalité affectée."));

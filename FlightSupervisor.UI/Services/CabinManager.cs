@@ -45,6 +45,7 @@ namespace FlightSupervisor.UI.Services
         public DateTime CurrentSimZuluTime { get; set; } = DateTime.MinValue;
         public bool IsLowCost { get; set; } = false;
         public bool IsServiceHurried { get; set; } = false;
+        public string CaptainName { get; set; } = "the Captain";
         
         private bool _isTempInitialized = false;
         private double _currentAmbientTemperature = 15.0;
@@ -232,6 +233,7 @@ namespace FlightSupervisor.UI.Services
         private double _currentSecuringRate = 0;
         private bool _isSecuring = false;
         public bool IsSecuringHalted { get; private set; } = false;
+        public bool IsSecuringHurried { get; private set; } = false;
         private CabinState _targetState = CabinState.TakeoffSecured;
 
         public int SessionFlightsCompleted { get; set; } = 0;
@@ -242,6 +244,7 @@ namespace FlightSupervisor.UI.Services
         public int MaxCateringRations { get; set; } = 165;
         
         private int _cateringRations = 165;
+        private double _cateringFractionalDrain = 0.0;
         public int CateringRations 
         { 
             get { return _cateringRations; } 
@@ -296,6 +299,13 @@ namespace FlightSupervisor.UI.Services
         public FlightSupervisor.UI.Models.SimBrief.SimBriefResponse? CurrentFlight { get; set; }
 
         private HashSet<string> _issuedCommands = new HashSet<string>();
+
+        // System scoring communications
+        public bool HasPlayedWelcomePA { get; set; } = false;
+        public bool HasPlayedPrepareTakeoffPA { get; set; } = false;
+        public bool HasPlayedDescentPA { get; set; } = false;
+        public bool HasPlayedPrepareLandingPA { get; set; } = false;
+        public bool HasAnnouncedGoAroundPA { get; set; } = false;
 
         private double _comfortSum = 0;
         private int _comfortSamples = 0;
@@ -422,6 +432,13 @@ namespace FlightSupervisor.UI.Services
             HasBoardingStarted = false;
             _lastBoardingTick = DateTime.MaxValue;
             State = CabinState.Idle;
+            
+            // System scoring resets
+            HasPlayedWelcomePA = false;
+            HasPlayedPrepareTakeoffPA = false;
+            HasPlayedDescentPA = false;
+            HasPlayedPrepareLandingPA = false;
+            HasAnnouncedGoAroundPA = false;
 
             CurrentManifest = manifestData;
 
@@ -590,16 +607,24 @@ namespace FlightSupervisor.UI.Services
                     break;
                 case "PREPARE_TAKEOFF":
                     _isSecuring = true;
-                    _currentSecuringRate = 0.33; // Approx 5 minutes to reach 100%
+                    IsSecuringHurried = false;
+                    _currentSecuringRate = 0.55; // Approx 3 minutes to reach 100%
                     _targetState = CabinState.TakeoffSecured;
                     State = CabinState.SecuringForTakeoff;
                     SecuringProgress = 0;
                     IsCrewSeated = false;
+                    HasPlayedPrepareTakeoffPA = true; // SCORING
                     _audio?.SpeakAsCaptain("Cabin Crew, prepare for takeoff.");
                     OnCrewMessage?.Invoke("info", LocalizationService.Translate("PA: Cabin Crew, prepare for takeoff.", "PA: PNC, préparez la cabine pour le décollage."), null);
                     OnPncStatusChanged?.Invoke("Securing Cabin...", State);
                     break;
                 case "SEATS_TAKEOFF":
+                    if (_isSecuring && SecuringProgress < 100.0) {
+                        OnPenaltyTriggered?.Invoke(-30, LocalizationService.Translate("Force Seats: Crew forced to sit before cabin was secure", "Force Seats: PNC forcés de s'asseoir avant sécurisation"));
+                        IncreaseAnxiety(15.0, FlightPhase.AtGate, false);
+                        CrewMorale = Math.Max(0.0, CrewMorale - 5.0);
+                        _isSecuring = false; // Interrupted
+                    }
                     _audio?.SpeakAsCaptain("Cabin Crew, please be seated for takeoff.");
                     OnCrewMessage?.Invoke("info", LocalizationService.Translate("PA: Cabin Crew, please be seated for takeoff.", "PA: PNC, aux postes pour le décollage."), null);
                     
@@ -610,11 +635,13 @@ namespace FlightSupervisor.UI.Services
                     break;
                 case "PREPARE_LANDING":
                     _isSecuring = true;
+                    IsSecuringHurried = false;
                     _currentSecuringRate = 0.50; 
                     _targetState = CabinState.LandingSecured;
                     State = CabinState.SecuringForLanding;
                     SecuringProgress = 0;
                     IsCrewSeated = false;
+                    HasPlayedPrepareLandingPA = true; // SCORING
                     _audio?.SpeakAsCaptain("Cabin Crew, prepare for landing.");
                     OnCrewMessage?.Invoke("info", LocalizationService.Translate("PA: Cabin Crew, prepare for landing.", "PA: PNC, préparez la cabine pour l'atterrissage."), null);
                     OnPncStatusChanged?.Invoke("Securing Cabin...", State);
@@ -639,6 +666,12 @@ namespace FlightSupervisor.UI.Services
                     }
                     break;
                 case "SEATS_LANDING":
+                    if (_isSecuring && SecuringProgress < 100.0) {
+                        OnPenaltyTriggered?.Invoke(-30, LocalizationService.Translate("Force Seats: Crew forced to sit before cabin was secure", "Force Seats: PNC forcés de s'asseoir avant sécurisation"));
+                        IncreaseAnxiety(15.0, FlightPhase.Cruise, false);
+                        CrewMorale = Math.Max(0.0, CrewMorale - 5.0);
+                        _isSecuring = false; // Interrupted
+                    }
                     _audio?.SpeakAsCaptain("Cabin Crew, please be seated for landing.");
                     OnCrewMessage?.Invoke("info", LocalizationService.Translate("PA: Cabin Crew, please be seated for landing.", "PA: PNC, aux postes pour l'atterrissage."), null);
                     
@@ -646,6 +679,19 @@ namespace FlightSupervisor.UI.Services
                     _seatingTimerStart = DateTime.Now;
                     _seatingTargetState = CabinState.LandingSecured;
                     OnPncStatusChanged?.Invoke("Crew taking seats...", State);
+                    break;
+                case "HURRY_SECURING":
+                    if (_isSecuring && !IsSecuringHurried) {
+                        IsSecuringHurried = true;
+                        _currentSecuringRate *= 4.0; // 4x speed!
+                        
+                        string actMsgEn = _targetState == CabinState.TakeoffSecured ? "PA: Cabin Crew, HURRY up and secure cabin, takeoff imminent!" : "PA: Cabin Crew, HURRY up and secure cabin for landing!";
+                        string actMsgFr = _targetState == CabinState.TakeoffSecured ? "PA: PNC, DÉPÊCHEZ-VOUS de préparer la cabine !" : "PA: PNC, DÉPÊCHEZ-VOUS de préparer la cabine pour l'atterrissage !";
+                        
+                        _audio?.SpeakAsCaptain(_targetState == CabinState.TakeoffSecured ? "Cabin crew, expedite your duties, takeoff is imminent." : "Cabin crew, please expedite your duties and prepare for landing.");
+                        OnCrewMessage?.Invoke("orange", LocalizationService.Translate(actMsgEn, actMsgFr), null);
+                        OnPncStatusChanged?.Invoke("HURRYING...", State);
+                    }
                     break;
                 case "CANCEL_SERVICE":
                     IsCrewSeated = true;
@@ -697,19 +743,12 @@ namespace FlightSupervisor.UI.Services
                 int paxCount = Math.Max(1, PassengerManifest.Count(p => p.IsBoarded));
                 double paxMultiplier = paxCount / 150.0;
 
-                // User Rule: Only consume resources (Water, Waste, Dirt, Food) if Seatbelts are OFF
-                if (!_seatbeltsOn)
-                {
-                    WaterLevel = Math.Max(0, WaterLevel - (0.004 * paxMultiplier * deltaSeconds));
-                    WasteLevel = Math.Min(100, WasteLevel + (0.005 * paxMultiplier * deltaSeconds));
-                    CabinCleanliness = Math.Max(0, CabinCleanliness - (0.003 * paxMultiplier * deltaSeconds));
+                double seatbeltFactor = _seatbeltsOn ? 0.20 : 1.0; 
+                
+                WaterLevel = Math.Max(0, WaterLevel - (0.004 * paxMultiplier * seatbeltFactor * deltaSeconds));
+                WasteLevel = Math.Min(100, WasteLevel + (0.005 * paxMultiplier * seatbeltFactor * deltaSeconds));
+                CabinCleanliness = Math.Max(0, CabinCleanliness - (0.003 * paxMultiplier * seatbeltFactor * deltaSeconds));
 
-                    if (CateringRations > paxCount * 0.1)
-                    {
-                        double caterDrainRate = paxCount / 10000.0; 
-                        CateringRations = Math.Max(0, (int)(CateringRations - caterDrainRate * deltaSeconds));
-                    }
-                }
             }
 
             if (deltaSeconds >= 300)
@@ -893,6 +932,8 @@ namespace FlightSupervisor.UI.Services
                 WasteLevel += 0.005 * paxMultiplier * stressMultiplier * wasteDestMultiplier * seatbeltFactor * deltaTimeSeconds;
                 if (WasteLevel > 100) WasteLevel = 100;
                 
+                // Cateringrations is handled solely by the explicit InFlightService in the state machine.
+                
                 if (WasteLevel >= 100) 
                 {
                     WasteLevel = 100;
@@ -1062,6 +1103,14 @@ namespace FlightSupervisor.UI.Services
 
             if (phase != _lastPhase)
             {
+                if (phase == FlightPhase.Landing)
+                {
+                    _isSeatingForTakeoffOrLanding = false;
+                    _isSecuring = false;
+                    IsSecuringHurried = false;
+                    SecuringProgress = 0.0;
+                    State = CabinState.LandingSecured;
+                }
                 if (phase == FlightPhase.TaxiOut)
                 {
                     // HasBoardingStarted is true when boarding starts, but here we just ensure it's not a flight reset.
@@ -1586,10 +1635,24 @@ namespace FlightSupervisor.UI.Services
         
         public void AnnounceToCabin(string announcementType)
         {
+            // Only Turbulence and DelayApology are allowed to be played multiple times (e.g., multiple turbulences)
+            bool isRepeatable = announcementType == "Turbulence" || announcementType == "DelayApology";
+
+            if (!isRepeatable && _issuedCommands.Contains("PA_" + announcementType))
+            {
+                return; // One-shot PA already played
+            }
+
             if (!_issuedCommands.Contains("PA_" + announcementType))
             {
                 _issuedCommands.Add("PA_" + announcementType);
                 OnOperationBonusTriggered?.Invoke(25, "Passenger Announcement: " + announcementType);
+                
+                // --- SCORING TRACKERS ---
+                if (announcementType == "Welcome") HasPlayedWelcomePA = true;
+                if (announcementType == "Descent") HasPlayedDescentPA = true;
+                if (announcementType == "GoAround" || announcementType == "Abnormal") HasAnnouncedGoAroundPA = true;
+                // -------------------------
             }
 
             // Manual PA implies micromanagement by the pilot, lowering crew morale slightly
@@ -1708,7 +1771,7 @@ namespace FlightSupervisor.UI.Services
             int hr = DateTime.UtcNow.Hour;
             string greeting = hr < 12 ? "Morning" : (hr < 18 ? "Afternoon" : "Evening");
             string wxcConditions = !badWeather ? "smooth flight" : "few bumps along the way";
-            string spokenText = $"Ladies and gentlemen, good {greeting} from the flightdeck this is your captain speaking, and in the name of {airlineName} I would like to welcome you all on board this {aircraftType} on our flight to {destName}. Today flight time will be approximately {flightTime} and we're expecting a {wxcConditions}. We're just finishing the last paper work and once completed we will start our pushback. We will get back to you with the latest weather information from our destination airport when we start the approach. Thank you very much for being our guests. Sit back, relax, and enjoy this flight with us.";
+            string spokenText = $"Ladies and gentlemen, good {greeting} from the flightdeck. My name is {CaptainName} and I am your captain today. On behalf of {airlineName} I would like to welcome you all on board this {aircraftType} on our flight to {destName}. Today flight time will be approximately {flightTime} and we're expecting a {wxcConditions}. We're just finishing the last paper work and once completed we will start our pushback. We will get back to you with the latest weather information from our destination airport when we start the approach. Thank you very much for being our guests. Sit back, relax, and enjoy this flight with us.";
             _audio?.SpeakAsCaptain(spokenText);
 
             OnCrewMessage?.Invoke("green", LocalizationService.Translate(

@@ -1,13 +1,14 @@
 # Design Technical: SuperScore Scoring System
 
 ## Overview
-The `SuperScoreManager` evaluates pilot performance across four distinct pillars. It listens to events from the `FlightPhaseManager` and `SimConnectService`.
+The `SuperScoreManager` evaluates pilot performance and generates a detailed flight report across **five distinct categories**. It listens to events from the `FlightPhaseManager` and `SimConnectService`, and conducts rigorous flow checks at the end of each flight phase.
 
-## 🏆 The 4 Pillars
-1. **Safety**: Adherence to SOPs (Lights, Gear, Flaps), structural limits (Pitch/Bank/G), and unstable approaches.
-2. **Comfort**: Passenger wellbeing based on vertical speed, bank angle, and hard landings.
-3. **Maintenance**: Wear and tear (Hard landings, Engine cooldown times, Tail strikes, Flaps overspeed).
-4. **Operations**: Dispatch efficiency (Fuel accuracy, Punctuality vs SOBT/SIBT).
+## 🏆 The 5 Categories
+1. **FLIGHT PHASE FLOWS**: Mandatory checks linked to specific flight phases (e.g. Ground, Taxi, Climb, Cruise). At the end of each phase, a detailed report is generated (Red: failed, Green: Success) summarizing all tracked parameters for that phase.
+2. **COMMUNICATIONS (PA+PNC+TECH+CO)**: Proper execution of passenger announcements, crew coordination, technical reporting, and company messaging.
+3. **AIRMANSHIP**: Smoothness of manual flying, go-around decisions, proper trajectory management, crosswind handling, and overall good practices.
+4. **MAINTENANCE**: Wear and tear, mechanical limits (Hard landings, brake temp, flaps/gear overspeed, structural limits).
+5. **ABNORMAL OPERATIONS**: Crisis reaction, system failures, and proper handling of emergencies.
 
 ## 🧮 Scoring Logic
 - **Baseline**: Starts at 1000 points.

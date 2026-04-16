@@ -177,43 +177,65 @@ namespace FlightSupervisor.UI.Services
             data.Stations.Add(destStation);
 
             // Alternate
-            string altnMetarStr = "";
-            string altnTafStr = "";
-            if (weather?.AltnMetar != null && weather.AltnMetar.Value.ValueKind == System.Text.Json.JsonValueKind.String) altnMetarStr = weather.AltnMetar.Value.GetString() ?? "";
-            else if (weather?.AltnMetar != null && weather.AltnMetar.Value.ValueKind == System.Text.Json.JsonValueKind.Array && weather.AltnMetar.Value.GetArrayLength() > 0)
-                altnMetarStr = weather.AltnMetar.Value[0].GetString() ?? "";
-                
-            if (weather?.AltnTaf != null && weather.AltnTaf.Value.ValueKind == System.Text.Json.JsonValueKind.String) altnTafStr = weather.AltnTaf.Value.GetString() ?? "";
-            else if (weather?.AltnTaf != null && weather.AltnTaf.Value.ValueKind == System.Text.Json.JsonValueKind.Array && weather.AltnTaf.Value.GetArrayLength() > 0)
-                altnTafStr = weather.AltnTaf.Value[0].GetString() ?? "";
-
-            if (!string.IsNullOrWhiteSpace(altnMetarStr) || !string.IsNullOrWhiteSpace(altnTafStr))
+            if (response.Alternates != null && response.Alternates.Count > 0)
             {
-                string altnIcao = response.Alternate?.IcaoCode ?? LocalizationService.Translate("our alternate", "notre aéroport de dégagement");
-                
-                var altnStation = new BriefingStation { Id = "alternate", Label = LocalizationService.Translate("ALTERNATE PLAN:", "PLAN DE DÉGAGEMENT :"), RawMetar = altnMetarStr, RawTaf = altnTafStr, Icao = altnIcao };
-
-                string altnRwy = response.Alternate?.PlanRwy;
-                if (!string.IsNullOrEmpty(altnRwy))
+                int maxAlternates = Math.Min(3, response.Alternates.Count);
+                for (int i = 0; i < maxAlternates; i++)
                 {
-                    altnStation.RunwayAdvice = LocalizationService.Translate($"Exp. Runway {altnRwy}", $"Piste prévue {altnRwy}");
-                }
+                    var altn = response.Alternates[i];
+                    string altnMetarStr = "";
+                    string altnTafStr = "";
 
-                // Pre-parse the METAR to guarantee Temp/Dew and QNH are populated
-                if (!string.IsNullOrWhiteSpace(altnMetarStr)) AnalyzeMetar(altnMetarStr, "the alternate", "le dégagement", altnStation);
-                
-                var altComm = new StringBuilder();
-                altComm.AppendLine(LocalizationService.Translate($"Regarding our primary destination alternate, {altnIcao}:", $"Concernant notre dégagement principal, {altnIcao} :"));
-                
-                if (etaUnix > 0 && !string.IsNullOrWhiteSpace(altnTafStr))
-                    altComm.AppendLine(AnalyzeTafAtEta(altnTafStr, etaUnix, "the alternate", "le dégagement", altnStation));
-                else if (!string.IsNullOrWhiteSpace(altnMetarStr))
-                    altComm.AppendLine(AnalyzeMetar(altnMetarStr, "the alternate", "le dégagement", altnStation));
-                else
-                    altComm.AppendLine(LocalizationService.Translate($"We have the necessary weather minimums to safely divert to {altnIcao} if required.", $"Nous avons les minimums météorologiques requis pour nous dérouter vers {altnIcao} en toute sécurité si besoin."));
-                
-                altnStation.Commentary = altComm.ToString().Trim();
-                data.Stations.Add(altnStation);
+                    if (weather?.AltnMetar != null)
+                    {
+                        if (weather.AltnMetar.Value.ValueKind == System.Text.Json.JsonValueKind.String && i == 0)
+                            altnMetarStr = weather.AltnMetar.Value.GetString() ?? "";
+                        else if (weather.AltnMetar.Value.ValueKind == System.Text.Json.JsonValueKind.Array && weather.AltnMetar.Value.GetArrayLength() > i)
+                            altnMetarStr = weather.AltnMetar.Value[i].GetString() ?? "";
+                    }
+
+                    if (weather?.AltnTaf != null)
+                    {
+                        if (weather.AltnTaf.Value.ValueKind == System.Text.Json.JsonValueKind.String && i == 0)
+                            altnTafStr = weather.AltnTaf.Value.GetString() ?? "";
+                        else if (weather.AltnTaf.Value.ValueKind == System.Text.Json.JsonValueKind.Array && weather.AltnTaf.Value.GetArrayLength() > i)
+                            altnTafStr = weather.AltnTaf.Value[i].GetString() ?? "";
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(altnMetarStr) || !string.IsNullOrWhiteSpace(altnTafStr) || !string.IsNullOrWhiteSpace(altn.IcaoCode))
+                    {
+                        string altnIcao = altn.IcaoCode ?? LocalizationService.Translate($"our alternate {i + 1}", $"notre {i + 1}e aéroport de dégagement");
+                        
+                        string altLabel = i == 0 ? LocalizationService.Translate("ALTERNATE PLAN:", "PLAN DE DÉGAGEMENT :") : LocalizationService.Translate($"ALTERNATE PLAN {i + 1}:", $"PLAN DE DÉGAGEMENT {i + 1} :");
+                        var altnStation = new BriefingStation { Id = i == 0 ? "alternate" : $"alternate_{i}", Label = altLabel, RawMetar = altnMetarStr, RawTaf = altnTafStr, Icao = altnIcao };
+
+                        string altnRwy = altn.PlanRwy;
+                        if (!string.IsNullOrEmpty(altnRwy))
+                        {
+                            altnStation.RunwayAdvice = LocalizationService.Translate($"Exp. Runway {altnRwy}", $"Piste prévue {altnRwy}");
+                        }
+
+                        // Pre-parse the METAR to guarantee Temp/Dew and QNH are populated
+                        if (!string.IsNullOrWhiteSpace(altnMetarStr)) AnalyzeMetar(altnMetarStr, $"the alternate {i + 1}", $"le dégagement {i + 1}", altnStation);
+                        
+                        var altComm = new StringBuilder();
+                        
+                        string destLabelEn = i == 0 ? "our primary destination alternate" : $"our destination alternate number {i + 1}";
+                        string destLabelFr = i == 0 ? "notre dégagement principal" : $"notre dégagement numéro {i + 1}";
+                        
+                        altComm.AppendLine(LocalizationService.Translate($"Regarding {destLabelEn}, {altnIcao}:", $"Concernant {destLabelFr}, {altnIcao} :"));
+                        
+                        if (etaUnix > 0 && !string.IsNullOrWhiteSpace(altnTafStr))
+                            altComm.AppendLine(AnalyzeTafAtEta(altnTafStr, etaUnix, $"the alternate {i + 1}", $"le dégagement {i + 1}", altnStation));
+                        else if (!string.IsNullOrWhiteSpace(altnMetarStr))
+                            altComm.AppendLine(AnalyzeMetar(altnMetarStr, $"the alternate {i + 1}", $"le dégagement {i + 1}", altnStation));
+                        else
+                            altComm.AppendLine(LocalizationService.Translate($"We have the necessary weather minimums to safely divert to {altnIcao} if required.", $"Nous avons les minimums météorologiques requis pour nous dérouter vers {altnIcao} en toute sécurité si besoin."));
+                        
+                        altnStation.Commentary = altComm.ToString().Trim();
+                        data.Stations.Add(altnStation);
+                    }
+                }
             }
 
             // Enroute
