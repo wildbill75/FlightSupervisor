@@ -110,6 +110,29 @@ namespace FlightSupervisor.UI
         private string _cachedLogsScore = "";
         private string _cachedLogsHtml = "";
 
+        private void RefreshPassengerDemographics()
+        {
+            if (_currentResponse == null) return;
+
+            CurrentAirline = _airlineDb.GetProfileFor(_currentResponse?.General?.Airline ?? "");
+            _groundOpsManager.IsFuelSheetValidated = false;
+
+            var passengerService = new FlightSupervisor.UI.Services.PassengerManifestService();
+            var manifestData = passengerService.GenerateManifest(_currentResponse, _profileManager.CurrentProfile);
+
+            _cabinManager.InitializeFlightDemographics(CurrentAirline, manifestData);
+            
+            SendToWeb(new { type = "manifestUpdate", manifest = manifestData });
+
+            if (CurrentAirline != null)
+            {
+                if (CurrentAirline.SafetyRecord >= 9) _crisisManager.Frequency = FlightSupervisor.UI.Services.CrisisFrequency.Realistic;
+                else if (CurrentAirline.SafetyRecord >= 6) _crisisManager.Frequency = FlightSupervisor.UI.Services.CrisisFrequency.Frequent;
+                else _crisisManager.Frequency = FlightSupervisor.UI.Services.CrisisFrequency.Chaos;
+                System.Diagnostics.Debug.WriteLine($"[CRISIS] Safety Score: {CurrentAirline.SafetyRecord} -> Frequency set to: {_crisisManager.Frequency}");
+            }
+        }
+
         private bool _isAtWrongAirport = false;
         private string _lastNotifiedMismatchIcao = "";
 
@@ -202,11 +225,17 @@ namespace FlightSupervisor.UI
             _groundOpsManager.OnOpsLog += msg => SendToWeb(new { type = "log", message = msg });
             _groundOpsManager.OnOpsUpdated += () => {
                 var services = _groundOpsManager.Services;
+                var planRampStr = _currentResponse?.Fuel?.PlanRamp ?? "3000"; // Fallback to 3000 if not available
+                double planRamp = 0;
+                double.TryParse(planRampStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out planRamp);
+                
                 Dispatcher.Invoke(() => SendToWeb(new { 
                     type = "groundOps", 
                     services = services,
                     isSeatbeltsOn = _groundOpsManager.IsSeatbeltsOn,
-                    isBeaconOn = _groundOpsManager.IsBeaconOn
+                    isBeaconOn = _groundOpsManager.IsBeaconOn,
+                    isFuelValidated = _groundOpsManager.IsFuelSheetValidated,
+                    planRampKg = planRamp
                 }));
             };
             _groundOpsManager.OnServiceStarted += srvName => {
@@ -297,13 +326,19 @@ namespace FlightSupervisor.UI
                 _groundOpsManager.EngineMaxN1 = Math.Max(_phaseManager.Eng1N1, _phaseManager.Eng2N1);
                 _groundOpsManager.Tick(_currentSimTime);
 
-                // --- TURNAROUND FUEL SHEET TRIGGER ---
+                // --- TURNAROUND NEXT LEG AUTO-ADVANCE ---
                 if (_phaseManager.CurrentPhase == FlightPhase.Turnaround && !_groundOpsManager.IsFuelSheetValidated)
                 {
                     bool tasksPending = _groundOpsManager.Services.Any(s => (s.Name == "Deboarding" || s.Name.StartsWith("Cargo")) && s.State != GroundServiceState.Completed && s.State != GroundServiceState.Skipped);
-                    if (!tasksPending && _fuelSheetWindow == null)
+                    if (!tasksPending)
                     {
-                        OpenFuelSheetWindow();
+                        Dispatcher.Invoke(() => {
+                            LoadNextLeg();
+                            if (_fuelSheetWindow == null)
+                            {
+                                OpenFuelSheetWindow();
+                            }
+                        });
                     }
                 }
 
@@ -1796,38 +1831,27 @@ namespace FlightSupervisor.UI
                 {
                     try
                     {
-                        var simbriefWin = new Window
-                        {
-                            Title = "SimBrief Dispatch (Navigraph)",
-                            Width = 1200,
-                            Height = 900,
-                            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                            Owner = this,
-                            Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#141414")
-                        };
-                        simbriefWin.Closed += (s, e) => {
-                            SendToWeb(new { type = "simbriefWindowClosed" });
-                        };
+                        var origStr = "";
+                        var destStr = "";
+                        var airlineStr = "";
+                        var fltnumStr = "";
+                        if (doc.RootElement.TryGetProperty("orig", out var origProp)) origStr = origProp.GetString() ?? "";
+                        if (doc.RootElement.TryGetProperty("dest", out var destProp)) destStr = destProp.GetString() ?? "";
+                        if (doc.RootElement.TryGetProperty("airline", out var airlineProp)) airlineStr = airlineProp.GetString() ?? "";
+                        if (doc.RootElement.TryGetProperty("fltnum", out var fltnumProp)) fltnumStr = fltnumProp.GetString() ?? "";
 
-                        var webView = new Microsoft.Web.WebView2.Wpf.WebView2();
-                        simbriefWin.Content = webView;
-                        simbriefWin.Show();
-
-                        // Fire and forget initialization to avoid blocking the message loop
-                        _ = System.Threading.Tasks.Task.Run(async () =>
+                        var targetUrl = "https://dispatch.simbrief.com/options/custom";
+                        if (!string.IsNullOrEmpty(origStr) && !string.IsNullOrEmpty(destStr))
                         {
-                            await Dispatcher.InvokeAsync(async () =>
-                            {
-                                await webView.EnsureCoreWebView2Async(MainWebView.CoreWebView2.Environment);
-                                webView.SourceChanged += (s, e) =>
-                                {
-                                    if (webView.Source != null && (webView.Source.ToString().Contains("dispatch.simbrief.com/options/briefing") || webView.Source.ToString().Contains("/briefing")))
-                                    {
-                                        simbriefWin.Close();
-                                    }
-                                };
-                                webView.Source = new System.Uri("https://dispatch.simbrief.com/options/custom");
-                            });
+                            targetUrl += $"?orig={origStr}&dest={destStr}";
+                            if (!string.IsNullOrEmpty(airlineStr)) targetUrl += $"&airline={airlineStr}";
+                            if (!string.IsNullOrEmpty(fltnumStr)) targetUrl += $"&fltnum={fltnumStr}";
+                        }
+
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = targetUrl,
+                            UseShellExecute = true
                         });
                     }
                     catch (System.Exception ex)
@@ -1944,6 +1968,11 @@ namespace FlightSupervisor.UI
                         _ghostFuelTrackerActive = true;
                         _virtualFobKg = double.TryParse(blockFuel, out double bf) ? bf : 3000.0;
                         _currentFobKg = Math.Round(_virtualFobKg);
+                        
+                        if (_currentResponse?.Fuel != null)
+                        {
+                            _currentResponse.Fuel.PlanRamp = Math.Round(_currentFobKg).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        }
                         // -----------------------------------
                         
                         // POINT 1.2: SILENT RELOAD SIMBRIEF DISPATCH FOR THE NEXT LEG BEFORE INITIALIZATION
@@ -1977,7 +2006,9 @@ namespace FlightSupervisor.UI
                         
                         // Let Dispatch know
                         SendToWeb(new { type = "cabinLog", level = "cyan", message = $"[DISPATCH] Final Load Sheet validated by Captain. Block Fuel confirmed at {blockFuel} kg." });
-                        SendToWeb(new { type = "fuelValidationSuccess" });
+                        double bp = 0;
+                        double.TryParse(blockFuel, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out bp);
+                        SendToWeb(new { type = "fuelValidationSuccess", blockFuel = bp });
 
                         // Fermeture auto de la Modale détachable Fuel Sheet en s'assurant d'être sur le Dispatcher UI
                         Dispatcher.Invoke(() => {
@@ -2009,7 +2040,15 @@ namespace FlightSupervisor.UI
                         if (_rotationQueue.Count > 0)
                         {
                             LoadNextLeg();
-                            SendToWeb(new { type = "log", message = $"[SYSTEM] Dispatch: Rotation Leg {_cabinManager.SessionFlightsCompleted + 1} initialized. SimBrief data imported." });
+                            
+                            // If the loaded leg is a real OFP (not a dummy), start Ground Ops and ask for Fuel Validation
+                            if (_currentResponse != null && _currentResponse.General?.FlightNumber != "DUMMY")
+                            {
+                                _groundOpsManager.StartOps();
+                                OpenFuelSheetWindow();
+                            }
+                            
+                            SendToWeb(new { type = "log", message = $"[SYSTEM] Dispatch: Rotation Leg {_cabinManager.SessionFlightsCompleted + 1} initialized." });
                         }
                         else
                         {
@@ -2416,6 +2455,106 @@ namespace FlightSupervisor.UI
                         syncMsfsTime = smProp.ValueKind == System.Text.Json.JsonValueKind.True;
 
                     await FetchFlightPlan(username, remember, units, weatherSource, syncMsfsTime);
+                }
+                else if (action == "submitShellRotation")
+                {
+                    Dispatcher.Invoke(() => {
+                        try 
+                        {
+                            if (doc.RootElement.TryGetProperty("payload", out var payloadProp) && payloadProp.TryGetProperty("legs", out var legsProp))
+                            {
+                                string logPath = "sync_debug.txt";
+                                System.IO.File.AppendAllText(logPath, $"\n[{DateTime.Now}] submitShellRotation called. Legs payload found.\n");
+
+                                _rotationQueue.Clear();
+                                foreach (var item in legsProp.EnumerateArray())
+                                {
+                                    try
+                                    {
+                                        var rotData = item.GetProperty("data").GetRawText();
+                                        System.IO.File.AppendAllText(logPath, $"[DEBUG] Deserializing dummy leg... Length: {rotData.Length}\n");
+                                        var response = System.Text.Json.JsonSerializer.Deserialize<FlightSupervisor.UI.Models.SimBrief.SimBriefResponse>(rotData, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                                        if (response != null)
+                                        {
+                                            _rotationQueue.Add(response);
+                                            System.IO.File.AppendAllText(logPath, $"[DEBUG] Dummy leg enqueued.\n");
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        SendToWeb(new { type = "log", message = $"[IPC] Failed to deserialize shell leg: {ex.Message}" });
+                                        System.IO.File.AppendAllText(logPath, $"[ERROR] Failed to deserialize dummy leg: {ex.Message}\n");
+                                    }
+                                }
+
+                                if (_currentResponse == null && _rotationQueue.Count > 0)
+                                {
+                                    LoadNextLeg();
+                                }
+
+                                SendToWeb(new { type = "log", message = $"[SYSTEM] Shell Rotation validated. Awaiting Dispatch..." });
+                                
+                                // Reset and put the UI in Preflight phase manually
+                                SendToWeb(new { type = "phaseChanged", phase = "Preflight" });
+                                _phaseManager.Reset(false); // Make sure we are at AtGate or Preflight
+
+                                SendToWeb(new { type = "shellRotationValidated" });
+                                if (_currentResponse != null && _currentResponse.IsDummy)
+                                {
+                                    var orig = _currentResponse.Origin?.IcaoCode;
+                                    var dest = _currentResponse.Destination?.IcaoCode;
+                                    SendToWeb(new { type = "log", message = $"[SYSTEM] Shell Leg sequence created for {orig} -> {dest}. Please use Dashboard utilities to Fetch OFP when ready." });
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            SendToWeb(new { type = "log", message = $"[SYSTEM] Error processing shell rotation: {ex.Message}" });
+                        }
+                    });
+                }
+                else if (action == "openSimbriefForCurrentLeg")
+                {
+                    Dispatcher.Invoke(() => {
+                        FlightSupervisor.UI.Models.SimBrief.SimBriefResponse targetLeg = null;
+                        
+                        if (_currentResponse != null && _currentResponse.IsDummy)
+                        {
+                            targetLeg = _currentResponse;
+                        }
+                        else if (_rotationQueue.Count > 0 && _rotationQueue[0].IsDummy)
+                        {
+                            targetLeg = _rotationQueue[0];
+                        }
+
+                        if (targetLeg != null)
+                        {
+                            var orig = targetLeg.Origin?.IcaoCode;
+                            var dest = targetLeg.Destination?.IcaoCode;
+                            var airline = targetLeg.General?.Airline;
+                            var fltnum = targetLeg.General?.FlightNumber;
+                            SendToWeb(new { type = "log", message = $"[SYSTEM] Triggering SimBrief OFP fetch for {orig} -> {dest}." });
+                            SendToWeb(new { type = "openSimbriefForDummy", orig = orig, dest = dest, airline = airline, fltnum = fltnum });
+                        }
+                    });
+                }
+                else if (action == "startShellSession")
+                {
+                    Dispatcher.Invoke(() => {
+                        SendToWeb(new { type = "phaseChanged", phase = "GroundOps" });
+
+                        if (_currentResponse != null)
+                        {
+                            // Re-insert the fetched OFP back into the queue so LoadNextLeg recalculates the Airframe logic properly
+                            _rotationQueue.Insert(0, _currentResponse);
+                            LoadNextLeg();
+                            
+                            _groundOpsManager.StartOps();
+                            OpenFuelSheetWindow();
+                        }
+                        
+                        SendTelemetryToWeb();
+                    });
                 }
                 else if (action == "finishDispatch")
                 {
@@ -3093,6 +3232,8 @@ namespace FlightSupervisor.UI
                 _rotationQueue.RemoveAt(0);
                 _currentResponse = response;
                 
+                RefreshPassengerDemographics();
+                
                 SendToWeb(new { type = "popLeg", index = 0 });
             }
             
@@ -3129,23 +3270,7 @@ namespace FlightSupervisor.UI
                 SendToWeb(new { type = "log", message = $"[SYSTEM/WARN] Isolation Fenix: Impossible de lire le fuel physique. Initial FOB forcé aux 3000 KG de base Fenix." });
             }
 
-            CurrentAirline = _airlineDb.GetProfileFor(_currentResponse?.General?.Airline ?? "");
-            _groundOpsManager.IsFuelSheetValidated = false;
-
-            var passengerService = new FlightSupervisor.UI.Services.PassengerManifestService();
-            var manifestData = passengerService.GenerateManifest(_currentResponse, _profileManager.CurrentProfile);
-
-            _cabinManager.InitializeFlightDemographics(CurrentAirline, manifestData);
-            
-            SendToWeb(new { type = "manifestUpdate", manifest = manifestData });
-
-            if (CurrentAirline != null)
-            {
-                if (CurrentAirline.SafetyRecord >= 9) _crisisManager.Frequency = FlightSupervisor.UI.Services.CrisisFrequency.Realistic;
-                else if (CurrentAirline.SafetyRecord >= 6) _crisisManager.Frequency = FlightSupervisor.UI.Services.CrisisFrequency.Frequent;
-                else _crisisManager.Frequency = FlightSupervisor.UI.Services.CrisisFrequency.Chaos;
-                System.Diagnostics.Debug.WriteLine($"[CRISIS] Safety Score: {CurrentAirline.SafetyRecord} -> Frequency set to: {_crisisManager.Frequency}");
-            }
+            RefreshPassengerDemographics();
 
             if (_aibt.HasValue)
             {
@@ -3283,83 +3408,157 @@ namespace FlightSupervisor.UI
                         }
                     }
 
-                    if (_rotationQueue.Count == 0 && syncMsfsTime && _simConnectService != null && _simConnectService.IsConnected && response.Times != null)
-                    {
-                        if (long.TryParse(response.Times.SchedOut, out long originalOut) && long.TryParse(response.Times.SchedIn, out long originalIn))
-                        {
-                            long blockSecs = originalIn - originalOut;
-                            if (blockSecs <= 0) blockSecs = 3600; // fallback 1h
-
-                            long simNowUnix = ((DateTimeOffset)_simConnectService.CurrentSimZuluTime).ToUnixTimeSeconds();
-                            
-                            long newOut = simNowUnix + (30 * 60); 
-                            long newIn = newOut + blockSecs;
-                            
-                            response.Times.SchedOut = newOut.ToString();
-                            response.Times.SchedIn = newIn.ToString();
-                        }
-                    }
-                    else if (_rotationQueue.Count > 0 && response.Times != null)
-                    {
-                        var lastLeg = _rotationQueue.Last();
-                        if (lastLeg.Times != null && long.TryParse(lastLeg.Times.SchedIn, out long lastIn) && 
-                            long.TryParse(response.Times.SchedOut, out long currentOut) && 
-                            long.TryParse(response.Times.SchedIn, out long currentIn))
-                        {
-                            long blockSecs = currentIn - currentOut;
-                            if (blockSecs <= 0) blockSecs = 3600; // fallback 1h
-
-                            long turnaroundSecs = 45 * 60; // default medium 45 min
-                            string acType = response.Aircraft?.BaseType ?? response.Aircraft?.IcaoCode ?? "";
-                            if (acType.StartsWith("A33") || acType.StartsWith("A34") || acType.StartsWith("A35") || acType.StartsWith("A38") || 
-                                acType.StartsWith("B74") || acType.StartsWith("B76") || acType.StartsWith("B77") || acType.StartsWith("B78") || acType.StartsWith("MD1"))
-                                turnaroundSecs = 70 * 60;
-                            else if (acType.StartsWith("C1") || acType.StartsWith("SR") || acType.StartsWith("DA") || acType.StartsWith("PA") || acType.StartsWith("P28"))
-                                turnaroundSecs = 25 * 60;
-
-                            long newOut = lastIn + turnaroundSecs;
-                            long newIn = newOut + blockSecs;
-
-                            response.Times.SchedOut = newOut.ToString();
-                            response.Times.SchedIn = newIn.ToString();
-                        }
-                    }
-
-                    // Check for duplicate to avoid queue accumulation during ACARS refresh
+                    // Step 1: Detect position in rotation (isDupe logic) before fixing time
                     bool isDupe = false;
+                    int dupeIndex = -1;
+                    bool replacesCurrent = false;
+
+                    // Check if it replaces the ACTIVE leg
+                    if (_currentResponse != null)
+                    {
+                        bool origDestMatch = _currentResponse.Origin?.IcaoCode == response.Origin?.IcaoCode &&
+                                             _currentResponse.Destination?.IcaoCode == response.Destination?.IcaoCode;
+
+                        bool isFirstDummyBlocker = _currentResponse.IsDummy && _cabinManager.SessionFlightsCompleted == 0;
+
+                        if (origDestMatch && (_currentResponse.IsDummy || _currentResponse.General?.FlightNumber == response.General?.FlightNumber))
+                        {
+                            replacesCurrent = true;
+                            isDupe = true;
+                        }
+                        else if (isFirstDummyBlocker)
+                        {
+                            // If the session hasn't started and we're stuck in a dummy, we forcefully replace it
+                            // regardless of origin/destination mismatch, to allow the user to pivot easily.
+                            replacesCurrent = true;
+                            isDupe = true;
+                            if (_rotationQueue.Count > 0) dupeIndex = 0;
+                        }
+                    }
+
+                    // Check if it replaces a QUEUED leg
                     for (int i = 0; i < _rotationQueue.Count; i++)
                     {
                         var r = _rotationQueue[i];
                         if (r.Origin?.IcaoCode == response.Origin?.IcaoCode &&
                             r.Destination?.IcaoCode == response.Destination?.IcaoCode &&
-                            r.General?.FlightNumber == response.General?.FlightNumber)
+                            (r.IsDummy || r.General?.FlightNumber == response.General?.FlightNumber))
                         {
-                            _rotationQueue[i] = response;
+                            dupeIndex = i;
                             isDupe = true;
-                            // If this was the active flight plan, update _currentResponse
-                            if (_currentResponse != null && _currentResponse.Origin?.IcaoCode == response.Origin?.IcaoCode &&
-                                _currentResponse.Destination?.IcaoCode == response.Destination?.IcaoCode &&
-                                _currentResponse.General?.FlightNumber == response.General?.FlightNumber)
-                            {
-                                _currentResponse = response;
-                            }
                             break;
                         }
                     }
 
-                    // Also check if _currentResponse is the exact same leg but it's not in the queue (e.g. if popped)
-                    if (!isDupe && _currentResponse != null && 
-                        _currentResponse.Origin?.IcaoCode == response.Origin?.IcaoCode &&
-                        _currentResponse.Destination?.IcaoCode == response.Destination?.IcaoCode &&
-                        _currentResponse.General?.FlightNumber == response.General?.FlightNumber)
+                    // Step 2: Time Synchronization Logic
+                    if (response.Times != null)
+                    {
+                        // Identify the previous leg to chain from
+                        FlightSupervisor.UI.Models.SimBrief.SimBriefResponse prevLeg = null;
+                        if (dupeIndex > 0) prevLeg = _rotationQueue[dupeIndex - 1]; // Replaces a leg > 0
+                        else if (dupeIndex == 0) prevLeg = _currentResponse; // Replaces leg 0, so chain to current
+                        else if (!isDupe && _rotationQueue.Count > 0) prevLeg = _rotationQueue.Last(); // Appended, chain to last
+                        else if (!isDupe && _rotationQueue.Count == 0) prevLeg = _currentResponse; // Appended as first item, chain to current if it exists
+
+                        // If prevLeg has no times (e.g. it's a dummy/shell leg), we cannot chain from it. Treat as first.
+                        if (prevLeg != null && prevLeg.Times == null)
+                        {
+                            prevLeg = null;
+                        }
+
+                        // If user specifically requested MSFS sync AND it's the very first valid leg (or overriding it)
+                        if (syncMsfsTime && prevLeg == null)
+                        {
+                            if (long.TryParse(response.Times.SchedOut, out long originalOut) && long.TryParse(response.Times.SchedIn, out long originalIn))
+                            {
+                                long blockSecs = originalIn - originalOut;
+                                if (blockSecs <= 0) blockSecs = 3600;
+
+                                long simNowUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                                if (_simConnectService != null && _simConnectService.IsConnected && _simConnectService.CurrentSimZuluTime.Year > 2000)
+                                {
+                                    simNowUnix = ((DateTimeOffset)_simConnectService.CurrentSimZuluTime).ToUnixTimeSeconds();
+                                }
+
+                                long newOut = simNowUnix + (30 * 60); 
+                                long newIn = newOut + blockSecs;
+                                
+                                response.Times.SchedOut = newOut.ToString();
+                                response.Times.SchedIn = newIn.ToString();
+                            }
+                        }
+                        // Chaining time logic
+                        else if (prevLeg?.Times != null)
+                        {
+                            if (long.TryParse(prevLeg.Times.SchedIn, out long lastIn) && 
+                                long.TryParse(response.Times.SchedOut, out long currentOut) && 
+                                long.TryParse(response.Times.SchedIn, out long currentIn))
+                            {
+                                long blockSecs = currentIn - currentOut;
+                                if (blockSecs <= 0) blockSecs = 3600;
+
+                                long turnaroundSecs = 45 * 60;
+                                string acType = response.Aircraft?.BaseType ?? response.Aircraft?.IcaoCode ?? "";
+                                if (acType.StartsWith("A33") || acType.StartsWith("A34") || acType.StartsWith("A35") || acType.StartsWith("A38") || 
+                                    acType.StartsWith("B74") || acType.StartsWith("B76") || acType.StartsWith("B77") || acType.StartsWith("B78") || acType.StartsWith("MD1"))
+                                    turnaroundSecs = 70 * 60;
+                                else if (acType.StartsWith("C1") || acType.StartsWith("SR") || acType.StartsWith("DA") || acType.StartsWith("PA") || acType.StartsWith("P28"))
+                                    turnaroundSecs = 25 * 60;
+
+                                long newOut = lastIn + turnaroundSecs;
+                                long newIn = newOut + blockSecs;
+
+                                response.Times.SchedOut = newOut.ToString();
+                                response.Times.SchedIn = newIn.ToString();
+                            }
+                        }
+                    }
+
+                    // Step 3: Apply the replacement
+                    if (replacesCurrent)
                     {
                         _currentResponse = response;
-                        isDupe = true;
+                        RefreshPassengerDemographics();
+                        _groundOpsManager.InitializeFromSimBrief(response, _cabinManager.SessionFlightsCompleted == 0 && _cabinManager.FirstFlightClean, _currentFobKg, _cabinManager.CabinCleanliness, _cabinManager.CateringCompletion, _cabinManager.WaterLevel, _cabinManager.WasteLevel, _nextSobtOverride);
+                        SendToWeb(new { type = "groundOpsReady" });
+                        SendToWeb(new { type = "groundOps", services = _groundOpsManager.Services });
+                        
+                        // Force update of fuel sheet if it is already open on another screen.
+                        if (_fuelSheetWindow != null)
+                        {
+                            Dispatcher.Invoke(() => {
+                                OpenFuelSheetWindow();
+                            });
+                        }
+                    }
+                    if (dupeIndex >= 0)
+                    {
+                        _rotationQueue[dupeIndex] = response;
                     }
 
                     if (!isDupe)
                     {
                         _rotationQueue.Add(response);
+                    }
+                    
+                    // Step 4: Cascade time approximations to Dummy legs in the queue
+                    FlightSupervisor.UI.Models.SimBrief.SimBriefResponse currentCascade = _currentResponse;
+                    foreach (var queued in _rotationQueue)
+                    {
+                        if (queued.IsDummy && currentCascade?.Times != null)
+                        {
+                            if (long.TryParse(currentCascade.Times.SchedIn, out long lastIn))
+                            {
+                                if (queued.Times == null) queued.Times = new FlightSupervisor.UI.Models.SimBrief.TimesInfo();
+                                
+                                long newOut = lastIn + (50 * 60); // 50 mins minimal turnaround
+                                long newIn = newOut + (60 * 60); // 60 mins dummy block time
+                                
+                                queued.Times.SchedOut = newOut.ToString();
+                                queued.Times.SchedIn = newIn.ToString();
+                            }
+                        }
+                        currentCascade = queued; // advance the chain
                     }
                     
                     var weatherService = new WeatherBriefingService(units);

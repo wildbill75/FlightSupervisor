@@ -138,11 +138,6 @@
 
         <!-- Right Side Icons -->
         <div class="flex items-center gap-1 justify-end flex-1">
-            <div class="flex items-center gap-1.5 font-mono text-emerald-400 font-bold text-[11px] mr-3 
-tracking-wider">
-                <span class="material-symbols-outlined text-[13px] text-[#7b7b7b]">local_gas_station</span>
-                <span id="topFuelTracker" class="drop-shadow-lg">---</span><span class="text-[9px] text-emerald-600/80">KG</span>
-            </div>
             <button class="no-drag w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-white/5" id="btnPin" title="Toggle Always on Top" onmousedown="event.stopPropagation();" style="opacity: 0.4;">
                 <span class="material-symbols-outlined text-[16px] font-light">push_pin</span>
             </button>
@@ -186,22 +181,22 @@ tracking-wider">
         <!-- Logo Container (More obvious, centered perfectly) -->
 
         <ul class="menu flex-1 w-full flex flex-col items-center mt-4 font-manrope text-sm tracking-wide gap-3">
-            <li id="navDashboardBtn" class="no-drag flex justify-center items-center w-12 h-12 rounded-xl opacity-30 cursor-not-allowed pointer-events-none transition-all duration-300" data-target="dashboard" title="Locked: Select a flight and sign off dispatch first">
-                <span class="material-symbols-outlined shrink-0 text-[20px] font-light">dashboard</span>
+            <li id="navDashboardBtn" class="active no-drag flex justify-center items-center w-12 h-12 rounded-xl cursor-pointer text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300 group" data-target="dashboard" title="Dashboard">
+                <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] group-[.active]:text-white group-[.active]:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">dashboard</span>
             </li>
-            <li id="navBriefingBtn" class="active no-drag flex justify-center items-center w-12 h-12 rounded-xl cursor-pointer text-slate-400 hover:bg-white/5 transition-all duration-300 group" data-target="briefing" title="Briefing">
+            <li id="navBriefingBtn" class="no-drag flex justify-center items-center w-12 h-12 rounded-xl cursor-pointer text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300 group opacity-30 pointer-events-none cursor-not-allowed" data-target="briefing" title="Briefing">
                 <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] group-[.active]:text-white group-[.active]:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">assignment</span>
             </li>
             <li id="navFuelBtn" class="no-drag flex justify-center items-center w-12 h-12 rounded-xl cursor-pointer text-slate-400 hover:bg-white/5 hover:text-sky-300 transition-all duration-300 group opacity-30 pointer-events-none cursor-not-allowed" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'openFuelSheetWindow'});" title="Consult Load Sheet & Fuel Dispatch">
                 <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">local_gas_station</span>
             </li>
-            <li id="navAirframeBtn" class="no-drag flex justify-center items-center w-12 h-12 rounded-xl cursor-pointer text-slate-400 hover:bg-white/5 hover:text-sky-300 transition-all duration-300 group" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'openAirframeWindow'});" title="Airframe Tech Log">
+            <li id="navAirframeBtn" class="no-drag flex justify-center items-center w-12 h-12 rounded-xl cursor-pointer text-slate-400 hover:bg-white/5 hover:text-sky-300 transition-all duration-300 group opacity-30 pointer-events-none cursor-not-allowed" onclick="if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage({action: 'openAirframeWindow'});" title="Airframe Tech Log">
                 <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">menu_book</span>
             </li>
-            <li class="no-drag flex justify-center items-center w-12 h-12 rounded-xl cursor-pointer text-slate-400 hover:bg-white/5 hover:text-sky-300 transition-all duration-300 group" onclick="if(window.chrome && window.chrome.webview) { const score = document.getElementById('topScoreValue')?.innerText || '1000'; const history = document.getElementById('penaltyLogs')?.innerHTML || ''; window.chrome.webview.postMessage({action: 'openLogsWindow', payload: {score, history}}); }" title="Flight Logs">
+            <li id="navFlightLogBtn" class="no-drag flex justify-center items-center w-12 h-12 rounded-xl cursor-pointer text-slate-400 hover:bg-white/5 hover:text-sky-300 transition-all duration-300 group opacity-30 pointer-events-none cursor-not-allowed" onclick="if(window.chrome && window.chrome.webview) { const score = document.getElementById('topScoreValue')?.innerText || '1000'; const history = document.getElementById('penaltyLogs')?.innerHTML || ''; window.chrome.webview.postMessage({action: 'openLogsWindow', payload: {score, history}}); }" title="Flight Logs">
                 <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">receipt_long</span>
             </li>
-            <li class="no-drag flex justify-center items-center w-12 h-12 rounded-xl mt-4 cursor-pointer text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition-all duration-300 group" onclick="if(window.chrome && window.chrome.webview) { window.chrome.webview.postMessage({action: 'openSandboxWindow'}); }" title="Sandbox Mode">
+            <li id="navSandboxBtn" class="no-drag flex justify-center items-center w-12 h-12 rounded-xl mt-4 cursor-pointer text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition-all duration-300 group opacity-30 pointer-events-none cursor-not-allowed" onclick="if(window.chrome && window.chrome.webview) { window.chrome.webview.postMessage({action: 'openSandboxWindow'}); }" title="Sandbox Mode">
                 <span class="material-symbols-outlined shrink-0 text-[20px] font-light relative z-10 group-hover:drop-shadow-[0_0_8px_rgba(2fb,113,133,0.5)]">science</span>
             </li>
             <li class="no-drag mt-auto flex justify-center items-center w-12 h-12 rounded-xl mb-4 text-slate-500 hover:bg-white/5 hover:text-slate-300 transition-all duration-300 group" data-target="options" title="Settings">
@@ -243,96 +238,56 @@ tracking-wider">
         <div class="w-full pb-36">
             
             <!-- DASHBOARD TAB -->
-            <section id="dashboard" class="tab-content space-y-4 w-full pt-8">
+            <section id="dashboard" class="tab-content active space-y-4 w-full pt-8">
                 <!-- HERO BENTO SECTION -->
                 <div class="grid grid-cols-12 gap-4 relative w-full">
                     <!-- HERO METADATA -->
                     <div class="col-span-12 lg:col-span-12 flex flex-col justify-center min-h-[250px] relative">
 
                         <div id="dashFlightVisualContainer" class="flex flex-col gap-4 relative z-10 w-full mb-0">
-                            <!-- Default Empty State -->
-                            <div id="dashFlightVisualEmpty" class="w-full relative transition-all duration-500">
-                                <div class="w-full flex flex-col gap-4">
-                                    <!-- Top Row: Banner -->
-                                    <div class="flex items-stretch justify-between w-full bg-[#1a1d24]/60 backdrop-blur-md rounded-2xl border border-white/5 py-4 px-2 shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
-                                        <div class="flex flex-col flex-1 items-center justify-center border-r border-white/10 px-4">
-                                            <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Airline</div>
-                                            <div class="text-[20px] font-black text-white tracking-widest mt-1 uppercase">---</div>
-                                        </div>
-                                        <div class="flex flex-col flex-1 items-center justify-center border-r border-white/10 px-4">
-                                            <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Flight N&deg;</div>
-                                            <div class="text-[20px] font-black text-white tracking-widest mt-1 uppercase">---</div>
-                                        </div>
-                                        <div class="flex flex-col flex-[1.5] items-center justify-center border-r border-white/10 px-4">
-                                            <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Airframe</div>
-                                            <div class="text-[20px] font-black text-white tracking-widest mt-1 whitespace-nowrap text-ellipsis">---</div>
-                                        </div>
-                                        <div class="flex flex-col flex-1 items-center justify-center px-4">
-                                            <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Registration</div>
-                                            <div class="text-[20px] font-black text-white tracking-widest mt-1 uppercase">---</div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Bottom Row: Leg Pill + Add Button -->
-                                    <div class="flex items-stretch w-full gap-2">
-                                        
-                                        <!-- Main Leg Pill -->
-                                        <div class="flex-1 bg-[#1a1d24]/60 backdrop-blur-md rounded-2xl border border-white/5 flex shadow-[0_8px_30px_rgba(0,0,0,0.5)] overflow-hidden h-[164px]">
-                                            
-                                            <!-- Left Arrow Button -->
-                                            <div role="button" tabindex="-1" class="px-6 flex items-center justify-center opacity-20 transition-colors pointer-events-none group">
-                                               <svg viewBox="0 0 24 24" class="w-10 h-10 fill-white"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg> 
-                                            </div>
-
-                                            <!-- Clickable Leg Content Area -->
-                                            <div role="button" tabindex="-1" class="flex-1 border-x border-solid border-white/10 flex justify-between items-center py-4 px-10 relative cursor-default text-left">
-                                                
-                                                <!-- Left: FROM -->
-                                                <div class="flex flex-col z-10 w-[25%] pointer-events-none">
-                                                    <div class="text-[10px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">From</div>
-                                                    <div class="text-[44px] font-black text-[#58586c] tracking-widest mt-1 leading-none uppercase">---</div>
-                                                    <div class="text-[11px] font-bold text-[#7b7b7b] uppercase mt-3 tracking-wider whitespace-nowrap">RWY:--- / QNH:---</div>
-                                                    <div class="text-[14px] font-bold text-white uppercase mt-1 tracking-widest">--:--</div>
-                                                </div>
-
-                                                <!-- Center: ROUTE & ETE -->
-                                                <div class="flex flex-col items-center flex-1 px-8 z-10 w-full overflow-hidden pointer-events-none">
-                                                    <div class="text-[12px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase text-center">ETE --H--</div>
-                                                    <div class="text-[16px] font-bold text-white tracking-widest uppercase mt-1 text-center">FL---</div>
-                                                    
-                                                    <div class="w-full flex items-center justify-center my-4 relative pointer-events-none h-6">
-                                                        <!-- Glowing gradient line without arrowheads -->
-                                                        <div class="absolute w-[96%] h-[2px] bg-gradient-to-r from-sky-500/0 via-sky-400/60 to-sky-500/0 drop-shadow-[0_0_5px_rgba(56,189,248,0.4)]"></div>
-                                                        <!-- Larger airplane icon with no box background -->
-                                                        <span class="material-symbols-outlined text-slate-200 absolute left-1/2 -translate-x-1/2 -translate-y-1/2 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" style="top:50%; transform: translate(-50%, -50%) rotate(90deg) scale(1.8);">flight</span>
-                                                    </div>
-                                                    
-                                                    <div class="text-[10px] font-mono tracking-[0.2em] text-[#7b7b7b] uppercase text-center w-[120%] px-2 mt-2" style="line-height:1.2;">
-                                                        NO FLIGHT LOADED
-                                                    </div>
-                                                </div>
-
-                                                <!-- Right: TO -->
-                                                <div class="flex flex-col text-right items-end z-10 w-[25%] pointer-events-none">
-                                                    <div class="text-[10px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">To</div>
-                                                    <div class="text-[44px] font-black text-[#58586c] tracking-widest mt-1 leading-none uppercase">---</div>
-                                                    <div class="text-[11px] font-bold text-[#7b7b7b] uppercase mt-3 tracking-wider whitespace-nowrap">RWY:--- / QNH:---</div>
-                                                    <div class="text-[14px] font-bold text-white uppercase mt-1 tracking-widest">--:--</div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Right Arrow Button -->
-                                            <div role="button" tabindex="-1" class="px-6 flex items-center justify-center opacity-20 transition-colors pointer-events-none group">
-                                                <svg viewBox="0 0 24 24" class="w-10 h-10 fill-white"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
-                                            </div>
-                                        </div>
-
-                                    </div>
+                            <!-- Top Info Row -->
+                            <div class="flex items-stretch justify-between w-full bg-[#1a1d24]/60 backdrop-blur-md rounded-2xl border border-white/5 py-4 px-2 shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
+                                <div id="dashAirlineBtn" class="flex flex-col flex-1 items-center justify-center border-r border-white/10 px-4 group relative hover:bg-white/5 cursor-pointer rounded transition-colors">
+                                    <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Airline</div>
+                                    <div id="dashAirlineText" class="text-[20px] font-black text-white tracking-widest mt-1 uppercase text-center">---</div>
+                                </div>
+                                <div class="flex flex-col flex-1 items-center justify-center border-r border-white/10 px-4">
+                                    <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Flight N&deg;</div>
+                                    <div id="dashFlightNumText" class="text-[20px] font-black text-white tracking-widest mt-1 uppercase">---</div>
+                                </div>
+                                <div class="flex flex-col flex-[1.5] items-center justify-center border-r border-white/10 px-4">
+                                    <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Airframe</div>
+                                    <div id="dashAirframeText" class="text-[20px] font-black text-white tracking-widest mt-1 whitespace-nowrap text-ellipsis">---</div>
+                                </div>
+                                <div class="flex flex-col flex-1 items-center justify-center px-4">
+                                    <div class="text-[9px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase">Registration</div>
+                                    <div id="dashRegText" class="text-[20px] font-black text-white tracking-widest mt-1 uppercase">---</div>
                                 </div>
                             </div>
                             
+                            <!-- FLIGHT TIMELINE DRAG & DROP -->
+                            <div class="w-full flex justify-start items-center mt-2 overflow-hidden" id="dashboard-timeline-wrapper">
+                                <div id="dashboard-timeline" class="flex items-center gap-4 flex-1 overflow-x-auto custom-thin-scrollbar pr-4 py-2">
+                                    <!-- Dynamic content from app.js -->
+                                </div>
+                                
+                                <!-- VALIDATE BUTTON (Moved from Briefing) -->
+                                <div id="dashboard-validation-area" class="shrink-0 pl-4 border-l border-white/10 hidden">
+                                    <button onclick="window.chrome.webview.postMessage({action: 'submitShellRotation', payload: { airline: document.getElementById('dashAirlineText').innerText, flightNum: document.getElementById('dashFlightNumText').innerText, aircraft: document.getElementById('dashAirframeText').innerText, registration: document.getElementById('dashRegText').innerText, legs: window.allRotations }});" 
+                                        class="bg-zinc-700 hover:bg-white hover:text-black border border-white/20 text-white font-bold px-6 py-4 rounded-xl text-xs uppercase tracking-[0.2em] transition-all flex items-center gap-2 group shadow-[0_0_15px_rgba(255,255,255,0.05)]">
+                                        <span class="material-symbols-outlined group-hover:text-black text-[20px]">task_alt</span>
+                                        <span>Validate Rotation</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Empty State Container Removed in favor of Carousel -->
+                            <div id="dashFlightVisualEmpty" class="hidden">
+                            </div>
+                            </div>
+                            
                             <!-- Active State (Injected by JS) -->
-                            <div id="dashFlightVisualActive" class="w-full relative flex flex-col" style="display: none;">
+                            <div id="dashFlightVisualActive" class="w-full relative flex flex-col mt-6" style="display: none;">
                                 <!-- Javascript will render the current leg here -->
                             </div>
                         </div>
@@ -367,6 +322,10 @@ tracking-wider">
 
                         <div class="col-span-4 bg-[#1a1d24]/60 backdrop-blur-xl rounded-2xl overflow-hidden flex flex-col border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.4)] transition-all">
                             
+                            <div class="pt-6 pb-6 flex flex-col items-center justify-center">
+                                <span class="text-xs font-label tracking-[0.4em] text-[#b6b6b6] font-bold uppercase" data-i18n="dash_legs_schedule">Legs Schedule</span>
+                            </div>
+
                             <!-- FLIGHT PHASE HEADER WITH CAROUSEL ARROWS -->
                             <div class="px-3 md:px-6 py-4 flex flex-row items-center justify-between gap-1 md:gap-4 bg-gradient-to-b from-white/5 to-transparent relative border-b border-white/5 overflow-hidden">
                                 <button onclick="window.toggleDashPage && window.toggleDashPage(-1)" class="text-white/80 hover:text-white transition-colors relative z-10 cursor-pointer p-1 shrink-0">
@@ -397,7 +356,7 @@ tracking-wider">
                                         </div>
                                         <div class="flex flex-col items-end">
                                             <div class="font-mono text-xl font-black text-emerald-400 tracking-wider drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]" id="currentLegTimer">--:--:--</div>
-                                            <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mt-1">Est. Block Time</span>
+                                            <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mt-1">Time to Arr. (IN)</span>
                                         </div>
                                     </div>
                                     
@@ -492,7 +451,8 @@ tracking-wider">
                             </div>
                         </div>
 
-                        <div class="col-span-4 bg-[#1a1d24]/60 backdrop-blur-xl rounded-2xl p-6 flex flex-col border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.4)] cursor-pointer hover:bg-[#1a1d24]/80 transition-all hover:border-white/10 group" onclick="window.chrome.webview.postMessage({action: 'openManifestWindow'})" title="Open Manifest View">
+                        <div id="cabinExperiencePanel" class="col-span-4 bg-[#1a1d24]/60 backdrop-blur-xl rounded-2xl p-6 flex flex-col border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.4)] cursor-pointer hover:bg-[#1a1d24]/80 transition-all hover:border-white/10 group relative" onclick="window.chrome.webview.postMessage({action: 'openManifestWindow'})" title="Open Manifest View">
+                            <div id="cabinExperienceOverlay" class="absolute inset-0 bg-[#0f1115] backdrop-blur-sm z-50 rounded-2xl flex items-center justify-center font-bold text-slate-500 tracking-widest text-xs uppercase hidden">Awaiting SimBrief OFP</div>
                         <div class="mb-6 flex flex-col items-center justify-center">
                             <span class="text-xs font-label tracking-[0.4em] text-[#b6b6b6] font-bold uppercase" data-i18n="dash_cabin_exp">Cabin Experience</span>
                         </div>
@@ -600,7 +560,8 @@ tracking-wider">
                         </div>
                     </div>
 
-                        <div class="col-span-4 bg-[#1a1d24]/60 backdrop-blur-xl rounded-2xl p-6 flex flex-col h-full overflow-hidden border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
+                        <div id="pncCommsPanel" class="col-span-4 bg-[#1a1d24]/60 backdrop-blur-xl rounded-2xl p-6 flex flex-col h-full overflow-hidden border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.4)] relative">
+                            <div id="pncCommsOverlay" class="absolute inset-0 bg-[#0f1115] backdrop-blur-sm z-50 rounded-2xl flex items-center justify-center font-bold text-slate-500 tracking-widest text-xs uppercase hidden">Awaiting SimBrief OFP</div>
                         <div class="mb-6 flex flex-col items-center justify-center relative">
                             <span class="text-xs font-label tracking-[0.4em] text-[#b6b6b6] font-bold uppercase" data-i18n="dash_pnc_comms">PNC Comms</span>
                             <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse drop-shadow-[0_0_4px_rgba(56,189,248,0.8)] absolute -right-2 top-1.5 hidden"></span>
@@ -687,33 +648,7 @@ tracking-wider">
             </section>
 
             <!-- BRIEFING TAB -->
-            <section id="briefing" class="tab-content active flex flex-col min-h-[calc(100vh-120px)] w-full">
-                <!-- Timeline de Rotation (Dynamique) -->
-                <div class="flex flex-col items-center gap-6 mb-6 flex-none w-full max-w-7xl mx-auto relative">
-                    <div id="briefing-timeline" class="flex items-center gap-4 py-4 w-full overflow-x-auto min-h-[160px] custom-thin-scrollbar snap-x snap-mandatory scroll-smooth pr-8">
-                        <!-- Généré dynamiquement par app.js -->
-                    </div>
-                    
-                    <!-- Validation Button Area Removed Per User Request -->
-
-                </div> <!-- End of Top Elements Container -->
-
-                <!-- Empty State (No Flight Plan yet) -->
-                <div id="briefing-empty-state" class="flex-1 flex flex-col items-center justify-center animate-fade-in pb-20 w-full mt-10">
-                    <div class="bg-[#1C1F26]/60 backdrop-blur-xl border border-white/5 rounded-[2rem] p-12 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col items-center max-w-xl text-center">
-                        <div class="w-24 h-24 bg-sky-500/10 rounded-full flex items-center justify-center mb-6 shadow-inner border border-sky-400/20">
-                            <span class="material-symbols-outlined text-[40px] text-sky-400">add_task</span>
-                        </div>
-                        <h2 class="text-xl font-bold text-white tracking-[0.2em] uppercase mb-4 font-headline">No Active Rotation</h2>
-                        <p class="text-[12px] text-slate-400 leading-relaxed max-w-md mx-auto mb-10">
-                            Begin your session by establishing an Operational Flight Plan. You can import an existing plan or generate a new one via the integrated SimBrief Dispatch platform.
-                        </p>
-                        <button onclick="window.openIntegratedSimBrief();" class="bg-gradient-to-r from-sky-500 to-sky-400 text-slate-900 px-10 py-5 rounded-2xl hover:brightness-110 transition-all shadow-[0_0_30px_rgba(14,165,233,0.3)] uppercase font-black text-sm tracking-[0.2em] flex items-center gap-4 group cursor-pointer w-full justify-center">
-                            <span class="material-symbols-outlined text-[20px] group-hover:rotate-12 transition-transform">language</span>
-                            Open SimBrief Dispatch
-                        </button>
-                    </div>
-                </div>
+            <section id="briefing" class="tab-content flex flex-col min-h-[calc(100vh-120px)] w-full pt-8">
 
                                 <div id="briefing-content" class="hidden w-full max-w-7xl mx-auto flex flex-col gap-6 pb-20 animate-fade-in relative z-10 transition-opacity duration-500 opacity-0">
                     
@@ -1205,15 +1140,15 @@ tracking-wider">
     </div>
     
     <div id="fenixWarningModal" class="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-sm" style="display: none;">
-        <div class="bg-[#2a2a2b] p-8 rounded-xl max-w-sm text-center border border-gray-600 shadow-2xl">
-            <span class="material-symbols-outlined text-gray-400 text-4xl mb-4">info</span>
-            <h3 class="text-gray-300 font-bold mb-3 font-headline text-lg uppercase tracking-widest" data-i18n="fenix_modal_title">Fenix A320 Notice</h3>
-            <p class="text-gray-400 text-xs mb-8 leading-relaxed" data-i18n="fenix_ofp_warning">
-                FENIX A320 USERS:<br><br>Ensure you have imported your current flight plan into the aircraft EFB <strong>before</strong> generating the next leg's OFP. Otherwise, the aircraft will load the new one incorrectly.
+        <div class="bg-[#1C1F26] p-8 rounded-xl max-w-sm text-center border border-white/10 shadow-2xl">
+            <span class="material-symbols-outlined text-white/50 text-4xl mb-4 block">sync</span>
+            <h3 class="text-white font-bold mb-3 font-headline text-md uppercase tracking-widest" data-i18n="fenix_modal_title">Aircraft EFB Sync</h3>
+            <p class="text-[#b6b6b6] text-xs mb-8 leading-relaxed font-manrope" data-i18n="fenix_ofp_warning">
+                Please import your flight plan in the aircraft's EFB.
             </p>
-            <div class="flex justify-center font-manrope">
-                <button onclick="document.getElementById('fenixWarningModal').style.display='none'; window.triggerSimBriefImport();" class="bg-gray-700/50 border border-gray-500 text-gray-300 hover:text-white px-8 py-3 rounded-xl hover:bg-gray-600 transition-all shadow-xl uppercase font-bold text-[10px] tracking-widest" data-i18n="fenix_modal_ack">ACKNOWLEDGE & IMPORT</button>
-            </div>
+            <button onclick="document.getElementById('fenixWarningModal').style.display='none'; window.triggerSimBriefImport();" class="bg-[#141414] border border-white/10 text-[#b6b6b6] hover:text-white px-6 py-3 rounded-xl hover:bg-white/10 transition-all shadow-xl uppercase font-bold text-[10px] tracking-widest w-full" data-i18n="fenix_modal_ack">
+                DONE
+            </button>
         </div>
     </div>
 
@@ -1514,18 +1449,26 @@ tracking-wider">
             // Check flight plan state and enable/disable the briefing nav button
             const navBriefingBtn = document.getElementById('navBriefingBtn');
             const navFuelBtn = document.getElementById('navFuelBtn');
-            if (navBriefingBtn) {
-                if (window.allRotations && window.allRotations.length > 0) {
-                    navBriefingBtn.classList.remove('opacity-30', 'pointer-events-none', 'cursor-not-allowed');
-                    if(navFuelBtn) navFuelBtn.classList.remove('opacity-30', 'pointer-events-none', 'cursor-not-allowed');
-                } else {
-                    navBriefingBtn.classList.add('opacity-30', 'pointer-events-none', 'cursor-not-allowed');
-                    if(navFuelBtn) navFuelBtn.classList.add('opacity-30', 'pointer-events-none', 'cursor-not-allowed');
-                    if (navBriefingBtn.classList.contains('active')) {
-                        const dashboardBtn = document.querySelector('[data-target="dashboard"]');
-                        // if we're locked out of briefing, force fallback to dashboard
-                        if (dashboardBtn) dashboardBtn.click();
-                    }
+            const navAirframeBtn = document.getElementById('navAirframeBtn');
+            const navFlightLogBtn = document.getElementById('navFlightLogBtn');
+            const navSandboxBtn = document.getElementById('navSandboxBtn');
+
+            const hasSimBrief = window.allRotations && window.allRotations.length > 0 && !window.allRotations[0].isShell;
+            
+            const btnList = [navBriefingBtn, navFuelBtn, navAirframeBtn, navFlightLogBtn, navSandboxBtn];
+
+            if (hasSimBrief) {
+                btnList.forEach(btn => {
+                    if (btn) btn.classList.remove('opacity-30', 'pointer-events-none', 'cursor-not-allowed');
+                });
+            } else {
+                btnList.forEach(btn => {
+                    if (btn) btn.classList.add('opacity-30', 'pointer-events-none', 'cursor-not-allowed');
+                });
+                if (navBriefingBtn && navBriefingBtn.classList.contains('active')) {
+                    const dashboardBtn = document.querySelector('[data-target="dashboard"]');
+                    // if we're locked out of briefing, force fallback to dashboard
+                    if (dashboardBtn) dashboardBtn.click();
                 }
             }
         }, 1000);
@@ -1675,6 +1618,38 @@ tracking-wider">
         </div>
     </div>
     
+    <!-- ADD DUMMY LEG MODAL -->
+    <div id="addDummyLegModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[105] flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-[#1C1F26] border border-white/10 p-6 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] transform scale-95 transition-transform duration-300 w-[380px]">
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="addLegModalTitle" class="text-white font-bold tracking-[0.2em] font-headline uppercase text-sm">Add Leg</h3>
+                <button onclick="document.getElementById('addDummyLegModal').classList.replace('opacity-100', 'opacity-0'); document.getElementById('addDummyLegModal').classList.add('pointer-events-none'); document.getElementById('addDummyLegModal').children[0].classList.replace('scale-100', 'scale-95');" class="text-slate-400 hover:text-white"><span class="material-symbols-outlined text-[16px]">close</span></button>
+            </div>
+            
+            <datalist id="aptDataList"></datalist>
+
+            <div class="space-y-5">
+                <div class="flex justify-center gap-4 w-full">
+                    <div class="flex flex-col items-center">
+                        <label class="text-[9px] uppercase text-[#7b7b7b] tracking-wider mb-2">Origin</label>
+                        <input type="text" id="dlgAddLegOrig" list="aptDataList" onfocus="if(!this.value && this.placeholder){ this.value = this.placeholder; } this.select(); if(window.updateAirportDatalist) window.updateAirportDatalist({target: this})" oninput="if(window.updateAirportDatalist) window.updateAirportDatalist(event)" placeholder="LFPO" class="w-[110px] max-w-[110px] min-w-[110px] bg-black/40 border border-white/10 rounded px-2 py-2 text-white font-bold font-mono uppercase text-center text-base tracking-widest shadow-inner focus:border-sky-500/50 focus:outline-none transition-colors" maxlength="4" />
+                    </div>
+                    <div class="flex flex-col items-center justify-center pt-5">
+                        <span class="material-symbols-outlined text-white/30 text-xl">arrow_right_alt</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <label class="text-[9px] uppercase text-[#7b7b7b] tracking-wider mb-2">Destination</label>
+                        <input type="text" id="dlgAddLegDest" list="aptDataList" onfocus="if(!this.value && this.placeholder){ this.value = this.placeholder; } this.select(); if(window.updateAirportDatalist) window.updateAirportDatalist({target: this})" oninput="if(window.updateAirportDatalist) window.updateAirportDatalist(event)" placeholder="LFBO" class="w-[110px] max-w-[110px] min-w-[110px] bg-black/40 border border-white/10 rounded px-2 py-2 text-white font-bold font-mono uppercase text-center text-base tracking-widest shadow-inner focus:border-sky-500/50 focus:outline-none transition-colors" maxlength="4" />
+                    </div>
+                </div>
+            </div>
+            <div class="mt-8 flex justify-end gap-3">
+                <button onclick="document.getElementById('addDummyLegModal').classList.replace('opacity-100', 'opacity-0'); document.getElementById('addDummyLegModal').classList.add('pointer-events-none'); document.getElementById('addDummyLegModal').children[0].classList.replace('scale-100', 'scale-95');" class="px-5 py-2 text-[11px] font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-colors">Cancel</button>
+                <button onclick="window.confirmAddDummyLeg();" class="px-6 py-2 bg-gradient-to-r from-sky-600 to-sky-500 hover:brightness-110 text-white rounded font-black uppercase text-xs tracking-widest transition-all shadow-[0_0_15px_rgba(56,189,248,0.2)]">Add Leg</button>
+            </div>
+        </div>
+    </div>
+
     <!-- QUIT APP MODAL OVERLAY -->
     <div id="quitConfirmModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
         <div class="bg-[#1C1F26] border border-slate-700/50 rounded-xl shadow-2xl w-[400px] overflow-hidden transform scale-95 transition-transform duration-300 relative">

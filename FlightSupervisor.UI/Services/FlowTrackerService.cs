@@ -46,12 +46,13 @@ namespace FlightSupervisor.UI.Services
         public double FlapsIndex { get; private set; }
         public bool AreSpoilersArmed { get; private set; }
         public bool AreSpoilersRetracted { get; private set; } = true;
-        public int EngineMode { get; private set; } = 2; // 2 = NORM
+        public int EngineMode { get; private set; } = 1; // 1 = NORM
         public bool IsEngineMaster1On { get; private set; }
         public bool IsEngineMaster2On { get; private set; }
         public bool IsGearDown { get; private set; } = true;
         public int StrobeLightState { get; private set; } = 0;
         public bool AreLandingLightsOn { get; private set; } = false;
+        public bool IsBeaconLightOn { get; private set; } = false;
         public int TaxiLightState { get; private set; } = 0;
         public bool IsRnwTurnoffOn { get; private set; }
         public bool AreSeatbeltsOn { get; private set; }
@@ -112,6 +113,7 @@ namespace FlightSupervisor.UI.Services
             _simConnect.OnEngineSwitchesChanged += (mode, m1, m2) => { EngineMode = mode; IsEngineMaster1On = m1; IsEngineMaster2On = m2; };
             _simConnect.OnGearDownReceived += g => IsGearDown = g;
             _simConnect.OnFenixStrobeStateChanged += s => StrobeLightState = s;
+            _simConnect.OnLightBeaconReceived += l => IsBeaconLightOn = l;
             _simConnect.OnLightLandingReceived += l => AreLandingLightsOn = l;
             _simConnect.OnNoseLightChanged += n => TaxiLightState = n;
             _simConnect.OnRunwayTurnoffChanged += r => IsRnwTurnoffOn = r;

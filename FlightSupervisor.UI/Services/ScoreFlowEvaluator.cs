@@ -81,99 +81,164 @@ namespace FlightSupervisor.UI.Services
             // Helper checks
             bool strobeAuto = _flowTracker.StrobeLightState == 0 || _flowTracker.StrobeLightState == 1; // 0=OFF, 1=AUTO
 
+            System.Text.StringBuilder logBuilder = new System.Text.StringBuilder();
+            logBuilder.AppendLine($"\n[SCORE_FLOW] === Phase Ended: {phase.ToString().ToUpper()} ===");
+
+            void CheckRule(string itemName, bool condition, string expectedStr, string failMessage, bool isSafety = false)
+            {
+                if (condition)
+                {
+                    logBuilder.AppendLine($"[SCORE_FLOW] - {itemName}: {expectedStr} -> PASS");
+                }
+                else
+                {
+                    logBuilder.AppendLine($"[SCORE_FLOW] - {itemName}: {expectedStr} -> FAIL");
+                    errors.Add(failMessage);
+                    if (isSafety) safetyViolation = true;
+                }
+            }
+
             switch (phase)
             {
                 case FlightPhase.AtGate:
                 case FlightPhase.Turnaround:
-                    if (!_flowTracker.IsThrustIdle) errors.Add("Thrust Lever not IDLE");
-                    if (!_flowTracker.AreWipersOff) errors.Add("Wipers left ON");
-                    if (_flowTracker.FlapsIndex > 0) errors.Add("Flaps not ZERO");
-                    if (!_flowTracker.AreSpoilersRetracted) errors.Add("GND Spoilers not RETRACTED");
-                    if (_flowTracker.EngineMode != 2) errors.Add("Engine Mode not NORM");
-                    if (_flowTracker.IsEngineMaster1On || _flowTracker.IsEngineMaster2On) errors.Add("Engines not OFF");
-                    if (!_flowTracker.IsGearDown) errors.Add("Gear Lever not DOWN");
-                    if (!strobeAuto) errors.Add("Strobe Light not AUTO");
-                    if (_flowTracker.AreLandingLightsOn) errors.Add("Landing Lights left ON");
-                    if (_flowTracker.TaxiLightState != 0) errors.Add("Taxi Lights left ON");
-                    if (_flowTracker.IsRnwTurnoffOn) errors.Add("Rnw Turnoff left ON");
+                    CheckRule("Parking brakes", _flowTracker.IsParkingBrakeOn, "ON", "Parking brakes not ON");
+                    CheckRule("Thrust Lever", _flowTracker.IsThrustIdle, "IDLE", "Thrust Lever not IDLE");
+                    CheckRule("Whipers (both)", _flowTracker.AreWipersOff, "OFF", "Wipers left ON");
+                    CheckRule("Flaps", _flowTracker.FlapsIndex == 0, "ZERO", "Flaps not ZERO");
+                    CheckRule("GND Spoilers", _flowTracker.AreSpoilersRetracted, "RETRACTED", "GND Spoilers not RETRACTED");
+                    CheckRule("Engine mode", _flowTracker.EngineMode == 1, "NORM", "Engine Mode not NORM");
+                    CheckRule("Engine Master", !_flowTracker.IsEngineMaster1On && !_flowTracker.IsEngineMaster2On, "OFF", "Engines not OFF");
+                    CheckRule("Gear Lever", _flowTracker.IsGearDown, "DOWN", "Gear Lever not DOWN");
+                    CheckRule("Strobe light", strobeAuto, "AUTO", "Strobe Light not AUTO");
+                    CheckRule("Landing lights", !_flowTracker.AreLandingLightsOn, "OFF/RETRACTED", "Landing Lights left ON");
+                    CheckRule("Taxi lights", _flowTracker.TaxiLightState == 0, "OFF", "Taxi Lights left ON");
+                    CheckRule("Rnw Turnoff", !_flowTracker.IsRnwTurnoffOn, "OFF", "Rnw Turnoff left ON");
+                    if (_flowTracker.IsRefueling)
+                        CheckRule("Seat belt", !_flowTracker.AreSeatbeltsOn, "OFF (Refueling)", "Seatbelts ON during Refueling!", true);
+                    else
+                        CheckRule("Seat belt", _flowTracker.AreSeatbeltsOn, "ON", "Seatbelts OFF at Gate");
                     break;
 
                 case FlightPhase.Pushback:
-                    if (_flowTracker.StrobeLightState == 2) errors.Add("Strobe Light left ON");
-                    if (_flowTracker.TaxiLightState != 0) errors.Add("Taxi Lights left ON");
-                    if (!_flowTracker.AreSeatbeltsOn) { errors.Add("Seatbelts OFF during pushback"); safetyViolation = true; }
+                    CheckRule("Beacon light", _flowTracker.IsBeaconLightOn, "ON", "Beacon Light OFF during Pushback", true);
+                    CheckRule("Seat belt", _flowTracker.AreSeatbeltsOn, "ON", "Seatbelts OFF during pushback", true);
+                    CheckRule("Thrust Lever", _flowTracker.IsThrustIdle, "IDLE", "Thrust Lever not IDLE");
+                    CheckRule("Whipers (both)", _flowTracker.AreWipersOff, "OFF", "Wipers left ON");
+                    CheckRule("Flaps", _flowTracker.FlapsIndex == 0, "ZERO", "Flaps not ZERO");
+                    CheckRule("GND Spoilers", _flowTracker.AreSpoilersRetracted, "RETRACTED", "GND Spoilers not RETRACTED");
+                    CheckRule("Parking brakes", _flowTracker.IsParkingBrakeOn, "ON", "Parking brakes not ON");
+                    CheckRule("Gear Lever", _flowTracker.IsGearDown, "DOWN", "Gear Lever not DOWN");
+                    CheckRule("Strobe light", strobeAuto, "AUTO", "Strobe Light not AUTO");
+                    CheckRule("Landing lights", !_flowTracker.AreLandingLightsOn, "OFF/RETRACTED", "Landing Lights left ON");
+                    CheckRule("Taxi lights", _flowTracker.TaxiLightState == 0, "OFF", "Taxi Lights left ON");
+                    CheckRule("Rnw Turnoff", !_flowTracker.IsRnwTurnoffOn, "OFF", "Rnw Turnoff left ON");
                     break;
 
                 case FlightPhase.TaxiOut:
-                    if (!_flowTracker.AreSeatbeltsOn) { errors.Add("Seatbelts OFF during Taxi"); safetyViolation = true; }
-                    if (_flowTracker.TaxiLightState == 0) errors.Add("Taxi Lights OFF during Taxi");
-                    if (!strobeAuto && _flowTracker.StrobeLightState != 1) errors.Add("Strobe should be AUTO");
-                    if (_flowTracker.AreLandingLightsOn) errors.Add("Landing lights ON during taxi");
-                    if (_flowTracker.FlapsIndex == 0) errors.Add("Flaps ZERO during taxi (invalid TO config)");
+                    CheckRule("Seat belt", _flowTracker.AreSeatbeltsOn, "ON", "Seatbelts OFF during Taxi", true);
+                    CheckRule("Taxi lights", _flowTracker.TaxiLightState != 0, "ON", "Taxi Lights OFF during Taxi");
+                    CheckRule("Gear Lever", _flowTracker.IsGearDown, "DOWN", "Gear Lever not DOWN");
+                    CheckRule("Strobe light", strobeAuto, "AUTO", "Strobe should be AUTO");
+                    CheckRule("Landing lights", !_flowTracker.AreLandingLightsOn, "OFF/RETRACTED", "Landing lights ON during taxi");
+                    CheckRule("Flaps", _flowTracker.FlapsIndex > 0 && _flowTracker.FlapsIndex < 4, "1, 2 or 3", "Flaps ZERO or FULL during taxi (invalid TO config)");
+                    CheckRule("Rnw Turnoff", !_flowTracker.IsRnwTurnoffOn, "OFF", "Rnw Turnoff left ON");
                     break;
 
                 case FlightPhase.Takeoff:
-                    if (!_flowTracker.AreLandingLightsOn) errors.Add("Landing lights OFF during Takeoff");
-                    if (_flowTracker.StrobeLightState != 2) errors.Add("Strobe lights OFF during Takeoff (Must be ON)");
-                    if (_flowTracker.TaxiLightState != 2) errors.Add("Taxi Lights not T.O."); // T.O is 2
-                    if (!_flowTracker.AreSpoilersArmed) errors.Add("Spoilers not ARMED for Takeoff");
-                    if (!_flowTracker.AreSeatbeltsOn) { errors.Add("Seatbelts OFF during Takeoff!"); safetyViolation = true; }
+                    CheckRule("Landing lights", _flowTracker.AreLandingLightsOn, "ON", "Landing lights OFF during Takeoff");
+                    CheckRule("Strobe light", _flowTracker.StrobeLightState == 2, "ON", "Strobe lights OFF during Takeoff (Must be ON)");
+                    CheckRule("Taxi lights", _flowTracker.TaxiLightState == 2, "TO", "Taxi Lights not T.O.");
+                    CheckRule("Rnw Turnoff", _flowTracker.IsRnwTurnoffOn, "ON", "Rnw Turnoff OFF during Takeoff");
+                    CheckRule("GND Spoilers", _flowTracker.AreSpoilersArmed, "ARMED", "Spoilers not ARMED for Takeoff");
+                    CheckRule("Seat belt", _flowTracker.AreSeatbeltsOn, "ON", "Seatbelts OFF during Takeoff!", true);
                     break;
 
                 case FlightPhase.InitialClimb:
+                    CheckRule("Gear Lever", !_flowTracker.IsGearDown, "UP", "Gear left DOWN");
+                    CheckRule("Taxi lights", _flowTracker.TaxiLightState == 0, "OFF", "Taxi Lights left ON");
+                    CheckRule("Rnw Turnoff", !_flowTracker.IsRnwTurnoffOn, "OFF", "Rnw Turnoff left ON");
+                    CheckRule("Seat belt", _flowTracker.AreSeatbeltsOn, "ON", "Seatbelts OFF during Initial Climb", true);
+                    break;
+
                 case FlightPhase.Climb:
-                    if (_flowTracker.IsGearDown) errors.Add("Gear left DOWN");
-                    if (_flowTracker.TaxiLightState != 0) errors.Add("Taxi Lights left ON");
-                    if (_flowTracker.IsRnwTurnoffOn) errors.Add("Rnw Turnoff left ON");
-                    if (_flowTracker.FlapsIndex > 0) errors.Add("Flaps left EXTENDED");
-                    if (!_flowTracker.AreSpoilersRetracted) errors.Add("Spoilers left EXTENDED");
+                    CheckRule("Gear Lever", !_flowTracker.IsGearDown, "UP", "Gear left DOWN");
+                    CheckRule("Taxi lights", _flowTracker.TaxiLightState == 0, "OFF", "Taxi Lights left ON");
+                    CheckRule("Rnw Turnoff", !_flowTracker.IsRnwTurnoffOn, "OFF", "Rnw Turnoff left ON");
+                    CheckRule("Flaps", _flowTracker.FlapsIndex == 0, "ZERO", "Flaps left EXTENDED");
+                    CheckRule("GND Spoilers", _flowTracker.AreSpoilersRetracted, "RETRACTED", "Spoilers left EXTENDED");
                     break;
 
                 case FlightPhase.Cruise:
-                    if (_flowTracker.IsGearDown) errors.Add("Gear left DOWN in Cruise");
-                    if (_flowTracker.TaxiLightState != 0) errors.Add("Taxi Lights left ON in Cruise");
-                    if (_flowTracker.FlapsIndex > 0) errors.Add("Flaps left EXTENDED in Cruise");
-                    if (_flowTracker.AreLandingLightsOn) errors.Add("Landing lights left ON in Cruise");
+                    CheckRule("Gear Lever", !_flowTracker.IsGearDown, "UP", "Gear left DOWN in Cruise");
+                    CheckRule("Taxi lights", _flowTracker.TaxiLightState == 0, "OFF", "Taxi Lights left ON in Cruise");
+                    CheckRule("Rnw Turnoff", !_flowTracker.IsRnwTurnoffOn, "OFF", "Rnw Turnoff left ON");
+                    CheckRule("Flaps", _flowTracker.FlapsIndex == 0, "ZERO", "Flaps left EXTENDED in Cruise");
+                    CheckRule("GND Spoilers", _flowTracker.AreSpoilersRetracted, "RETRACTED", "Spoilers left EXTENDED in Cruise");
+                    CheckRule("Landing lights", !_flowTracker.AreLandingLightsOn, "OFF/RETRACTED", "Landing lights left ON in Cruise");
                     break;
 
                 case FlightPhase.Descent:
-                    if (!_flowTracker.AreSeatbeltsOn) errors.Add("Seatbelts OFF entering Descent");
-                    // Landing lights checked externally by FlightPhaseManager rule for < 10,000ft
+                    CheckRule("Gear Lever", !_flowTracker.IsGearDown, "UP", "Gear left DOWN");
+                    CheckRule("Taxi lights", _flowTracker.TaxiLightState == 0, "OFF", "Taxi Lights left ON");
+                    CheckRule("Rnw Turnoff", !_flowTracker.IsRnwTurnoffOn, "OFF", "Rnw Turnoff left ON");
+                    CheckRule("Seat belt", _flowTracker.AreSeatbeltsOn, "ON", "Seatbelts OFF entering Descent");
+                    CheckRule("Landing lights", _flowTracker.AreLandingLightsOn, "ON", "Landing lights OFF entering Approach");
                     break;
 
                 case FlightPhase.Approach:
-                    if (!_flowTracker.IsGearDown) errors.Add("Gear UP during Approach");
-                    if (_flowTracker.TaxiLightState != 2) errors.Add("Taxi Lights not T.O.");
-                    if (!_flowTracker.IsRnwTurnoffOn) errors.Add("Rnw Turnoff OFF during Approach");
-                    if (!_flowTracker.AreSpoilersArmed) errors.Add("Spoilers not ARMED for Approach");
-                    if (_flowTracker.FlapsIndex == 0) errors.Add("Flaps ZERO during Approach");
+                    CheckRule("Gear Lever", _flowTracker.IsGearDown, "DOWN", "Gear UP during Approach");
+                    CheckRule("Taxi lights", _flowTracker.TaxiLightState == 2, "TO", "Taxi Lights not T.O.");
+                    CheckRule("Rnw Turnoff", _flowTracker.IsRnwTurnoffOn, "ON", "Rnw Turnoff OFF during Approach");
+                    CheckRule("GND Spoilers", _flowTracker.AreSpoilersArmed, "ARMED", "Spoilers not ARMED for Approach");
+                    CheckRule("Flaps", _flowTracker.FlapsIndex >= 3, "3 or Full", "Flaps not 3/Full during Approach");
                     break;
 
                 case FlightPhase.Landing:
-                    if (!_flowTracker.IsGearDown) errors.Add("Gear UP during Landing");
-                    if (_flowTracker.TaxiLightState == 0) errors.Add("Taxi Lights OFF during Landing");
+                    CheckRule("Gear Lever", _flowTracker.IsGearDown, "DOWN", "Gear UP during Landing");
+                    CheckRule("Taxi lights", _flowTracker.TaxiLightState != 0, "ON", "Taxi Lights OFF during Landing");
+                    CheckRule("Rnw Turnoff", !_flowTracker.IsRnwTurnoffOn, "OFF", "Rnw Turnoff ON during Landing");
+                    CheckRule("GND Spoilers", _flowTracker.AreSpoilersRetracted, "RETRACTED", "GND Spoilers left ARMED/EXT");
+                    CheckRule("Strobe light", strobeAuto, "AUTO", "Strobe should be AUTO");
+                    CheckRule("Landing lights", !_flowTracker.AreLandingLightsOn, "OFF/RETRACTED", "Landing lights ON during Landing");
                     break;
 
                 case FlightPhase.TaxiIn:
-                    if (!_flowTracker.AreSeatbeltsOn) errors.Add("Seatbelts OFF during Taxi In");
-                    if (_flowTracker.TaxiLightState == 0) errors.Add("Taxi Lights OFF during Taxi In");
-                    if (!strobeAuto && _flowTracker.StrobeLightState != 1) errors.Add("Strobe should be AUTO");
-                    if (_flowTracker.AreLandingLightsOn) errors.Add("Landing lights ON during taxi");
-                    if (_flowTracker.FlapsIndex > 0) errors.Add("Flaps not retracted during taxi in");
+                    CheckRule("Seat belt", _flowTracker.AreSeatbeltsOn, "ON", "Seatbelts OFF during Taxi In", true);
+                    CheckRule("Taxi lights", _flowTracker.TaxiLightState != 0, "ON", "Taxi Lights OFF during Taxi In");
+                    CheckRule("Gear Lever", _flowTracker.IsGearDown, "DOWN", "Gear UP during Taxi In");
+                    CheckRule("Strobe light", strobeAuto, "AUTO", "Strobe should be AUTO");
+                    CheckRule("Landing lights", !_flowTracker.AreLandingLightsOn, "OFF/RETRACTED", "Landing lights ON during taxi");
+                    CheckRule("Flaps", _flowTracker.FlapsIndex == 0, "ZERO", "Flaps not retracted during taxi in");
+                    CheckRule("Rnw Turnoff", !_flowTracker.IsRnwTurnoffOn, "OFF", "Rnw Turnoff ON during Taxi In");
                     break;
 
                 case FlightPhase.Arrived:
-                    if (_flowTracker.StrobeLightState == 2) errors.Add("Beacon/Strobe Light left ON at gate");
-                    if (!_flowTracker.IsThrustIdle) errors.Add("Thrust Lever not IDLE");
-                    if (!_flowTracker.AreWipersOff) errors.Add("Wipers left ON");
-                    if (_flowTracker.FlapsIndex > 0) errors.Add("Flaps left EXTENDED");
-                    if (_flowTracker.EngineMode != 2) errors.Add("Engine Mode not NORM");
-                    if (_flowTracker.IsEngineMaster1On || _flowTracker.IsEngineMaster2On) errors.Add("Engines left ON");
-                    if (!strobeAuto) errors.Add("Strobe Light not AUTO");
-                    if (_flowTracker.AreLandingLightsOn) errors.Add("Landing Lights left ON");
-                    if (_flowTracker.TaxiLightState != 0) errors.Add("Taxi Lights left ON");
+                    CheckRule("Beacon light", !_flowTracker.IsBeaconLightOn, "OFF", "Beacon Light left ON at gate");
+                    CheckRule("Thrust Lever", _flowTracker.IsThrustIdle, "IDLE", "Thrust Lever not IDLE");
+                    CheckRule("Whipers (both)", _flowTracker.AreWipersOff, "OFF", "Wipers left ON");
+                    CheckRule("Flaps", _flowTracker.FlapsIndex == 0, "ZERO", "Flaps left EXTENDED");
+                    CheckRule("GND Spoilers", _flowTracker.AreSpoilersRetracted, "RETRACTED", "Spoilers not RETRACTED");
+                    CheckRule("Engine mode", _flowTracker.EngineMode == 1, "NORM", "Engine Mode not NORM");
+                    CheckRule("Engine Master", !_flowTracker.IsEngineMaster1On && !_flowTracker.IsEngineMaster2On, "OFF", "Engines left ON");
+                    CheckRule("Gear Lever", _flowTracker.IsGearDown, "DOWN", "Gear Lever not DOWN");
+                    CheckRule("Strobe light", strobeAuto, "AUTO", "Strobe Light not AUTO");
+                    CheckRule("Landing lights", !_flowTracker.AreLandingLightsOn, "OFF/RETRACTED", "Landing Lights left ON");
+                    CheckRule("Taxi lights", _flowTracker.TaxiLightState == 0, "OFF", "Taxi Lights left ON");
+                    CheckRule("Rnw Turnoff", !_flowTracker.IsRnwTurnoffOn, "OFF", "Rnw Turnoff left ON");
+                    CheckRule("Seat belt", !_flowTracker.AreSeatbeltsOn, "OFF", "Seatbelts left ON");
                     break;
             }
+
+            logBuilder.AppendLine($"[SCORE_FLOW] -> Total Violations: {errors.Count}");
+            logBuilder.AppendLine("[SCORE_FLOW] =======================================\n");
+            
+            try
+            {
+                System.IO.File.AppendAllText("sync_debug.txt", logBuilder.ToString());
+                System.Diagnostics.Debug.WriteLine(logBuilder.ToString());
+            }
+            catch { }
 
             if (errors.Count > 0)
             {

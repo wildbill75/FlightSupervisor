@@ -89,7 +89,7 @@ namespace FlightSupervisor.UI.Services
                 }
             }
 
-            var cargoSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Cargo/Luggage" || s.Name == "Cargo");
+            var cargoSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Cargo Loading" || s.Name == "Cargo Unloading" || s.Name == "Cargo/Luggage" || s.Name == "Cargo");
             if (cargoSvc != null && (cargoSvc.State == GroundServiceState.InProgress || cargoSvc.State == GroundServiceState.Completed))
             {
                 if (cargoSvc.ElapsedSec < _lastCargoSec) _lastCargoSec = 0;
@@ -135,25 +135,31 @@ namespace FlightSupervisor.UI.Services
 
             if (deboardSvc != null && targetManifest != null && targetManifest.Any(p => p.IsBoarded))
             {
-                if (deboardSvc.State == GroundServiceState.InProgress)
+                // Prevent Deboarding from ripping out passengers if we have already moved on to the Boarding phase
+                bool isBoardingActive = boardSvc != null && (boardSvc.State == GroundServiceState.InProgress || boardSvc.State == GroundServiceState.Completed);
+                
+                if (!isBoardingActive)
                 {
-                    double ratio = (double)deboardSvc.ElapsedSec / Math.Max(1, deboardSvc.TotalDurationSec);
-                    ratio = Math.Max(0.0, Math.Min(1.0, ratio));
-                    int expectedRemaining = (int)(targetManifest.Count * (1.0 - ratio));
-                    int currentlyBoarded = targetManifest.Count(p => p.IsBoarded);
-                    
-                    if (currentlyBoarded > expectedRemaining)
+                    if (deboardSvc.State == GroundServiceState.InProgress)
                     {
-                        int toDeboard = currentlyBoarded - expectedRemaining;
-                        _cabinManager.DeboardPassenger(toDeboard);
+                        double ratio = (double)deboardSvc.ElapsedSec / Math.Max(1, deboardSvc.TotalDurationSec);
+                        ratio = Math.Max(0.0, Math.Min(1.0, ratio));
+                        int expectedRemaining = (int)(targetManifest.Count * (1.0 - ratio));
+                        int currentlyBoarded = targetManifest.Count(p => p.IsBoarded);
+                        
+                        if (currentlyBoarded > expectedRemaining)
+                        {
+                            int toDeboard = currentlyBoarded - expectedRemaining;
+                            _cabinManager.DeboardPassenger(toDeboard);
+                        }
                     }
-                }
-                else if (deboardSvc.State == GroundServiceState.Completed)
-                {
-                    int currentlyBoarded = targetManifest.Count(p => p.IsBoarded);
-                    if (currentlyBoarded > 0)
+                    else if (deboardSvc.State == GroundServiceState.Completed)
                     {
-                        _cabinManager.DeboardPassenger(currentlyBoarded);
+                        int currentlyBoarded = targetManifest.Count(p => p.IsBoarded);
+                        if (currentlyBoarded > 0)
+                        {
+                            _cabinManager.DeboardPassenger(currentlyBoarded);
+                        }
                     }
                 }
             }

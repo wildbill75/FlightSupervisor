@@ -7,6 +7,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
 {
     public class SimBriefResponse
     {
+        [JsonPropertyName("isDummy")]
+        public bool IsDummy { get; set; } = false;
+
         [JsonPropertyName("fetch")]
         public FetchInfo? Fetch { get; set; }
 
