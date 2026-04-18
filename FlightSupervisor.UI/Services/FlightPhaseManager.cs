@@ -70,7 +70,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<FlightPhase>? OnPhaseChanged;
         public event Action? OnGoAroundFinished;
         public event Action<string>? OnPenaltyTriggered;
-        public event Action<string>? OnFoMessage;
+        public event Action<string, string>? OnFoMessage;
         
         private bool _hasTriggeredOverspeedPenalty = false;
         private bool _hasTriggeredTaxiPenalty = false;
@@ -88,6 +88,7 @@ namespace FlightSupervisor.UI.Services
         private bool _hasFoWarnedSeatbeltDesc = false;
         private bool _hasFoWarnedLights10kClimb = false;
         private bool _hasFoWarnedLights10kDesc = false;
+        private bool _hasFoWarnedFlapsUp = false;
         private DateTime _lastTightTurnPenalty = DateTime.MinValue;
         private double? _lastHeading = null;
         public double Heading { get; private set; }
@@ -138,6 +139,7 @@ namespace FlightSupervisor.UI.Services
         public bool IsRunwayTurnoffLightOn { get; set; } = false;
         public int FenixStrobeLight { get; set; } = 0; // 0=OFF, 1=AUTO, 2=ON
         public bool IsSeatbeltsOn { get; set; } = true;
+        public double FlapsPosition { get; set; } = 0.0;
         public bool FenixApuMaster { get; set; } = false;
         public bool FenixApuStart { get; set; } = false;
         public bool FenixApuBleed { get; set; } = false;
@@ -375,37 +377,42 @@ namespace FlightSupervisor.UI.Services
             if (!isGearDown && CurrentPhase == FlightPhase.Approach && radioHeight < 2000 && !_hasFoWarnedGearDown)
             {
                 _hasFoWarnedGearDown = true;
-                OnFoMessage?.Invoke("Captain, crossing 2000, gear is not down.");
+                OnFoMessage?.Invoke("Warn_GearNotDown.mp3", "Captain, crossing 2000, gear is not down.");
             }
             if (isGearDown && (CurrentPhase == FlightPhase.Takeoff || CurrentPhase == FlightPhase.InitialClimb || CurrentPhase == FlightPhase.Climb) && indicatedAirspeed > 200.0 && !_hasFoWarnedGearUp)
             {
                 _hasFoWarnedGearUp = true;
-                OnFoMessage?.Invoke("Captain, speed is increasing, gear is still down.");
+                OnFoMessage?.Invoke("Warn_GearExtended.mp3", "Captain, speed is increasing, gear is still down.");
+            }
+            if (FlapsPosition > 0.0 && (CurrentPhase == FlightPhase.Takeoff || CurrentPhase == FlightPhase.InitialClimb || CurrentPhase == FlightPhase.Climb) && indicatedAirspeed > 210.0 && !_hasFoWarnedFlapsUp)
+            {
+                _hasFoWarnedFlapsUp = true;
+                OnFoMessage?.Invoke("Warn_FlapsExtended.mp3", "Captain, speed is increasing, flaps are still extended.");
             }
             if (CurrentPhase == FlightPhase.TaxiOut && groundSpeed > 5.0 && !IsSeatbeltsOn && !_hasFoWarnedSeatbeltTaxi)
             {
                 _hasFoWarnedSeatbeltTaxi = true;
-                OnFoMessage?.Invoke("Captain, aircraft is moving, seatbelts are off.");
+                OnFoMessage?.Invoke("Warn_SeatbeltTaxi.mp3", "Captain, aircraft is moving, seatbelts are off.");
             }
             if ((CurrentPhase == FlightPhase.Climb || CurrentPhase == FlightPhase.Cruise) && altitude > TargetCruiseAltitude - 500 && altitude > 10000 && IsSeatbeltsOn && !_hasFoWarnedSeatbelt10k)
             {
                 _hasFoWarnedSeatbelt10k = true;
-                OnFoMessage?.Invoke("We've reached cruise altitude, consider releasing the cabin.");
+                OnFoMessage?.Invoke("Warn_Seatbelt10k.mp3", "We've reached cruise altitude, consider releasing the cabin.");
             }
             if ((CurrentPhase == FlightPhase.Descent || CurrentPhase == FlightPhase.Approach) && altitude < 9500 && !IsSeatbeltsOn && !_hasFoWarnedSeatbeltDesc)
             {
                 _hasFoWarnedSeatbeltDesc = true;
-                OnFoMessage?.Invoke("Passing 10,000, seatbelts sign is off.");
+                OnFoMessage?.Invoke("Warn_SeatbeltDesc.mp3", "Passing 10,000, seatbelts sign is off.");
             }
             if ((CurrentPhase == FlightPhase.Climb || CurrentPhase == FlightPhase.Cruise) && altitude > 10500 && (IsLandingLightOn || FenixNoseLight == 2) && !_hasFoWarnedLights10kClimb)
             {
                 _hasFoWarnedLights10kClimb = true;
-                OnFoMessage?.Invoke("Passing 10,000, landing lights are still on.");
+                OnFoMessage?.Invoke("Warn_LightsClimb.mp3", "Passing 10,000, landing lights are still on.");
             }
             if ((CurrentPhase == FlightPhase.Descent || CurrentPhase == FlightPhase.Approach) && altitude < 9500 && !IsLandingLightOn && FenixNoseLight == 0 && !_hasFoWarnedLights10kDesc)
             {
                 _hasFoWarnedLights10kDesc = true;
-                OnFoMessage?.Invoke("Passing 10,000, landing lights are off.");
+                OnFoMessage?.Invoke("Warn_LightsDesc.mp3", "Passing 10,000, landing lights are off.");
             }
             // ----------------------------------
 

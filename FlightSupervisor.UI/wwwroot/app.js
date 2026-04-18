@@ -189,7 +189,21 @@ window.populateBriefingView = (index = 0) => {
                 pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full ${visColor} opacity-80"></div> <span class="${visText} font-bold">${st.Visibility}</span></div>`;
             }
 
-            if (st.CloudBase) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-slate-500 opacity-80"></div> <span class="text-white font-bold">${st.CloudBase}</span></div>`;
+            if (st.CloudBase) {
+                let cloudColor = 'bg-slate-500', cloudText = 'text-white';
+                let rawSev = st.CloudSeverity || st.cloudSeverity;
+                if (rawSev === 2 || rawSev === 'Danger') { cloudColor = 'bg-red-500 animate-pulse'; cloudText = 'text-red-400'; }
+                else if (rawSev === 1 || rawSev === 'Warning') { cloudColor = 'bg-orange-500 animate-pulse'; cloudText = 'text-orange-400'; }
+                else {
+                    let numMatch = st.CloudBase.match(/(?:OVC|BKN)(\d{3})/);
+                    if (numMatch) {
+                        let height = parseInt(numMatch[1], 10) * 100;
+                        if (height < 500) { cloudColor = 'bg-red-500 animate-pulse'; cloudText = 'text-red-400'; }
+                        else if (height < 1500) { cloudColor = 'bg-orange-500 animate-pulse'; cloudText = 'text-orange-400'; }
+                    }
+                }
+                pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full ${cloudColor} opacity-80"></div> <span class="${cloudText} font-bold">${st.CloudBase}</span></div>`;
+            }
 
             
             if (st.RunwayAdvice && st.RunwayAdvice.includes('Runway')) {
@@ -307,9 +321,15 @@ window.isDispatchSignedOff = false;
 
 window.navigateDashboardLeg = (dir) => {
     if (!window.allRotations || window.allRotations.length === 0) return;
+    const oldIndex = window.dashboardActiveLegIndex;
     window.dashboardActiveLegIndex += dir;
     if (window.dashboardActiveLegIndex < 0) window.dashboardActiveLegIndex = 0;
     if (window.dashboardActiveLegIndex >= window.allRotations.length) window.dashboardActiveLegIndex = window.allRotations.length - 1;
+    
+    if (oldIndex !== window.dashboardActiveLegIndex) {
+        window.navDirection = dir; // 1 for right, -1 for left
+    }
+    
     window.populateDashboardActiveLeg(window.dashboardActiveLegIndex);
     if (window.populateBriefingView) window.populateBriefingView(window.dashboardActiveLegIndex);
     if (window.renderBriefingTimeline) window.renderBriefingTimeline();
@@ -575,8 +595,29 @@ window.populateDashboardActiveLeg = (index = 0) => {
 
         activeContainer.setAttribute('data-sig', currentSig);
 
+        let animClass = "animate-fade-in";
+        let customAnimStyle = "";
+        if (window.navDirection === 1) {
+            animClass = "";
+            customAnimStyle = "animation: _slideInRight 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;";
+        } else if (window.navDirection === -1) {
+            animClass = "";
+            customAnimStyle = "animation: _slideInLeft 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;";
+        }
+        window.navDirection = null; // Reset it
+
         activeContainer.innerHTML = `
-            <div class="w-full flex flex-col gap-2 animate-fade-in">
+            <style>
+                @keyframes _slideInRight {
+                    0% { opacity: 0; transform: translateX(50px); }
+                    100% { opacity: 1; transform: translateX(0); }
+                }
+                @keyframes _slideInLeft {
+                    0% { opacity: 0; transform: translateX(-50px); }
+                    100% { opacity: 1; transform: translateX(0); }
+                }
+            </style>
+            <div class="w-full flex flex-col gap-2 ${animClass}" style="${customAnimStyle}">
 
                 <!-- Bottom Row: Leg Pill + Add Button -->
                 <div class="flex items-stretch w-full gap-2">
@@ -600,12 +641,15 @@ window.populateDashboardActiveLeg = (index = 0) => {
                                     ${window.airportsDb && window.airportsDb[rd.origin?.icao_code] ? window.formatAirportLabel(window.airportsDb[rd.origin.icao_code].city, window.airportsDb[rd.origin.icao_code].name) : ''}
                                 </div>
                                 <div class="text-[11px] font-bold text-[#7b7b7b] uppercase mt-2 tracking-wider whitespace-nowrap">RWY:${rd.origin?.plan_rwy || '---'} <span class="mx-1">/</span> QNH:<span id="dashDepQnh">${depQnh}</span></div>
-                                <div class="text-[14px] font-bold text-white uppercase mt-1 tracking-widest">${rd.times?.sched_out ? new Date(parseInt(rd.times.sched_out) * 1000).toISOString().substr(11, 5) + 'Z' : '--:--'}</div>
+                                <div class="text-[14px] font-bold text-white uppercase mt-1 tracking-widest">${rd.times?.sched_out ? window.getFormattedTime(parseInt(rd.times.sched_out)) : '--:--'}</div>
                             </div>
 
                             <!-- Center: ROUTE & ETE -->
                             <div class="flex flex-col items-center flex-1 px-8 z-10 w-full overflow-hidden pointer-events-none pb-4">
-                                <div class="text-[12px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase text-center mt-3">ETE ${ete}</div>
+                                <div class="text-[12px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase text-center mt-3 flex items-center justify-center gap-2">
+                                    <span class="bg-sky-500/10 text-sky-400 px-2 py-0.5 rounded border border-sky-500/20">LEG ${index + 1}</span> 
+                                    ETE ${ete}
+                                </div>
                                 <div class="text-[16px] font-bold text-white tracking-widest uppercase mt-1 text-center">${fl}</div>
                                 
                                 <div class="w-full flex items-center justify-center my-4 relative pointer-events-none">
@@ -668,7 +712,7 @@ window.populateDashboardActiveLeg = (index = 0) => {
                                     ${window.airportsDb && window.airportsDb[rd.destination?.icao_code] ? window.formatAirportLabel(window.airportsDb[rd.destination.icao_code].city, window.airportsDb[rd.destination.icao_code].name) : ''}
                                 </div>
                                 <div class="text-[11px] font-bold text-[#7b7b7b] uppercase mt-2 tracking-wider whitespace-nowrap">RWY:${rd.destination?.plan_rwy || '---'} <span class="mx-1">/</span> QNH:<span id="dashArrQnh">${arrQnh}</span></div>
-                                <div class="text-[14px] font-bold text-white uppercase mt-1 tracking-widest">${rd.times?.sched_in ? new Date(parseInt(rd.times.sched_in) * 1000).toISOString().substr(11, 5) + 'Z' : '--:--'}</div>
+                                <div class="text-[14px] font-bold text-white uppercase mt-1 tracking-widest">${rd.times?.sched_in ? window.getFormattedTime(parseInt(rd.times.sched_in)) : '--:--'}</div>
                             </div>
                         </div>
 
@@ -1270,6 +1314,32 @@ window.renderBriefingTabs = () => {
         document.getElementById('chkGsxSync').checked = (savedGsx === 'true');
     }
 
+    // Audio Volumes
+    const savedVolPa = localStorage.getItem('volumePa');
+    if (savedVolPa !== null && document.getElementById('rngVolumePa')) {
+        document.getElementById('rngVolumePa').value = savedVolPa;
+        if (document.getElementById('lblVolumePa')) document.getElementById('lblVolumePa').innerText = savedVolPa + '%';
+    }
+    const savedVolPnc = localStorage.getItem('volumePnc');
+    if (savedVolPnc !== null && document.getElementById('rngVolumePnc')) {
+        document.getElementById('rngVolumePnc').value = savedVolPnc;
+        if (document.getElementById('lblVolumePnc')) document.getElementById('lblVolumePnc').innerText = savedVolPnc + '%';
+    }
+
+    // Connect slider input events
+    const rngVolPa = document.getElementById('rngVolumePa');
+    if (rngVolPa) {
+        rngVolPa.addEventListener('input', (e) => {
+            if (document.getElementById('lblVolumePa')) document.getElementById('lblVolumePa').innerText = e.target.value + '%';
+        });
+    }
+    const rngVolPnc = document.getElementById('rngVolumePnc');
+    if (rngVolPnc) {
+        rngVolPnc.addEventListener('input', (e) => {
+            if (document.getElementById('lblVolumePnc')) document.getElementById('lblVolumePnc').innerText = e.target.value + '%';
+        });
+    }
+
     // UI Options Load
     const selItems = ['selLanguage', 'selTimeFormat', 'selUnitSpeed', 'selUnitAlt', 'selUnitWeight', 'selUnitTemp', 'selUnitPress', 'selCrisisFreq'];
     selItems.forEach(id => {
@@ -1486,7 +1556,8 @@ window.renderBriefingTabs = () => {
                 }
             }
 
-            return `<button onclick="${onclickStr}" class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all ${colorClasses}">
+            let finalClasses = o.customClass ? o.customClass : colorClasses;
+            return `<button onclick="${onclickStr}" class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all ${finalClasses}">
                         ${o.text}
                     </button>`;
         }).join('');
@@ -1546,11 +1617,13 @@ window.renderBriefingTabs = () => {
         const diffSec = payload.cabinReportCooldownElapsed || 999;
         const isCd = diffSec < 120;
         
+        const isIncoming = window.isCabinCallIncoming === true;
         pncOptions.push({
-            val: 'intercomQuery',
-            text: 'CABIN REPORT',
-            disabled: isCd,
-            action: 'intercomQuery'
+            val: isIncoming ? 'answerCall' : 'intercomQuery',
+            text: isIncoming ? 'CABIN CALLING' : 'CABIN REPORT',
+            disabled: isIncoming ? false : isCd,
+            action: isIncoming ? 'answerPncCall' : 'intercomQuery',
+            customClass: isIncoming ? 'animate-pulse bg-orange-600/80 text-white border-orange-500 shadow-[0_0_15px_rgba(234,88,12,0.6)]' : ''
         });
 
         if (!used.includes('ARM_DOORS') && ['AtGate', 'Pushback'].includes(phase)) {
@@ -1680,6 +1753,8 @@ window.renderBriefingTabs = () => {
             const weatherSrc = document.getElementById('selWeatherSource') ? document.getElementById('selWeatherSource').value : 'SimBrief';
             const fenixPath = document.getElementById('fenixExportPath') ? document.getElementById('fenixExportPath').value : '';
             const gsxSync = document.getElementById('chkGsxSync') ? document.getElementById('chkGsxSync').checked : false;
+            const volPa = document.getElementById('rngVolumePa') ? document.getElementById('rngVolumePa').value : '100';
+            const volPnc = document.getElementById('rngVolumePnc') ? document.getElementById('rngVolumePnc').value : '100';
             const savedFfc = localStorage.getItem('firstFlightClean');
             const ffClean = document.getElementById('chkFirstFlightClean') ? document.getElementById('chkFirstFlightClean').checked : (savedFfc === 'true');
 
@@ -1696,6 +1771,8 @@ window.renderBriefingTabs = () => {
             const hardcore = document.getElementById('chkHardcore') ? document.getElementById('chkHardcore').checked : false;
             localStorage.setItem('chkHardcore', hardcore);
             localStorage.setItem('firstFlightClean', ffClean);
+            localStorage.setItem('volumePa', volPa);
+            localStorage.setItem('volumePnc', volPnc);
 
             const isTop = document.getElementById('chkAlwaysOnTop') ? document.getElementById('chkAlwaysOnTop').checked : false;
             localStorage.setItem('chkAlwaysOnTop', isTop);
@@ -1714,7 +1791,9 @@ window.renderBriefingTabs = () => {
                     groundSpeed: groundSpeed,
                     groundProb: groundProb,
                     firstFlightClean: ffClean,
-                    gsxSync: gsxSync
+                    gsxSync: gsxSync,
+                    volumePa: volPa,
+                    volumePnc: volPnc
                 }
             });
             localStorage.setItem('weatherSource', weatherSrc);
@@ -2495,6 +2574,10 @@ window.renderBriefingTabs = () => {
                 }
                 break;
             case 'telemetry':
+                if (window._prevGlobalOffset !== payload.globalTimeOffsetSeconds) {
+                    window._prevGlobalOffset = payload.globalTimeOffsetSeconds;
+                    if (window.renderBriefingTabs) window.renderBriefingTabs();
+                }
                 window.lastTelemetry = payload;
                 if (payload.fob !== undefined) {
                     window.currentFobKg = payload.fob;
@@ -2834,10 +2917,13 @@ window.renderBriefingTabs = () => {
                     }
 
                     if (window.activeLegIndex !== targetIndex) {
+                        window.navDirection = 1; // Auto-slide to the right when advancing leg
                         window.activeLegIndex = targetIndex;
                         // Sync dashboard view with active leg
                         window.dashboardActiveLegIndex = window.activeLegIndex;
                         window.manifest = null; // Clear manifest to force reload for new leg
+                        window.finalAobtUnix = null; // Clear cached times
+                        window.finalAibtUnix = null; // Clear cached times
                         if (window.renderBriefingTabs) window.renderBriefingTabs();
                         if (window.renderBriefingTimeline) window.renderBriefingTimeline();
                         if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex);

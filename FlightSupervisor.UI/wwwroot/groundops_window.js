@@ -234,5 +234,53 @@ function renderGroundOps(services, isDispatchSignedOff = true, isSeatbeltsOn = t
     });
 
     html += '</div>';
-    container.innerHTML = html;
+
+    // Anti-flicker fast DOM sync
+    if (!window.__goNumCards || window.__goNumCards !== combinedServices.length || window.__dispatchState !== isDispatchSignedOff) {
+        container.innerHTML = html;
+        window.__goNumCards = combinedServices.length;
+        window.__dispatchState = isDispatchSignedOff;
+    } else {
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        const curCards = container.querySelectorAll('.bg-\\[\\#1C1F26\\]\\/90');
+        const newCards = temp.querySelectorAll('.bg-\\[\\#1C1F26\\]\\/90');
+
+        for (let i = 0; i < curCards.length; i++) {
+            if (!newCards[i]) continue;
+            
+            // Sync progress bar styles
+            const curBars = curCards[i].querySelectorAll('.bg-black\\/40 div');
+            const newBars = newCards[i].querySelectorAll('.bg-black\\/40 div');
+            for(let j=0; j<curBars.length; j++) {
+                if (newBars[j]) curBars[j].setAttribute('style', newBars[j].getAttribute('style') || '');
+            }
+
+            // Sync button innerHTML and attributes
+            const curBtn = curCards[i].querySelector('button');
+            const newBtn = newCards[i].querySelector('button');
+            if (curBtn && newBtn) {
+                curBtn.className = newBtn.className;
+                curBtn.setAttribute('style', newBtn.getAttribute('style') || '');
+                if (curBtn.innerHTML !== newBtn.innerHTML) {
+                    curBtn.innerHTML = newBtn.innerHTML;
+                }
+                curBtn.setAttribute('onclick', newBtn.getAttribute('onclick') || '');
+            }
+
+            // Sync skip button panel
+            const curSkip = curCards[i].querySelector('.bottom-3.right-3');
+            const newSkip = newCards[i].querySelector('.bottom-3.right-3');
+            if (newSkip && !curSkip) {
+                curCards[i].appendChild(newSkip.cloneNode(true));
+            } else if (!newSkip && curSkip) {
+                curSkip.remove();
+            } else if (newSkip && curSkip && curSkip.innerHTML !== newSkip.innerHTML) {
+                curSkip.innerHTML = newSkip.innerHTML;
+            }
+            
+            // Sync position styles if needed (if dynamically moved)
+            curCards[i].setAttribute('style', newCards[i].getAttribute('style') || '');
+        }
+    }
 }

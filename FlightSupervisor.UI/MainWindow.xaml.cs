@@ -248,6 +248,13 @@ namespace FlightSupervisor.UI
                     _cabinManager.StartDeboarding();
                 }
             };
+            
+            _groundOpsManager.OnServiceCompleted += srvName => {
+                if (srvName.Contains("Clean", StringComparison.OrdinalIgnoreCase) || srvName.Contains("PNC Chores", StringComparison.OrdinalIgnoreCase))
+                {
+                    _cabinManager?.PlayCabinReady();
+                }
+            };
 
             _eventEngine = new FlightSupervisor.UI.Services.GroundEventEngine();
             _eventEngine.OnEventTriggered += OnGroundEventTriggered;
@@ -274,6 +281,9 @@ namespace FlightSupervisor.UI
                 }
             };
             
+            _cabinManager.OnCabinCallIncoming += (callState) => {
+                SendToWeb(new { type = "incoming_pnc_call", state = callState });
+            };
             _cabinManager.OnDeboardingComplete += () => {
                 SendToWeb(new { type = "log", message = "[SYSTEM] Cabin secured, passengers have disembarked." });
             };
@@ -450,10 +460,14 @@ namespace FlightSupervisor.UI
                 // Continuous Check for Refueling rules
                 if (_phaseManager.IsSeatbeltsOn && _groundOpsManager != null && !_cabinManager.HasPenalizedRefuelingSeatbelts)
                 {
-                    var refSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Refueling");
-                    if (refSvc != null && (refSvc.State == GroundServiceState.InProgress || refSvc.State == GroundServiceState.Delayed))
+                    bool hasPassengers = _cabinManager.PassengerManifest != null && _cabinManager.PassengerManifest.Any(p => p.IsBoarded);
+                    if (hasPassengers)
                     {
-                        _cabinManager.TriggerRefuelingSeatbeltPenalty();
+                        var refSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Refueling");
+                        if (refSvc != null && (refSvc.State == GroundServiceState.InProgress || refSvc.State == GroundServiceState.Delayed))
+                        {
+                            _cabinManager.TriggerRefuelingSeatbeltPenalty();
+                        }
                     }
                 }
 
@@ -831,9 +845,9 @@ namespace FlightSupervisor.UI
                 });
             };
             // _phaseManager.OnPenaltyTriggered enlevé d'ici car déjà géré par SuperScoreManager (OnScoreChanged)
-            _phaseManager.OnFoMessage += msg => {
+            _phaseManager.OnFoMessage += (file, msg) => {
                 Dispatcher.Invoke(() => {
-                    _audioEngine?.SpeakAsFO(msg);
+                    _audioEngine?.PlayExactAsFO($"EN_FO_Lucie/{file}", msg);
                     SendToWeb(new { type = "flightUpdate", message = $"[FO] {msg}" });
                 });
             };
@@ -844,6 +858,9 @@ namespace FlightSupervisor.UI
             
             _crisisManager = new CrisisManager(_phaseManager, _simConnectService);
             _crisisManager.OnCrisisTriggered += crisis => {
+                if (crisis == CrisisType.UnrulyPassenger) {
+                    _cabinManager?.TriggerIncomingCabinCall("UnrulyPassenger", "TO_FD/Incoming_Calls/UnrulyPassenger", "Captain, we have a passenger who is extremely drunk and disruptive. We need you to be aware.");
+                }
                 Dispatcher.Invoke(() => SendToWeb(new { type = "crisisTriggered", crisisType = crisis.ToString() }));
             };
             
@@ -932,6 +949,7 @@ namespace FlightSupervisor.UI
                 if (_lastLogFlaps != null && _lastLogFlaps != flaps) 
                     _scoreManager?.AddScore(0, $"Flaps Position Changed -> {flaps}", ScoreCategory.FlightPhaseFlows);
                 _lastLogFlaps = flaps;
+                _phaseManager.FlapsPosition = flaps;
             };
             _simConnectService.OnAutopilotReceived += ap => {
                 if (_lastLogAutopilot != null && _lastLogAutopilot != ap) 
@@ -1536,6 +1554,10 @@ namespace FlightSupervisor.UI
                         senderWebView.PostWebMessageAsJson(JsonSerializer.Serialize(payload));
                     }
                 }
+                else if (action == "answerPncCall")
+                {
+                    _cabinManager?.AnswerCabinCall();
+                }
                 else if (action == "openManifestWindow")
                 {
                     if (_manifestWindow != null)
@@ -1932,9 +1954,10 @@ namespace FlightSupervisor.UI
                         if (isFirstFlightValidation) legIndex = 0; // Force it to 0 for initial flight regardless of HTML hardcoding
 
                         // STORY 38: LEG VALIDATION GUARD (Anti-Cheat)
-                        // legIndex 0 is current active. legIndex > 0 is future.
-                        // We only allow validating legIndex > 0 if we are in Turnaround phase of current leg.
-                        if (legIndex > 0 && 
+                        // We must prevent validating a strictly future leg before the current flight ends.
+                        // legIndex represents the absolute session flight index.
+                        // If legIndex > _cabinManager.SessionFlightsCompleted, it's a future unseen leg being previewed.
+                        if (legIndex > _cabinManager.SessionFlightsCompleted && 
                             _phaseManager.CurrentPhase != FlightPhase.Arrived && 
                             _phaseManager.CurrentPhase != FlightPhase.Turnaround)
                         {
@@ -2605,6 +2628,16 @@ namespace FlightSupervisor.UI
                             else if (gsxProp.ValueKind == System.Text.Json.JsonValueKind.String && bool.TryParse(gsxProp.GetString(), out bool bS)) isSync = bS;
                             _gsxAutoSyncEnabled = isSync;
                         }
+                        if (opts.TryGetProperty("volumePa", out var paProp))
+                        {
+                            if (int.TryParse(paProp.GetString(), out var volPa))
+                                _audioEngine.CaptainVolume = volPa;
+                        }
+                        if (opts.TryGetProperty("volumePnc", out var pncProp))
+                        {
+                            if (int.TryParse(pncProp.GetString(), out var volPnc))
+                                _audioEngine.PncVolume = volPnc;
+                        }
                     }
                 }
 
@@ -2879,26 +2912,71 @@ namespace FlightSupervisor.UI
                         if (annType == "Welcome")
                         {
                             string destName = _currentResponse?.Destination?.Name ?? _currentResponse?.Destination?.IcaoCode ?? "our destination";
+                            string destIcao = _currentResponse?.Destination?.IcaoCode ?? "XXXX";
                             int.TryParse(_currentResponse?.Times?.EstTimeEnroute, out int timeSecs);
                             int timeMins = timeSecs / 60;
-                            string timeStr = timeMins >= 60 ? $"{timeMins / 60} hour(s) and {timeMins % 60} minutes" : $"{timeMins} minutes";
                             
                             bool badWeather = false;
                             string metar = _currentResponse?.Weather?.DestMetar?.ToUpper() ?? "";
                             if (metar.Contains(" TS") || metar.Contains(" RA") || metar.Contains(" SN") || metar.Contains(" FG")) badWeather = true;
 
-                            _cabinManager.AnnounceWelcome(destName, timeStr, badWeather);
+                            int destTempC = 15;
+                            var match = System.Text.RegularExpressions.Regex.Match(metar, @"\s([M]?\d{2})\/([M]?\d{2})\s");
+                            if (match.Success) {
+                                string tStr = match.Groups[1].Value;
+                                if (tStr.StartsWith("M")) destTempC = -int.Parse(tStr.Substring(1));
+                                else destTempC = int.Parse(tStr);
+                            }
+
+                            DateTime departureLocal = DateTime.Now;
+                            DateTime destLocal = DateTime.Now.AddMinutes(timeMins);
+
+                            _cabinManager.AnnounceWelcome(destIcao, destName, timeMins, badWeather, destTempC, destLocal, departureLocal, metar);
                         }
                         else if (annType == "Approach")
                         {
                             string destName = _currentResponse?.Destination?.Name ?? _currentResponse?.Destination?.IcaoCode ?? "our destination";
                             string metar = _currentResponse?.Weather?.DestMetar?.ToUpper() ?? "";
-                            string wxc = "good";
-                            if (metar.Contains(" TS") || metar.Contains(" CB")) wxc = "stormy";
-                            else if (metar.Contains(" RA") || metar.Contains(" SH")) wxc = "rainy";
-                            else if (metar.Contains(" SN")) wxc = "snowy";
-                            else if (metar.Contains(" FG") || metar.Contains(" BKN") || metar.Contains(" OVC")) wxc = "cloudy";
-                            _cabinManager.AnnounceApproach(destName, wxc);
+                            
+                            int destTempC = 15;
+                            var match = System.Text.RegularExpressions.Regex.Match(metar, @"\s([M]?\d{2})\/([M]?\d{2})\s");
+                            if (match.Success) {
+                                string tStr = match.Groups[1].Value;
+                                if (tStr.StartsWith("M")) destTempC = -int.Parse(tStr.Substring(1));
+                                else destTempC = int.Parse(tStr);
+                            }
+
+                            // Calculate destination time for approach (basically current time)
+                            DateTime destLocal = DateTime.Now;
+
+                            _cabinManager.AnnounceApproach(destName, metar, destTempC, destLocal);
+                        }
+                        else if (annType == "CruiseStatus")
+                        {
+                            string destName = _currentResponse?.Destination?.Name ?? _currentResponse?.Destination?.IcaoCode ?? "our destination";
+                            string metar = _currentResponse?.Weather?.DestMetar?.ToUpper() ?? "";
+                            string enrtMetar = "";
+                            if (_currentResponse?.Weather?.EnrtMetar?.ValueKind == System.Text.Json.JsonValueKind.Array && _currentResponse.Weather.EnrtMetar.Value.GetArrayLength() > 0)
+                            {
+                                enrtMetar = _currentResponse.Weather.EnrtMetar.Value[0].GetString()?.ToUpper() ?? "";
+                            }
+                            else if (_currentResponse?.Weather?.EnrtMetar?.ValueKind == System.Text.Json.JsonValueKind.String)
+                            {
+                                enrtMetar = _currentResponse.Weather.EnrtMetar.Value.GetString()?.ToUpper() ?? "";
+                            }
+                            
+                            int destTempC = 15;
+                            var match = System.Text.RegularExpressions.Regex.Match(metar, @"\s([M]?\d{2})\/([M]?\d{2})\s");
+                            if (match.Success) {
+                                string tStr = match.Groups[1].Value;
+                                if (tStr.StartsWith("M")) destTempC = -int.Parse(tStr.Substring(1));
+                                else destTempC = int.Parse(tStr);
+                            }
+
+                            string avgWind = _currentResponse?.General?.AvgWindComp ?? "";
+                            int altitude = (int)_lastKnownAltitude;
+
+                            _cabinManager.AnnounceCruise(altitude, avgWind, destName, metar, enrtMetar, destTempC, DateTime.Now);
                         }
                         else if (annType != null && (annType == "Delay" || annType.StartsWith("Delay_")))
                         {
@@ -3252,6 +3330,10 @@ namespace FlightSupervisor.UI
             _cabinManager.Reset();
             _groundOpsResourceService.Reset();
             _eventEngine.Reset();
+            
+            // Clear previous leg's actual times
+            _aobt = null;
+            _aibt = null;
             
             // Build Airframe persistence from SimBrief data and current physical fuel
             _cabinManager.StateOfAircraft.AirframeId = _currentResponse?.Aircraft?.InternalId ?? "";

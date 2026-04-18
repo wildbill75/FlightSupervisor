@@ -105,6 +105,10 @@ namespace FlightSupervisor.UI.Services
             public double Eng2Combustion;
             public double Eng1FuelFlow;
             public double Eng2FuelFlow;
+            public double Eng1N1;
+            public double Eng2N1;
+            public double InteractivePoint0; // Main Door
+            public double InteractivePoint12; // Jetway / Stairs usually
             public double Heading;
             public double WindDirection;
             public double WindVelocity;
@@ -117,12 +121,6 @@ namespace FlightSupervisor.UI.Services
             public double TimeZoneDeviation;
             public double AmbientTemperature;
             public double FuelTotalMass;
-            
-            // Engines & Doors native
-            public double Eng1N1;
-            public double Eng2N1;
-            public double InteractivePoint0; // Main Door
-            public double InteractivePoint12; // Jetway / Stairs usually
             
             // Native MSFS Time Variables
             public double ZuluYear;
@@ -298,9 +296,16 @@ namespace FlightSupervisor.UI.Services
 
                 DateTime currentLocal = currentUtc;
                 try {
-                    // Use C#'s built-in ToLocalTime() which accurately applies the correct timezone offset
-                    // AND handles Daylight Savings Time automatically.
-                    currentLocal = currentUtc.ToLocalTime();
+                    TimeSpan localSpan = TimeSpan.FromSeconds(planeData.LocalTime);
+                    int lYear = planeData.LocalYear > 1900 ? (int)planeData.LocalYear : DateTime.Now.Year;
+                    int lMonth = planeData.LocalMonth >= 1 && planeData.LocalMonth <= 12 ? (int)planeData.LocalMonth : DateTime.Now.Month;
+                    int lDay = planeData.LocalDay >= 1 && planeData.LocalDay <= 31 ? (int)planeData.LocalDay : DateTime.Now.Day;
+                    
+                    int hours = localSpan.Hours < 0 ? 0 : (localSpan.Hours > 23 ? 23 : localSpan.Hours);
+                    int mins = localSpan.Minutes < 0 ? 0 : (localSpan.Minutes > 59 ? 59 : localSpan.Minutes);
+                    int secs = localSpan.Seconds < 0 ? 0 : (localSpan.Seconds > 59 ? 59 : localSpan.Seconds);
+                    
+                    currentLocal = new DateTime(lYear, lMonth, lDay, hours, mins, secs, DateTimeKind.Local);
                     OnSimLocalTimeReceived?.Invoke(currentLocal);
                 } catch { 
                     OnSimLocalTimeReceived?.Invoke(currentLocal);

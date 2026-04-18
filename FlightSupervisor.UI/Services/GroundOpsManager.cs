@@ -45,7 +45,7 @@ namespace FlightSupervisor.UI.Services
     {
         public List<GroundService> Services { get; private set; } = new();
         public GroundOpsSpeed SpeedSetting { get; set; } = GroundOpsSpeed.Realistic;
-        public double CurrentCrewEfficiency { get; set; } = 100.0;
+        public double CurrentCrewEsteem { get; set; } = 100.0;
         public int EventProbabilityPercent { get; set; } = 20;
         public string CurrentAirportTier { get; private set; } = "Tier A";
         public string CurrentAirportTierDescription { get; private set; } = "Most of the time, this airport has excellent infrastructure and operations are quick.";
@@ -105,6 +105,7 @@ namespace FlightSupervisor.UI.Services
         public event Action? OnOpsCompleted;
         public event Action? OnOpsUpdated;
         public event Action<string>? OnServiceStarted;
+        public event Action<string>? OnServiceCompleted;
         public event Action<string>? OnOpsLog;
         public event Action<int, string>? OnOperationBonusTriggered;
         public event Action<int, string>? OnPenaltyTriggered;
@@ -223,7 +224,7 @@ namespace FlightSupervisor.UI.Services
 
             // TICKET 34 & 38 : REALISTIC DURATIONS SCALED BY METRICS
             int deboardingBase = IsLowCost ? 600 : 900; // 10m for LCC, 15m for Legacy
-            double boardingEfficiencyRatio = Math.Max(50.0, CurrentCrewEfficiency) / 100.0;
+            double boardingEfficiencyRatio = Math.Max(50.0, CurrentCrewEsteem) / 100.0;
             int boardingBase = (int)((IsLowCost ? 900 : 1200) / boardingEfficiencyRatio);
             
             // Cleanliness scale: if 90% clean, only 10% of time needed.
@@ -540,27 +541,63 @@ namespace FlightSupervisor.UI.Services
                 {
                     if (s.RequiresManualStart)
                     {
+                        string forcedStatus = null;
+
                         if (CurrentPhase == FlightPhase.Turnaround)
                         {
                             if (s.Name != "Deboarding" && s.Name != "Cargo Unloading")
                             {
-                                s.StatusMessage = LocalizationService.Translate("Wait Turnaround", "Attente Turnaround");
-                                continue;
+                                forcedStatus = LocalizationService.Translate("Wait Turnaround", "Attente Turnaround");
                             }
                             else if (s.Name == "Deboarding" && IsSeatbeltsOn)
                             {
-                                s.StatusMessage = LocalizationService.Translate("Wait Seatbelts", "Attentes Signes");
-                                continue;
+                                forcedStatus = LocalizationService.Translate("Wait Seatbelts", "Attentes Signes");
                             }
                             else if (s.Name == "Cargo Unloading" && IsBeaconOn)
                             {
-                                s.StatusMessage = LocalizationService.Translate("Wait Beacon", "Attente Beacon");
-                                continue;
+                                forcedStatus = LocalizationService.Translate("Wait Beacon", "Attente Beacon");
                             }
                         }
 
-                        s.State = GroundServiceState.WaitingForAction;
-                        s.StatusMessage = LocalizationService.Translate("Waiting for Pilot...", "En attente d'action Cdt...");
+                        if (forcedStatus == null)
+                        {
+                            var boardingM = Services.FirstOrDefault(x => x.Name == "Boarding");
+                            var deboardingM = Services.FirstOrDefault(x => x.Name == "Deboarding");
+                            var cleaningM = Services.FirstOrDefault(x => x.Name.Contains("Clean"));
+                            var cateringM = Services.FirstOrDefault(x => x.Name == "Catering");
+
+                            bool isPaxMoving = (boardingM != null && boardingM.State == GroundServiceState.InProgress) ||
+                                               (deboardingM != null && deboardingM.State == GroundServiceState.InProgress);
+
+                            if ((s.Name.Contains("Clean") || s.Name == "Catering") && isPaxMoving)
+                            {
+                                forcedStatus = LocalizationService.Translate("Blocked (Pax)", "Bloqué (Pax)");
+                            }
+                            else if (s.Name == "Boarding")
+                            {
+                                bool cleaningActive = cleaningM != null && cleaningM.State == GroundServiceState.InProgress;
+                                bool cateringActive = cateringM != null && cateringM.State == GroundServiceState.InProgress;
+                                if (cleaningActive || cateringActive)
+                                {
+                                    forcedStatus = LocalizationService.Translate("Blocked (Crew)", "Bloqué (Serv.)");
+                                }
+                            }
+                            else if (s.Name == "Refueling" && !IsFuelSheetValidated)
+                            {
+                                forcedStatus = LocalizationService.Translate("Awaiting Validation", "Attente Validation");
+                            }
+                        }
+
+                        if (forcedStatus != null)
+                        {
+                            s.StatusMessage = forcedStatus;
+                        }
+                        else
+                        {
+                            s.State = GroundServiceState.WaitingForAction;
+                            s.StatusMessage = LocalizationService.Translate("Waiting for Pilot...", "En attente d'action Cdt...");
+                        }
+                        
                         changed = true;
                         continue;
                     }
@@ -683,6 +720,7 @@ namespace FlightSupervisor.UI.Services
                     string actor = GetActorForService(s.Name);
                     string endMsg = GetEndMessageForService(s.Name);
                     OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] {endMsg}", $"[{actor}] {endMsg}"));
+                    OnServiceCompleted?.Invoke(s.Name);
                 }
                 else
                 {
@@ -703,20 +741,20 @@ namespace FlightSupervisor.UI.Services
 
                             if (s.Name == "Boarding" && evt.DescriptionEn == "Missing passenger")
                             {
-                                double efficRatio = Math.Max(50.0, CurrentCrewEfficiency) / 100.0;
+                                double efficRatio = Math.Max(50.0, CurrentCrewEsteem) / 100.0;
                                 additionalDelay = (int)(additionalDelay / efficRatio); // Un bon crew résout ça plus vite
                                 
-                                if (CurrentCrewEfficiency >= 85)
+                                if (CurrentCrewEsteem >= 85)
                                     OnOperationBonusTriggered?.Invoke(15, LocalizationService.Translate("Crew Efficiency: Swiftly found missing passenger", "Efficacité Équipage: Passager manquant géré rapidement"));
-                                else if (CurrentCrewEfficiency < 65)
+                                else if (CurrentCrewEsteem < 65)
                                     OnPenaltyTriggered?.Invoke(-10, LocalizationService.Translate("Crew Inefficiency: Failed to quickly find passenger", "Inefficacité Équipage: Passager manquant géré lentement"));
                             }
                             else if (s.Name == "Cleaning")
                             {
-                                double efficRatio = Math.Max(50.0, CurrentCrewEfficiency) / 100.0;
+                                double efficRatio = Math.Max(50.0, CurrentCrewEsteem) / 100.0;
                                 additionalDelay = (int)(additionalDelay / efficRatio);
                                 
-                                if (CurrentCrewEfficiency >= 85)
+                                if (CurrentCrewEsteem >= 85)
                                     OnOperationBonusTriggered?.Invoke(10, LocalizationService.Translate("Crew Efficiency: Swiftly resolved cabin delay", "Efficacité Équipage: Incident cabine géré rapidement"));
                             }
                         }

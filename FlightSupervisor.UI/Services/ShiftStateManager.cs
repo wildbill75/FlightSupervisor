@@ -15,6 +15,7 @@ namespace FlightSupervisor.UI.Services
         public double CrewProactivity { get; set; }
         public double CrewEfficiency { get; set; }
         public double CrewMorale { get; set; }
+        public double CrewEsteem { get; set; }
         public string LastArrivalIcao { get; set; } = string.Empty;
         public string LastAirlineName { get; set; } = string.Empty;
         public DateTime SavedAtLocal { get; set; } = DateTime.Now;
@@ -47,6 +48,7 @@ namespace FlightSupervisor.UI.Services
                     CrewProactivity = cabinManager.CrewProactivity,
                     CrewEfficiency = cabinManager.CrewEfficiency,
                     CrewMorale = cabinManager.CrewMorale,
+                    CrewEsteem = cabinManager.CrewEsteem,
                     LastArrivalIcao = arrivalIcao,
                     LastAirlineName = airlineName,
                     SavedAtLocal = DateTime.Now
