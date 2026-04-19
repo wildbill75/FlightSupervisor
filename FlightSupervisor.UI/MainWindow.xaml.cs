@@ -217,8 +217,7 @@ namespace FlightSupervisor.UI
                 if (_phaseManager.CurrentPhase == FlightPhase.Turnaround)
                 {
                     Dispatcher.Invoke(() => {
-                        LoadNextLeg();
-                        OpenFuelSheetWindow();
+                        SendToWeb(new { type = "log", message = $"[SYSTEM] Turnaround Unloading Complete. Awaiting 'Prepare Next Leg'." });
                     });
                 }
             };
@@ -753,6 +752,13 @@ namespace FlightSupervisor.UI
                     else if (phase == FlightPhase.Turnaround)
                     {
                         GenerateAgentDebugLog();
+
+                        if (_aibt.HasValue)
+                        {
+                            int tatMinutes = _airlineDb.GetStandardTurnaroundTimeMinutes(CurrentAirline?.Tier);
+                            _nextSobtOverride = _aibt.Value.AddMinutes(tatMinutes);
+                            SendToWeb(new { type = "log", message = $"[DISPATCH] Turnaround Global Timer started. Target SOBT is {_nextSobtOverride.Value:HH:mm}Z ({tatMinutes} mins allotted)." });
+                        }
 
                         _cabinManager.SessionFlightsCompleted++;
                         int remainingLegs = _rotationQueue.Count;
@@ -1619,7 +1625,8 @@ namespace FlightSupervisor.UI
                         _ = FetchFlightPlan(simUser, false, null, _profileManager.CurrentProfile.WeatherSource ?? "simbrief", false).ContinueWith(t => {
                             Dispatcher.Invoke(() => {
                                 if (parentWindow is Window w && w.Title == "Fuel Dispatch") {
-                                    OpenFuelSheetWindow(); // Forces state refresh for JS
+                                    w.Close();
+                                    OpenFuelSheetWindow(); // Forces state refresh for JS by respawning
                                 }
                             });
                         });
@@ -3350,31 +3357,12 @@ namespace FlightSupervisor.UI
 
             RefreshPassengerDemographics();
 
-            if (_aibt.HasValue)
+            // _nextSobtOverride is now established securely at the start of the Turnaround Phase.
+            // We preserved it across LoadNextLeg.
+            if (_nextSobtOverride.HasValue)
             {
-                int tatMinutes = _airlineDb.GetStandardTurnaroundTimeMinutes(CurrentAirline?.Tier);
-                DateTime minimumSobt = _aibt.Value.AddMinutes(tatMinutes);
-                
-                DateTime scheduledSobt = DateTime.MinValue;
-                if (_currentResponse?.Times?.SchedOut != null && long.TryParse(_currentResponse.Times.SchedOut, out long unixSobt))
-                {
-                    scheduledSobt = DateTimeOffset.FromUnixTimeSeconds(unixSobt).UtcDateTime;
-                }
-                
-            if (scheduledSobt > DateTime.MinValue && minimumSobt > scheduledSobt)
-            {
-                _nextSobtOverride = minimumSobt;
-                SendToWeb(new { type = "log", message = $"[DISPATCH] Late Arrival Detected. Turnaround Time ({tatMinutes} min) enforces new SOBT: {_nextSobtOverride.Value:HH:mm}Z" });
+                SendToWeb(new { type = "log", message = $"[DISPATCH] Turnaround timer inherited from Leg 1 arrival: Target SOBT {_nextSobtOverride.Value:HH:mm}Z." });
             }
-            else
-            {
-                _nextSobtOverride = null;
-            }
-        }
-        else
-        {
-            _nextSobtOverride = null;
-        }
 
         // InitializeFromSimBrief is now deferred until validateFuel is received.
 
@@ -3497,16 +3485,16 @@ namespace FlightSupervisor.UI
                         bool origDestMatch = _currentResponse.Origin?.IcaoCode == response.Origin?.IcaoCode &&
                                              _currentResponse.Destination?.IcaoCode == response.Destination?.IcaoCode;
 
-                        bool isFirstDummyBlocker = _currentResponse.IsDummy && _cabinManager.SessionFlightsCompleted == 0;
+                        bool isDummyBlocker = _currentResponse.IsDummy;
 
                         if (origDestMatch && (_currentResponse.IsDummy || _currentResponse.General?.FlightNumber == response.General?.FlightNumber))
                         {
                             replacesCurrent = true;
                             isDupe = true;
                         }
-                        else if (isFirstDummyBlocker)
+                        else if (isDummyBlocker)
                         {
-                            // If the session hasn't started and we're stuck in a dummy, we forcefully replace it
+                            // If we're stuck in a dummy (e.g. Turnaround empty shell), we forcefully replace it
                             // regardless of origin/destination mismatch, to allow the user to pivot easily.
                             replacesCurrent = true;
                             isDupe = true;

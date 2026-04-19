@@ -29,7 +29,8 @@
                 <TextBlock Text="DEV TOOLS (Phase Sim Offline)" Foreground="#fb7185" FontWeight="Bold" Margin="0,0,0,5"/>
                 <TextBlock Text="Force phase transitions offline. WARNING: Do not use while connected to MSFS." Foreground="#94a3b8" FontSize="11" Margin="0,0,0,15" TextWrapping="Wrap"/>
                 
-                <UniformGrid Columns="3" Rows="2">
+                <UniformGrid Columns="3" Rows="3">
+                    <Button Content="TRIGGER ARRIVAL (START TURNAROUND)" Background="#1e1b4b" Foreground="#a78bfa" BorderBrush="#8b5cf6" BorderThickness="2" Margin="5" Padding="10" Click="BtnForcePhase_Click" Tag="Turnaround"/>
                     <Button Content="FORCE BOARDING" Background="#0f172a" Foreground="#fb7185" BorderBrush="#e11d48" BorderThickness="1" Margin="5" Padding="10" Click="BtnForcePhase_Click" Tag="Boarding"/>
                     <Button Content="FORCE PUSHBACK" Background="#0f172a" Foreground="#fb7185" BorderBrush="#e11d48" BorderThickness="1" Margin="5" Padding="10" Click="BtnForcePhase_Click" Tag="Pushback"/>
                     <Button Content="FORCE TAKEOFF" Background="#0f172a" Foreground="#fb7185" BorderBrush="#e11d48" BorderThickness="1" Margin="5" Padding="10" Click="BtnForcePhase_Click" Tag="Takeoff"/>
