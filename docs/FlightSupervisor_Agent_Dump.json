@@ -1,69 +1,69 @@
 {
-  "Timestamp": "2026-04-19T12:40:49.4442992Z",
+  "Timestamp": "2026-04-19T19:29:43.1284425Z",
   "Session": {
     "CurrentPhase": "Turnaround",
     "SessionFlightsCompleted": 0,
-    "InternalClock": "2026-04-19T13:09:41.0000000Z"
+    "InternalClock": "2026-04-19T19:52:35.0000000Z"
   },
   "Cabin": {
-    "PassengerCount": 137,
-    "Satisfaction": 84,
-    "Anxiety": 0,
+    "PassengerCount": 115,
+    "Satisfaction": 93.8,
+    "Anxiety": 1.2,
     "SecuringProgress": 0,
     "IsFirstFlightClean": false,
-    "WaterLevel": 89.24547430128422,
-    "WasteLevel": 13.443157123394613
+    "WaterLevel": 90.9925358819305,
+    "WasteLevel": 11.259330147586653
   },
   "GroundOps": {
     "IsStarted": false,
     "IsFuelSheetValidated": true,
-    "TargetSobt": "2026-04-19T14:15:36.0000000Z",
+    "TargetSobt": "2026-04-19T20:42:03.0000000Z",
     "Services": [
       {
         "Name": "Refueling",
         "State": 3,
-        "ElapsedSec": 604,
-        "TotalDurationSec": 604,
+        "ElapsedSec": 565,
+        "TotalDurationSec": 565,
         "IsAvailable": true
       },
       {
         "Name": "Boarding",
         "State": 3,
-        "ElapsedSec": 824,
-        "TotalDurationSec": 824,
+        "ElapsedSec": 904,
+        "TotalDurationSec": 904,
         "IsAvailable": true
       },
       {
         "Name": "Cargo Loading",
         "State": 3,
-        "ElapsedSec": 915,
-        "TotalDurationSec": 915,
+        "ElapsedSec": 755,
+        "TotalDurationSec": 755,
         "IsAvailable": true
       },
       {
         "Name": "Catering",
         "State": 3,
-        "ElapsedSec": 272,
-        "TotalDurationSec": 272,
+        "ElapsedSec": 300,
+        "TotalDurationSec": 300,
         "IsAvailable": true
       },
       {
         "Name": "PNC Chores",
         "State": 3,
-        "ElapsedSec": 100,
-        "TotalDurationSec": 100,
+        "ElapsedSec": 50,
+        "TotalDurationSec": 50,
         "IsAvailable": true
       },
       {
         "Name": "Water/Waste",
         "State": 3,
-        "ElapsedSec": 113,
-        "TotalDurationSec": 113,
+        "ElapsedSec": 110,
+        "TotalDurationSec": 110,
         "IsAvailable": true
       }
     ]
   },
   "Telemetry": {
-    "FobKg": 3123
+    "FobKg": 3121
   }
 }

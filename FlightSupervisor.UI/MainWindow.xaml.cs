@@ -3474,6 +3474,22 @@ namespace FlightSupervisor.UI
                         }
                     }
 
+                    // STORY 43 Validation: The new OFP MUST originate from the CURRENT airport!
+                    if (_phaseManager.CurrentPhase == FlightPhase.Turnaround && _currentResponse != null) 
+                    {
+                        if (response.Origin?.IcaoCode?.ToUpper() != _currentResponse.Destination?.IcaoCode?.ToUpper())
+                        {
+                            SendToWeb(new { type = "log", message = $"[ERROR] Fetch Failed: SimBrief OFP ({response.Origin?.IcaoCode}->{response.Destination?.IcaoCode}) does not start at your current location ({_currentResponse.Destination?.IcaoCode}). Please generate the correct flight on SimBrief." });
+                            Dispatcher.Invoke(() => {
+                                if (_fuelSheetWindow != null) {
+                                    // Make sure it doesn't leave the user hanging without a clue
+                                    SendToWeb(new { type = "log", message = "[SYSTEM] Aborting OFP Injection to preserve simulation integrity." });
+                                }
+                            });
+                            return;
+                        }
+                    }
+
                     // Step 1: Detect position in rotation (isDupe logic) before fixing time
                     bool isDupe = false;
                     int dupeIndex = -1;
@@ -3506,9 +3522,13 @@ namespace FlightSupervisor.UI
                     for (int i = 0; i < _rotationQueue.Count; i++)
                     {
                         var r = _rotationQueue[i];
-                        if (r.Origin?.IcaoCode == response.Origin?.IcaoCode &&
+                        
+                        // STORY 43 - PIvot Support: If it's a dummy leg in Turnaround, we allow overwriting it even if destination changes!
+                        bool isDummyTurnaroundPivot = r.IsDummy && _phaseManager.CurrentPhase == FlightPhase.Turnaround && r.Origin?.IcaoCode == response.Origin?.IcaoCode && i == 0;
+                        
+                        if ((r.Origin?.IcaoCode == response.Origin?.IcaoCode &&
                             r.Destination?.IcaoCode == response.Destination?.IcaoCode &&
-                            (r.IsDummy || r.General?.FlightNumber == response.General?.FlightNumber))
+                            (r.IsDummy || r.General?.FlightNumber == response.General?.FlightNumber)) || isDummyTurnaroundPivot)
                         {
                             dupeIndex = i;
                             isDupe = true;

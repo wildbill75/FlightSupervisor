@@ -4287,8 +4287,10 @@ window.renderBriefingTabs = () => {
                         const dOrig = (d.origin?.icao_code || '').toUpperCase();
                         const dDest = (d.destination?.icao_code || '').toUpperCase();
 
-                        // We also allow replacement if we are replacing the very first dummy leg, regardless of origin mismatch, if it's the first leg
-                        if ((rotOrig === dOrig && rotDest === dDest) || (i === 0 && window.allRotations.length > 0)) {
+                        // We also allow replacement if we are replacing the very first dummy leg
+                        // STORY 43: We also allow replacement if we are currently at Turnaround and the origin matches (Pivot)
+                        const isTurnaroundPivot = window.flightPhase === 'Turnaround' && rotOrig === dOrig && i === window.activeLegIndex;
+                        if ((rotOrig === dOrig && rotDest === dDest) || (i === 0 && window.allRotations.length > 0) || isTurnaroundPivot) {
                             window.allRotations[i] = { data: d, briefing: payload.briefing, manifest: payload.manifest, airlineProfile: payload.airlineProfile };
                             replacedDummy = true;
                             break;
