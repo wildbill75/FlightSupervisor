@@ -1982,14 +1982,14 @@ namespace FlightSupervisor.UI.Services
             if (currentLocalTime.Hour >= 12 && currentLocalTime.Hour < 18) greetingPrefix = "Aftn";
             else if (currentLocalTime.Hour >= 18) greetingPrefix = "Eve";
 
-            _audio?.PlayVariantWithPrefixAsCaptain("CRUISE_PA/Cruise_Intro", $"{greetingPrefix}_", "Ladies and gentlemen from the flight deck, we have reached our cruising altitude.");
+            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Cruise_Intro", $"{greetingPrefix}_", "Ladies and gentlemen from the flight deck, we have reached our cruising altitude.");
 
             // 2. Altitude (nearest thousand)
             int roundedAlt = (int)(Math.Round(altitude / 1000.0) * 1000);
             if (roundedAlt < 30000) roundedAlt = 30000;
             if (roundedAlt > 43000) roundedAlt = 43000;
             
-            _audio?.PlayExactAsCaptain($"CRUISE_PA/Altitude/Alt_{roundedAlt}.mp3", $"We are currently at {roundedAlt} feet.");
+            _audio?.PlayExactAsCaptain($"TO_PA/Altitude/Alt_{roundedAlt}.mp3", $"We are currently at {roundedAlt} feet.");
 
             // 3. Winds
             int windSpeed = 0;
@@ -2013,38 +2013,38 @@ namespace FlightSupervisor.UI.Services
             {
                 string windDirPrefix = isTailwind ? "Tailwind" : "Headwind";
                 string fallbackDir = isTailwind ? "tailwind" : "headwind";
-                _audio?.PlayVariantWithPrefixAsCaptain("CRUISE_PA/Winds", $"{windDirPrefix}_", $"We are experiencing a {fallbackDir}.");
+                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Winds", $"{windDirPrefix}_", $"We are experiencing a {fallbackDir}.");
 
                 // Round speed to nearest 20 
                 int roundedWspd = (int)(Math.Round(windSpeed / 20.0) * 20);
                 if (roundedWspd < 20) roundedWspd = 20;
                 if (roundedWspd > 140) roundedWspd = 140;
 
-                _audio?.PlayExactAsCaptain($"CRUISE_PA/Winds/Spd_{roundedWspd}.mp3", $"of about {roundedWspd} knots.");
+                _audio?.PlayExactAsCaptain($"TO_PA/Winds/Spd_{roundedWspd}.mp3", $"of about {roundedWspd} knots.");
             }
             else
             {
-                _audio?.PlayVariantWithPrefixAsCaptain("CRUISE_PA/Winds", "Calm_", "The winds aloft are relatively calm today.");
+                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Winds", "Calm_", "The winds aloft are relatively calm today.");
             }
 
             // 4. Enroute Weather
             bool hasStorms = enrtMetar.Contains(" TS") || enrtMetar.Contains(" CB");
             if (hasStorms) {
-                _audio?.PlayVariantWithPrefixAsCaptain("CRUISE_PA/EnRoute", "Stormy_", "We do have some significant weather to navigate around coming up, so I will be keeping the seatbelt sign on.");
+                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/EnRoute", "Stormy_", "We do have some significant weather to navigate around coming up, so I will be keeping the seatbelt sign on.");
             } else if (enrtMetar.Contains(" RA") || enrtMetar.Contains(" SN") || destMetar.Contains(" TS")) {
-                 _audio?.PlayVariantWithPrefixAsCaptain("CRUISE_PA/EnRoute", "Bumpy_", "Looking ahead, we are seeing a few weather systems along our route, so we might experience a few bumps.");
+                 _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/EnRoute", "Bumpy_", "Looking ahead, we are seeing a few weather systems along our route, so we might experience a few bumps.");
             } else {
-                _audio?.PlayVariantWithPrefixAsCaptain("CRUISE_PA/EnRoute", "Smooth_", "Looking ahead at the weather radar, the route is completely clear, so it should be a very smooth ride all the way.");
+                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/EnRoute", "Smooth_", "Looking ahead at the weather radar, the route is completely clear, so it should be a very smooth ride all the way.");
             }
 
             // 5. Arrival Transition
-            _audio?.PlayVariantWithPrefixAsCaptain("CRUISE_PA/Arrival", "ArrTrans_", $"As for our destination in {destName}...");
+            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Arrival", "ArrTrans_", $"As for our destination in {destName}...");
 
             // 6. Destination Weather (reuse weather sequencer)
             SequenceWeatherPA(destMetar, destTempC, true);
 
             // 7. Outro
-            _audio?.PlayVariantWithPrefixAsCaptain("CRUISE_PA/Cruise_Outro", "Outro_", "I will get back to you with an updated ETA before our descent. Until then, sit back, relax, and enjoy the rest of the flight.");
+            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Cruise_Outro", "Outro_", "I will get back to you with an updated ETA before our descent. Until then, sit back, relax, and enjoy the rest of the flight.");
 
             OnCrewMessage?.Invoke("green", LocalizationService.Translate("PA: Cruise Update (Altitude & Enroute Weather)", "PA: Informations de Croisière (Altitude et météo)"), null);
         }
@@ -2328,12 +2328,13 @@ namespace FlightSupervisor.UI.Services
             {
                 reportEn = "Captain, we haven't finished securing the galleys yet, we need a few more minutes!";
                 reportFr = "Commandant, nous n'avons pas fini de préparer la cabine, il nous faut quelques minutes de plus !";
+                audioFolder = "TO_FD/Status_Reports/SecuringInProgress";
             }
             else if (_isSecuring && phase == FlightPhase.Descent)
             {
                 reportEn = "Galley is being secured, and we're starting the final cabin check.";
                 reportFr = "Le galley est en cours de sécurisation, nous débutons la vérification finale.";
-                audioFolder = "TO_FD/Status_Reports/ServiceInProgress";
+                audioFolder = "TO_FD/Status_Reports/SecuringInProgress";
             }
             else if (PassengerManifest.Exists(p => p.IsInjured))
             {
@@ -2348,18 +2349,20 @@ namespace FlightSupervisor.UI.Services
                 reportFr = "Commandant, les passagers commencent à se plaindre des toilettes. Les réservoirs sont presque pleins.";
                 audioFolder = "TO_FD/Status_Reports/UncomfortablePax";
             }
-            else if (phase == FlightPhase.Cruise)
+            else if (phase == FlightPhase.Cruise && State == CabinState.ServingMeals)
             {
                 if (InFlightServiceProgress < 20) {
                     reportEn = "We've just started preparing the service carts.";
                     reportFr = "Nous venons de commencer la préparation des chariots de service.";
+                    audioFolder = "TO_FD/Status_Reports/ServiceStarting";
                 } else if (InFlightServiceProgress < 80) {
                     reportEn = "The meal service is in full swing. Everyone seems satisfied.";
                     reportFr = "Le service des repas bat son plein. Tout le monde semble satisfait.";
+                    audioFolder = "TO_FD/Status_Reports/ServiceInProgress";
                 } else {
                     reportEn = "Service is complete, and the cabin is resting.";
                     reportFr = "Le service est terminé, la cabine se repose.";
-                    audioFolder = "TO_FD/Status_Reports/CabinCalm";
+                    audioFolder = "TO_FD/Status_Reports/ServiceFinished";
                 }
             }
             
@@ -2369,28 +2372,15 @@ namespace FlightSupervisor.UI.Services
                 reportFr = "Commandant, les passagers paniquent ! Que se passe-t-il ?!";
                 audioFolder = "TO_FD/Status_Reports/AnxiousPax";
             }
-            else
+            else if (audioFolder == "TO_FD/Status_Reports/CabinCalm") // Only apply gauge logic if no higher priority was hit
             {
-                if (_thermalDissatisfactionGauge > 30.0)
-                {
-                    if (LastKnownCabinTemp > 26)
-                    {
-                        reportEn += " It's getting a bit warm in the back.";
-                        reportFr += " Ça commence à chauffer à l'arrière.";
-                    }
-                    else if (LastKnownCabinTemp < 19)
-                    {
-                        reportEn += " A few complaints about the cold.";
-                        reportFr += " Quelques plaintes concernant le froid.";
-                    }
-                }
-
                 if (PassengerAnxiety > 50.0)
                 {
                     if (_currentDelayMinutes > 15 && phase == FlightPhase.AtGate)
                     {
                         reportEn = "The passengers are getting very frustrated and restless due to this long delay.";
                         reportFr = "Les passagers s'impatientent sérieusement et s'énervent à cause de l'attente prolongée.";
+                        audioFolder = "TO_FD/Status_Reports/AnxiousPax";
                     }
                     else if ((DateTime.Now - _lastTurbulenceNotice).TotalMinutes < 15)
                     {
@@ -2402,19 +2392,36 @@ namespace FlightSupervisor.UI.Services
                     {
                         reportEn = "People are very unhappy about not getting their meals yet. It's tough back here.";
                         reportFr = "Les gens sont très mécontents de ne pas avoir eu de repas. C'est difficile à l'arrière.";
+                        audioFolder = "TO_FD/Status_Reports/AnxiousPax";
                     }
                     else
                     {
-                        reportEn += " Note that some passengers are quite anxious about the flight.";
-                        reportFr += " À noter que certains passagers sont assez anxieux par rapport au vol.";
+                        reportEn = "Note that some passengers are quite anxious about the flight.";
+                        reportFr = "À noter que certains passagers sont assez anxieux par rapport au vol.";
+                        audioFolder = "TO_FD/Status_Reports/AnxiousPax";
                     }
+                }
+                else if (_thermalDissatisfactionGauge > 30.0)
+                {
+                    if (LastKnownCabinTemp > 26)
+                    {
+                        reportEn = "It's getting a bit warm in the back. Passengers are complaining about the general comfort level.";
+                        reportFr = "Ça commence à chauffer à l'arrière. Les passagers se plaignent du confort.";
+                    }
+                    else if (LastKnownCabinTemp < 19)
+                    {
+                        reportEn = "A few complaints about the cold. Passengers are complaining about the general comfort level.";
+                        reportFr = "Quelques plaintes concernant le froid. Les passagers se plaignent du confort.";
+                    }
+                    audioFolder = "TO_FD/Status_Reports/UncomfortablePax";
                 }
                 else if (ComfortLevel < 40.0)
                 {
-                    reportEn += " Passengers are complaining about the general comfort level.";
-                    reportFr += " Les passagers se plaignent du niveau de confort général.";
+                    reportEn = "Passengers are complaining about the general comfort level.";
+                    reportFr = "Les passagers se plaignent du niveau de confort général.";
+                    audioFolder = "TO_FD/Status_Reports/UncomfortablePax";
                 }
-                else if (reportEn == "Cabin is clear and quiet, Captain.")
+                else
                 {
                     reportEn = "Cabin is clear and quiet, Captain. Everyone is relaxed.";
                     reportFr = "Cabine calme et tranquille, Commandant. Tout le monde est détendu.";

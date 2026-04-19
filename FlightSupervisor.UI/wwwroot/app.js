@@ -2910,8 +2910,9 @@ window.renderBriefingTabs = () => {
                 if (payload.sessionFlightsCompleted !== undefined) {
                     let targetIndex = payload.sessionFlightsCompleted;
                     
-                    // GEL UI END OF FLIGHT: Maintient l'UI calée sur la Leg qui vient de s'achever pendant l'escale.
-                    if (window.currentPhase === 'Turnaround' || window.currentPhase === 'Arrived') {
+                    // GEL UI END OF FLIGHT: Maintient l'UI calée sur le statut d'arrivée (Phase Arrived uniquement).
+                    // Au Turnaround, on lève le gel pour permettre le nettoyage de l'UI (Leg 2).
+                    if (window.currentPhase === 'Arrived') {
                         // Si sessionFlightsCompleted est 1, ça veut dire qu'on a fini 1 vol, et on reste calé sur l'index 0.
                         targetIndex = Math.max(0, payload.sessionFlightsCompleted - 1);
                     }
