@@ -1805,52 +1805,52 @@ namespace FlightSupervisor.UI.Services
             return tens[number / 10] + ones[number % 10];
         }
 
-        private void SequenceWeatherPA(string metar, int destTempC, bool isApproach)
+        private void SequenceWeatherPA(string metar, int destTempC, bool isApproach, bool playChime = true)
         {
             metar = metar.ToUpper();
             
             if (isApproach) {
-                _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Weather_Intro_Approach_01.mp3", null);
+                _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Weather_Intro_Approach_01.mp3", null, playChime);
             } else {
-                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Weather", "EN_Rowan_Weather_Intro_0", null);
+                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Weather", "EN_Rowan_Weather_Intro_0", null, playChime);
             }
 
             // 1. Sky cover
-            if (metar.Contains(" OVC")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Sky_Overcast.mp3", null);
-            else if (metar.Contains(" BKN") || metar.Contains(" SCT")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Sky_Scattered.mp3", null);
-            else if (metar.Contains(" FEW")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Sky_Few.mp3", null);
-            else _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Sky_Clear.mp3", null);
+            if (metar.Contains(" OVC")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Sky_Overcast.mp3", null, false);
+            else if (metar.Contains(" BKN") || metar.Contains(" SCT")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Sky_Scattered.mp3", null, false);
+            else if (metar.Contains(" FEW")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Sky_Few.mp3", null, false);
+            else _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Sky_Clear.mp3", null, false);
 
             // 2. Precipitation
-            if (metar.Contains(" TS") || metar.Contains(" CB")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_SevereStorm.mp3", null);
+            if (metar.Contains(" TS") || metar.Contains(" CB")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_SevereStorm.mp3", null, false);
             else if (metar.Contains(" SN") || metar.Contains(" SG"))
             {
-                if (metar.Contains("+SN")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_Snow.mp3", null);
-                else _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_LightSnow.mp3", null);
+                if (metar.Contains("+SN")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_Snow.mp3", null, false);
+                else _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_LightSnow.mp3", null, false);
             }
-            else if (metar.Contains(" FZ") || metar.Contains(" IC") || metar.Contains(" GR")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_Ice.mp3", null);
+            else if (metar.Contains(" FZ") || metar.Contains(" IC") || metar.Contains(" GR")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_Ice.mp3", null, false);
             else if (metar.Contains(" RA") || metar.Contains(" DZ") || metar.Contains(" SH"))
             {
-                if (metar.Contains("+RA")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_HeavyRain.mp3", null);
-                else if (metar.Contains("-RA") || metar.Contains("-DZ")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_LightRain.mp3", null);
-                else _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_Rain.mp3", null);
+                if (metar.Contains("+RA")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_HeavyRain.mp3", null, false);
+                else if (metar.Contains("-RA") || metar.Contains("-DZ")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_LightRain.mp3", null, false);
+                else _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_Rain.mp3", null, false);
             }
 
             // 3. Visibility and Wind
             if (metar.Contains(" FG") || metar.Contains(" BR") || metar.Contains(" HZ")) {
-                _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Vis_Fog.mp3", null);
+                _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Vis_Fog.mp3", null, false);
             }
             
             var windMatch = System.Text.RegularExpressions.Regex.Match(metar, @"\d{3}(\d{2})G");
             if (windMatch.Success && int.TryParse(windMatch.Groups[1].Value, out int windSpd) && windSpd > 25) {
-                _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Wind_Strong.mp3", null);
+                _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Wind_Strong.mp3", null, false);
             }
 
             // 4. Temp
-            _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Temp_Intro.mp3", null);
+            _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Temp_Intro.mp3", null, false);
             string tempSign = destTempC < 0 ? "M" : "P";
             string tempVal = Math.Abs(destTempC).ToString("D2");
-            _audio?.PlayExactAsCaptain($"TO_PA/Temperatures/EN_Rowan_{tempSign}{tempVal}.mp3", null);
+            _audio?.PlayExactAsCaptain($"TO_PA/Temperatures/EN_Rowan_{tempSign}{tempVal}.mp3", null, false);
         }
 
         public void AnnounceWelcome(string destIcao, string destName, int flightTimeMinutes, bool badWeather, int destTempC, DateTime destLocalTime, DateTime departureLocalTime, string metar)
@@ -1870,7 +1870,13 @@ namespace FlightSupervisor.UI.Services
             string wxcText = !badWeather ? "looking great" : "quite poor today";
             string wxcFr = !badWeather ? "très bonne" : "assez mauvaise aujourd'hui";
             string airlineName = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(ActiveAirlineId.Replace("_", " "));
-            string aircraftType = CurrentFlight?.Aircraft?.BaseType ?? CurrentFlight?.Aircraft?.IcaoCode ?? "aircraft";
+            string aircraftType = "A320"; // Safe default
+            if (CurrentFlight?.Aircraft != null)
+            {
+                if (!string.IsNullOrWhiteSpace(CurrentFlight.Aircraft.BaseType)) aircraftType = CurrentFlight.Aircraft.BaseType;
+                else if (!string.IsNullOrWhiteSpace(CurrentFlight.Aircraft.IcaoCode)) aircraftType = CurrentFlight.Aircraft.IcaoCode;
+                else if (!string.IsNullOrWhiteSpace(CurrentFlight.Aircraft.Name)) aircraftType = CurrentFlight.Aircraft.Name;
+            }
             
             int hr = departureLocalTime.Hour;
             string greeting = hr < 12 ? "Morning" : (hr < 18 ? "Afternoon" : "Evening");
@@ -1879,45 +1885,64 @@ namespace FlightSupervisor.UI.Services
             string timeStr = flightTimeMinutes >= 60 ? $"{flightTimeMinutes / 60} hour(s) and {flightTimeMinutes % 60} minutes" : $"{flightTimeMinutes} minutes";
             string spokenText = $"Ladies and gentlemen, good {greeting} from the flightdeck. My name is {CaptainName} and I am your captain today. On behalf of {airlineName} I would like to welcome you all on board this {aircraftType} on our flight to {destName}. Today flight time will be approximately {timeStr} and we're expecting a {wxcConditions}. We're just finishing the last paper work and once completed we will start our pushback. The weather at our destination is currently {destTempC} degrees Celsius. Thank you very much for being our guests. Sit back, relax, and enjoy this flight with us.";
             
+            // --- NORMALISE AIRLINE & AIRCRAFT TYPE ---
+            string rawAirline = ActiveAirlineId.ToUpper();
+            string normAirline = rawAirline;
+            if (rawAirline.StartsWith("EJU") || rawAirline.StartsWith("EZS") || rawAirline.StartsWith("EZY") || rawAirline.Contains("EASYJET")) 
+            {
+                normAirline = "EZY";
+            }
+            else if (rawAirline.StartsWith("AFR") || rawAirline.Contains("AIR_FRANCE") || rawAirline.Contains("AIRFRANCE"))
+            {
+                normAirline = "AFR";
+            }
+
+            string normAircraft = aircraftType.ToUpper();
+            if (normAircraft == "A20N" || normAircraft == "A32N") normAircraft = "A320";
+            if (normAircraft == "A21N") normAircraft = "A321";
+            if (normAircraft == "A19N") normAircraft = "A319";
+
             // --- DYNAMIC AUDIO SEQUENCE ---
             // 1. Greeting
-            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/FlightDeck to PA", $"EN_Rowan_Welcome_Onboard_This_{greeting}", spokenText);
+            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/FlightDeck to PA", $"EN_Rowan_Welcome_Onboard_This_{greeting}", spokenText, playChime: true);
             
             // 2. Airline
-            _audio?.PlayExactAsCaptain($"TO_PA/Airlines/EN_Rowan_{ActiveAirlineId}_{aircraftType}.mp3", null);
+            if (!string.IsNullOrEmpty(normAirline)) {
+                _audio?.PlayExactAsCaptain($"TO_PA/Airlines/EN_Rowan_{normAirline}_{normAircraft}.mp3", null, playChime: false);
+            }
 
             // 3. Destination (ICAO)
-            _audio?.PlayExactAsCaptain($"TO_PA/ICAO/EN_Rowan_{destIcao}_01.mp3", null);
+            _audio?.PlayExactAsCaptain($"TO_PA/ICAO/EN_Rowan_{destIcao}_01.mp3", null, playChime: false);
 
             // 4. Flight Time
-            _audio?.PlayExactAsCaptain("TO_PA/FlightDeck to PA/EN_Rowan_Welcome_Onboard_Flight_Time.mp3", null);
+            _audio?.PlayExactAsCaptain("TO_PA/FlightDeck to PA/EN_Rowan_Welcome_Onboard_Flight_Time.mp3", null, playChime: false);
             int eH = flightTimeMinutes / 60;
             int eM = flightTimeMinutes % 60;
-            if (eH > 0 && eH <= 12) _audio?.PlayExactAsCaptain($"TO_PA/Hours/EN_Rowan_{eH}hour.mp3", null);
-            if (eM > 0 && eM <= 59) _audio?.PlayExactAsCaptain($"TO_PA/Minutes/EN_Rowan_{eM}min.mp3", null);
+            if (eH > 0 && eH <= 12) _audio?.PlayExactAsCaptain($"TO_PA/Hours/EN_Rowan_{eH}hour.mp3", null, playChime: false);
+            if (eM > 0 && eM <= 59) _audio?.PlayExactAsCaptain($"TO_PA/Minutes/EN_Rowan_{eM}min.mp3", null, playChime: false);
 
             // 5. Weather
-            SequenceWeatherPA(metar, destTempC, false);
+            SequenceWeatherPA(metar, destTempC, isApproach: false, playChime: false);
 
             // 6. Local Time
-            _audio?.PlayExactAsCaptain("TO_PA/FlightDeck to PA/EN_Rowan_Welcome_Onboard_Local_Time.mp3", null);
+            _audio?.PlayExactAsCaptain("TO_PA/FlightDeck to PA/EN_Rowan_Welcome_Onboard_Local_Time.mp3", null, playChime: false);
             
             int destHour12 = destLocalTime.Hour % 12;
             if (destHour12 == 0) destHour12 = 12; // 12 AM / 12 PM format
             
-            _audio?.PlayExactAsCaptain($"TO_PA/Time_Minutes/EN_Rowan_{NumberToExactWord(destHour12)}.mp3", null);
+            _audio?.PlayExactAsCaptain($"TO_PA/Time_Minutes/EN_Rowan_{NumberToExactWord(destHour12)}.mp3", null, playChime: false);
             
             if (destLocalTime.Minute == 0) {
-                _audio?.PlayExactAsCaptain("TO_PA/Time_Modifiers/EN_Rowan_O_Clock.mp3", null);
+                _audio?.PlayExactAsCaptain("TO_PA/Time_Modifiers/EN_Rowan_O_Clock.mp3", null, playChime: false);
             } else {
-                _audio?.PlayExactAsCaptain($"TO_PA/Time_Minutes/EN_Rowan_{NumberToExactWord(destLocalTime.Minute)}.mp3", null);
+                _audio?.PlayExactAsCaptain($"TO_PA/Time_Minutes/EN_Rowan_{NumberToExactWord(destLocalTime.Minute)}.mp3", null, playChime: false);
             }
 
             string ampm = destLocalTime.Hour < 12 ? "AM" : "PM";
-            _audio?.PlayExactAsCaptain($"TO_PA/Time_Modifiers/EN_Rowan_{ampm}.mp3", null);
+            _audio?.PlayExactAsCaptain($"TO_PA/Time_Modifiers/EN_Rowan_{ampm}.mp3", null, playChime: false);
 
             // 7. Outro (Paperwork)
-            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/FlightDeck to PA", "EN_Rowan_Welcome_Onboard_Paper_Work_", null);
+            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/FlightDeck to PA", "EN_Rowan_Welcome_Onboard_Paper_Work_", null, playChime: false);
 
             // UI Dispatch
             string notifText = $"PA: Welcome aboard our flight to {destName}. Our flight time will be approx {timeStr}. The weather at our destination is currently {wxcText}.";
@@ -1935,26 +1960,26 @@ namespace FlightSupervisor.UI.Services
 
             // 1. Initial Greeting
             string introFallback = $"Ladies and gentlemen, we've just been cleared for our approach to {destName} and we will be landing shortly.";
-            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/FlightDeck to PA", "EN_Rowan_Approach_ClearedToLand", introFallback);
+            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/FlightDeck to PA", "EN_Rowan_Approach_ClearedToLand", introFallback, playChime: true);
 
             // 2. Local Time at Dest
-            _audio?.PlayExactAsCaptain("TO_PA/FlightDeck to PA/EN_Rowan_Welcome_Onboard_Local_Time.mp3", null);
+            _audio?.PlayExactAsCaptain("TO_PA/FlightDeck to PA/EN_Rowan_Welcome_Onboard_Local_Time.mp3", null, playChime: false);
             int destHour12 = destLocalTime.Hour % 12;
             if (destHour12 == 0) destHour12 = 12;
-            _audio?.PlayExactAsCaptain($"TO_PA/Time_Minutes/EN_Rowan_{NumberToExactWord(destHour12)}.mp3", null);
+            _audio?.PlayExactAsCaptain($"TO_PA/Time_Minutes/EN_Rowan_{NumberToExactWord(destHour12)}.mp3", null, playChime: false);
             if (destLocalTime.Minute == 0) {
-                _audio?.PlayExactAsCaptain("TO_PA/Time_Modifiers/EN_Rowan_O_Clock.mp3", null);
+                _audio?.PlayExactAsCaptain("TO_PA/Time_Modifiers/EN_Rowan_O_Clock.mp3", null, playChime: false);
             } else {
-                _audio?.PlayExactAsCaptain($"TO_PA/Time_Minutes/EN_Rowan_{NumberToExactWord(destLocalTime.Minute)}.mp3", null);
+                _audio?.PlayExactAsCaptain($"TO_PA/Time_Minutes/EN_Rowan_{NumberToExactWord(destLocalTime.Minute)}.mp3", null, playChime: false);
             }
             string ampm = destLocalTime.Hour < 12 ? "AM" : "PM";
-            _audio?.PlayExactAsCaptain($"TO_PA/Time_Modifiers/EN_Rowan_{ampm}.mp3", null);
+            _audio?.PlayExactAsCaptain($"TO_PA/Time_Modifiers/EN_Rowan_{ampm}.mp3", null, playChime: false);
 
             // 3. Weather
-            SequenceWeatherPA(metar, destTempC, true);
+            SequenceWeatherPA(metar, destTempC, isApproach: true, playChime: false);
 
             // 4. Outro
-            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/FlightDeck to PA", "EN_Rowan_Approach_CabinCrewPrepare", "Cabin crew, prepare for landing.");
+            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/FlightDeck to PA", "EN_Rowan_Approach_CabinCrewPrepare", "Cabin crew, prepare for landing.", playChime: false);
 
             bool badWeather = metar.Contains(" TS") || metar.Contains(" CB") || metar.Contains(" FG") || metar.Contains(" SN") || metar.Contains(" GR");
 
@@ -1982,14 +2007,14 @@ namespace FlightSupervisor.UI.Services
             if (currentLocalTime.Hour >= 12 && currentLocalTime.Hour < 18) greetingPrefix = "Aftn";
             else if (currentLocalTime.Hour >= 18) greetingPrefix = "Eve";
 
-            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Cruise_Intro", $"{greetingPrefix}_", "Ladies and gentlemen from the flight deck, we have reached our cruising altitude.");
+            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Cruise_Intro", $"{greetingPrefix}_", "Ladies and gentlemen from the flight deck, we have reached our cruising altitude.", playChime: true);
 
             // 2. Altitude (nearest thousand)
             int roundedAlt = (int)(Math.Round(altitude / 1000.0) * 1000);
             if (roundedAlt < 30000) roundedAlt = 30000;
             if (roundedAlt > 43000) roundedAlt = 43000;
             
-            _audio?.PlayExactAsCaptain($"TO_PA/Altitude/Alt_{roundedAlt}.mp3", $"We are currently at {roundedAlt} feet.");
+            _audio?.PlayExactAsCaptain($"TO_PA/Altitude/Alt_{roundedAlt}.mp3", $"We are currently at {roundedAlt} feet.", playChime: false);
 
             // 3. Winds
             int windSpeed = 0;
@@ -2013,38 +2038,38 @@ namespace FlightSupervisor.UI.Services
             {
                 string windDirPrefix = isTailwind ? "Tailwind" : "Headwind";
                 string fallbackDir = isTailwind ? "tailwind" : "headwind";
-                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Winds", $"{windDirPrefix}_", $"We are experiencing a {fallbackDir}.");
+                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Winds", $"{windDirPrefix}_", $"We are experiencing a {fallbackDir}.", playChime: false);
 
                 // Round speed to nearest 20 
                 int roundedWspd = (int)(Math.Round(windSpeed / 20.0) * 20);
                 if (roundedWspd < 20) roundedWspd = 20;
                 if (roundedWspd > 140) roundedWspd = 140;
 
-                _audio?.PlayExactAsCaptain($"TO_PA/Winds/Spd_{roundedWspd}.mp3", $"of about {roundedWspd} knots.");
+                _audio?.PlayExactAsCaptain($"TO_PA/Winds/Spd_{roundedWspd}.mp3", $"of about {roundedWspd} knots.", playChime: false);
             }
             else
             {
-                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Winds", "Calm_", "The winds aloft are relatively calm today.");
+                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Winds", "Calm_", "The winds aloft are relatively calm today.", playChime: false);
             }
 
             // 4. Enroute Weather
             bool hasStorms = enrtMetar.Contains(" TS") || enrtMetar.Contains(" CB");
             if (hasStorms) {
-                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/EnRoute", "Stormy_", "We do have some significant weather to navigate around coming up, so I will be keeping the seatbelt sign on.");
+                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/EnRoute", "Stormy_", "We do have some significant weather to navigate around coming up, so I will be keeping the seatbelt sign on.", playChime: false);
             } else if (enrtMetar.Contains(" RA") || enrtMetar.Contains(" SN") || destMetar.Contains(" TS")) {
-                 _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/EnRoute", "Bumpy_", "Looking ahead, we are seeing a few weather systems along our route, so we might experience a few bumps.");
+                 _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/EnRoute", "Bumpy_", "Looking ahead, we are seeing a few weather systems along our route, so we might experience a few bumps.", playChime: false);
             } else {
-                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/EnRoute", "Smooth_", "Looking ahead at the weather radar, the route is completely clear, so it should be a very smooth ride all the way.");
+                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/EnRoute", "Smooth_", "Looking ahead at the weather radar, the route is completely clear, so it should be a very smooth ride all the way.", playChime: false);
             }
 
             // 5. Arrival Transition
-            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Arrival", "ArrTrans_", $"As for our destination in {destName}...");
+            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Arrival", "ArrTrans_", $"As for our destination in {destName}...", playChime: false);
 
             // 6. Destination Weather (reuse weather sequencer)
-            SequenceWeatherPA(destMetar, destTempC, true);
+            SequenceWeatherPA(destMetar, destTempC, isApproach: true, playChime: false);
 
             // 7. Outro
-            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Cruise_Outro", "Outro_", "I will get back to you with an updated ETA before our descent. Until then, sit back, relax, and enjoy the rest of the flight.");
+            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Cruise_Outro", "Outro_", "I will get back to you with an updated ETA before our descent. Until then, sit back, relax, and enjoy the rest of the flight.", playChime: false);
 
             OnCrewMessage?.Invoke("green", LocalizationService.Translate("PA: Cruise Update (Altitude & Enroute Weather)", "PA: Informations de Croisière (Altitude et météo)"), null);
         }

@@ -68,63 +68,67 @@ namespace FlightSupervisor.UI.Services
         }
 
         // Backward compatibility
-        public void SpeakAsCaptain(string text) => PlayAudio(SpeakerId.Captain, text, null);
-        public void SpeakAsPurser(string text) => PlayAudio(SpeakerId.Purser, text, null);
-        public void SpeakAsFO(string text) => PlayAudio(SpeakerId.FO, text, null);
-        public void PlayVariantAsPurser(string folderRelativePath, string fallbackText, string prefix = null)
+        public void SpeakAsCaptain(string text, bool playChime = true) => PlayAudio(SpeakerId.Captain, text, null, null, null, playChime);
+        public void SpeakAsPurser(string text, bool playChime = true) => PlayAudio(SpeakerId.Purser, text, null, null, null, playChime);
+        public void SpeakAsFO(string text, bool playChime = true) => PlayAudio(SpeakerId.FO, text, null, null, null, playChime);
+        
+        public void PlayVariantAsPurser(string folderRelativePath, string fallbackText, string prefix = null, bool playChime = true)
         {
             if (!folderRelativePath.StartsWith("EN_PNC_Beth/"))
                 folderRelativePath = "EN_PNC_Beth/" + folderRelativePath;
-            PlayAudio(SpeakerId.Purser, fallbackText, folderRelativePath, null, prefix);
+            PlayAudio(SpeakerId.Purser, fallbackText, folderRelativePath, null, prefix, playChime);
         }
 
-        public void PlayVariantAsFO(string folderRelativePath, string fallbackText, string prefix = null)
+        public void PlayVariantAsFO(string folderRelativePath, string fallbackText, string prefix = null, bool playChime = true)
         {
             if (!folderRelativePath.StartsWith("EN_FO_Lucie/"))
                 folderRelativePath = "EN_FO_Lucie/" + folderRelativePath;
-            PlayAudio(SpeakerId.FO, fallbackText, folderRelativePath, null, prefix);
+            PlayAudio(SpeakerId.FO, fallbackText, folderRelativePath, null, prefix, playChime);
         }
 
-        public void PlayVariantAsCaptain(string folderRelativePath, string fallbackText, string prefix = null)
+        public void PlayVariantAsCaptain(string folderRelativePath, string fallbackText, string prefix = null, bool playChime = true)
         {
             if (!folderRelativePath.StartsWith("EN_FD_Rowan/"))
                 folderRelativePath = "EN_FD_Rowan/" + folderRelativePath;
-            PlayAudio(SpeakerId.Captain, fallbackText, folderRelativePath, null, prefix);
+            PlayAudio(SpeakerId.Captain, fallbackText, folderRelativePath, null, prefix, playChime);
         }
 
-        public void PlayVariantWithPrefixAsCaptain(string folderRelativePath, string prefixFilter, string fallbackText)
+        public void PlayVariantWithPrefixAsCaptain(string folderRelativePath, string prefixFilter, string fallbackText, bool playChime = true)
         {
             if (!folderRelativePath.StartsWith("EN_FD_Rowan/"))
                 folderRelativePath = "EN_FD_Rowan/" + folderRelativePath;
-            PlayAudio(SpeakerId.Captain, fallbackText, folderRelativePath, null, prefixFilter);
+            PlayAudio(SpeakerId.Captain, fallbackText, folderRelativePath, null, prefixFilter, playChime);
         }
 
-        public void PlayExactAsCaptain(string exactRelativePath, string fallbackText)
+        public void PlayExactAsCaptain(string exactRelativePath, string fallbackText, bool playChime = true)
         {
             if (!exactRelativePath.StartsWith("EN_FD_Rowan/"))
                 exactRelativePath = "EN_FD_Rowan/" + exactRelativePath;
-            PlayAudio(SpeakerId.Captain, fallbackText, null, exactRelativePath, null);
+            PlayAudio(SpeakerId.Captain, fallbackText, null, exactRelativePath, null, playChime);
         }
 
-        public void PlayExactAsFO(string exactRelativePath, string fallbackText)
+        public void PlayExactAsFO(string exactRelativePath, string fallbackText, bool playChime = true)
         {
             if (!exactRelativePath.StartsWith("EN_FO_Lucie/"))
                 exactRelativePath = "EN_FO_Lucie/" + exactRelativePath;
-            PlayAudio(SpeakerId.FO, fallbackText, null, exactRelativePath, null);
+            PlayAudio(SpeakerId.FO, fallbackText, null, exactRelativePath, null, playChime);
         }
 
-        public void PlayAudio(SpeakerId speaker, string fallbackText, string folderRelativePath, string exactFilePath = null, string prefixFilter = null)
+        public void PlayAudio(SpeakerId speaker, string fallbackText, string folderRelativePath, string exactFilePath = null, string prefixFilter = null, bool playChime = true)
         {
-            string chimePathWav = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "assets", "sounds", "pa_chime.wav");
-            string chimePathMp3 = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "assets", "sounds", "pa_chime.mp3");
-            string selectedChime = System.IO.File.Exists(chimePathWav) ? chimePathWav : (System.IO.File.Exists(chimePathMp3) ? chimePathMp3 : null);
-
-            if (selectedChime != null)
+            if (playChime)
             {
-                _queue.Enqueue(new AudioRequest {
-                    Speaker = speaker,
-                    ExactFilePath = selectedChime
-                });
+                string chimePathWav = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "assets", "sounds", "pa_chime.wav");
+                string chimePathMp3 = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "assets", "sounds", "pa_chime.mp3");
+                string selectedChime = System.IO.File.Exists(chimePathWav) ? chimePathWav : (System.IO.File.Exists(chimePathMp3) ? chimePathMp3 : null);
+
+                if (selectedChime != null)
+                {
+                    _queue.Enqueue(new AudioRequest {
+                        Speaker = speaker,
+                        ExactFilePath = selectedChime
+                    });
+                }
             }
 
             _queue.Enqueue(new AudioRequest { 
