@@ -428,19 +428,17 @@
                             
                             <!-- PAGE 2: GROUND OPERATIONS (Hidden by default) -->
                             <div id="dashPage2_GroundOps" class="flex flex-col flex-1 w-full hidden animate-fade-in relative bg-[#242430]">
-                                <div id="dashMetaBar" class="px-8 py-4 border-b border-white/5 bg-[#1a1a24]" style="display: none;">
-                                    <div class="flex justify-between items-center px-1">
-                                        <span id="dashMetaTitle" class="text-[12px] font-bold uppercase tracking-[0.05em] text-white/90 font-sans">Ground Operations</span>
-                                        <span id="dashMetaText" class="text-[10px] text-[#b6b6b6] uppercase font-bold tracking-widest hidden">Standing By.</span>
+                                <div class="flex justify-between items-center px-6 py-3 border-b border-white/5 bg-[#1a1c23]">
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-[#7b7b7b] flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">fast_forward</span> SIMULATION TIME WARP</span>
+                                    <div class="flex justify-end gap-2">
+                                        <button onclick="event.stopPropagation(); window.requestTimeSkip(1)" class="bg-indigo-600/20 hover:bg-indigo-500/40 text-indigo-400 hover:text-white border border-indigo-500/30 text-[11px] font-black font-mono px-4 py-1.5 rounded shadow shadow-indigo-500/20 transition-all">+1 MIN</button>
+                                        <button onclick="event.stopPropagation(); window.requestTimeSkip(5)" class="bg-indigo-600/20 hover:bg-indigo-500/40 text-indigo-400 hover:text-white border border-indigo-500/30 text-[11px] font-black font-mono px-4 py-1.5 rounded shadow shadow-indigo-500/20 transition-all">+5 MIN</button>
+                                        <button onclick="event.stopPropagation(); window.requestTimeSkip(10)" class="bg-indigo-600/20 hover:bg-indigo-500/40 text-indigo-400 hover:text-white border border-indigo-500/30 text-[11px] font-black font-mono px-4 py-1.5 rounded shadow shadow-indigo-500/20 transition-all">+10 MIN</button>
                                     </div>
-                                    <div class="h-2.5 w-full bg-[#2a382e] rounded-full overflow-hidden shadow-inner mt-2">
-                                        <div id="dashMetaFill" class="h-full bg-[#42804b] w-0 transition-all duration-1000 ease-out"></div>
-                                    </div>
-                                    <div class="flex justify-end gap-3 mt-3">
-                                        <button onclick="event.stopPropagation(); window.requestTimeSkip(1)" class="bg-white/20 hover:bg-white/30 text-white text-[12px] font-medium font-mono px-3 py-0.5 rounded shadow transition-colors">+1m</button>
-                                        <button onclick="event.stopPropagation(); window.requestTimeSkip(5)" class="bg-white/20 hover:bg-white/30 text-white text-[12px] font-medium font-mono px-3 py-0.5 rounded shadow transition-colors">+5m</button>
-                                        <button onclick="event.stopPropagation(); window.requestTimeSkip(10)" class="bg-white/20 hover:bg-white/30 text-white text-[12px] font-medium font-mono px-3 py-0.5 rounded shadow transition-colors">+10m</button>
-                                    </div>
+                                </div>
+                                <div id="dashMetaBar" class="hidden">
+                                     <span id="dashMetaText"></span>
+                                     <div id="dashMetaFill"></div>
                                 </div>
                                 
                                 <div id="dashboardGroundOpsPillsGrid" class="flex flex-col w-full">

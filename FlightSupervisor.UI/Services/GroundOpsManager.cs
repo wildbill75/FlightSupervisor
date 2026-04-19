@@ -499,6 +499,12 @@ namespace FlightSupervisor.UI.Services
             
             double deltaD = (now - _lastTick).TotalSeconds;
 
+            if (deltaD < 0)
+            {
+                _lastTick = now;
+                deltaD = 0;
+            }
+
             if (IsPaused) 
             {
                 _lastTick = now; // Don't accumulate when paused
