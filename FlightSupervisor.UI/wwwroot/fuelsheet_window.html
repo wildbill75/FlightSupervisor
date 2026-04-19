@@ -300,31 +300,58 @@
                         document.getElementById('extraContainer').classList.add('border-white/5');
                     }
                 }
+                else if (p.type === 'fuelValidationRejected') {
+                    const btnContainer = document.getElementById('btnContainer');
+                    btnContainer.innerHTML = `
+                        <div class="w-full bg-rose-500/20 text-rose-400 border border-rose-500/50 py-3 rounded-xl font-bold tracking-wider text-center text-[10px] px-2 cursor-pointer hover:bg-rose-500/30 flex flex-col items-center justify-center gap-1" id="btnErrorAcknowledge" title="Click to dismiss">
+                            <span class="material-symbols-outlined text-[18px]">warning</span>
+                            <span>${p.message}</span>
+                            <span class="text-[8px] opacity-70 mt-1">(CLICK TO DISMISS)</span>
+                        </div>
+                    `;
+                    document.getElementById('btnErrorAcknowledge').addEventListener('click', () => {
+                        btnContainer.innerHTML = `
+                            <button id="btnValidateFuel" class="w-full bg-sky-500/20 text-sky-400 hover:bg-sky-500 hover:text-white border border-sky-500/50 py-4 rounded-xl font-bold tracking-[0.2em] uppercase transition-all duration-300 shadow-[0_0_20px_rgba(14,165,233,0.15)] flex items-center justify-center gap-2 group cursor-pointer">
+                                <span class="material-symbols-outlined text-[18px]">verified_user</span>
+                                <span>Validate & Sign</span>
+                            </button>
+                            <button id="btnConsulted" class="w-full bg-slate-500/10 text-slate-400 border border-slate-500/30 py-4 rounded-xl font-bold tracking-[0.2em] uppercase transition-all duration-300 flex items-center justify-center gap-2 cursor-not-allowed hidden">
+                                <span class="material-symbols-outlined text-[18px]">task_alt</span>
+                                <span>Load Sheet Validated</span>
+                            </button>
+                        `;
+                        attachValidateEvent();
+                    });
+                }
             });
         }
 
-        document.getElementById('btnValidateFuel').addEventListener('click', () => {
-            if (isValidated) return;
-            
-            const finalBlock = baseBlockFuel + extraFuel;
-            
-            // Transform UI into Please Wait Spinner
-            const btnContainer = document.getElementById('btnContainer');
-            btnContainer.innerHTML = `
-                <div class="w-full bg-black/20 text-sky-400 border border-sky-500/20 py-4 rounded-xl font-bold tracking-[0.2em] uppercase flex flex-col items-center justify-center gap-3">
-                    <span class="material-symbols-outlined text-[24px] animate-spin text-sky-400 opacity-70">autorenew</span>
-                    <span class="text-[10px] animate-pulse">VAL STATUS PENDING...</span>
-                </div>
-            `;
-
-            // Send IPC to backend (with blockFuel value to use)
-            if (window.chrome && window.chrome.webview) {
-                window.chrome.webview.postMessage({ 
-                    action: 'validateFuel', 
-                    payload: { blockFuel: finalBlock.toString(), legIndex: effectiveLegIndex }
-                });
-            }
-        });
+        function attachValidateEvent() {
+            document.getElementById('btnValidateFuel').addEventListener('click', () => {
+                if (isValidated) return;
+                
+                const finalBlock = baseBlockFuel + extraFuel;
+                
+                // Transform UI into Please Wait Spinner
+                const btnContainer = document.getElementById('btnContainer');
+                btnContainer.innerHTML = `
+                    <div class="w-full bg-black/20 text-sky-400 border border-sky-500/20 py-4 rounded-xl font-bold tracking-[0.2em] uppercase flex flex-col items-center justify-center gap-3">
+                        <span class="material-symbols-outlined text-[24px] animate-spin text-sky-400 opacity-70">autorenew</span>
+                        <span class="text-[10px] animate-pulse">VAL STATUS PENDING...</span>
+                    </div>
+                `;
+    
+                // Send IPC to backend (with blockFuel value to use)
+                if (window.chrome && window.chrome.webview) {
+                    window.chrome.webview.postMessage({ 
+                        action: 'validateFuel', 
+                        payload: { blockFuel: finalBlock.toString(), legIndex: effectiveLegIndex }
+                    });
+                }
+            });
+        }
+        
+        attachValidateEvent();
     </script>
 </body>
 </html>
