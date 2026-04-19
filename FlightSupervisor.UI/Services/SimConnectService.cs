@@ -282,34 +282,41 @@ namespace FlightSupervisor.UI.Services
                     int zMonth = planeData.ZuluMonth >= 1 && planeData.ZuluMonth <= 12 ? (int)planeData.ZuluMonth : DateTime.UtcNow.Month;
                     int zDay = planeData.ZuluDay >= 1 && planeData.ZuluDay <= 31 ? (int)planeData.ZuluDay : DateTime.UtcNow.Day;
                     
-                    int hours = zuluSpan.Hours < 0 ? 0 : (zuluSpan.Hours > 23 ? 23 : zuluSpan.Hours);
-                    int mins = zuluSpan.Minutes < 0 ? 0 : (zuluSpan.Minutes > 59 ? 59 : zuluSpan.Minutes);
-                    int secs = zuluSpan.Seconds < 0 ? 0 : (zuluSpan.Seconds > 59 ? 59 : zuluSpan.Seconds);
+                    int zHours = zuluSpan.Hours < 0 ? 0 : (zuluSpan.Hours > 23 ? 23 : zuluSpan.Hours);
+                    int zMins = zuluSpan.Minutes < 0 ? 0 : (zuluSpan.Minutes > 59 ? 59 : zuluSpan.Minutes);
+                    int zSecs = zuluSpan.Seconds < 0 ? 0 : (zuluSpan.Seconds > 59 ? 59 : zuluSpan.Seconds);
                     
-                    currentUtc = new DateTime(zYear, zMonth, zDay, hours, mins, secs, DateTimeKind.Utc);
-                    CurrentSimZuluTime = currentUtc;
-                    OnSimTimeReceived?.Invoke(currentUtc);
+                    currentUtc = new DateTime(zYear, zMonth, zDay, zHours, zMins, zSecs, DateTimeKind.Utc);
                 } catch { 
-                    CurrentSimZuluTime = currentUtc;
-                    OnSimTimeReceived?.Invoke(currentUtc);
+                    currentUtc = DateTime.UtcNow;
                 }
 
                 DateTime currentLocal = currentUtc;
                 try {
-                    TimeSpan localSpan = TimeSpan.FromSeconds(planeData.LocalTime);
-                    int lYear = planeData.LocalYear > 1900 ? (int)planeData.LocalYear : DateTime.Now.Year;
-                    int lMonth = planeData.LocalMonth >= 1 && planeData.LocalMonth <= 12 ? (int)planeData.LocalMonth : DateTime.Now.Month;
-                    int lDay = planeData.LocalDay >= 1 && planeData.LocalDay <= 31 ? (int)planeData.LocalDay : DateTime.Now.Day;
+                    // Ignore MSFS native LOCAL TIME as it is notoriously buggy or sometimes returns garbage/0.
+                    // Also ignore TIME ZONE DEVIATION as MSFS locks it incorrectly depending on the Weather preset.
+                    // We dynamically determine the exact local time (with DST) using the aircraft's coordinates.
+                    double latDeg = planeData.Latitude * (180.0 / Math.PI);
+                    double lonDeg = planeData.Longitude * (180.0 / Math.PI);
                     
-                    int hours = localSpan.Hours < 0 ? 0 : (localSpan.Hours > 23 ? 23 : localSpan.Hours);
-                    int mins = localSpan.Minutes < 0 ? 0 : (localSpan.Minutes > 59 ? 59 : localSpan.Minutes);
-                    int secs = localSpan.Seconds < 0 ? 0 : (localSpan.Seconds > 59 ? 59 : localSpan.Seconds);
+                    if (Math.Abs(latDeg) > 0.001 || Math.Abs(lonDeg) > 0.001)
+                    {
+                        string tzIana = TimeZoneLookup.GetTimeZone(latDeg, lonDeg).Result;
+                        TimeZoneInfo tzi = TZConvert.GetTimeZoneInfo(tzIana);
+                        currentLocal = TimeZoneInfo.ConvertTimeFromUtc(currentUtc, tzi);
+                    }
+                    else
+                    {
+                        currentLocal = currentUtc.AddSeconds(-planeData.TimeZoneDeviation);
+                    }
                     
-                    currentLocal = new DateTime(lYear, lMonth, lDay, hours, mins, secs, DateTimeKind.Local);
                     OnSimLocalTimeReceived?.Invoke(currentLocal);
                 } catch { 
                     OnSimLocalTimeReceived?.Invoke(currentLocal);
                 }
+                
+                CurrentSimZuluTime = currentUtc;
+                OnSimTimeReceived?.Invoke(currentUtc);
                 
                 OnAmbientTemperatureReceived?.Invoke(planeData.AmbientTemperature);
                 

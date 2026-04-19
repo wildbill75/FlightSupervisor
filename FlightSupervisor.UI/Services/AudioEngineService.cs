@@ -4,7 +4,6 @@ using System.IO;
 using System.Speech.Synthesis;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows;
 using NAudio.Wave;
 
 namespace FlightSupervisor.UI.Services
@@ -149,7 +148,6 @@ namespace FlightSupervisor.UI.Services
                 {
                     _isPlaying = true;
 
-                    bool needsTTS = false;
                     string logText = $"[{DateTime.Now}] Processing queue for speaker {item.Speaker}.\r\n";
 
                     // First, try to resolve the Audio File

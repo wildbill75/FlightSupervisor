@@ -173,7 +173,6 @@ namespace FlightSupervisor.UI.Services
         public event Action<int, string>? OnPenaltyTriggered;
         public event Action<int, string>? OnOperationBonusTriggered;
         public event Action<string, CabinState>? OnPncStatusChanged;
-        public event Action? OnMedicalEmergencyRequested;
         public event Action<string>? OnCabinCallIncoming;
 
         // Pending events for Incoming Calls
@@ -2186,7 +2185,6 @@ namespace FlightSupervisor.UI.Services
         
         private void UpdatePassengerStates(FlightPhase phase, bool isSevere)
         {
-            int injuryCount = 0;
             foreach (var p in PassengerManifest)
             {
                 if (!p.IsBoarded) continue;

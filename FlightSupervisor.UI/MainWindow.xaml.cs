@@ -275,11 +275,7 @@ namespace FlightSupervisor.UI
                     SendToWeb(new { type = "playSound", sound = "chime_emergency" });
                 }
             };
-            _cabinManager.OnMedicalEmergencyRequested += () => {
-                if (_crisisManager != null && _crisisManager.ActiveCrisis == CrisisType.None) {
-                    _crisisManager.TriggerSpecificCrisis(CrisisType.MedicalEmergency);
-                }
-            };
+
             
             _cabinManager.OnCabinCallIncoming += (callState) => {
                 SendToWeb(new { type = "incoming_pnc_call", state = callState });
