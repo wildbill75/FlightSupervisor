@@ -3186,8 +3186,8 @@ namespace FlightSupervisor.UI
         {
             _isAtWrongAirport = _currentResponse != null && !IsAircraftAtOrigin();
             
-            // Only flag as 'wrong airport' for UI if in preparation phases
-            bool uiMismatch = _isAtWrongAirport && (_phaseManager.CurrentPhase == FlightPhase.AtGate || _phaseManager.CurrentPhase == FlightPhase.Turnaround);
+            // disabled to prevent UI spam when addon traffic/navdata pushes aircraft off the ideal origin coords
+            bool uiMismatch = false;
 
             bool latParsed = false;
             bool lonParsed = false;
@@ -3875,6 +3875,24 @@ namespace FlightSupervisor.UI
         {
             if (minutes > 0)
             {
+                // Butoir de 5 minutes avant le départ (TargetSobt) - Applicable à TOUTES les jambes
+                if (_groundOpsManager.TargetSobt.HasValue)
+                {
+                    double timeToSobt = (_groundOpsManager.TargetSobt.Value - _currentSimTime).TotalMinutes;
+                    int maxSkip = (int)Math.Max(0, timeToSobt - 5);
+                    
+                    if (minutes > maxSkip)
+                    {
+                        minutes = maxSkip;
+                        if (minutes <= 0)
+                        {
+                            SendToWeb(new { type = "log", message = $"[SYSTEM] Action Denied. Time Skip is unavailable within 5 minutes of departure." });
+                            return;
+                        }
+                        SendToWeb(new { type = "log", message = $"[SYSTEM] Time Skip limited to maintain 5 minutes departure buffer." });
+                    }
+                }
+
                 DateTime newSimTime = _currentSimTime.AddMinutes(minutes);
 
                 if (_cabinManager != null)
