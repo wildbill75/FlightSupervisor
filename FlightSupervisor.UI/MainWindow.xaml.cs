@@ -373,7 +373,8 @@ namespace FlightSupervisor.UI
 
                 if (_groundOpsManager.IsAnyOperationInProgress() && !_groundOpsManager.IsPaused && _phaseManager.CurrentPhase == FlightPhase.AtGate)
                 {
-                    _eventEngine.Tick(_groundOpsManager.EventProbabilityPercent, CurrentAirline);
+                    // [BUG-FIX] Disable Random Ground Events temporarily as requested
+                    // _eventEngine.Tick(_groundOpsManager.EventProbabilityPercent, CurrentAirline);
                 }
 
                 if (_groundOpsManager.IsAnyOperationInProgress() && (_phaseManager.GroundSpeed > 1.0 || !_phaseManager.IsOnGround))
@@ -497,6 +498,8 @@ namespace FlightSupervisor.UI
                             if (_scoreManager != null) _scoreManager.AddScore(-200, "SÉCURITÉ: Décollage sans cabine sécurisée !", ScoreCategory.Airmanship);
                         }
                     }
+                    // Bug #5 Fix: Inhibited automatic Cruise PA. Must be manually triggered by Captain from the PA panel.
+                    /* 
                     else if (phase == FlightPhase.Cruise)
                     {
                         Task.Run(async () => {
@@ -504,6 +507,7 @@ namespace FlightSupervisor.UI
                             _cabinManager.AnnounceToCabin("CruiseStatus");
                         });
                     }
+                    */
                     else if (phase == FlightPhase.Descent)
                     {
                         _cabinManager.AnnounceToCabin("Descent");
@@ -853,6 +857,10 @@ namespace FlightSupervisor.UI
                     SendToWeb(new { type = "flightUpdate", message = $"[FO] {msg}" });
                 });
             };
+            
+            _phaseManager.OnTouchdown += (fpm) => {
+                _cabinManager?.ProcessLandingImpact(fpm);
+            };
 
 
 
@@ -988,6 +996,7 @@ namespace FlightSupervisor.UI
             _simConnectService.OnSimOnGroundReceived += g => { _phaseManager.IsOnGround = g; };
             _simConnectService.OnVerticalSpeedReceived += vs => { _phaseManager.VerticalSpeed = vs; };
             _simConnectService.OnGForceReceived += gf => { _phaseManager.GForce = gf; };
+            _simConnectService.OnAircraftTitleReceived += t => { _phaseManager.AircraftTitle = t; };
             _simConnectService.OnHeadingReceived += h => { _phaseManager.UpdateHeading(h); };
             _simConnectService.OnWindReceived += (wd, wv) => { _phaseManager.UpdateWind(wd, wv); };
             _simConnectService.OnPositionReceived += (lat, lon) => { _phaseManager.UpdatePosition(lat, lon); };
@@ -2887,6 +2896,18 @@ namespace FlightSupervisor.UI
                             minutes = 0;
                         }
 
+                        DateTime? effectiveSobt = _groundOpsManager?.TargetSobt ?? _nextSobtOverride;
+
+                        if (minutes > 0 && effectiveSobt != null)
+                        {
+                            double remainingMins = (effectiveSobt.Value - _currentSimTime).TotalMinutes;
+                            if (minutes > remainingMins - 5.0)
+                            {
+                                SendToWeb(new { type = "log", message = $"[SYSTEM] Action Denied. Time Skip cannot bypass the 5-minute pre-departure safety window." });
+                                minutes = 0; // Prevent the skip from happening
+                            }
+                        }
+
                         if (minutes > 0) 
                         {
                             ExecuteTimeSkip(minutes);
@@ -3584,6 +3605,8 @@ namespace FlightSupervisor.UI
                                 if (blockSecs <= 0) blockSecs = 3600;
 
                                 long turnaroundSecs = 45 * 60;
+                                if (CurrentAirline != null) turnaroundSecs = _airlineDb.GetStandardTurnaroundTimeMinutes(CurrentAirline.Tier) * 60;
+                                
                                 string acType = response.Aircraft?.BaseType ?? response.Aircraft?.IcaoCode ?? "";
                                 if (acType.StartsWith("A33") || acType.StartsWith("A34") || acType.StartsWith("A35") || acType.StartsWith("A38") || 
                                     acType.StartsWith("B74") || acType.StartsWith("B76") || acType.StartsWith("B77") || acType.StartsWith("B78") || acType.StartsWith("MD1"))
@@ -3879,10 +3902,11 @@ namespace FlightSupervisor.UI
         {
             if (minutes > 0)
             {
+                DateTime? currentEffectiveSobt = _groundOpsManager.TargetSobt ?? _nextSobtOverride;
                 // Butoir de 5 minutes avant le départ (TargetSobt) - Applicable à TOUTES les jambes
-                if (_groundOpsManager.TargetSobt.HasValue)
+                if (currentEffectiveSobt.HasValue)
                 {
-                    double timeToSobt = (_groundOpsManager.TargetSobt.Value - _currentSimTime).TotalMinutes;
+                    double timeToSobt = (currentEffectiveSobt.Value - _currentSimTime).TotalMinutes;
                     int maxSkip = (int)Math.Max(0, timeToSobt - 5);
                     
                     if (minutes > maxSkip)

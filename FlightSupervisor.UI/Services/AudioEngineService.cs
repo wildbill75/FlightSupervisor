@@ -114,6 +114,13 @@ namespace FlightSupervisor.UI.Services
             PlayAudio(SpeakerId.FO, fallbackText, null, exactRelativePath, null, playChime);
         }
 
+        public void PlayExactAsPurser(string exactRelativePath, string fallbackText, bool playChime = true)
+        {
+            if (!exactRelativePath.StartsWith("EN_PNC_Beth/"))
+                exactRelativePath = "EN_PNC_Beth/" + exactRelativePath;
+            PlayAudio(SpeakerId.Purser, fallbackText, null, exactRelativePath, null, playChime);
+        }
+
         public void PlayAudio(SpeakerId speaker, string fallbackText, string folderRelativePath, string exactFilePath = null, string prefixFilter = null, bool playChime = true)
         {
             if (playChime)

@@ -70,6 +70,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<FlightPhase>? OnPhaseChanged;
         public event Action? OnGoAroundFinished;
         public event Action<string>? OnPenaltyTriggered;
+        public event Action<double>? OnTouchdown;
         public event Action<string, string>? OnFoMessage;
         
         private bool _hasTriggeredOverspeedPenalty = false;
@@ -89,6 +90,12 @@ namespace FlightSupervisor.UI.Services
         private bool _hasFoWarnedLights10kClimb = false;
         private bool _hasFoWarnedLights10kDesc = false;
         private bool _hasFoWarnedFlapsUp = false;
+
+        private DateTime? _foTimerSeatbelt10k = null;
+        private DateTime? _foTimerSeatbeltDesc = null;
+        private DateTime? _foTimerLights10kClimb = null;
+        private DateTime? _foTimerLights10kDesc = null;
+
         private DateTime _lastTightTurnPenalty = DateTime.MinValue;
         private double? _lastHeading = null;
         public double Heading { get; private set; }
@@ -166,6 +173,7 @@ namespace FlightSupervisor.UI.Services
         public double TargetCruiseAltitude { get; set; } = 10000;
         public double AccelerationAltitudeAgl { get; set; } = 1500; // Default NADP2 standard
         public string AircraftCategory { get; set; } = "Medium";
+        public string AircraftTitle { get; set; } = string.Empty;
         public double NavLocalizerError { get; set; } = 0.0;
         public double GpsCrossTrackError { get; set; } = 0.0;
         public bool HasLocalizer { get; set; } = false;
@@ -309,6 +317,19 @@ namespace FlightSupervisor.UI.Services
             if (IsSimulationMode) return;
             if (IsPaused || DateTime.Now < _immunityEndTime) return;
 
+            // Bug #2 Fix: Protection MSFS (Menu Principal)
+            // Ignorer la boucle d'incrément de phase tant que l'avion n'est pas On Ground ou que le titre est vide (Menu)
+            if (!IsOnGround && (CurrentPhase == FlightPhase.AtGate || CurrentPhase == FlightPhase.Turnaround || CurrentPhase == FlightPhase.Pushback))
+            {
+                // MSFS spawns new sessions loosely, physics wait to settle
+                return;
+            }
+            if (string.IsNullOrEmpty(AircraftTitle) || (Math.Abs(altitude) < 1.0 && Math.Abs(groundSpeed) < 0.1 && Math.Abs(Latitude) < 0.001))
+            {
+                // MSFS Main Menu or just loading
+                return;
+            }
+
             Altitude = altitude;
             GroundSpeed = groundSpeed;
 
@@ -377,43 +398,68 @@ namespace FlightSupervisor.UI.Services
             if (!isGearDown && CurrentPhase == FlightPhase.Approach && radioHeight < 2000 && !_hasFoWarnedGearDown)
             {
                 _hasFoWarnedGearDown = true;
-                OnFoMessage?.Invoke("Warn_GearNotDown.mp3", "Captain, crossing 2000, gear is not down.");
+                OnFoMessage?.Invoke("EN_Lucie_Warn_GearNotDown.mp3", "Captain, crossing 2000, gear is not down.");
             }
             if (isGearDown && (CurrentPhase == FlightPhase.Takeoff || CurrentPhase == FlightPhase.InitialClimb || CurrentPhase == FlightPhase.Climb) && indicatedAirspeed > 200.0 && !_hasFoWarnedGearUp)
             {
                 _hasFoWarnedGearUp = true;
-                OnFoMessage?.Invoke("Warn_GearExtended.mp3", "Captain, speed is increasing, gear is still down.");
+                OnFoMessage?.Invoke("EN_Lucie_Warn_GearExtended.mp3", "Captain, speed is increasing, gear is still down.");
             }
             if (FlapsPosition > 0.0 && (CurrentPhase == FlightPhase.Takeoff || CurrentPhase == FlightPhase.InitialClimb || CurrentPhase == FlightPhase.Climb) && indicatedAirspeed > 210.0 && !_hasFoWarnedFlapsUp)
             {
                 _hasFoWarnedFlapsUp = true;
-                OnFoMessage?.Invoke("Warn_FlapsExtended.mp3", "Captain, speed is increasing, flaps are still extended.");
+                OnFoMessage?.Invoke("EN_Lucie_Warn_FlapsExtended.mp3", "Captain, speed is increasing, flaps are still extended.");
             }
             if (CurrentPhase == FlightPhase.TaxiOut && groundSpeed > 5.0 && !IsSeatbeltsOn && !_hasFoWarnedSeatbeltTaxi)
             {
                 _hasFoWarnedSeatbeltTaxi = true;
-                OnFoMessage?.Invoke("Warn_SeatbeltTaxi.mp3", "Captain, aircraft is moving, seatbelts are off.");
+                OnFoMessage?.Invoke("EN_Lucie_Warn_SeatbeltTaxi.mp3", "Captain, aircraft is moving, seatbelts are off.");
             }
+            
+            // Bug #4 Fix: Initializing FO callout tolerances for threshold crossings
             if ((CurrentPhase == FlightPhase.Climb || CurrentPhase == FlightPhase.Cruise) && altitude > TargetCruiseAltitude - 500 && altitude > 10000 && IsSeatbeltsOn && !_hasFoWarnedSeatbelt10k)
             {
-                _hasFoWarnedSeatbelt10k = true;
-                OnFoMessage?.Invoke("Warn_Seatbelt10k.mp3", "We've reached cruise altitude, consider releasing the cabin.");
+                if (_foTimerSeatbelt10k == null) _foTimerSeatbelt10k = DateTime.Now;
+                else if ((DateTime.Now - _foTimerSeatbelt10k.Value).TotalSeconds >= 35)
+                {
+                    _hasFoWarnedSeatbelt10k = true;
+                    OnFoMessage?.Invoke("EN_Lucie_Warn_Seatbelt10k.mp3", "We've reached cruise altitude, consider releasing the cabin.");
+                }
             }
+            else { _foTimerSeatbelt10k = null; }
+
             if ((CurrentPhase == FlightPhase.Descent || CurrentPhase == FlightPhase.Approach) && altitude < 9500 && !IsSeatbeltsOn && !_hasFoWarnedSeatbeltDesc)
             {
-                _hasFoWarnedSeatbeltDesc = true;
-                OnFoMessage?.Invoke("Warn_SeatbeltDesc.mp3", "Passing 10,000, seatbelts sign is off.");
+                if (_foTimerSeatbeltDesc == null) _foTimerSeatbeltDesc = DateTime.Now;
+                else if ((DateTime.Now - _foTimerSeatbeltDesc.Value).TotalSeconds >= 35)
+                {
+                    _hasFoWarnedSeatbeltDesc = true;
+                    OnFoMessage?.Invoke("EN_Lucie_Warn_SeatbeltDesc.mp3", "Passing 10,000, seatbelts sign is off.");
+                }
             }
+            else { _foTimerSeatbeltDesc = null; }
+
             if ((CurrentPhase == FlightPhase.Climb || CurrentPhase == FlightPhase.Cruise) && altitude > 10500 && (IsLandingLightOn || FenixNoseLight == 2) && !_hasFoWarnedLights10kClimb)
             {
-                _hasFoWarnedLights10kClimb = true;
-                OnFoMessage?.Invoke("Warn_LightsClimb.mp3", "Passing 10,000, landing lights are still on.");
+                if (_foTimerLights10kClimb == null) _foTimerLights10kClimb = DateTime.Now;
+                else if ((DateTime.Now - _foTimerLights10kClimb.Value).TotalSeconds >= 35)
+                {
+                    _hasFoWarnedLights10kClimb = true;
+                    OnFoMessage?.Invoke("EN_Lucie_Warn_LightsClimb.mp3", "Passing 10,000, landing lights are still on.");
+                }
             }
+            else { _foTimerLights10kClimb = null; }
+
             if ((CurrentPhase == FlightPhase.Descent || CurrentPhase == FlightPhase.Approach) && altitude < 9500 && !IsLandingLightOn && FenixNoseLight == 0 && !_hasFoWarnedLights10kDesc)
             {
-                _hasFoWarnedLights10kDesc = true;
-                OnFoMessage?.Invoke("Warn_LightsDesc.mp3", "Passing 10,000, landing lights are off.");
+                if (_foTimerLights10kDesc == null) _foTimerLights10kDesc = DateTime.Now;
+                else if ((DateTime.Now - _foTimerLights10kDesc.Value).TotalSeconds >= 35)
+                {
+                    _hasFoWarnedLights10kDesc = true;
+                    OnFoMessage?.Invoke("EN_Lucie_Warn_LightsDesc.mp3", "Passing 10,000, landing lights are off.");
+                }
             }
+            else { _foTimerLights10kDesc = null; }
             // ----------------------------------
 
             // Global Airborne Speed Limit (250kts under 10,000ft)
@@ -773,6 +819,8 @@ namespace FlightSupervisor.UI.Services
                             $"{landingQualityFr}: Posé à {TouchdownFpm:F0} fpm ({TouchdownGForce:F2}G)"
                         ));
 
+                        OnTouchdown?.Invoke(TouchdownFpm);
+
                         // Touchdown Zone Time Evaluation
                         if (_timeAt50Ft.HasValue)
                         {
@@ -921,7 +969,11 @@ namespace FlightSupervisor.UI.Services
                     _hasFoWarnedSeatbeltDesc = false;
                     _hasFoWarnedLights10kClimb = false;
                     _hasFoWarnedLights10kDesc = false;
-
+                    _hasFoWarnedFlapsUp = false;
+                    _foTimerSeatbelt10k = null;
+                    _foTimerSeatbeltDesc = null;
+                    _foTimerLights10kClimb = null;
+                    _foTimerLights10kDesc = null;
                     _lastPitchPenalty = DateTime.MinValue;
                     _lastBankPenalty = DateTime.MinValue;
                     _lastGForcePenalty = DateTime.MinValue;
@@ -950,6 +1002,15 @@ namespace FlightSupervisor.UI.Services
         private void CalculateTurbulence(double gf)
         {
             if (IsOnGround)
+            {
+                _gForceHistory.Clear();
+                TurbulenceSeverity = TurbulenceSeverityLevel.None;
+                return;
+            }
+
+            // Bug #3 Fix: Fausse Turbulence Takeoff / InitialClimb
+            // Ignore mechanical jitter (gear retraction, flaps, post-rotation) unless weather is actually challenging.
+            if ((CurrentPhase == FlightPhase.Takeoff || CurrentPhase == FlightPhase.InitialClimb) && WindVelocity < 15.0)
             {
                 _gForceHistory.Clear();
                 TurbulenceSeverity = TurbulenceSeverityLevel.None;

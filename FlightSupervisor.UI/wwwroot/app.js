@@ -672,7 +672,7 @@ window.populateDashboardActiveLeg = (index = 0) => {
                                     ${rd.general?.route || (rd.isDummy || window.allRotations[index].isShell ? '' : 'CLEARED FOR DEPARTURE')}
                                 </div>
 
-                                ${ index === (window.activeLegIndex || 0) ? `
+                                ${ index === (window.activeLegIndex || 0) && (!window.currentPhase || window.currentPhase === 'AtGate' || window.currentPhase === 'Turnaround' || window.currentPhase === 'Preflight') ? `
                                     <div class="mt-4 w-full flex justify-center gap-3 z-40" style="pointer-events: auto;">
                                           ${(rd.isDummy || window.allRotations[index].isShell) ? 
                                           `
@@ -1551,8 +1551,10 @@ window.renderBriefingTabs = () => {
                     onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', command: '${o.val}'})`;
                 } else if (action === 'resolveCrisis') {
                     onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', crisisType: '${o.val}'})`;
+                } else if (action === 'openDelayMenu') {
+                    onclickStr = `window.showDelayReasons();`;
                 } else {
-                    onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}'})`;
+                    onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', annType: '${o.val}'})`;
                 }
             }
 
@@ -1568,7 +1570,35 @@ window.renderBriefingTabs = () => {
         }
     };
 
+    window.showDelayReasons = function() {
+        const container = document.getElementById('commsPaContainer');
+        if (!container) return;
+
+        const html = `
+            <div class="flex flex-col gap-2 w-full h-full items-center justify-center pt-2">
+                <div class="flex gap-2 justify-center flex-wrap w-full animate-[fadeIn_0.3s_ease-out]">
+                    <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_ATC'}); window.backToCommsMenu()" class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all bg-sky-900/30 text-sky-400 border-sky-700/50 hover:bg-sky-500/20">ATC Constraints</button>
+                    <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_Weather'}); window.backToCommsMenu()" class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all bg-sky-900/30 text-sky-400 border-sky-700/50 hover:bg-sky-500/20">Weather</button>
+                    <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_Technical'}); window.backToCommsMenu()" class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all bg-orange-900/30 text-orange-400 border-orange-700/50 hover:bg-orange-500/20">Technical Fix</button>
+                    <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_Luggage'}); window.backToCommsMenu()" class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all bg-emerald-900/30 text-emerald-400 border-emerald-700/50 hover:bg-emerald-500/20">Ground Ops</button>
+                    <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'DelayApology'}); window.backToCommsMenu()" class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700">Generic Apology</button>
+                    <button onclick="window.backToCommsMenu()" class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all text-[#8a8a8a] border-white/20 hover:text-white hover:bg-white/10">Back</button>
+                </div>
+            </div>
+        `;
+        container.innerHTML = html;
+        container.dataset.lastHtml = ''; // force redraw on next update
+    };
+
+    window.backToCommsMenu = function() {
+        if (window.lastIntercomPayload) {
+            document.getElementById('commsPaContainer').dataset.lastHtml = ''; // uncache it to force re-render
+            updateIntercomButtons(window.lastIntercomPayload);
+        }
+    };
+
     function updateIntercomButtons(payload) {
+        window.lastIntercomPayload = payload;
         const phase = payload.phaseEnum;
         const used = payload.issuedCommands || [];
 
@@ -1593,7 +1623,7 @@ window.renderBriefingTabs = () => {
         }
 
         if (flightHasExperiencedDelay && !used.includes('PA_Delay') && !used.includes('PA_DelayApology')) {
-            paOptions.push({ val: 'DelayApology', text: 'DELAY', disabled: false });
+            paOptions.push({ val: '', text: 'DELAY REASON...', disabled: false, action: 'openDelayMenu' });
         }
 
         if (flightHasExperiencedTurbulence && !used.includes('PA_TurbulenceApology')) {
@@ -3056,8 +3086,19 @@ window.renderBriefingTabs = () => {
 
                 if (payload.rawUnix && simFlight && simFlight.times) {
                     let offset = window.lastTelemetry?.globalTimeOffsetSeconds || 0;
-                    currentSobtUnix = parseInt(simFlight.times.sched_out) + offset;
-                    window.currentSibtUnix = parseInt(simFlight.times.sched_in) + offset;
+                    
+                    if (payload.groundOps && payload.groundOps.TargetSobt) {
+                        let tSobtDate = new Date(payload.groundOps.TargetSobt);
+                        currentSobtUnix = Math.floor(tSobtDate.getTime() / 1000);
+                        
+                        // We also calculate what the turnaround block duration was designed to be to move SIBT properly
+                        let blockSecs = parseInt(simFlight.times.sched_in) - parseInt(simFlight.times.sched_out);
+                        if (isNaN(blockSecs) || blockSecs <= 0) blockSecs = 3600;
+                        window.currentSibtUnix = currentSobtUnix + blockSecs;
+                    } else {
+                        currentSobtUnix = parseInt(simFlight.times.sched_out) + offset;
+                        window.currentSibtUnix = parseInt(simFlight.times.sched_in) + offset;
+                    }
 
                     const ttSchedDep = document.getElementById('ttSchedDep');
                     const ttSchedArr = document.getElementById('ttSchedArr');
@@ -3649,54 +3690,44 @@ window.renderBriefingTabs = () => {
                 if (payload.eventData) {
                     const evt = payload.eventData;
 
-                    // Match service logic based on ServiceName or "Generic" container
-                    let containerId = undefined;
-
-                    if (evt.serviceName) {
-                        // Find the safeName matching the service (e.g. "CargoLuggage" from "Cargo/Luggage")
-                        const safeName = evt.serviceName.replace(/\s|[^\w]/g, '');
-                        containerId = `ge-container-${safeName}`;
-                    }
-
-                    let geCardContainer = containerId ? document.getElementById(containerId) : null;
-
-                    // Fallback to the first available if not found
-                    if (!geCardContainer) {
-                        console.warn(`[RAMP] Service container not found for ${evt.serviceName}, falling back to top level.`);
-                        // Here we could have a generic global one, but for now just grab the first card container or skip.
-                        const anyContainer = document.querySelector('[id^="ge-container-"]');
-                        if (anyContainer) geCardContainer = anyContainer;
-                        else return;
-                    }
-
-                    geCardContainer.innerHTML = `
-                        <div class="flex items-start gap-4 p-5 bg-orange-900/20 border-t border-orange-500/30 w-full rounded-b-xl shadow-inner relative overflow-hidden">
-                            <div class="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-bl-[100px] pointer-events-none"></div>
-                            
-                            <span class="material-symbols-outlined text-orange-400 text-3xl mt-1 w-12 h-12 flex shrink-0 items-center justify-center bg-orange-500/20 rounded-full border border-orange-500/30 relative z-10">report_problem</span>
-                            
-                            <div class="flex flex-col flex-grow relative z-10">
-                                <h3 class="text-white font-black font-headline text-lg uppercase tracking-widest leading-none mb-1">${evt.title}</h3>
-                                <p class="text-slate-400 text-xs mb-4 leading-relaxed font-body">${evt.description}</p>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full font-manrope choices-container">
+                    let existingOverlay = document.getElementById('globalGroundEventOverlay');
+                    if (existingOverlay) existingOverlay.remove();
+                    
+                    const overlayContainer = document.createElement('div');
+                    overlayContainer.id = 'globalGroundEventOverlay';
+                    overlayContainer.className = 'fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-8 transition-opacity duration-300';
+                    
+                    let html = `
+                        <div class="bg-[#1C1F26] border border-orange-500/30 rounded-2xl shadow-[0_0_50px_rgba(249,115,22,0.15)] w-full max-w-2xl overflow-hidden flex flex-col transform scale-100 animate-fade-in relative z-[10000]">
+                            <div class="flex items-start gap-4 p-6 bg-orange-900/20 w-full relative overflow-hidden">
+                                <div class="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-bl-[100px] pointer-events-none"></div>
+                                
+                                <span class="material-symbols-outlined text-orange-400 text-4xl mt-1 w-14 h-14 flex shrink-0 items-center justify-center bg-orange-500/20 rounded-full border border-orange-500/30 relative z-10">report_problem</span>
+                                
+                                <div class="flex flex-col flex-grow relative z-10">
+                                    <h3 class="text-white font-black font-headline text-xl uppercase tracking-widest leading-none mb-2">${evt.title}</h3>
+                                    <p class="text-slate-300 text-sm mb-6 leading-relaxed font-body pr-4">${evt.description}</p>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full font-manrope choices-container">
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     `;
 
-                    const choicesContainer = geCardContainer.querySelector('.choices-container');
+                    overlayContainer.innerHTML = html;
+                    const choicesContainer = overlayContainer.querySelector('.choices-container');
 
                     if (evt.choices) {
                         evt.choices.forEach(c => {
                             const btn = document.createElement('button');
-                            btn.className = 'w-full py-3 px-4 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all flex items-center justify-left gap-2 text-left ';
+                            btn.className = 'w-full py-3 px-4 rounded-xl font-bold uppercase tracking-widest text-[11px] transition-all flex items-center justify-left gap-2 text-left ';
 
                             if (c.colorClass === 'success') {
                                 btn.className += 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500 hover:text-slate-900 shadow-[0_0_15px_rgba(16,185,129,0.1)]';
-                                btn.innerHTML = `<span class="material-symbols-outlined text-[16px]">check_circle</span> <span>${c.text}</span>`;
+                                btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">check_circle</span> <span>${c.text}</span>`;
                             } else if (c.colorClass === 'error') {
                                 btn.className += 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500 hover:text-white shadow-[0_0_15px_rgba(239,68,68,0.1)]';
-                                btn.innerHTML = `<span class="material-symbols-outlined text-[16px]">warning</span> <span>${c.text}</span>`;
+                                btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">warning</span> <span>${c.text}</span>`;
                             } else {
                                 btn.className += 'bg-black/40 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white';
                                 btn.innerText = c.text;
@@ -3704,14 +3735,14 @@ window.renderBriefingTabs = () => {
 
                             btn.addEventListener('click', () => {
                                 window.chrome.webview.postMessage({ action: 'resolveGroundEvent', eventId: evt.id, choiceId: c.id });
-                                geCardContainer.classList.add('hidden');
-                                geCardContainer.innerHTML = '';
+                                overlayContainer.classList.add('opacity-0', 'pointer-events-none');
+                                setTimeout(() => overlayContainer.remove(), 300);
                             });
 
                             choicesContainer.appendChild(btn);
                         });
                     }
-                    geCardContainer.classList.remove('hidden');
+                    document.body.appendChild(overlayContainer);
                 }
                 break;
             case 'penalty':
@@ -4351,12 +4382,18 @@ window.renderBriefingTabs = () => {
                     const currLeg = window.allRotations[i].data;
 
                     if (prevLeg.times?.sched_in) {
-                        const tatSeconds = 35 * 60; // 35 min average turnaround
+                        let tatSeconds = 45 * 60;
+                        const apTier = currLeg.airlineProfile?.Tier || currLeg.airlineProfile?.tier || window.allRotations[0]?.airlineProfile?.Tier || window.allRotations[0]?.airlineProfile?.tier;
+                        if (apTier) {
+                            const tL = apTier.toLowerCase();
+                            if (tL === 'lowcost' || tL === 'low_cost') tatSeconds = 25 * 60;
+                            else if (tL === 'standard') tatSeconds = 35 * 60;
+                        }
                         const prevSibt = parseInt(prevLeg.times.sched_in);
                         let currSobt = parseInt(currLeg.times?.sched_out || '0');
                         if (!currLeg.times) currLeg.times = {};
 
-                        // If it's a dummy leg OR if the fetched SimBrief leg overlaps or is too tight (< 35 min turnaround)
+                        // If it's a dummy leg OR if the fetched SimBrief leg overlaps or is too tight (< tatSeconds min turnaround)
                         if (currLeg.isDummy || isNaN(currSobt) || currSobt < prevSibt + tatSeconds) {
                             // Automatically cascade the sequence
                             currLeg.times.sched_out = (prevSibt + tatSeconds).toString();
@@ -4434,24 +4471,21 @@ window.renderBriefingTabs = () => {
                 }
                 break;
             case 'groundOpsProgress':
-                const globalC = document.getElementById('globalProgressContainer');
-                const globalBar = document.getElementById('globalProgressBar');
+                // GLOBAL TOP PROGRESS BAR REMOVED
                 const botC = document.getElementById('groundOpsBottomProgress');
                 const botBar = document.getElementById('groundOpsProgressBar');
                 const statusTxt = document.getElementById('groundOpsStatusText');
                 const timeTxt = document.getElementById('groundOpsTimeText');
 
                 if (payload.isActive && payload.pct >= 0 && payload.pct <= 100) {
-                    if (globalC) globalC.style.display = 'block';
                     if (botC) botC.style.display = 'flex';
 
-                    if (globalBar) globalBar.style.width = payload.pct + '%';
                     if (botBar) botBar.style.width = payload.pct + '%';
 
                     if (statusTxt) statusTxt.innerText = payload.status || 'IN PROGRESS';
                     if (timeTxt) timeTxt.innerText = payload.timeString || '';
                 } else {
-                    if (globalC) globalC.style.display = 'none';
+                    // Global top progress bar removed
                     if (botC) botC.style.display = 'none';
                 }
                 break;
@@ -5407,10 +5441,38 @@ window.requestTimeSkip = function (minutes) {
 
 // Expose a method to handle showing hiding based on FlightPhase (from telemetry)
 window.checkTimeSkipVisibility = function (phase) {
-    if (!timeSkipModal) return;
-    if (phase !== 'Turnaround' && phase !== 'AtGate' && phase !== 0 && phase !== 9) {
-        timeSkipModal.classList.add('hidden');
-        timeSkipModal.classList.remove('flex');
+    if (timeSkipModal) {
+        if (phase !== 'Turnaround' && phase !== 'AtGate' && phase !== 0 && phase !== 9) {
+            timeSkipModal.classList.add('hidden');
+            timeSkipModal.classList.remove('flex');
+        }
+    }
+    
+    // Bug #9: Securiser le bouton Reload OFP (btnRefreshDispatch) pour ne pas recharger par erreur en vol
+    const btnRefresh = document.getElementById('btnRefreshDispatch');
+    if (btnRefresh) {
+        if (phase !== 'Turnaround' && phase !== 'AtGate' && phase !== 'Preflight' && phase !== 0 && phase !== 9) {
+            btnRefresh.classList.add('hidden');
+            btnRefresh.classList.remove('flex');
+        } else {
+            btnRefresh.classList.remove('hidden');
+            btnRefresh.classList.add('flex');
+        }
+    }
+    
+    // Bug #10: Masquer le panneau Ground Ops (y compris Time Skip) au roulage
+    const isGroundPhase = phase === 'Turnaround' || phase === 'AtGate' || phase === 'Preflight' || phase === 'Arrived' || phase === 0 || phase === 9;
+    const carouselArrows = document.querySelectorAll('button[onclick*="toggleDashPage"]');
+    if (!isGroundPhase) {
+        // On force le retour a la page 1 (Timing) si on etait sur la page 2 (Ground Ops)
+        if (typeof window.toggleDashPage === 'function' && window.currentDashPage === 2) {
+            window.toggleDashPage(-1); 
+        }
+        // Masquer les fleches pour empecher l'acces au Ground Ops en vol
+        carouselArrows.forEach(btn => btn.classList.add('hidden'));
+    } else {
+        // Reactiver l'acces au Ground Ops au sol
+        carouselArrows.forEach(btn => btn.classList.remove('hidden'));
     }
 };
 

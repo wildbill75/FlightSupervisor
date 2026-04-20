@@ -73,8 +73,8 @@ namespace FlightSupervisor.UI.Services
         public double PassengerAnxiety 
         {
             get {
-                if (_lastBoardingTick != DateTime.MaxValue || !PassengerManifest.Where(p => p.IsBoarded).Any()) return 0.0;
-                double avg = PassengerManifest.Where(p => p.IsBoarded).Average(p => p.IndividualAnxiety);
+                if (_lastBoardingTick != DateTime.MaxValue || !PassengerManifest.Where(p => p != null && p.IsBoarded).Any()) return 0.0;
+                double avg = PassengerManifest.Where(p => p != null && p.IsBoarded).Average(p => p.IndividualAnxiety);
                 return Math.Max(0.0, Math.Round(avg + (_renderRnd.NextDouble() * 1.2 - 0.6), 1));
             }
         }
@@ -82,24 +82,26 @@ namespace FlightSupervisor.UI.Services
         public double ComfortLevel 
         {
             get {
-                if (_lastBoardingTick != DateTime.MaxValue || !PassengerManifest.Where(p => p.IsBoarded).Any()) return 100.0;
-                double avg = PassengerManifest.Where(p => p.IsBoarded).Average(p => p.IndividualComfort);
-                return Math.Min(Math.Round(95.0 + (_renderRnd.NextDouble() * 3.0), 1), Math.Round(avg - (_renderRnd.NextDouble() * 1.5), 1));
+                double maxCap = IsLowCost ? 65.0 : 100.0;
+                if (_lastBoardingTick != DateTime.MaxValue || !PassengerManifest.Where(p => p != null && p.IsBoarded).Any()) return maxCap;
+                double avg = PassengerManifest.Where(p => p != null && p.IsBoarded).Average(p => p.IndividualComfort);
+                double renderCap = IsLowCost ? 65.0 : 98.0;
+                return Math.Min(Math.Round(renderCap - 3.0 + (_renderRnd.NextDouble() * 3.0), 1), Math.Round(avg - (_renderRnd.NextDouble() * 1.5), 1));
             }
         }
         
         public double Satisfaction 
         {
             get {
-                if (_lastBoardingTick != DateTime.MaxValue || !PassengerManifest.Where(p => p.IsBoarded).Any()) return 100.0;
-                double avg = PassengerManifest.Where(p => p.IsBoarded).Average(p => p.IndividualSatisfaction);
+                if (_lastBoardingTick != DateTime.MaxValue || !PassengerManifest.Where(p => p != null && p.IsBoarded).Any()) return 100.0;
+                double avg = PassengerManifest.Where(p => p != null && p.IsBoarded).Average(p => p.IndividualSatisfaction);
                 return Math.Min(Math.Round(95.0 + (_renderRnd.NextDouble() * 3.0), 1), Math.Round(avg - (_renderRnd.NextDouble() * 1.8), 1));
             }
         }
 
         private void ModifySatisfaction(double amount)
         {
-            foreach (var p in PassengerManifest.Where(x => x.IsBoarded))
+            foreach (var p in PassengerManifest.Where(x => x != null && x.IsBoarded))
             {
                 double multiplier = p.Demographic == PassengerDemographic.Grumpy ? 1.5 : (p.Demographic == PassengerDemographic.Relaxed ? 0.8 : 1.0);
                 p.IndividualSatisfaction += amount * (amount < 0 ? multiplier : (1 / multiplier));
@@ -115,7 +117,7 @@ namespace FlightSupervisor.UI.Services
 
         private void ModifyAnxiety(double amount)
         {
-            foreach (var p in PassengerManifest.Where(x => x.IsBoarded))
+            foreach (var p in PassengerManifest.Where(x => x != null && x.IsBoarded))
             {
                 double multiplier = p.Demographic == PassengerDemographic.Anxious ? 1.5 : (p.Demographic == PassengerDemographic.Relaxed ? 0.5 : 1.0);
                 p.IndividualAnxiety += amount * (amount > 0 ? multiplier : (1 / multiplier));
@@ -126,7 +128,7 @@ namespace FlightSupervisor.UI.Services
 
         private void SetAnxiety(double minRatio)
         {
-            foreach (var p in PassengerManifest.Where(x => x.IsBoarded))
+            foreach (var p in PassengerManifest.Where(x => x != null && x.IsBoarded))
             {
                 p.IndividualAnxiety = Math.Max(minRatio, p.IndividualAnxiety);
             }
@@ -136,16 +138,21 @@ namespace FlightSupervisor.UI.Services
 
         private void ModifyComfort(double amount)
         {
-            foreach (var p in PassengerManifest.Where(x => x.IsBoarded))
+            double maxCap = IsLowCost ? 65.0 : 100.0;
+            foreach (var p in PassengerManifest.Where(x => x != null && x.IsBoarded))
             {
                 double multiplier = p.Demographic == PassengerDemographic.Grumpy ? 1.5 : 1.0;
                 p.IndividualComfort += amount * (amount < 0 ? multiplier : (1 / multiplier));
                 if (p.IndividualComfort < 0.0) p.IndividualComfort = 0.0;
-                if (p.IndividualComfort > 100.0) p.IndividualComfort = 100.0;
+                if (p.IndividualComfort > maxCap) p.IndividualComfort = maxCap;
             }
         }
 
-        private void ClearComfort() { foreach (var p in PassengerManifest) p.IndividualComfort = 100.0; }
+        private void ClearComfort() 
+        { 
+            double maxCap = IsLowCost ? 65.0 : 100.0;
+            foreach (var p in PassengerManifest) p.IndividualComfort = maxCap; 
+        }
 
         // Virtual Crew Stats
         public double CrewProactivity { get; private set; } = 100.0;
@@ -487,8 +494,9 @@ namespace FlightSupervisor.UI.Services
             if (profile == null) return;
             
             ActiveAirlineId = profile.Name;
+            IsLowCost = profile.Tier != null && profile.Tier.ToLower() == "lowcost";
             
-            if (SessionFlightsCompleted > 0 && PassengerManifest.Any(p => p.IsBoarded))
+            if (SessionFlightsCompleted > 0 && PassengerManifest.Any(p => p != null && p.IsBoarded))
             {
                 PreviousLegManifest.Clear();
                 PreviousLegManifest.AddRange(PassengerManifest);
@@ -637,7 +645,7 @@ namespace FlightSupervisor.UI.Services
                     // Unbuckle majority of passengers, but nervous/standard ones might keep it on.
                     foreach (var px in PassengerManifest)
                     {
-                        if (px.IsBoarded)
+                        if (px != null && px.IsBoarded)
                         {
                             double keepChance = px.Demographic == PassengerDemographic.Anxious ? 0.90 :
                                                 px.Demographic == PassengerDemographic.Standard ? 0.30 : 0.05;
@@ -786,7 +794,7 @@ namespace FlightSupervisor.UI.Services
 
             if (PassengerManifest.Count > 0 && isFlyingPhase)
             {
-                int paxCount = Math.Max(1, PassengerManifest.Count(p => p.IsBoarded));
+                int paxCount = Math.Max(1, PassengerManifest.Count(p => p != null && p.IsBoarded));
                 double paxMultiplier = paxCount / 150.0;
 
                 double seatbeltFactor = _seatbeltsOn ? 0.20 : 1.0; 
@@ -804,6 +812,35 @@ namespace FlightSupervisor.UI.Services
             }
         }
 
+        public void ProcessLandingImpact(double fpm)
+        {
+            if (fpm > -150)
+            {
+                // Kiss Landing / Butter
+                IncreaseComfort(15.0);
+                ModifyAnxiety(-30.0);
+            }
+            else if (fpm < -600)
+            {
+                // Severe Hard Landing
+                DecreaseComfort(40.0);
+                IncreaseAnxiety(60.0, FlightPhase.Landing, true);
+                OnCrewMessage?.Invoke("red", UI.Services.LocalizationService.Translate("That was a terrifying impact! Many passengers are screaming in the back!", "C'était un atterrissage extrêmement violent ! Beaucoup de passagers crient à l'arrière !"), null);
+            }
+            else if (fpm < -450)
+            {
+                // Hard Landing
+                DecreaseComfort(20.0);
+                IncreaseAnxiety(30.0, FlightPhase.Landing, false);
+                OnCrewMessage?.Invoke("orange", UI.Services.LocalizationService.Translate("That was a very hard landing! The cabin shook violently.", "C'était un atterrissage très dur ! La cabine a secoué violemment."), null);
+            }
+            else 
+            {
+                // Normal
+                ModifyAnxiety(-10.0);
+            }
+        }
+
         public void Tick(double gForce, double bankAngle, bool isBoarded, DateTime currentZulu, DateTime? sobt, FlightPhase phase, double groundSpeed, double altitude, double verticalSpeed, bool isCrisisActive, double cabinTemperature = 22.0, double boardingProgress = -1.0)
         {
             double deltaTimeSeconds = _lastTickTime == DateTime.MinValue ? 1.0 : (DateTime.Now - _lastTickTime).TotalSeconds;
@@ -812,8 +849,8 @@ namespace FlightSupervisor.UI.Services
 
             if (State == CabinState.Deboarding)
             {
-                var activeManifest = PreviousLegManifest.Any(p => p.IsBoarded) ? PreviousLegManifest : PassengerManifest;
-                var boardedCount = activeManifest.Count(p => p.IsBoarded);
+                var activeManifest = PreviousLegManifest.Any(p => p != null && p.IsBoarded) ? PreviousLegManifest : PassengerManifest;
+                var boardedCount = activeManifest.Count(p => p != null && p.IsBoarded);
                 
                 if (boardedCount == 0)
                 {
@@ -846,7 +883,7 @@ namespace FlightSupervisor.UI.Services
                     if ((DateTime.Now - _lastBoardingTick).TotalSeconds >= 1.0)
                     {
                         _lastBoardingTick = DateTime.Now;
-                        var unboarded = PassengerManifest.Where(p => !p.IsBoarded).ToList();
+                        var unboarded = PassengerManifest.Where(p => p != null && !p.IsBoarded).ToList();
                         if (unboarded.Count > 0)
                         {
                             BoardPassenger(_rnd.Next(1, 4));
@@ -859,7 +896,7 @@ namespace FlightSupervisor.UI.Services
             bool isAircraftMoving = phase >= FlightPhase.Pushback && phase <= FlightPhase.Arrived;
             if ((isBoarded || isAircraftMoving) && !_hasAnnouncedBoardingComplete && State != CabinState.Deboarding)
             {
-                var remainingUnboarded = PassengerManifest.Where(x => !x.IsBoarded).ToList();
+                var remainingUnboarded = PassengerManifest.Where(x => x != null && !x.IsBoarded).ToList();
                 foreach (var p in remainingUnboarded)
                 {
                     p.IsBoarded = true;
@@ -900,16 +937,20 @@ namespace FlightSupervisor.UI.Services
                 return; 
             }
 
-            // --- Pushback Safety Check ---
-            if (phase == FlightPhase.Pushback)
+            // --- Ground Movement Safety Check ---
+            if (phase == FlightPhase.AtGate || phase == FlightPhase.Turnaround || phase == FlightPhase.Pushback || phase == FlightPhase.TaxiOut || phase == FlightPhase.Takeoff || phase == FlightPhase.Landing || phase == FlightPhase.TaxiIn)
             {
-                if (groundSpeed > 0 && !_seatbeltsOn && !_hasWarnedPushbackNoSeatbelts)
+                if (groundSpeed >= 1.0 && !_seatbeltsOn && !_hasWarnedPushbackNoSeatbelts)
                 {
                     _hasWarnedPushbackNoSeatbelts = true;
                     ModifySatisfaction(-25.0);
-                    IncreaseAnxiety(20.0, phase, isCrisisActive);
-                    OnCrewMessage?.Invoke("orange", LocalizationService.Translate("Captain, the seatbelts sign is still off and the plane is moving.", "Commandant, le signal des ceintures est toujours éteint et l'avion bouge."), null);
-                    OnPenaltyTriggered?.Invoke(-100, LocalizationService.Translate("Safety Breach: Pushback commenced with Seatbelts OFF", "Violation Sécurité: Repoussage commencé sans ceintures"));
+                    IncreaseAnxiety(30.0, phase, isCrisisActive);
+                    
+                    string msgEn = "Safety Breach: Aircraft in motion with Seatbelts OFF!";
+                    string msgFr = "Violation Sécurité: Avion en mouvement sans ceintures !";
+
+                    OnCrewMessage?.Invoke("orange", LocalizationService.Translate("Captain, the seatbelt sign is still off and we are moving!", "Commandant, le signal des ceintures est toujours éteint et nous bougeons !"), null);
+                    OnPenaltyTriggered?.Invoke(-100, LocalizationService.Translate(msgEn, msgFr));
                 }
             }
             
@@ -942,7 +983,7 @@ namespace FlightSupervisor.UI.Services
             // Continuous Consumption of Water, Cleanliness, and Waste (Multi-Leg)
             if (phase == FlightPhase.Cruise || phase == FlightPhase.Climb || phase == FlightPhase.Descent || phase == FlightPhase.Takeoff || phase == FlightPhase.InitialClimb || phase == FlightPhase.Approach)
             {
-                int paxCount = Math.Max(1, PassengerManifest.Count(p => p.IsBoarded));
+                int paxCount = Math.Max(1, PassengerManifest.Count(p => p != null && p.IsBoarded));
                 double paxMultiplier = paxCount / 150.0; // Baseline normalized
 
                 // Seatbelt duration tracking in Cruise
@@ -969,7 +1010,7 @@ namespace FlightSupervisor.UI.Services
                 double seatbeltFactor = _seatbeltsOn ? 0.20 : 1.0; 
 
                 // Cleanliness degrades faster with Grumpy passengers
-                int grumpyCount = PassengerManifest.Count(p => p.IsBoarded && p.Demographic == PassengerDemographic.Grumpy);
+                int grumpyCount = PassengerManifest.Count(p => p != null && p.IsBoarded && p.Demographic == PassengerDemographic.Grumpy);
                 double grumpyMultiplier = 1.0 + (grumpyCount / (double)paxCount) * 1.5; // Up to 2.5x if all grumpy
                 CabinCleanliness -= 0.003 * paxMultiplier * grumpyMultiplier * seatbeltFactor * deltaTimeSeconds; 
                 if (CabinCleanliness < 0) CabinCleanliness = 0;
@@ -1017,7 +1058,8 @@ namespace FlightSupervisor.UI.Services
                 if ((DateTime.Now - _lastTurbulenceNotice).TotalSeconds > 120 && !isCrisisActive) 
                 {
                     DecreaseAnxiety(0.02); // Gradual peace recovery
-                    if (ComfortLevel < 95.0) IncreaseComfort(0.03); // Gradual comfort recovery
+                    double maxRecov = IsLowCost ? 65.0 : 95.0;
+                    if (ComfortLevel < maxRecov) IncreaseComfort(0.03); // Gradual comfort recovery
                 }
             }
 
@@ -1223,9 +1265,33 @@ namespace FlightSupervisor.UI.Services
                     
                     string destName = CurrentFlight?.Destination?.Name ?? CurrentFlight?.Destination?.IcaoCode ?? "your destination";
                     string arrTime = CurrentSimLocalTime != DateTime.MinValue ? CurrentSimLocalTime.ToString("HH:mm") : DateTime.Now.ToString("HH:mm");
-                    string arrTemp = Math.Round(CurrentAmbientTemperature).ToString();
-                    string arrivalPA = $"Welcome to {destName}. The local time is {arrTime}. For your safety and the safety of those around you, please remain seated with your seatbelt fastened until the captain has turned off the seatbelt sign at the gate. As you leave the aircraft, please check around your seat for any personal items. On behalf of the entire crew, thank you for flying with us today.";
-                    _audio?.PlayVariantAsPurser("TO_PA/ArrivalGate", arrivalPA);
+                    
+                    // 1. Start PA
+                    string introPA = $"Ladies and gentlemen, welcome to {destName}.";
+                    _audio?.PlayExactAsPurser("TO_PA/ArrivalGate/EN_PNC_Beth_ArrivalGate_Start.mp3", introPA);
+
+                    // 2. City (ICAO)
+                    string destIcao = CurrentFlight?.Destination?.IcaoCode ?? "";
+                    if (!string.IsNullOrEmpty(destIcao))
+                        _audio?.PlayExactAsPurser($"TO_PA/ICAO/EN_PNC_Beth_{destIcao}.mp3", null, playChime: false);
+
+                    // 3. Middle PA
+                    string middlePA = "For your safety and the safety of those around you, please remain seated with your seatbelt fastened until the captain has turned off the seatbelt sign at the gate. As you leave the aircraft, please check around your seat for any personal items. On behalf of the entire crew,";
+                    _audio?.PlayExactAsPurser("TO_PA/ArrivalGate/EN_PNC_Beth_ArrivalGate_End.mp3", middlePA, playChime: false);
+
+                    // 4. Airline 
+                    string normAirline = ActiveAirlineId.ToUpper();
+                    if (normAirline.StartsWith("EJU") || normAirline.StartsWith("EZS") || normAirline.StartsWith("EZY") || normAirline.Contains("EASYJET")) 
+                    {
+                        normAirline = "EZY";
+                    }
+                    else if (normAirline.StartsWith("AFR") || normAirline.Contains("AIR_FRANCE") || normAirline.Contains("AIRFRANCE"))
+                    {
+                        normAirline = "AFR";
+                    }
+                    if (!string.IsNullOrEmpty(normAirline))
+                        _audio?.PlayExactAsPurser($"TO_PA/Airlines/EN_PNC_Beth_{normAirline}.mp3", null, playChime: false);
+
                     OnCrewMessage?.Invoke("sky", LocalizationService.Translate($"PA: Welcome to {destName}. Local time is {arrTime}.", $"PA: Bienvenue à {destName}. Heure locale : {arrTime}."), null);
                 }
                 _lastPhase = phase;
@@ -1320,6 +1386,7 @@ namespace FlightSupervisor.UI.Services
                         _audio?.PlayVariantAsPurser("TO_PA/ServiceStart", servicePA);
                         OnCrewMessage?.Invoke("sky", LocalizationService.Translate("PA: In-flight service is starting.", "PA: Le service en vol commence."), null);
                         State = CabinState.ServingMeals;
+                        InFlightServiceProgress = 0.0;
                         OnPncStatusChanged?.Invoke("Serving Meals", State);
                     }
                     else
@@ -2014,7 +2081,8 @@ namespace FlightSupervisor.UI.Services
             if (roundedAlt < 30000) roundedAlt = 30000;
             if (roundedAlt > 43000) roundedAlt = 43000;
             
-            _audio?.PlayExactAsCaptain($"TO_PA/Altitude/Alt_{roundedAlt}.mp3", $"We are currently at {roundedAlt} feet.", playChime: false);
+            // Bug #5 Fix: Resolving TTS fallback by formatting string exactly like actual files (e.g., "EN_Rowan_FL300.mp3")
+            _audio?.PlayExactAsCaptain($"TO_PA/Altitude/EN_Rowan_FL{roundedAlt / 100}.mp3", $"We are currently at {roundedAlt} feet.", playChime: false);
 
             // 3. Winds
             int windSpeed = 0;
@@ -2045,7 +2113,7 @@ namespace FlightSupervisor.UI.Services
                 if (roundedWspd < 20) roundedWspd = 20;
                 if (roundedWspd > 140) roundedWspd = 140;
 
-                _audio?.PlayExactAsCaptain($"TO_PA/Winds/Spd_{roundedWspd}.mp3", $"of about {roundedWspd} knots.", playChime: false);
+                _audio?.PlayExactAsCaptain($"TO_PA/Winds/EN_Rowan_Spd_{roundedWspd}.mp3", $"of about {roundedWspd} knots.", playChime: false);
             }
             else
             {
@@ -2141,6 +2209,13 @@ namespace FlightSupervisor.UI.Services
             _hasWarnedPushbackNoSeatbelts = false;
             HasPenalizedRefuelingSeatbelts = false;
             
+            InFlightServiceProgress = 0.0;
+            IsSatietyActive = false;
+            IsServiceHalted = false;
+            IsServiceHurried = false;
+            _isPreparingService = false;
+            _servicePrepTimerStart = null;
+            
             if (SessionFlightsCompleted == 0)
             {
                 SetSatisfaction(Math.Round(80.0 + (_rnd.NextDouble() * 16.0), 1));
@@ -2212,6 +2287,7 @@ namespace FlightSupervisor.UI.Services
         {
             foreach (var p in PassengerManifest)
             {
+                if (p == null) continue;
                 if (!p.IsBoarded) continue;
 
                 bool shouldFasten = _seatbeltsOn;
@@ -2299,7 +2375,7 @@ namespace FlightSupervisor.UI.Services
 
             _lastReportRequest = DateTime.Now;
 
-            int boardedCount = PassengerManifest.Count(p => p.IsBoarded);
+            int boardedCount = PassengerManifest.Count(p => p != null && p.IsBoarded);
             if (phase == FlightPhase.AtGate && boardedCount < PassengerManifest.Count)
             {
                 string repEn = boardedCount == 0 
@@ -2345,36 +2421,73 @@ namespace FlightSupervisor.UI.Services
 
         private bool ExecuteStandardFlightReport(FlightPhase phase, bool isCrisisActive)
         {
-            string reportEn = "Cabin is clear and quiet, Captain.";
-            string reportFr = "La cabine est calme et prête, Commandant.";
+            string reportEn = "Cabin is clear and quiet, Captain. Everyone is relaxed.";
+            string reportFr = "La cabine est calme et prête, Commandant. Tout le monde est détendu.";
             string audioFolder = "TO_FD/Status_Reports/CabinCalm";
 
-            if (_isSecuring && phase == FlightPhase.TaxiOut)
+            if (State == CabinState.Idle)
+            {
+                if (phase == FlightPhase.Climb || phase == FlightPhase.InitialClimb)
+                {
+                    reportEn = "We're currently waiting for the seatbelt sign to be turned off so we can prepare for service.";
+                    reportFr = "Nous attendons l'extinction de la consigne des ceintures pour pouvoir préparer le service.";
+                    audioFolder = "TO_FD/Status_Reports/CabinCalm"; // TTS fallback
+                }
+                else if (phase == FlightPhase.Cruise)
+                {
+                    if (InFlightServiceProgress == 0 && !IsServiceHalted) 
+                    {
+                        reportEn = "We are organizing the galleys for the upcoming service.";
+                        reportFr = "Nous organisons les galleys en vue du service à bord.";
+                        audioFolder = "TO_FD/Status_Reports/CabinCalm"; // TTS fallback
+                    }
+                    else if (InFlightServiceProgress >= 100)
+                    {
+                        reportEn = "The meal service is completed and we've cleared the trays.";
+                        reportFr = "Le service est terminé et les plateaux ont été débarrassés.";
+                        audioFolder = "TO_FD/Status_Reports/ServiceFinished";
+                    }
+                }
+                else if (phase == FlightPhase.Descent)
+                {
+                    reportEn = "We are doing a final pass to collect trash and prepare the cabin for arrival.";
+                    reportFr = "Nous faisons un dernier passage pour débarrasser les détritus et préparer l'arrivée.";
+                    audioFolder = "TO_FD/Status_Reports/CabinCalm"; // TTS fallback
+                }
+                else if (phase == FlightPhase.TaxiIn)
+                {
+                    reportEn = "Everyone is seated and waiting to arrive at the gate, Captain.";
+                    reportFr = "Tout le monde est assis et attend l'arrivée au point de stationnement.";
+                    audioFolder = "TO_FD/Status_Reports/CabinCalm"; // TTS fallback
+                }
+            }
+
+            // Operational State Mapping
+            if (State == CabinState.Deboarding)
+            {
+                reportEn = "We're currently deboarding the passengers. Almost done back here.";
+                reportFr = "Le débarquement est en cours. Nous avons presque terminé.";
+                audioFolder = "TO_FD/Status_Reports/CabinCalm"; // TTS fallback
+            }
+            else if (State == CabinState.Boarding)
+            {
+                reportEn = "We are still getting passengers settled in their seats, Captain.";
+                reportFr = "Nous installons encore les passagers à leurs places, Commandant.";
+                audioFolder = "TO_FD/Status_Reports/BoardingInProgress";
+            }
+            else if (State == CabinState.SecuringForTakeoff || (_isSecuring && phase == FlightPhase.TaxiOut))
             {
                 reportEn = "Captain, we haven't finished securing the galleys yet, we need a few more minutes!";
                 reportFr = "Commandant, nous n'avons pas fini de préparer la cabine, il nous faut quelques minutes de plus !";
                 audioFolder = "TO_FD/Status_Reports/SecuringInProgress";
             }
-            else if (_isSecuring && phase == FlightPhase.Descent)
+            else if (State == CabinState.TakeoffSecured)
             {
-                reportEn = "Galley is being secured, and we're starting the final cabin check.";
-                reportFr = "Le galley est en cours de sécurisation, nous débutons la vérification finale.";
-                audioFolder = "TO_FD/Status_Reports/SecuringInProgress";
+                reportEn = "Cabin is fully secured and ready for takeoff. Everyone is seated.";
+                reportFr = "La cabine est entièrement préparée et prête pour le décollage.";
+                audioFolder = "TO_FD/Status_Reports/CabinSecured";
             }
-            else if (PassengerManifest.Exists(p => p.IsInjured))
-            {
-                var injured = PassengerManifest.FindAll(p => p.IsInjured);
-                reportEn = $"We are still tending to {injured.Count} injured passenger(s). The mood is very somber.";
-                reportFr = $"Nous nous occupons toujours de {injured.Count} passager(s) blessé(s). L'ambiance est très lourde.";
-                audioFolder = "TO_FD/Status_Reports/SevereTurbulence";
-            }
-            else if (WasteLevel > 80.0)
-            {
-                reportEn = "Captain, the passengers are getting uncomfortable. The lavatories are becoming an issue with the waste tanks almost full.";
-                reportFr = "Commandant, les passagers commencent à se plaindre des toilettes. Les réservoirs sont presque pleins.";
-                audioFolder = "TO_FD/Status_Reports/UncomfortablePax";
-            }
-            else if (phase == FlightPhase.Cruise && State == CabinState.ServingMeals)
+            else if (State == CabinState.ServingMeals)
             {
                 if (InFlightServiceProgress < 20) {
                     reportEn = "We've just started preparing the service carts.";
@@ -2385,29 +2498,63 @@ namespace FlightSupervisor.UI.Services
                     reportFr = "Le service des repas bat son plein. Tout le monde semble satisfait.";
                     audioFolder = "TO_FD/Status_Reports/ServiceInProgress";
                 } else {
-                    reportEn = "Service is complete, and the cabin is resting.";
-                    reportFr = "Le service est terminé, la cabine se repose.";
+                    reportEn = "We are currently picking up the trays and clearing the aisles.";
+                    reportFr = "Nous ramassons actuellement les plateaux et débarrassons les allées.";
                     audioFolder = "TO_FD/Status_Reports/ServiceFinished";
                 }
             }
-            
+            else if (State == CabinState.SecuringForLanding || (_isSecuring && (phase == FlightPhase.Descent || phase == FlightPhase.Approach)))
+            {
+                reportEn = "Galley is being secured, and we're starting the final cabin check.";
+                reportFr = "Le galley est en cours de sécurisation, nous débutons la vérification finale.";
+                audioFolder = "TO_FD/Status_Reports/SecuringInProgress";
+            }
+            else if (State == CabinState.LandingSecured)
+            {
+                reportEn = "Cabin is secure for landing. The crew is seated.";
+                reportFr = "La cabine est sécurisée pour l'atterrissage. L'équipage est assis.";
+                audioFolder = "TO_FD/Status_Reports/CabinSecured";
+            }
+
+            // Situational & Crisis Overrides (Highest Priority)
             if (isCrisisActive)
             {
                 reportEn = "Captain, the passengers are panicking! What's going on?!";
                 reportFr = "Commandant, les passagers paniquent ! Que se passe-t-il ?!";
                 audioFolder = "TO_FD/Status_Reports/AnxiousPax";
             }
-            else if (audioFolder == "TO_FD/Status_Reports/CabinCalm") // Only apply gauge logic if no higher priority was hit
+            else if (PassengerManifest.Exists(p => p != null && p.IsInjured))
             {
-                if (PassengerAnxiety > 50.0)
+                var injured = PassengerManifest.FindAll(p => p != null && p.IsInjured);
+                reportEn = $"We are still tending to {injured.Count} injured passenger(s). The mood is very somber.";
+                reportFr = $"Nous nous occupons toujours de {injured.Count} passager(s) blessé(s). L'ambiance est très lourde.";
+                audioFolder = "TO_FD/Status_Reports/SevereTurbulence";
+            }
+            else if (WasteLevel > 80.0)
+            {
+                reportEn = "Captain, the passengers are getting uncomfortable. The lavatories are becoming an issue with the waste tanks almost full.";
+                reportFr = "Commandant, les passagers commencent à se plaindre des toilettes. Les réservoirs sont presque pleins.";
+                audioFolder = "TO_FD/Status_Reports/UncomfortablePax";
+            }
+            else if (audioFolder == "TO_FD/Status_Reports/CabinCalm" || audioFolder == "TO_FD/Status_Reports/ServiceFinished") // Only apply gauge logic if calm or service finished
+            {
+                if (_currentDelayMinutes > 15 && (phase == FlightPhase.AtGate || phase == FlightPhase.Turnaround))
                 {
-                    if (_currentDelayMinutes > 15 && phase == FlightPhase.AtGate)
+                    if (PassengerAnxiety > 50.0)
                     {
-                        reportEn = "The passengers are getting very frustrated and restless due to this long delay.";
-                        reportFr = "Les passagers s'impatientent sérieusement et s'énervent à cause de l'attente prolongée.";
-                        audioFolder = "TO_FD/Status_Reports/AnxiousPax";
+                        reportEn = "The passengers are getting very frustrated and restless due to this long delay, Captain.";
+                        reportFr = "Les passagers s'impatientent sérieusement et s'énervent à cause de cette longue attente, Commandant.";
                     }
-                    else if ((DateTime.Now - _lastTurbulenceNotice).TotalMinutes < 15)
+                    else
+                    {
+                        reportEn = "Captain, passengers are starting to ask questions about the delay. It would be good to update them.";
+                        reportFr = "Commandant, les passagers commencent à poser des questions sur le retard. Il serait bon de les informer.";
+                    }
+                    audioFolder = "TO_FD/Status_Reports/AnxiousPax";
+                }
+                else if (PassengerAnxiety > 50.0)
+                {
+                    if ((DateTime.Now - _lastTurbulenceNotice).TotalMinutes < 15)
                     {
                         reportEn = "It's been quite bumpy, and the cabin is feeling very tense and anxious right now.";
                         reportFr = "Ça a secoué pas mal, l'ambiance est très tendue et anxieuse en cabine.";
@@ -2507,7 +2654,7 @@ namespace FlightSupervisor.UI.Services
 
         public void BoardPassenger(int count)
         {
-            var unboarded = PassengerManifest.Where(p => !p.IsBoarded).Take(count).ToList();
+            var unboarded = PassengerManifest.Where(p => p != null && !p.IsBoarded).Take(count).ToList();
             foreach (var p in unboarded)
             {
                 p.IsBoarded = true;
@@ -2521,8 +2668,8 @@ namespace FlightSupervisor.UI.Services
 
         public void DeboardPassenger(int count)
         {
-            var targetManifest = PreviousLegManifest.Any(p => p.IsBoarded) ? PreviousLegManifest : PassengerManifest;
-            var boarded = targetManifest.Where(p => p.IsBoarded).TakeLast(count).ToList();
+            var targetManifest = PreviousLegManifest.Any(p => p != null && p.IsBoarded) ? PreviousLegManifest : PassengerManifest;
+            var boarded = targetManifest.Where(p => p != null && p.IsBoarded).TakeLast(count).ToList();
             foreach (var p in boarded)
             {
                 p.IsBoarded = false;

@@ -45,6 +45,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<bool>? OnSimOnGroundReceived;
         public event Action<double>? OnVerticalSpeedReceived;
         public event Action<double>? OnGForceReceived;
+        public event Action<string>? OnAircraftTitleReceived;
         public event Action<bool, bool>? OnEngineCombustionReceived;
         public event Action<double>? OnHeadingReceived;
         public event Action<double, double>? OnWindReceived;
@@ -69,8 +70,8 @@ namespace FlightSupervisor.UI.Services
         public event Action<bool>? OnRunwayTurnoffChanged;
         public event Action<double>? OnFuelTotalReceived;
 
-        enum DEFINITIONS { PlaneData, GForceData }
-        enum REQUESTS { PlaneDataReq, GForceReq }
+        enum DEFINITIONS { PlaneData, GForceData, TitleData }
+        enum REQUESTS { PlaneDataReq, GForceReq, TitleReq }
         enum EVENTS { SetZuluHours, SetZuluMinutes }
         enum GROUP { Group0 }
 
@@ -137,6 +138,13 @@ namespace FlightSupervisor.UI.Services
         struct GForceDataStruct
         {
             public double GForce;
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
+        struct TitleDataStruct
+        {
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+            public string Title;
         }
 
         public SimConnectService() { }
@@ -216,15 +224,18 @@ namespace FlightSupervisor.UI.Services
                 _simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "SPOILERS ARMED", "Bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
 
                 _simconnect.AddToDataDefinition(DEFINITIONS.GForceData, "G FORCE", "GForce", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+                _simconnect.AddToDataDefinition(DEFINITIONS.TitleData, "TITLE", null, SIMCONNECT_DATATYPE.STRING256, 0.0f, SimConnect.SIMCONNECT_UNUSED);
 
                 _simconnect.MapClientEventToSimEvent(EVENTS.SetZuluHours, "ZULU_HOURS_SET");
                 _simconnect.MapClientEventToSimEvent(EVENTS.SetZuluMinutes, "ZULU_MINUTES_SET");
 
                 _simconnect.RegisterDataDefineStruct<PlaneDataStruct>(DEFINITIONS.PlaneData);
                 _simconnect.RegisterDataDefineStruct<GForceDataStruct>(DEFINITIONS.GForceData);
+                _simconnect.RegisterDataDefineStruct<TitleDataStruct>(DEFINITIONS.TitleData);
 
                 _simconnect.RequestDataOnSimObject(REQUESTS.PlaneDataReq, DEFINITIONS.PlaneData, SimConnect.SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD.SECOND, SIMCONNECT_DATA_REQUEST_FLAG.CHANGED, 0, 0, 0);
                 _simconnect.RequestDataOnSimObject(REQUESTS.GForceReq, DEFINITIONS.GForceData, SimConnect.SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD.VISUAL_FRAME, SIMCONNECT_DATA_REQUEST_FLAG.CHANGED, 0, 0, 0);
+                _simconnect.RequestDataOnSimObject(REQUESTS.TitleReq, DEFINITIONS.TitleData, SimConnect.SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD.SECOND, SIMCONNECT_DATA_REQUEST_FLAG.CHANGED, 0, 0, 0);
             }
             catch (COMException ex) { OnConnectionStateChanged?.Invoke($"MSFS not found ({ex.ErrorCode})"); }
             catch (Exception ex) { OnConnectionStateChanged?.Invoke($"Connection error: {ex.Message}"); }
@@ -359,6 +370,11 @@ namespace FlightSupervisor.UI.Services
             {
                 var gData = (GForceDataStruct)data.dwData[0];
                 OnGForceReceived?.Invoke(gData.GForce);
+            }
+            else if (data.dwRequestID == (uint)REQUESTS.TitleReq)
+            {
+                var tData = (TitleDataStruct)data.dwData[0];
+                OnAircraftTitleReceived?.Invoke(tData.Title);
             }
         }
 
