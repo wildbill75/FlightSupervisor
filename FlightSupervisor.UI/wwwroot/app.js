@@ -4606,8 +4606,9 @@ function renderGroundOps(services) {
     let html = '';
 
     if (!services || services.length === 0 || !window.isDispatchSignedOff) {
-        let titleTxt = "Pending Next Leg Initialization";
-        if (services && services.length > 0) titleTxt = "Pending Final Loadsheet Validation";
+        const pendingLegNum = window.currentLegCounter || 1;
+        let titleTxt = `PENDING LEG ${pendingLegNum} INITIALIZATION`;
+        if (services && services.length > 0) titleTxt = `PENDING LEG ${pendingLegNum} LOADSHEET VALIDATION`;
 
         let btn3Class = "bg-transparent border border-white/10 text-[#b6b6b6] hover:bg-white/5 hover:border-white/20";
         let btn3Action = "window.chrome.webview.postMessage({action: 'openFuelSheetWindow'});";
@@ -4618,7 +4619,7 @@ function renderGroundOps(services) {
         html = `
         <div class="flex flex-col items-center justify-center py-6 w-full h-full relative gap-3">
             <span class="material-symbols-outlined text-slate-700 text-[36px] mb-2 font-light">flight_takeoff</span>
-            <p class="text-[11px] text-[#7b7b7b] uppercase tracking-[0.2em] font-bold text-center mb-4" data-i18n="ground_pending">${titleTxt}</p>
+            <p class="text-[11px] text-white uppercase tracking-[0.2em] font-bold text-center mb-4" data-i18n="ground_pending">${titleTxt}</p>
             
             <button onclick="window.chrome.webview.postMessage({action: 'openSimbriefForCurrentLeg'});" class="group relative flex items-center justify-center gap-2 px-6 py-2 bg-transparent border border-white/10 rounded-full hover:bg-white/5 hover:border-white/20 transition-all duration-300">
                 <span class="material-symbols-outlined text-[16px] text-sky-400 font-light group-hover:scale-110 transition-transform">open_in_new</span>
