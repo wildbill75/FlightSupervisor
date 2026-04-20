@@ -317,6 +317,7 @@ window.populateBriefingView = (index = 0) => {
 
 
 window.dashboardActiveLegIndex = 0;
+window.isBriefingUnlocked = false;
 window.isDispatchSignedOff = false;
 
 window.navigateDashboardLeg = (dir) => {
@@ -459,10 +460,11 @@ window.populateDashboardActiveLeg = (index = 0) => {
     if (emptyContainer) emptyContainer.style.display = 'none';
     
     // Check if we are drafting or finalized
-    if (!window.isDispatchSignedOff) {
+    if (!window.isBriefingUnlocked) {
         if (activeContainer) activeContainer.style.display = 'none';
         if (tlWrapper) tlWrapper.style.display = 'flex';
         if (valArea) valArea.classList.toggle('hidden', window.allRotations.length === 0);
+        return;
     } else {
         if (tlWrapper) tlWrapper.style.display = 'none';
         if (valArea) valArea.classList.add('hidden');
@@ -1030,7 +1032,7 @@ window.renderBriefingTimeline = () => {
 };
 
 window.unlockDashboard = (silent = false) => {
-    window.isDispatchSignedOff = true;
+    window.isBriefingUnlocked = true;
     
     const dashBtn = document.getElementById('navDashboardBtn');
     if (dashBtn) {
@@ -2356,7 +2358,7 @@ window.renderBriefingTabs = () => {
                 }, 6000);
                 break;
             case 'shellRotationValidated':
-                window.isDispatchSignedOff = true;
+                window.isBriefingUnlocked = true;
                 window.isFlightActive = true;
                 window.isDummyPreflight = true; // Track that we wait for OFP
                 
@@ -2459,8 +2461,7 @@ window.renderBriefingTabs = () => {
                 const fvBtn = document.getElementById('fuelValidateBtn');
                 const fvBtnText = document.getElementById('fuelValidateBtnText');
                 if (fvBtn) {
-                    fvBtn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/50', 'cursor-not-allowed', 'shadow-[0_0_20px_rgba(16,185,129,0.15)]');
-                    fvBtn.classList.add('bg-sky-500/20', 'text-sky-400', 'hover:bg-sky-500', 'hover:text-white', 'border-sky-500/50', 'shadow-[0_0_20px_rgba(14,165,233,0.15)]', 'group', 'group-hover:scale-105');
+                    fvBtn.classList.add('bg-transparent', 'text-[#b6b6b6]', 'hover:bg-white/5', 'hover:text-white', 'border-white/10', 'hover:border-white/20', 'shadow-none', 'group');
                     if (fvBtnText) fvBtnText.innerText = "Validate & Sign";
                     const fvIcon = fvBtn.querySelector('.material-symbols-outlined');
                     if (fvIcon) fvIcon.innerText = "verified_user";
@@ -2479,6 +2480,7 @@ window.renderBriefingTabs = () => {
                 window.allRotations = [];
                 window.activeLegIndex = 0;
                 window.dashboardActiveLegIndex = 0;
+                window.isBriefingUnlocked = false;
                 window.isDispatchSignedOff = false;
                 if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg();
                 if (window.resetDashboardWidgets) window.resetDashboardWidgets();
@@ -2512,8 +2514,8 @@ window.renderBriefingTabs = () => {
                 const validationDashBtn = document.getElementById('fuelValidateBtn');
                 if (validationDashBtn) {
                     validationDashBtn.onclick = null;
-                    validationDashBtn.classList.remove('bg-sky-500/20', 'text-sky-400', 'hover:bg-sky-500', 'hover:text-white', 'border-sky-500/50', 'hover:shadow-[0_0_30px_rgba(14,165,233,0.4)]', 'cursor-pointer', 'group', 'group-hover:scale-105');
-                    validationDashBtn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/50', 'cursor-not-allowed', 'shadow-[0_0_20px_rgba(16,185,129,0.15)]');
+                    validationDashBtn.classList.remove('bg-transparent', 'text-[#b6b6b6]', 'hover:bg-white/5', 'hover:text-white', 'border-white/10', 'hover:border-white/20', 'shadow-none', 'group');
+                    validationDashBtn.classList.add('bg-transparent', 'text-emerald-400', 'border-emerald-500/20', 'cursor-not-allowed');
                     const validationDashBtnText = document.getElementById('fuelValidateBtnText');
                     if (validationDashBtnText) validationDashBtnText.innerText = 'FUEL VALIDATED';
                     const validationIcon = validationDashBtn.querySelector('.material-symbols-outlined');
@@ -4256,7 +4258,7 @@ window.renderBriefingTabs = () => {
                         let nextButtonHtml = '';
                         if (nextLeg <= 4) {
                             nextButtonHtml = `
-                                <button onclick="window.currentLegCounter = ${nextLeg}; document.getElementById('btnFetchPlan').classList.add('animate-pulse'); setTimeout(()=>document.getElementById('btnFetchPlan').classList.remove('animate-pulse'), 2000);" class="bg-[#1C1F26] border border-sky-500/30 text-white px-8 py-6 rounded-xl hover:bg-sky-500/10 hover:border-sky-500 shadow-xl transition-all font-bold tracking-widest flex items-center justify-between group w-full mt-4 relative overflow-hidden">
+                                <button onclick="window.currentLegCounter = ${nextLeg};" class="bg-[#1C1F26] border border-sky-500/30 text-white px-8 py-6 rounded-xl hover:bg-sky-500/10 hover:border-sky-500 shadow-xl transition-all font-bold tracking-widest flex items-center justify-between group w-full mt-4 relative overflow-hidden">
                                     <div class="absolute top-0 right-0 h-full w-32 bg-gradient-to-l from-sky-500/20 to-transparent pointer-events-none group-hover:from-sky-500/40 transition-colors"></div>
                                     <div class="flex items-center gap-4 relative z-10">
                                         <span class="material-symbols-outlined text-4xl group-hover:scale-110 transition-transform text-sky-400 drop-shadow-[0_0_15px_rgba(56,189,248,0.5)]">add_circle</span>
@@ -4414,9 +4416,6 @@ window.renderBriefingTabs = () => {
             case 'groundOps':
                 window.groundOpsCache = payload.services;
                 if (payload.isDispatchSignedOff !== undefined) {
-                    if (payload.isDispatchSignedOff === false) {
-                        window.hasBasculedToGroundOps = false;
-                    }
                     window.isDispatchSignedOff = payload.isDispatchSignedOff;
                 }
                 if (payload.isFuelValidated !== undefined) {
@@ -4606,20 +4605,15 @@ function renderGroundOps(services) {
 
     let html = '';
 
-    if (!services || services.length === 0 || !window.isDispatchSignedOff || !window.hasBasculedToGroundOps) {
+    if (!services || services.length === 0 || !window.isDispatchSignedOff) {
         let titleTxt = "Pending Next Leg Initialization";
         if (services && services.length > 0) titleTxt = "Pending Final Loadsheet Validation";
 
-        let btn3Class = window.isDispatchSignedOff 
-            ? "bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/30" 
-            : "bg-transparent border border-white/10 text-[#b6b6b6] hover:bg-white/5 hover:border-white/20";
+        let btn3Class = "bg-transparent border border-white/10 text-[#b6b6b6] hover:bg-white/5 hover:border-white/20";
+        let btn3Action = "window.chrome.webview.postMessage({action: 'openFuelSheetWindow'});";
             
-        let btn3Action = window.isDispatchSignedOff 
-            ? "window.hasBasculedToGroundOps = true; renderGroundOps(window.groundOpsCache);" 
-            : "window.chrome.webview.postMessage({action: 'openFuelSheetWindow'});";
-            
-        let btn3Icon = window.isDispatchSignedOff ? "check_circle" : "assignment";
-        let btn3Text = window.isDispatchSignedOff ? "text-emerald-400 group-hover:text-white" : "text-[#b6b6b6] group-hover:text-white";
+        let btn3Icon = "assignment";
+        let btn3Text = "text-[#b6b6b6] group-hover:text-white";
 
         html = `
         <div class="flex flex-col items-center justify-center py-6 w-full h-full relative gap-3">

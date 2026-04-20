@@ -2038,7 +2038,7 @@ namespace FlightSupervisor.UI
                             }
                             
                             SendToWeb(new { type = "groundOpsReady" });
-                            SendToWeb(new { type = "groundOps", services = _groundOpsManager.Services });
+                            SendToWeb(new { type = "groundOps", services = _groundOpsManager.Services, isDispatchSignedOff = true });
                         }
                         
                         // Let Dispatch know
