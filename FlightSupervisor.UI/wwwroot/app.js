@@ -674,31 +674,7 @@ window.populateDashboardActiveLeg = (index = 0) => {
 
                                 ${ index === (window.activeLegIndex || 0) && (!window.currentPhase || window.currentPhase === 'AtGate' || window.currentPhase === 'Turnaround' || window.currentPhase === 'Preflight') ? `
                                     <div class="mt-4 w-full flex justify-center gap-3 z-40" style="pointer-events: auto;">
-                                          ${(rd.isDummy || window.allRotations[index].isShell) ? 
-                                          `
-                                          <button class="bg-indigo-600/20 hover:bg-indigo-500/40 text-indigo-400 hover:text-white border border-indigo-500/30 py-1.5 px-3 rounded font-bold tracking-widest flex items-center gap-1.5 cursor-pointer shadow-[0_4px_15px_rgba(79,70,229,0.2)] transition-all"
-                                                  onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'openSimbriefForCurrentLeg' });"
-                                                  title="Open SimBrief to plan your flight">
-                                              <span class="material-symbols-outlined text-[13px]">open_in_new</span>
-                                              <span class="text-[9px] uppercase">OPEN SIMBRIEF</span>
-                                          </button>
-                                          <button class="bg-emerald-600/20 hover:bg-emerald-500/40 text-emerald-400 hover:text-white border border-emerald-500/30 py-1.5 px-3 rounded font-bold tracking-widest flex items-center gap-1.5 cursor-pointer shadow-[0_4px_15px_rgba(16,185,129,0.2)] transition-all"
-                                                  onclick="event.stopPropagation(); window.triggerSimBriefImport();"
-                                                  title="Download generated OFP from SimBrief and configure aircraft.">
-                                              <span class="material-symbols-outlined text-[13px]">download</span>
-                                              <span class="text-[9px] uppercase">IMPORT GENERATED</span>
-                                          </button>
-                                          ` 
-                                          : 
-                                          `
-                                          <button class="bg-sky-600/20 hover:bg-sky-500/40 text-sky-400 hover:text-white border border-sky-500/30 py-1.5 px-3 rounded font-bold tracking-widest flex items-center gap-1.5 cursor-pointer shadow-[0_4px_15px_rgba(14,165,233,0.2)] transition-all"
-                                                  onclick="event.stopPropagation(); window.triggerSimBriefImport();"
-                                                  title="Download generated OFP from SimBrief and configure aircraft.">
-                                              <span class="material-symbols-outlined text-[13px]">sync</span>
-                                              <span class="text-[9px] uppercase">RELOAD OFP</span>
-                                          </button>
-                                          `
-                                          }
+                                          <!-- Buttons moved to Ground Ops per Story 43 -->
                                     </div>
                                 ` : ''}
                             </div>
@@ -2392,6 +2368,10 @@ window.renderBriefingTabs = () => {
                 if (window.renderBriefingTimeline) window.renderBriefingTimeline();
                 if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(0);
                 
+                if (typeof window.toggleDashPage === 'function' && window.currentDashPage === 1) {
+                    window.toggleDashPage(1);
+                }
+                
                 // Auto-open SimBrief has been removed per user directive.
                 
                 const sbMod = document.getElementById('simbriefDispatchModal');
@@ -4050,9 +4030,19 @@ window.renderBriefingTabs = () => {
                 break;
             case 'fetchStatus':
                 if (payload.status === 'success') {
-                    document.getElementById('fetchStatus').innerText = '';
+                    if (document.getElementById('fetchStatus')) document.getElementById('fetchStatus').innerText = '';
                 } else {
-                    document.getElementById('fetchStatus').innerText = payload.message || '';
+                    if (document.getElementById('fetchStatus')) document.getElementById('fetchStatus').innerText = payload.message || '';
+                    if (window.Swal) Swal.fire({title: 'SIMBRIEF ERROR', text: payload.message || 'Could not parse flight plan.', icon: 'error', background: '#2a2a2b', color: '#fff'});
+                    else alert('SIMBRIEF ERROR: ' + (payload.message || 'Could not parse flight plan.'));
+                    
+                    const btn = document.getElementById('btnGroundOpsFetch');
+                    if (btn) {
+                        btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">download</span> <span class="text-[11px] uppercase font-bold tracking-widest text-emerald-400">2. Import Generated OFP</span>';
+                        btn.classList.remove('opacity-50', 'pointer-events-none');
+                    }
+                    const loaderSt = document.getElementById('simbriefLoadingState');
+                    if (loaderSt) loaderSt.style.display = 'none';
                 }
                 if (payload.status === 'success') {
                     isFlightCancelled = false;
@@ -4082,11 +4072,11 @@ window.renderBriefingTabs = () => {
                     if (pLogs) pLogs.innerHTML = "";
                     const sFeed = document.getElementById('scoreFeed');
                     if (sFeed) sFeed.innerHTML = "<li style=\"color:#64748b; text-align:center;\">Tracking standing by...</li>";
-                    // Auto switch to GroundOps instead of Briefing
+                    // For Turnaround / AtGate
                     setTimeout(() => {
                         if (window.flightPhase === 'Preflight') {
-                            window.isDispatchSignedOff = true;
-                            if (window.unlockDashboard) window.unlockDashboard();
+                            // Do NOTHING for Preflight - ground ops logic requires Fuel Sheet validation!
+                            // The user will click 'Validate Loadsheet' in the 3-button empty state.
                             if (window.wasDummyBeforeFetch !== false) {
                                 window.chrome.webview.postMessage({ action: 'startShellSession' });
                             }
@@ -4191,14 +4181,6 @@ window.renderBriefingTabs = () => {
                 const loader = document.getElementById('simbriefLoadingState');
                 if (loader) loader.style.display = 'none';
                 
-                if ((window.currentLegCounter || 1) === 1 && !window.hasSeenFenixWarning) {
-                    window.hasSeenFenixWarning = true;
-                    setTimeout(() => {
-                        const fw = document.getElementById('fenixWarningModal');
-                        if (fw) fw.style.display = 'flex';
-                    }, 500);
-                }
-
                 const dispatchModal = document.getElementById('simbriefDispatchModal');
                 if (dispatchModal && dispatchModal.style.display !== 'none') {
                     // Do not close the modal automatically anymore, display the "Next Leg" prompt
@@ -4432,6 +4414,9 @@ window.renderBriefingTabs = () => {
             case 'groundOps':
                 window.groundOpsCache = payload.services;
                 if (payload.isDispatchSignedOff !== undefined) {
+                    if (payload.isDispatchSignedOff === false) {
+                        window.hasBasculedToGroundOps = false;
+                    }
                     window.isDispatchSignedOff = payload.isDispatchSignedOff;
                 }
                 if (payload.isFuelValidated !== undefined) {
@@ -4621,15 +4606,39 @@ function renderGroundOps(services) {
 
     let html = '';
 
-    if (!services || services.length === 0) {
+    if (!services || services.length === 0 || !window.isDispatchSignedOff || !window.hasBasculedToGroundOps) {
+        let titleTxt = "Pending Next Leg Initialization";
+        if (services && services.length > 0) titleTxt = "Pending Final Loadsheet Validation";
+
+        let btn3Class = window.isDispatchSignedOff 
+            ? "bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/30" 
+            : "bg-transparent border border-white/10 text-[#b6b6b6] hover:bg-white/5 hover:border-white/20";
+            
+        let btn3Action = window.isDispatchSignedOff 
+            ? "window.hasBasculedToGroundOps = true; renderGroundOps(window.groundOpsCache);" 
+            : "window.chrome.webview.postMessage({action: 'openFuelSheetWindow'});";
+            
+        let btn3Icon = window.isDispatchSignedOff ? "check_circle" : "assignment";
+        let btn3Text = window.isDispatchSignedOff ? "text-emerald-400 group-hover:text-white" : "text-[#b6b6b6] group-hover:text-white";
+
         html = `
-        <div class="flex flex-col items-center justify-center py-10 w-full h-full relative">
-            <span class="material-symbols-outlined text-slate-700 text-[48px] mb-4 font-light">flight_takeoff</span>
-            <p class="text-[11px] text-[#7b7b7b] uppercase tracking-[0.2em] font-bold text-center mb-6" data-i18n="ground_pending">Ready for next leg</p>
+        <div class="flex flex-col items-center justify-center py-6 w-full h-full relative gap-3">
+            <span class="material-symbols-outlined text-slate-700 text-[36px] mb-2 font-light">flight_takeoff</span>
+            <p class="text-[11px] text-[#7b7b7b] uppercase tracking-[0.2em] font-bold text-center mb-4" data-i18n="ground_pending">${titleTxt}</p>
             
             <button onclick="window.chrome.webview.postMessage({action: 'openSimbriefForCurrentLeg'});" class="group relative flex items-center justify-center gap-2 px-6 py-2 bg-transparent border border-white/10 rounded-full hover:bg-white/5 hover:border-white/20 transition-all duration-300">
-                <span class="material-symbols-outlined text-[16px] text-sky-400 font-light group-hover:scale-110 transition-transform">download</span>
-                <span class="text-[10px] uppercase font-bold tracking-widest text-[#b6b6b6] group-hover:text-white transition-colors">Open SimBrief</span>
+                <span class="material-symbols-outlined text-[16px] text-sky-400 font-light group-hover:scale-110 transition-transform">open_in_new</span>
+                <span class="text-[10px] uppercase font-bold tracking-widest text-[#b6b6b6] group-hover:text-white transition-colors">1. Open SimBrief</span>
+            </button>
+            
+            <button id="btnGroundOpsFetch" onclick="this.innerHTML = '<span class=\\'material-symbols-outlined text-[16px] animate-spin\\'>sync</span> <span class=\\'text-[10px] uppercase font-bold tracking-widest text-[#emerald-400]\\'>FETCHING...</span>'; this.classList.add('opacity-50', 'pointer-events-none'); window.triggerSimBriefImport();" class="group relative flex items-center justify-center gap-2 px-6 py-2 bg-transparent border border-white/10 rounded-full hover:bg-white/5 hover:border-white/20 transition-all duration-300">
+                <span class="material-symbols-outlined text-[16px] text-emerald-400 font-light group-hover:scale-110 transition-transform">download</span>
+                <span class="text-[10px] uppercase font-bold tracking-widest text-[#b6b6b6] group-hover:text-white transition-colors">2. Import Generated OFP</span>
+            </button>
+
+            <button onclick="${btn3Action}" class="group relative flex items-center justify-center gap-2 px-6 py-2 ${btn3Class} rounded-full transition-all duration-300">
+                <span class="material-symbols-outlined text-[16px] group-hover:scale-110 transition-transform">${btn3Icon}</span>
+                <span class="text-[10px] uppercase font-bold tracking-widest ${btn3Text} transition-colors">3. Validate Loadsheet</span>
             </button>
         </div>`;
     } else {
@@ -4717,23 +4726,20 @@ function renderGroundOps(services) {
         if (stateVal === 0 || stateVal === 5) {
             let btnText = actionName === 'startDeboarding' ? 'START DEBOARDING' : `START ${(s.Name || s.name)}`;
             
-            // Custom Refueling Logic
-            let isAmberLoadsheet = false;
-            if ((s.Name || s.name) === "Refueling" && !window.isFuelValidated) {
-                btnText = "OPEN LOADSHEET";
-                clickAction = `onclick="window.chrome.webview.postMessage({ action: 'openFuelSheetWindow' })"`;
-                isClickable = true;
-                isAmberLoadsheet = true;
-            }
-            
             if (boardBlockedText) {
                 centerAreaHtml = `<span class="text-orange-400 font-bold uppercase tracking-wide text-[9px] md:text-[10px] flex justify-center items-center gap-1 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 cursor-not-allowed" style="text-shadow: 0 0 10px rgba(249,115,22,0.3);"><span class="material-symbols-outlined text-[14px]">warning</span> WAIT FOR OPS</span>`;
                 isClickable = false;
             } else if (smMsg && smMsg.toLowerCase().includes("blocked") && (s.Name || s.name) !== "Refueling") {
                 centerAreaHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 cursor-not-allowed">${smMsg.toUpperCase()}</span>`;
                 isClickable = false;
-            } else if (isAmberLoadsheet) {
-                centerAreaHtml = `<button ${clickAction} class="bg-amber-500/10 text-amber-400 border border-amber-500/20 w-[120px] md:w-[140px] py-1.5 md:py-2 rounded text-[9px] md:text-[10px] font-bold tracking-widest hover:bg-amber-500 hover:text-white transition-all uppercase shadow-[0_0_10px_rgba(245,158,11,0.1)] outline-none whitespace-nowrap flex-shrink-0">${btnText}</button>`;
+            } else if ((s.Name || s.name) === "Refueling") {
+                let btnRefuelAction = isClickable ? `onclick="window.chrome.webview.postMessage({action: 'startService', service: 'Refueling'})"` : '';
+                let btnLoadsheetAction = `onclick="window.chrome.webview.postMessage({ action: 'openFuelSheetWindow' })"`;
+                centerAreaHtml = `
+                    <div class="flex gap-2 justify-center items-center flex-shrink-0 w-[120px] md:w-[140px]">
+                        <button ${btnLoadsheetAction} class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1.5 md:py-2 rounded text-[8px] md:text-[9px] font-bold tracking-widest hover:bg-amber-500 hover:text-white transition-all uppercase shadow-[0_0_10px_rgba(245,158,11,0.1)] outline-none whitespace-nowrap" title="Edit Loadsheet">LOADSHEET</button>
+                        <button ${btnRefuelAction} class="bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2.5 py-1.5 md:py-2 rounded text-[8px] md:text-[9px] font-bold tracking-widest hover:bg-sky-500 hover:text-white transition-all uppercase shadow-[0_0_10px_rgba(56,189,248,0.1)] outline-none whitespace-nowrap">START REFUEL</button>
+                    </div>`;
             } else {
                 centerAreaHtml = `<button ${clickAction} class="bg-sky-500/10 text-sky-400 border border-sky-500/20 w-[120px] md:w-[140px] py-1.5 md:py-2 rounded text-[9px] md:text-[10px] font-bold tracking-widest hover:bg-sky-500 hover:text-white transition-all uppercase shadow-[0_0_10px_rgba(56,189,248,0.1)] outline-none whitespace-nowrap flex-shrink-0">${btnText}</button>`;
             }

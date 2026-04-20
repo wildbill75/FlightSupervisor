@@ -1639,6 +1639,8 @@ namespace FlightSupervisor.UI
                                 }
                             });
                         });
+                    } else {
+                        SendToWeb(new { type = "fetchStatus", status = "error", message = "Missing SimBrief Username in Profile." });
                     }
                 }
                 else if (action == "openSandboxWindow")
@@ -2075,12 +2077,10 @@ namespace FlightSupervisor.UI
                         if (_rotationQueue.Count > 0)
                         {
                             LoadNextLeg();
-                            
-                            // If the loaded leg is a real OFP (not a dummy), start Ground Ops and ask for Fuel Validation
+                            // If the loaded leg is a real OFP (not a dummy), start Ground Ops
                             if (_currentResponse != null && _currentResponse.General?.FlightNumber != "DUMMY")
                             {
                                 _groundOpsManager.StartOps();
-                                OpenFuelSheetWindow();
                             }
                             
                             SendToWeb(new { type = "log", message = $"[SYSTEM] Dispatch: Rotation Leg {_cabinManager.SessionFlightsCompleted + 1} initialized." });
@@ -2423,6 +2423,10 @@ namespace FlightSupervisor.UI
                         _ = FetchFlightPlan(username, false, null, weatherSource, false);
                         SendToWeb(new { type = "log", message = "[SYSTEM] Reloading SimBrief Data..." });
                     }
+                    else
+                    {
+                        SendToWeb(new { type = "fetchStatus", status = "error", message = "Missing SimBrief Username in Profile." });
+                    }
                 }
                 else if (action == "requestAcarsUpdate")
                 {
@@ -2585,7 +2589,6 @@ namespace FlightSupervisor.UI
                             LoadNextLeg();
                             
                             _groundOpsManager.StartOps();
-                            OpenFuelSheetWindow();
                         }
                         
                         SendTelemetryToWeb();
@@ -2861,9 +2864,6 @@ namespace FlightSupervisor.UI
                             System.IO.File.AppendAllText(logPath, $"[DEBUG] Calling LoadNextLeg()!\n");
                             SendToWeb(new { type = "log", message = $"[DEBUG] LoadNextLeg() is being called!" });
                             LoadNextLeg();
-                            
-                            // POPUP FUEL SHEET AUTOMATICALLY FOR THE FIRST LEG!
-                            OpenFuelSheetWindow();
                         }
                         else if (_currentResponse != null)
                         {
