@@ -3285,6 +3285,7 @@ namespace FlightSupervisor.UI
                 cabinState = _cabinManager.State.ToString(),
                 isServiceHalted = _cabinManager.IsServiceHalted,
                 cabinReportCooldownElapsed = _cabinManager.SecondsSinceLastReport,
+                isPlayingSafetyDemo = _cabinManager.IsPlayingSafetyDemo,
                 airline = CurrentAirline,
                 issuedCommands = _cabinManager.IssuedCommands.ToList(),
                 activeCrisis = _crisisManager.ActiveCrisis.ToString(),

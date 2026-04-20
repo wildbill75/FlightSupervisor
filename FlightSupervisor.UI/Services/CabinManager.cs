@@ -294,6 +294,7 @@ namespace FlightSupervisor.UI.Services
         private bool _isPlayingSafetyDemo = false;
         private DateTime? _safetyDemoTimerStart = null;
         private const double SafetyDemoDuration = 45.0;
+        public bool IsPlayingSafetyDemo => _isPlayingSafetyDemo;
 
         private double _currentDelayMinutes = 0;
         private double _currentSecuringRate = 0;

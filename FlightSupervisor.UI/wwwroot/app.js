@@ -1629,7 +1629,7 @@ window.renderBriefingTabs = () => {
         pncOptions.push({
             val: isIncoming ? 'answerCall' : 'intercomQuery',
             text: isIncoming ? 'CABIN CALLING' : 'CABIN REPORT',
-            disabled: isIncoming ? false : isCd,
+            disabled: isIncoming ? false : (isCd || payload.isPlayingSafetyDemo),
             action: isIncoming ? 'answerPncCall' : 'intercomQuery',
             customClass: isIncoming ? 'animate-pulse bg-orange-600/80 text-white border-orange-500 shadow-[0_0_15px_rgba(234,88,12,0.6)]' : ''
         });
@@ -1638,7 +1638,7 @@ window.renderBriefingTabs = () => {
             const ok = payload.isBoardingComplete;
             pncOptions.push({ val: 'ARM_DOORS', text: 'ARM DOORS', disabled: !ok, action: 'pncCommand' });
         }
-        if (!used.includes('PREPARE_TAKEOFF') && phase === 'TaxiOut') {
+        if (!used.includes('PREPARE_TAKEOFF') && phase === 'TaxiOut' && !payload.isPlayingSafetyDemo) {
             pncOptions.push({ val: 'PREPARE_TAKEOFF', text: 'PREP TAKEOFF', disabled: false, action: 'pncCommand' });
         } else if (used.includes('PREPARE_TAKEOFF') && payload.securingProgress > 0 && payload.securingProgress < 100 && !payload.isSecuringHurried) {
             pncOptions.push({ val: 'HURRY_SECURING', text: 'HURRY PNC', disabled: false, action: 'pncCommand' });
