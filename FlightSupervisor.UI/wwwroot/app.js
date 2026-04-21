@@ -1508,36 +1508,40 @@ window.renderBriefingTabs = () => {
         const section = document.getElementById(sectionId);
         if (!container) return;
 
-        let enabledOptions = options.filter(o => !o.disabled);
+        let visibleOptions = options.filter(o => !o.disabled || o.alwaysShow);
 
-        if (enabledOptions.length === 0) {
+        if (visibleOptions.length === 0) {
             container.innerHTML = '';
             container.dataset.lastHtml = '';
             return;
         }
 
-        const html = enabledOptions.map(o => {
+        const html = visibleOptions.map(o => {
             const action = o.action || (type === 'PA' ? 'announceCabin' : 'pncCommand');
             const propName = action === 'resolveCrisis' ? 'crisisType' : (type === 'PA' ? 'annType' : 'command');
             
             let onclickStr = '';
             const lockStr = `this.classList.add('opacity-50', 'pointer-events-none');`;
-            if (type === 'PA') {
-                onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', ${propName}: '${o.val}'})`;
-            } else {
-                if (action === 'pncCommand') {
-                    onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', command: '${o.val}'})`;
-                } else if (action === 'resolveCrisis') {
-                    onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', crisisType: '${o.val}'})`;
-                } else if (action === 'openDelayMenu') {
-                    onclickStr = `window.showDelayReasons();`;
+            
+            if (!o.disabled) {
+                if (type === 'PA') {
+                    onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', ${propName}: '${o.val}'})`;
                 } else {
-                    onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', annType: '${o.val}'})`;
+                    if (action === 'pncCommand') {
+                        onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', command: '${o.val}'})`;
+                    } else if (action === 'resolveCrisis') {
+                        onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', crisisType: '${o.val}'})`;
+                    } else if (action === 'openDelayMenu') {
+                        onclickStr = `window.showDelayReasons();`;
+                    } else {
+                        onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', annType: '${o.val}'})`;
+                    }
                 }
             }
 
             let finalClasses = o.customClass ? o.customClass : colorClasses;
-            return `<button onclick="${onclickStr}" class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all ${finalClasses}">
+            let disabledAttr = o.disabled ? 'disabled' : '';
+            return `<button ${disabledAttr} ${onclickStr ? `onclick="${onclickStr}"` : ''} class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all ${finalClasses}">
                         ${o.text}
                     </button>`;
         }).join('');
@@ -1625,13 +1629,33 @@ window.renderBriefingTabs = () => {
         const diffSec = payload.cabinReportCooldownElapsed || 999;
         const isCd = diffSec < 120;
         
+        const isCriticalPhase = (
+            phase === 4 || phase === 'Takeoff' ||
+            phase === 5 || phase === 'InitialClimb' ||
+            phase === 9 || phase === 'Approach' ||
+            phase === 10 || phase === 'Landing' ||
+            phase === 'FinalApproach'
+        );
+        const reportDisabled = isCd || payload.isPlayingSafetyDemo || isCriticalPhase;
+        
         const isIncoming = window.isCabinCallIncoming === true;
+        const pncBaseClass = 'bg-amber-900/40 text-amber-400 border-amber-500/20';
         pncOptions.push({
-            val: isIncoming ? 'answerCall' : 'intercomQuery',
-            text: isIncoming ? 'CABIN CALLING' : 'CABIN REPORT',
-            disabled: isIncoming ? false : (isCd || payload.isPlayingSafetyDemo),
-            action: isIncoming ? 'answerPncCall' : 'intercomQuery',
-            customClass: isIncoming ? 'animate-pulse bg-orange-600/80 text-white border-orange-500 shadow-[0_0_15px_rgba(234,88,12,0.6)]' : ''
+            val: 'intercomQuery',
+            text: 'CABIN REPORT',
+            disabled: reportDisabled,
+            alwaysShow: true,
+            action: 'intercomQuery',
+            customClass: reportDisabled ? `${pncBaseClass} opacity-40 grayscale border-dashed cursor-not-allowed` : ''
+        });
+
+        pncOptions.push({
+            val: 'answerCall',
+            text: 'FROM PNC',
+            disabled: !isIncoming,
+            alwaysShow: true,
+            action: 'answerPncCall',
+            customClass: isIncoming ? 'animate-pulse bg-amber-500 text-black font-extrabold border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.8)]' : `${pncBaseClass} opacity-40 grayscale border-dashed cursor-not-allowed`
         });
 
         if (!used.includes('ARM_DOORS') && ['AtGate', 'Pushback'].includes(phase)) {
@@ -1641,20 +1665,28 @@ window.renderBriefingTabs = () => {
         if (!used.includes('PREPARE_TAKEOFF') && phase === 'TaxiOut' && !payload.isPlayingSafetyDemo) {
             pncOptions.push({ val: 'PREPARE_TAKEOFF', text: 'PREP TAKEOFF', disabled: false, action: 'pncCommand' });
         } else if (used.includes('PREPARE_TAKEOFF') && payload.securingProgress > 0 && payload.securingProgress < 100 && !payload.isSecuringHurried) {
-            pncOptions.push({ val: 'HURRY_SECURING', text: 'HURRY PNC', disabled: false, action: 'pncCommand' });
+            if (!pncOptions.some(o => o.val === 'HURRY_SECURING')) pncOptions.push({ val: 'HURRY_SECURING', text: 'HURRY PNC', disabled: false, action: 'pncCommand' });
         }
         if (!used.includes('SEATS_TAKEOFF') && phase === 'TaxiOut' && used.includes('PREPARE_TAKEOFF')) {
             const isReady = payload.securingProgress >= 100;
             pncOptions.push({ val: 'SEATS_TAKEOFF', text: isReady ? 'SEATS TAKEOFF' : 'FORCE SEATS', disabled: false, action: 'pncCommand' });
         }
         if (!used.includes('TOP_DESCENT') && ['Cruise', 'Descent'].includes(phase)) {
-            pncOptions.push({ val: 'TOP_DESCENT', text: 'TOP DESCENT', disabled: false, action: 'pncCommand' });
+            const todDistNM = payload.altitude ? (payload.altitude / 1000) * 3 : 0;
+            const todWarningThreshold = todDistNM + 50; // Show 50 NM before approximate TOD
+            const isNearTod = payload.destDistanceNM != null && payload.destDistanceNM > 0 
+                ? payload.destDistanceNM <= todWarningThreshold 
+                : true; // fallback if no dest dist
+
+            if (isNearTod) {
+                pncOptions.push({ val: 'TOP_DESCENT', text: 'TOP DESCENT', disabled: false, action: 'pncCommand' });
+            }
         }
         if (!used.includes('PREPARE_LANDING') && ['Cruise', 'Descent', 'Approach', 'FinalApproach'].includes(phase)) {
             const ok = payload.altitude <= 10000 && phase !== 'Cruise';
             pncOptions.push({ val: 'PREPARE_LANDING', text: 'PREP LANDING', disabled: !ok, action: 'pncCommand' });
         } else if (used.includes('PREPARE_LANDING') && payload.securingProgress > 0 && payload.securingProgress < 100 && !payload.isSecuringHurried) {
-            pncOptions.push({ val: 'HURRY_SECURING', text: 'HURRY PNC', disabled: false, action: 'pncCommand' });
+            if (!pncOptions.some(o => o.val === 'HURRY_SECURING')) pncOptions.push({ val: 'HURRY_SECURING', text: 'HURRY PNC', disabled: false, action: 'pncCommand' });
         }
         if (!used.includes('SEATS_LANDING') && ['Descent', 'Approach'].includes(phase)) {
             const ok = phase === 'Approach' || payload.altitude <= 5000;
@@ -2475,6 +2507,28 @@ window.renderBriefingTabs = () => {
                 if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg();
                 if (window.resetDashboardWidgets) window.resetDashboardWidgets();
                 if (window.renderBriefingTimeline) window.renderBriefingTimeline();
+                break;
+            case 'popLeg':
+                window.isDummyPreflight = true;
+                window.isDispatchSignedOff = false;
+                
+                // Track Leg numbering correctly based on internal cycle
+                if (typeof window.currentLegCounter !== 'undefined') {
+                    window.currentLegCounter += 1;
+                }
+                
+                const dashMeta = document.getElementById('dashMetaBar');
+                if (dashMeta) dashMeta.style.display = 'none';
+
+                if (window.renderBriefingTimeline) window.renderBriefingTimeline();
+                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(0);
+                
+                const btnFetchLabelDRL = document.getElementById('btnFetchPlanLabel');
+                if (btnFetchLabelDRL) btnFetchLabelDRL.innerText = "FETCH PLAN";
+                const btnFetchL = document.getElementById('btnFetchPlan');
+                if (btnFetchL && btnFetchL.querySelector('.material-symbols-outlined')) {
+                    btnFetchL.querySelector('.material-symbols-outlined').innerText = 'cloud_download';
+                }
                 break;
             case 'rotationCleared':
                 window.allRotations = [];
@@ -4606,7 +4660,7 @@ function renderGroundOps(services) {
     let html = '';
 
     if (!services || services.length === 0 || !window.isDispatchSignedOff) {
-        const pendingLegNum = window.currentLegCounter || 1;
+        const pendingLegNum = (window.activeLegIndex || 0) + 1;
         let titleTxt = `PENDING LEG ${pendingLegNum} INITIALIZATION`;
         if (services && services.length > 0) titleTxt = `PENDING LEG ${pendingLegNum} LOADSHEET VALIDATION`;
 
@@ -5442,8 +5496,15 @@ window.requestTimeSkip = function (minutes) {
 
 // Expose a method to handle showing hiding based on FlightPhase (from telemetry)
 window.checkTimeSkipVisibility = function (phase) {
+    // Backend can send Integers or Enum Strings depending on the broadcast event
+    const isGroundPhase = (
+        phase === 0 || phase === 'AtGate' || phase === 'Preflight' ||
+        phase === 1 || phase === 'Turnaround' || 
+        phase === 12 || phase === 'Arrived'
+    );
+    
     if (timeSkipModal) {
-        if (phase !== 'Turnaround' && phase !== 'AtGate' && phase !== 0 && phase !== 9) {
+        if (!isGroundPhase) {
             timeSkipModal.classList.add('hidden');
             timeSkipModal.classList.remove('flex');
         }
@@ -5452,7 +5513,7 @@ window.checkTimeSkipVisibility = function (phase) {
     // Bug #9: Securiser le bouton Reload OFP (btnRefreshDispatch) pour ne pas recharger par erreur en vol
     const btnRefresh = document.getElementById('btnRefreshDispatch');
     if (btnRefresh) {
-        if (phase !== 'Turnaround' && phase !== 'AtGate' && phase !== 'Preflight' && phase !== 0 && phase !== 9) {
+        if (!isGroundPhase) {
             btnRefresh.classList.add('hidden');
             btnRefresh.classList.remove('flex');
         } else {
@@ -5462,12 +5523,12 @@ window.checkTimeSkipVisibility = function (phase) {
     }
     
     // Bug #10: Masquer le panneau Ground Ops (y compris Time Skip) au roulage
-    const isGroundPhase = phase === 'Turnaround' || phase === 'AtGate' || phase === 'Preflight' || phase === 'Arrived' || phase === 0 || phase === 9;
     const carouselArrows = document.querySelectorAll('button[onclick*="toggleDashPage"]');
     if (!isGroundPhase) {
         // On force le retour a la page 1 (Timing) si on etait sur la page 2 (Ground Ops)
         if (typeof window.toggleDashPage === 'function' && window.currentDashPage === 2) {
-            window.toggleDashPage(-1); 
+            window.toggleDashPage(-1); // switch smoothly to page 1
+            // Hard hide the second page to prevent scrolling tricks
         }
         // Masquer les fleches pour empecher l'acces au Ground Ops en vol
         carouselArrows.forEach(btn => btn.classList.add('hidden'));

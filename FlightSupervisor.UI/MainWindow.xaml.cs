@@ -1567,7 +1567,7 @@ namespace FlightSupervisor.UI
                 }
                 else if (action == "answerPncCall")
                 {
-                    _cabinManager?.AnswerCabinCall();
+                    _cabinManager?.AnswerPendingCall();
                 }
                 else if (action == "openManifestWindow")
                 {
@@ -2901,10 +2901,23 @@ namespace FlightSupervisor.UI
                         if (minutes > 0 && effectiveSobt != null)
                         {
                             double remainingMins = (effectiveSobt.Value - _currentSimTime).TotalMinutes;
-                            if (minutes > remainingMins - 5.0)
+                            if (remainingMins <= 5.0)
                             {
-                                SendToWeb(new { type = "log", message = $"[SYSTEM] Action Denied. Time Skip cannot bypass the 5-minute pre-departure safety window." });
-                                minutes = 0; // Prevent the skip from happening
+                                SendToWeb(new { type = "log", message = $"[SYSTEM] Action Denied. You are within the 5-minute pre-departure safety window." });
+                                minutes = 0;
+                            }
+                            else if (minutes > remainingMins - 5.0)
+                            {
+                                int cappedMinutes = (int)Math.Floor(remainingMins - 5.0);
+                                if (cappedMinutes > 0)
+                                {
+                                    SendToWeb(new { type = "log", message = $"[SYSTEM] Time Skip capped to {cappedMinutes} min to preserve the 5-minute safety window." });
+                                    minutes = cappedMinutes;
+                                }
+                                else
+                                {
+                                    minutes = 0;
+                                }
                             }
                         }
 
@@ -3231,6 +3244,15 @@ namespace FlightSupervisor.UI
                 calcDist = Math.Round(CalculateHaversineDistanceNM(_phaseManager.Latitude, _phaseManager.Longitude, lat, lon), 2);
             }
 
+            double destDist = -1;
+            var destForDist = _currentResponse?.Destination;
+            if (destForDist != null &&
+                double.TryParse(destForDist.PosLat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double dLat) &&
+                double.TryParse(destForDist.PosLong, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double dLon))
+            {
+                destDist = Math.Round(CalculateHaversineDistanceNM(_phaseManager.Latitude, _phaseManager.Longitude, dLat, dLon), 2);
+            }
+
             // STORY 38: DISCRETE AMBER LOG (Style SIS)
             if (uiMismatch && _lastNotifiedMismatchIcao != originForDist?.IcaoCode && calcDist > 0)
             {
@@ -3262,12 +3284,14 @@ namespace FlightSupervisor.UI
                     sessionFlightsCompleted = _cabinManager.SessionFlightsCompleted,
                     isGearDown = _isGearDown,
                     seatbeltsOn = _cabinManager.IsSeatbeltsOn,
+                    isCabinCallIncoming = _cabinManager.IsCabinCallIncoming,
                     isDelayed = _groundOpsManager.TargetSobt != null && (_aobt != null ? _aobt.Value > _groundOpsManager.TargetSobt.Value.AddMinutes(5) : _currentSimTime > _groundOpsManager.TargetSobt.Value.AddMinutes(5)),
                     isBoardingComplete = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Boarding")?.State == GroundServiceState.Completed,
                     isDeboardingAvailable = _groundOpsManager.Services.Any(s => s.Name == "Deboarding"),
                     isDeboardingCompleted = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Deboarding")?.State == GroundServiceState.Completed,
                     isFuelValidated = _groundOpsManager.IsFuelSheetValidated,
                     originDistanceNM = calcDist,
+                    destDistanceNM = destDist,
                     isAtWrongAirport = uiMismatch,
                     isMaintenanceRequired = _airframeManager?.CurrentAirframe?.ActiveDefects?.Count > 0,
                 plannedOriginIcao = originForDist?.IcaoCode ?? "",
@@ -3355,6 +3379,7 @@ namespace FlightSupervisor.UI
             _cabinManager.Reset();
             _groundOpsResourceService.Reset();
             _eventEngine.Reset();
+            _groundOpsManager.PrepareNextLeg(_currentFobKg, _cabinManager.CabinCleanliness, _cabinManager.CateringCompletion);
             
             // Clear previous leg's actual times
             _aobt = null;
@@ -3391,7 +3416,7 @@ namespace FlightSupervisor.UI
         _ = RefreshLiveWeatherAsync();
 
             SendToWeb(new { type = "groundOpsReady" });
-            SendToWeb(new { type = "groundOps", services = _groundOpsManager.Services });
+            SendToWeb(new { type = "groundOps", services = _groundOpsManager.Services, isDispatchSignedOff = _groundOpsManager.IsFuelSheetValidated });
 
             if (!string.IsNullOrEmpty(_currentResponse?.General?.InitialAlt))
             {
@@ -3574,8 +3599,27 @@ namespace FlightSupervisor.UI
                             prevLeg = null;
                         }
 
+                        // --- NEW: FORCED NEXT SOBT INHERITANCE FOR MULTI-LEG ROTATIONS ---
+                        if (replacesCurrent && _nextSobtOverride.HasValue)
+                        {
+                            if (long.TryParse(response.Times.SchedOut, out long originalOut) && long.TryParse(response.Times.SchedIn, out long originalIn))
+                            {
+                                long blockSecs = originalIn - originalOut;
+                                if (blockSecs <= 0) blockSecs = 3600;
+
+                                long newOut = ((DateTimeOffset)DateTime.SpecifyKind(_nextSobtOverride.Value, DateTimeKind.Utc)).ToUnixTimeSeconds();
+                                long newIn = newOut + blockSecs;
+                                
+                                response.Times.SchedOut = newOut.ToString();
+                                response.Times.SchedIn = newIn.ToString();
+                                
+                                Dispatcher.Invoke(() => {
+                                    System.IO.File.AppendAllText("sync_debug.txt", $"\n[{DateTime.Now}] Leg 2+ Turnaround Sync: SimBrief response modified. SchedOut forced to {_nextSobtOverride.Value:HH:mm}Z based on previous Leg constraints.\n");
+                                });
+                            }
+                        }
                         // If user specifically requested MSFS sync AND it's the very first valid leg (or overriding it)
-                        if (syncMsfsTime && prevLeg == null)
+                        else if (syncMsfsTime && prevLeg == null)
                         {
                             if (long.TryParse(response.Times.SchedOut, out long originalOut) && long.TryParse(response.Times.SchedIn, out long originalIn))
                             {

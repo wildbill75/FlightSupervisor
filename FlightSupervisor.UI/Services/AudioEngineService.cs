@@ -121,6 +121,21 @@ namespace FlightSupervisor.UI.Services
             PlayAudio(SpeakerId.Purser, fallbackText, null, exactRelativePath, null, playChime);
         }
 
+        public void PlayPncCallDing()
+        {
+            string chimePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "assets", "sounds", "chime_emergency.wav");
+            if (!System.IO.File.Exists(chimePath))
+                chimePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "assets", "sounds", "pa_chime.wav");
+
+            if (System.IO.File.Exists(chimePath))
+            {
+                _queue.Enqueue(new AudioRequest {
+                    Speaker = SpeakerId.Purser,
+                    ExactFilePath = chimePath
+                });
+            }
+        }
+
         public void PlayAudio(SpeakerId speaker, string fallbackText, string folderRelativePath, string exactFilePath = null, string prefixFilter = null, bool playChime = true)
         {
             if (playChime)

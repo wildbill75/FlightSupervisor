@@ -48,6 +48,10 @@ namespace FlightSupervisor.UI.Services
         public bool IsServiceHurried { get; set; } = false;
         public string CaptainName { get; set; } = "the Captain";
         
+        public bool IsCabinCallIncoming { get; private set; } = false;
+        public string PendingCabinCallReason { get; private set; } = "";
+        private DateTime? _lastCabinCallTime = null;
+        
         private bool _isTempInitialized = false;
         private double _currentAmbientTemperature = 15.0;
         public double CurrentAmbientTemperature 
@@ -1081,11 +1085,12 @@ namespace FlightSupervisor.UI.Services
                     double agitationIncrement = 0.0;
                     double currentTemp = LastKnownCabinTemp;
 
-                    if (currentTemp > 30.0)
+                    if (currentTemp > 28.0)
                     {
                         // Extrême chaud (exponentiel lissé)
-                        double delta = currentTemp - 30.0;
+                        double delta = currentTemp - 28.0;
                         agitationIncrement = (1.0 + (delta * 0.5)) * deltaTimeSeconds * 0.1;
+                        EvaluateCabinCallTrigger("TempHot");
                     }
                     else if (currentTemp > 26.0)
                     {
@@ -1098,6 +1103,7 @@ namespace FlightSupervisor.UI.Services
                         // Extrême froid (exponentiel lissé)
                         double delta = 18.0 - currentTemp;
                         agitationIncrement = (1.0 + (delta * 0.5)) * deltaTimeSeconds * 0.1;
+                        EvaluateCabinCallTrigger("TempCold");
                     }
                     else if (currentTemp < 19.5)
                     {
@@ -1627,16 +1633,12 @@ namespace FlightSupervisor.UI.Services
                             AnnounceToCabin("Delay");
                             CrewEsteem = Math.Min(100.0, CrewEsteem + 5.0);
                             OnOperationBonusTriggered?.Invoke(50, LocalizationService.Translate("Proactive Crew Initiative (Delay PA)", "Initiative PNC Proactif (PA Retard)"));
+                            _lastDelayNotice = DateTime.Now;
                         }
                         else
                         {
-                            OnCrewMessage?.Invoke("orange", LocalizationService.Translate(
-                                $"Captain, we are {mins} minutes delayed past SOBT and passengers are {severityEng}. An announcement from the flight deck would help.",
-                                $"Commandant, nous avons {mins} minutes de retard et les passagers {severityFre}. Une annonce du poste de pilotage aiderait."
-                            ), null);
-                            // Crew is passive, extra hit to satisfaction
-                            ModifySatisfaction(-5.0);
-                            OnPenaltyTriggered?.Invoke(-15, LocalizationService.Translate("Poor CRM: Passive Crew & Unmanaged Delay", "Mauvais CRM : Équipage Passif et Retard Non Géré"));
+                            // Trigger Call Instead of direct log
+                            EvaluateCabinCallTrigger("DelayPax");
                         }
                         _lastDelayNotice = DateTime.Now;
                     }
@@ -2367,6 +2369,55 @@ namespace FlightSupervisor.UI.Services
                 $"Commandant, le service en cabine a été {statusFr} à votre demande."), null);
         }
 
+        private void EvaluateCabinCallTrigger(string reason)
+        {
+            if (IsCabinCallIncoming) return;
+            if (_lastCabinCallTime.HasValue && (DateTime.Now - _lastCabinCallTime.Value).TotalMinutes < 5) return;
+
+            IsCabinCallIncoming = true;
+            PendingCabinCallReason = reason;
+            _lastCabinCallTime = DateTime.Now;
+            _audio?.PlayPncCallDing(); 
+        }
+
+        public void AnswerPendingCall()
+        {
+            if (!IsCabinCallIncoming) return;
+            IsCabinCallIncoming = false;
+
+            if (PendingCabinCallReason == "TempHot")
+            {
+                OnCrewMessage?.Invoke("orange", LocalizationService.Translate(
+                    "Captain, it's getting extremely hot back here! Passengers are starting to sweat and complain.",
+                    "Commandant, il fait extrêmement chaud derrière ! Les couloirs sont une fournaise et les passagers se plaignent."
+                ), null);
+                _audio?.PlayVariantAsPurser("TO_FD/Status_Reports/TooHot", "Captain, it's getting quite hot in the cabin. The passengers are uncomfortable.");
+            }
+            else if (PendingCabinCallReason == "TempCold")
+            {
+                OnCrewMessage?.Invoke("orange", LocalizationService.Translate(
+                    "Captain, it's freezing back here! Passengers are asking for blankets because it's too cold.",
+                    "Commandant, on gèle derrière ! Les passagers ne font que demander des couvertures tellement il fait froid."
+                ), null);
+                _audio?.PlayVariantAsPurser("TO_FD/Status_Reports/TooCold", "Captain, it's freezing in the cabin. Could you turn up the heat?");
+            }
+            else if (PendingCabinCallReason == "DelayPax")
+            {
+                var mins = Math.Round(_currentDelayMinutes);
+                OnCrewMessage?.Invoke("orange", LocalizationService.Translate(
+                    $"Captain, we are {mins} minutes delayed past SOBT and people are getting very impatient. Could we get an update?",
+                    $"Commandant, nous avons {mins} minutes de retard et les gens s'impatientent sérieusement. Peut-on avoir une info ?"
+                ), null);
+                ModifySatisfaction(-5.0);
+                OnPenaltyTriggered?.Invoke(-15, LocalizationService.Translate("Poor CRM: Passive Crew & Unmanaged Delay", "Mauvais CRM : Équipage Passif et Retard Non Géré"));
+                
+                // You can add a specific audio folder if available, else TTS fallback
+                _audio?.PlayVariantAsPurser("TO_FD/Status_Reports/AnxiousPax", "Captain, the passengers are asking questions about the delay. We need an announcement.");
+            }
+            
+            PendingCabinCallReason = "";
+        }
+
         public bool RequestCabinReport(FlightPhase phase, bool isCrisisActive)
         {
             if ((DateTime.Now - _lastReportRequest).TotalMinutes < 2)
@@ -2403,10 +2454,12 @@ namespace FlightSupervisor.UI.Services
             if (_isSecuring && SecuringProgress < 100.0)
             {
                 _strategicPenaltyEndTime = DateTime.Now.AddSeconds(15);
-                OnCrewMessage?.Invoke("warning", LocalizationService.Translate(
-                    "Captain, we're still securing the cabin. We cannot provide a status update right now.",
-                    "Commandant, nous sécurisons actuellement la cabine. Impossible de faire un point pour le moment."), null);
-                return false;
+                string reportEn = "Captain, we're still securing the cabin. We cannot provide a status update right now.";
+                string reportFr = "Commandant, nous sécurisons actuellement la cabine. Impossible de faire un point pour le moment.";
+                
+                _audio?.PlayVariantAsPurser("TO_FD/Status_Reports/SecuringInProgress", reportEn);
+                OnCrewMessage?.Invoke("warning", LocalizationService.Translate(reportEn, reportFr), null);
+                return true;
             }
 
             return ExecuteStandardFlightReport(phase, isCrisisActive);
