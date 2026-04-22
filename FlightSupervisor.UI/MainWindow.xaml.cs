@@ -41,6 +41,7 @@ namespace FlightSupervisor.UI
         private double _lastKnownBank = 0;
         private bool _isGearDown = true;
         private DateTime _currentSimTime = DateTime.MinValue;
+        private DateTime _ignoreSimTimeUntil = DateTime.MinValue;
         private DateTime? _aobt = null;
         private DateTime? _aibt = null;
         private bool? _lastLogGearDown = null;
@@ -2023,9 +2024,15 @@ namespace FlightSupervisor.UI
                         _virtualFobKg = double.TryParse(blockFuel, out double bf) ? bf : 3000.0;
                         _currentFobKg = Math.Round(_virtualFobKg);
                         
-                        if (_currentResponse?.Fuel != null)
+                        var targetResponse = _currentResponse;
+                        if (legIndex > 0 && _rotationQueue.Count > 0)
                         {
-                            _currentResponse.Fuel.PlanRamp = Math.Round(_currentFobKg).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                            targetResponse = _rotationQueue[0];
+                        }
+
+                        if (targetResponse?.Fuel != null)
+                        {
+                            targetResponse.Fuel.PlanRamp = Math.Round(_currentFobKg).ToString(System.Globalization.CultureInfo.InvariantCulture);
                         }
                         // -----------------------------------
                         
@@ -2038,13 +2045,17 @@ namespace FlightSupervisor.UI
                                 try {
                                     // Wait up to a few seconds, the UI spinner "Please Wait" handles the delay for the pilot.
                                     await FetchFlightPlan(simbriefUser, false, null, _profileManager.CurrentProfile.WeatherSource ?? "simbrief", false);
+                                    
+                                    // Refresh targetResponse in case it was updated by the fetch
+                                    if (_rotationQueue.Count > 0)
+                                    {
+                                        targetResponse = _rotationQueue[0];
+                                    }
                                 } catch (Exception innerEx) {
                                     System.IO.File.AppendAllText("sync_debug.txt", $"\n[ERROR] FetchFlightPlan threw: {innerEx.Message}\n");
                                 }
                             }
                         }
-
-                        var targetResponse = _currentResponse;
 
                         if (targetResponse != null)
                         {
@@ -4004,10 +4015,10 @@ namespace FlightSupervisor.UI
                         minutes = maxSkip;
                         if (minutes <= 0)
                         {
-                            SendToWeb(new { type = "log", message = $"[SYSTEM] Action Denied. Time Skip is unavailable within 5 minutes of departure." });
+                            SendToWeb(new { type = "log", message = $"[SYSTEM] Action Denied. Time Skip is unavailable within 5 minutes of departure. (Time to SOBT: {timeToSobt:F1} min)" });
                             return;
                         }
-                        SendToWeb(new { type = "log", message = $"[SYSTEM] Time Skip limited to maintain 5 minutes departure buffer." });
+                        SendToWeb(new { type = "log", message = $"[SYSTEM] Time Skip limited to maintain 5 minutes departure buffer. (Time to SOBT: {timeToSobt:F1} min)" });
                     }
                 }
 
@@ -4030,11 +4041,12 @@ namespace FlightSupervisor.UI
                 
                 // Redundant safety set
                 _currentSimTime = newSimTime;
+                _ignoreSimTimeUntil = newSimTime.AddSeconds(-15);
 
                 if (_simConnectService != null && _simConnectService.IsConnected && _currentSimTime.Year > 2000)
                 {
                     _simConnectService.SendTimeWarpCommand(newSimTime);
-                    SendToWeb(new { type = "log", message = $"[SYSTEM] Dispatched MSFS TimeWarp to {newSimTime:HH:mm}Z" });
+                    SendToWeb(new { type = "log", message = $"[SYSTEM] Dispatched MSFS TimeWarp to {newSimTime:HH:mm}Z. Syncing..." });
                 }
             }
         }
