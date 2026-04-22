@@ -6500,3 +6500,14 @@ Found 3 files matching *.mp3.
 Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_PNC_Beth\TO_FD\Incoming_Calls\TempHot\EN_PNC_Beth_AC_Hot_02.mp3
 Volume set to 1. Playing via NAudio...
 [22 Apr 2026 18:43:09] NAudio PlaybackStopped event triggered.
+[22 Apr 2026 18:48:07] Processing queue for speaker Purser.
+Resolving ExactFilePath: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\pa_chime.mp3
+Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\pa_chime.mp3
+Volume set to 1. Playing via NAudio...
+[22 Apr 2026 18:48:10] NAudio PlaybackStopped event triggered.
+[22 Apr 2026 18:48:10] Processing queue for speaker Purser.
+Resolving FolderPath: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_PNC_Beth\TO_FD\Incoming_Calls\TempFixed
+Found 2 files matching *.mp3.
+Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_PNC_Beth\TO_FD\Incoming_Calls\TempFixed\EN_PNC_Beth_AC_OK_02.mp3
+Volume set to 1. Playing via NAudio...
+[22 Apr 2026 18:48:15] NAudio PlaybackStopped event triggered.

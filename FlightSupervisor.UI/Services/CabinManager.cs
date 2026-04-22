@@ -1918,13 +1918,7 @@ namespace FlightSupervisor.UI.Services
                 _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/EnRoute", "EN_Rowan_Delay_Apology", null);
                 OnCrewMessage?.Invoke("info", LocalizationService.Translate("PA: Apology for the earlier delay.", "PA: Nouvelles excuses pour le retard passé."), null);
             }
-            else if (announcementType == "Descent")
-            {
-                DecreaseAnxiety(10.0);
-                string destName = CurrentFlight?.Destination?.Name ?? CurrentFlight?.Destination?.IcaoCode ?? "our destination";
-                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/FlightDeck to PA", "EN_Rowan_Descent", null);
-                OnCrewMessage?.Invoke("info", LocalizationService.Translate($"PA: Descent update for {destName}.", $"PA: Point sur la descente vers {destName}."), null);
-            }
+
         }
 
         public void AnnounceDelay(string reason, string destName)
@@ -2134,6 +2128,33 @@ namespace FlightSupervisor.UI.Services
             string notifText = $"PA: Welcome aboard our flight to {destName}. Our flight time will be approx {timeStr}. The weather at our destination is currently {wxcText}.";
             string notifFr = $"PA: Bienvenue à bord de ce vol à destination de {destName}. Notre temps de vol sera d'environ {timeStr}. La météo à l'arrivée s'annonce {wxcFr}.";
             OnCrewMessage?.Invoke("green", LocalizationService.Translate(notifText, notifFr), null);
+        }
+
+        public void AnnounceDescent(string destIcao, string destName, string metar, int destTempC)
+        {
+            if (!_issuedCommands.Contains("PA_Descent"))
+            {
+                _issuedCommands.Add("PA_Descent");
+                OnOperationBonusTriggered?.Invoke(25, "Passenger Announcement: Descent");
+                HasPlayedDescentPA = true;
+            }
+
+            DecreaseAnxiety(10.0);
+            
+            // 1. Initial Greeting with dynamic fallback
+            string introFallback = $"Ladies and gentlemen, we have begun our descent into {destName}.";
+            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/FlightDeck to PA", "EN_Rowan_Descent", introFallback, playChime: true);
+
+            // 2. Destination
+            if (!string.IsNullOrEmpty(destIcao))
+            {
+                _audio?.PlayExactAsCaptain($"TO_PA/ICAO/EN_Rowan_{destIcao}_01.mp3", null, playChime: false);
+            }
+
+            // 3. Weather sequence
+            SequenceWeatherPA(metar, destTempC, isApproach: false, playChime: false);
+
+            OnCrewMessage?.Invoke("info", LocalizationService.Translate($"PA: Descent update for {destName}.", $"PA: Point sur la descente vers {destName}."), null);
         }
 
         public void AnnounceApproach(string destName, string metar, int destTempC, DateTime destLocalTime)

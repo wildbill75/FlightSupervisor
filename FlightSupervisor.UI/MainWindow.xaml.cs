@@ -3071,7 +3071,11 @@ namespace FlightSupervisor.UI
                         }
                         else if (annType == "Descent" || annType == "ArrivalWeather")
                         {
-                            _cabinManager.AnnounceToCabin("Descent");
+                            string destIcao = _currentResponse?.Destination?.IcaoCode ?? "";
+                            string destName = _currentResponse?.Destination?.Name ?? destIcao ?? "our destination";
+                            string metar = _weatherData?.Stations?.FirstOrDefault(s => s.Id.Equals("destination", StringComparison.OrdinalIgnoreCase))?.Metar ?? "";
+                            int destTempC = _weatherData?.Stations?.FirstOrDefault(s => s.Id.Equals("destination", StringComparison.OrdinalIgnoreCase))?.Temperature ?? 15;
+                            _cabinManager.AnnounceDescent(destIcao, destName, metar, destTempC);
                         }
                         else
                         {
