@@ -6566,3 +6566,54 @@ Volume set to 1. Playing via NAudio...
 Resolving ExactFilePath: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\pa_chime.mp3
 Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\pa_chime.mp3
 Volume set to 1. Playing via NAudio...
+[22 Apr 2026 19:00:35] NAudio PlaybackStopped event triggered.
+[22 Apr 2026 19:00:35] Processing queue for speaker Captain.
+Resolving FolderPath: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\FlightDeck to PA
+Found 3 files matching EN_Rowan_Approach_ClearedToLand*.mp3.
+Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\FlightDeck to PA\EN_Rowan_Approach_ClearedToLand_01.mp3
+Volume set to 1. Playing via NAudio...
+[22 Apr 2026 19:00:42] NAudio PlaybackStopped event triggered.
+[22 Apr 2026 19:00:42] Processing queue for speaker Captain.
+Resolving ExactFilePath: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\FlightDeck to PA\EN_Rowan_Welcome_Onboard_Local_Time.mp3
+Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\FlightDeck to PA\EN_Rowan_Welcome_Onboard_Local_Time.mp3
+Volume set to 1. Playing via NAudio...
+[22 Apr 2026 19:00:44] NAudio PlaybackStopped event triggered.
+[22 Apr 2026 19:00:44] Processing queue for speaker Captain.
+Resolving ExactFilePath: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\Time_Minutes\EN_Rowan_Seven.mp3
+Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\Time_Minutes\EN_Rowan_Seven.mp3
+Volume set to 1. Playing via NAudio...
+[22 Apr 2026 19:00:45] NAudio PlaybackStopped event triggered.
+[22 Apr 2026 19:00:45] Processing queue for speaker Captain.
+Resolving ExactFilePath: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\Time_Minutes\EN_Rowan_FortyOne.mp3
+Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\Time_Minutes\EN_Rowan_FortyOne.mp3
+Volume set to 1. Playing via NAudio...
+[22 Apr 2026 19:00:47] NAudio PlaybackStopped event triggered.
+[22 Apr 2026 19:00:47] Processing queue for speaker Captain.
+Resolving ExactFilePath: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\Time_Modifiers\EN_Rowan_PM.mp3
+Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\Time_Modifiers\EN_Rowan_PM.mp3
+Volume set to 1. Playing via NAudio...
+[22 Apr 2026 19:00:48] NAudio PlaybackStopped event triggered.
+[22 Apr 2026 19:00:48] Processing queue for speaker Captain.
+Resolving ExactFilePath: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\Weather\EN_Rowan_Weather_Intro_Approach_01.mp3
+Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\Weather\EN_Rowan_Weather_Intro_Approach_01.mp3
+Volume set to 1. Playing via NAudio...
+[22 Apr 2026 19:00:51] NAudio PlaybackStopped event triggered.
+[22 Apr 2026 19:00:51] Processing queue for speaker Captain.
+Resolving ExactFilePath: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\Weather\EN_Rowan_Sky_Few.mp3
+Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\Weather\EN_Rowan_Sky_Few.mp3
+Volume set to 1. Playing via NAudio...
+[22 Apr 2026 19:00:53] NAudio PlaybackStopped event triggered.
+[22 Apr 2026 19:00:53] Processing queue for speaker Captain.
+Resolving ExactFilePath: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\Weather\EN_Rowan_Temp_Intro.mp3
+Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\Weather\EN_Rowan_Temp_Intro.mp3
+Volume set to 1. Playing via NAudio...
+[22 Apr 2026 19:00:55] NAudio PlaybackStopped event triggered.
+[22 Apr 2026 19:00:55] Processing queue for speaker Captain.
+Resolving ExactFilePath: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\Temperatures\EN_Rowan_P23.mp3
+Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\Temperatures\EN_Rowan_P23.mp3
+Volume set to 1. Playing via NAudio...
+[22 Apr 2026 19:00:57] NAudio PlaybackStopped event triggered.
+[22 Apr 2026 19:00:57] Processing queue for speaker Captain.
+Resolving FolderPath: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_FD_Rowan\TO_PA\FlightDeck to PA
+Found 0 files matching EN_Rowan_Approach_CabinCrewPrepare*.mp3.
+selectedAudioFile is null. Falling back to TTS...

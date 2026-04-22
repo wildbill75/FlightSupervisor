@@ -2210,8 +2210,6 @@ namespace FlightSupervisor.UI.Services
             // 3. Weather
             SequenceWeatherPA(metar, destTempC, isApproach: true, playChime: false);
 
-            // 4. Outro
-            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/FlightDeck to PA", "EN_Rowan_Approach_CabinCrewPrepare", "Cabin crew, prepare for landing.", playChime: false);
 
             bool badWeather = metar.Contains(" TS") || metar.Contains(" CB") || metar.Contains(" FG") || metar.Contains(" SN") || metar.Contains(" GR");
 
