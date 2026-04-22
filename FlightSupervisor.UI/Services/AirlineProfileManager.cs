@@ -166,6 +166,9 @@ namespace FlightSupervisor.UI.Services
             if (string.IsNullOrWhiteSpace(icao))
                 return _defaultProfile;
 
+            icao = icao.ToUpperInvariant();
+            if (icao == "EJU" || icao == "EZS") icao = "EZY";
+
             if (_profiles.TryGetValue(icao, out var profile))
                 return profile;
 

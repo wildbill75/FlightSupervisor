@@ -1,69 +1,69 @@
 {
-  "Timestamp": "2026-04-19T19:29:43.1284425Z",
+  "Timestamp": "2026-04-22T16:09:53.0772259Z",
   "Session": {
-    "CurrentPhase": "Turnaround",
+    "CurrentPhase": "Climb",
     "SessionFlightsCompleted": 0,
-    "InternalClock": "2026-04-19T19:52:35.0000000Z"
+    "InternalClock": "2026-04-22T16:50:41.0000000Z"
   },
   "Cabin": {
     "PassengerCount": 115,
-    "Satisfaction": 93.8,
-    "Anxiety": 1.2,
+    "Satisfaction": 79.7,
+    "Anxiety": 29.2,
     "SecuringProgress": 0,
     "IsFirstFlightClean": false,
-    "WaterLevel": 90.9925358819305,
-    "WasteLevel": 11.259330147586653
+    "WaterLevel": 99.95030063406139,
+    "WasteLevel": 0.06212420742333334
   },
   "GroundOps": {
     "IsStarted": false,
     "IsFuelSheetValidated": true,
-    "TargetSobt": "2026-04-19T20:42:03.0000000Z",
+    "TargetSobt": "2026-04-22T16:37:21.0000000Z",
     "Services": [
       {
         "Name": "Refueling",
         "State": 3,
-        "ElapsedSec": 565,
-        "TotalDurationSec": 565,
+        "ElapsedSec": 614,
+        "TotalDurationSec": 614,
         "IsAvailable": true
       },
       {
         "Name": "Boarding",
         "State": 3,
-        "ElapsedSec": 904,
-        "TotalDurationSec": 904,
+        "ElapsedSec": 888,
+        "TotalDurationSec": 888,
         "IsAvailable": true
       },
       {
         "Name": "Cargo Loading",
         "State": 3,
-        "ElapsedSec": 755,
-        "TotalDurationSec": 755,
+        "ElapsedSec": 742,
+        "TotalDurationSec": 742,
         "IsAvailable": true
       },
       {
         "Name": "Catering",
         "State": 3,
-        "ElapsedSec": 300,
-        "TotalDurationSec": 300,
+        "ElapsedSec": 343,
+        "TotalDurationSec": 343,
         "IsAvailable": true
       },
       {
         "Name": "PNC Chores",
         "State": 3,
-        "ElapsedSec": 50,
-        "TotalDurationSec": 50,
+        "ElapsedSec": 67,
+        "TotalDurationSec": 67,
         "IsAvailable": true
       },
       {
         "Name": "Water/Waste",
         "State": 3,
-        "ElapsedSec": 110,
-        "TotalDurationSec": 110,
+        "ElapsedSec": 143,
+        "TotalDurationSec": 143,
         "IsAvailable": true
       }
     ]
   },
   "Telemetry": {
-    "FobKg": 3121
+    "FobKg": 5071
   }
 }

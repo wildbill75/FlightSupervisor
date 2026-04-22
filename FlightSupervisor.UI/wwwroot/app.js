@@ -472,8 +472,8 @@ window.populateDashboardActiveLeg = (index = 0) => {
     }
 
     if (activeContainer) {
-        
-        const rd = window.allRotations[index].data;
+        index = Math.max(0, Math.min(index, window.allRotations.length - 1));
+        const rd = window.allRotations[index]?.data;
         if (!rd) return;
 
         const icao = rd.general?.icao_airline || '---';
@@ -711,12 +711,17 @@ window.populateDashboardActiveLeg = (index = 0) => {
         // Toggle overlays for Shell/Dummy legs
         const cOverlay = document.getElementById('cabinExperienceOverlay');
         const pOverlay = document.getElementById('pncCommsOverlay');
-        if (cOverlay && pOverlay) {
+        if (cOverlay) {
             if (rd.isDummy || window.allRotations[index].isShell) {
                 cOverlay.classList.remove('hidden');
-                pOverlay.classList.remove('hidden');
             } else {
                 cOverlay.classList.add('hidden');
+            }
+        }
+        if (pOverlay) {
+            if (rd.isDummy || window.allRotations[index].isShell) {
+                pOverlay.classList.remove('hidden');
+            } else {
                 pOverlay.classList.add('hidden');
             }
         }
@@ -1524,15 +1529,15 @@ window.renderBriefingTabs = () => {
             const lockStr = `this.classList.add('opacity-50', 'pointer-events-none');`;
             
             if (!o.disabled) {
-                if (type === 'PA') {
+                if (action === 'openDelayMenu') {
+                    onclickStr = `window.showDelayReasons();`;
+                } else if (type === 'PA') {
                     onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', ${propName}: '${o.val}'})`;
                 } else {
                     if (action === 'pncCommand') {
                         onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', command: '${o.val}'})`;
                     } else if (action === 'resolveCrisis') {
                         onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', crisisType: '${o.val}'})`;
-                    } else if (action === 'openDelayMenu') {
-                        onclickStr = `window.showDelayReasons();`;
                     } else {
                         onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', annType: '${o.val}'})`;
                     }
@@ -1553,31 +1558,28 @@ window.renderBriefingTabs = () => {
     };
 
     window.showDelayReasons = function() {
-        const container = document.getElementById('commsPaContainer');
+        const container = document.getElementById('paButtonsContainer');
         if (!container) return;
+        window.isDelayMenuOpen = true;
 
+        const baseBtnStyle = "border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all";
         const html = `
-            <div class="flex flex-col gap-2 w-full h-full items-center justify-center pt-2">
-                <div class="flex gap-2 justify-center flex-wrap w-full animate-[fadeIn_0.3s_ease-out]">
-                    <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_ATC'}); window.backToCommsMenu()" class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all bg-sky-900/30 text-sky-400 border-sky-700/50 hover:bg-sky-500/20">ATC Constraints</button>
-                    <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_Weather'}); window.backToCommsMenu()" class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all bg-sky-900/30 text-sky-400 border-sky-700/50 hover:bg-sky-500/20">Weather</button>
-                    <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_Technical'}); window.backToCommsMenu()" class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all bg-orange-900/30 text-orange-400 border-orange-700/50 hover:bg-orange-500/20">Technical Fix</button>
-                    <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_Luggage'}); window.backToCommsMenu()" class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all bg-emerald-900/30 text-emerald-400 border-emerald-700/50 hover:bg-emerald-500/20">Ground Ops</button>
-                    <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'DelayApology'}); window.backToCommsMenu()" class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700">Generic Apology</button>
-                    <button onclick="window.backToCommsMenu()" class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all text-[#8a8a8a] border-white/20 hover:text-white hover:bg-white/10">Back</button>
-                </div>
-            </div>
+            <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_ATC'}); window.lastIntercomPayload.issuedCommands.push('PA_Delay'); window.backToCommsMenu()" class="${baseBtnStyle} bg-sky-900/30 text-sky-400 border-sky-700/50 hover:bg-sky-500/20">A.T.C.</button>
+            <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_Weather'}); window.lastIntercomPayload.issuedCommands.push('PA_Delay'); window.backToCommsMenu()" class="${baseBtnStyle} bg-sky-900/30 text-sky-400 border-sky-700/50 hover:bg-sky-500/20">Weather</button>
+            <button onclick="window.backToCommsMenu()" class="${baseBtnStyle} text-slate-400 border-white/20 hover:text-white hover:bg-white/10">×</button>
         `;
         container.innerHTML = html;
         container.dataset.lastHtml = ''; // force redraw on next update
     };
 
     window.backToCommsMenu = function() {
+        window.isDelayMenuOpen = false;
         if (window.lastIntercomPayload) {
-            document.getElementById('commsPaContainer').dataset.lastHtml = ''; // uncache it to force re-render
+            document.getElementById('paButtonsContainer').dataset.lastHtml = ''; // uncache it to force re-render
             updateIntercomButtons(window.lastIntercomPayload);
         }
     };
+
 
     function updateIntercomButtons(payload) {
         window.lastIntercomPayload = payload;
@@ -1605,13 +1607,14 @@ window.renderBriefingTabs = () => {
         }
 
         if (flightHasExperiencedDelay && !used.includes('PA_Delay') && !used.includes('PA_DelayApology')) {
-            paOptions.push({ val: '', text: 'DELAY REASON...', disabled: false, action: 'openDelayMenu' });
+            paOptions.push({ val: '', text: 'DELAY', disabled: false, action: 'openDelayMenu' });
         }
 
-        if (flightHasExperiencedTurbulence && !used.includes('PA_TurbulenceApology')) {
-            const isInAir = ['Takeoff', 'Climb', 'Cruise', 'Descent', 'Approach', 'FinalApproach'].includes(phase);
-            paOptions.push({ val: 'TurbulenceApology', text: 'TURB. APOLOGY', disabled: !isInAir });
-        }
+        // Temporarily disabled as per user request (turbulence logic not fully stable)
+        // if (flightHasExperiencedTurbulence && !used.includes('PA_TurbulenceApology')) {
+        //     const isInAir = ['Takeoff', 'Climb', 'Cruise', 'Descent', 'Approach', 'FinalApproach'].includes(phase);
+        //     paOptions.push({ val: 'TurbulenceApology', text: 'TURB. APOLOGY', disabled: !isInAir });
+        // }
 
         if (payload.isGoAroundActive && !used.includes('PA_GoAround')) {
             paOptions.push({ val: 'GoAround', text: 'GO-AROUND', disabled: false });
@@ -1630,23 +1633,24 @@ window.renderBriefingTabs = () => {
         const isCd = diffSec < 120;
         
         const isCriticalPhase = (
-            phase === 4 || phase === 'Takeoff' ||
-            phase === 5 || phase === 'InitialClimb' ||
-            phase === 9 || phase === 'Approach' ||
-            phase === 10 || phase === 'Landing' ||
-            phase === 'FinalApproach'
+            phase === 4 || (typeof phase === 'string' && phase.toLowerCase() === 'takeoff') ||
+            phase === 5 || (typeof phase === 'string' && phase.toLowerCase() === 'initialclimb') ||
+            phase === 9 || (typeof phase === 'string' && phase.toLowerCase() === 'approach') ||
+            phase === 10 || (typeof phase === 'string' && phase.toLowerCase() === 'landing') ||
+            (typeof phase === 'string' && phase.toLowerCase() === 'finalapproach')
         );
         const reportDisabled = isCd || payload.isPlayingSafetyDemo || isCriticalPhase;
         
         const isIncoming = window.isCabinCallIncoming === true;
         const pncBaseClass = 'bg-amber-900/40 text-amber-400 border-amber-500/20';
+        const pncDisabledClass = 'bg-gray-800/40 text-gray-500 border-gray-600/20 opacity-50 border-dashed cursor-not-allowed pointer-events-none';
         pncOptions.push({
             val: 'intercomQuery',
             text: 'CABIN REPORT',
             disabled: reportDisabled,
             alwaysShow: true,
             action: 'intercomQuery',
-            customClass: reportDisabled ? `${pncBaseClass} opacity-40 grayscale border-dashed cursor-not-allowed` : ''
+            customClass: reportDisabled ? pncDisabledClass : ''
         });
 
         pncOptions.push({
@@ -1655,9 +1659,11 @@ window.renderBriefingTabs = () => {
             disabled: !isIncoming,
             alwaysShow: true,
             action: 'answerPncCall',
-            customClass: isIncoming ? 'animate-pulse bg-amber-500 text-black font-extrabold border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.8)]' : `${pncBaseClass} opacity-40 grayscale border-dashed cursor-not-allowed`
+            customClass: isIncoming ? 'animate-pulse bg-amber-500 text-black font-extrabold border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.8)]' : 'bg-gray-800/40 text-gray-500 border-gray-600/20 opacity-50 border-dashed cursor-not-allowed pointer-events-none'
         });
 
+
+        
         if (!used.includes('ARM_DOORS') && ['AtGate', 'Pushback'].includes(phase)) {
             const ok = payload.isBoardingComplete;
             pncOptions.push({ val: 'ARM_DOORS', text: 'ARM DOORS', disabled: !ok, action: 'pncCommand' });
@@ -1671,7 +1677,7 @@ window.renderBriefingTabs = () => {
             const isReady = payload.securingProgress >= 100;
             pncOptions.push({ val: 'SEATS_TAKEOFF', text: isReady ? 'SEATS TAKEOFF' : 'FORCE SEATS', disabled: false, action: 'pncCommand' });
         }
-        if (!used.includes('TOP_DESCENT') && ['Cruise', 'Descent'].includes(phase)) {
+        if (!used.includes('TOP_DESCENT') && ['Cruise'].includes(phase)) {
             const todDistNM = payload.altitude ? (payload.altitude / 1000) * 3 : 0;
             const todWarningThreshold = todDistNM + 50; // Show 50 NM before approximate TOD
             const isNearTod = payload.destDistanceNM != null && payload.destDistanceNM > 0 
@@ -1701,7 +1707,22 @@ window.renderBriefingTabs = () => {
             pncOptions.push({ val: 'UnrulyPassenger', text: 'RESTRAIN PAX', disabled: false, action: 'resolveCrisis' });
         }
 
-        renderActionButtons('paButtonsContainer', 'paSection', paOptions, 'bg-sky-900/40 text-sky-400 border-sky-500/20 hover:bg-sky-800/60 shadow-[0_0_10px_rgba(14,165,233,0.1)] hover:shadow-[0_0_15px_rgba(14,165,233,0.2)]', 'PA');
+        if (isIncoming) {
+            paOptions.forEach(opt => { 
+                opt.disabled = true; 
+                if (!opt.customClass) opt.customClass = 'bg-gray-800/40 text-gray-500 border-gray-600/20 opacity-50 border-dashed cursor-not-allowed pointer-events-none';
+            });
+            pncOptions.forEach(opt => {
+                if (opt.val !== 'answerCall') {
+                    opt.disabled = true;
+                    if (!opt.customClass) opt.customClass = 'bg-gray-800/40 text-gray-500 border-gray-600/20 opacity-50 border-dashed cursor-not-allowed pointer-events-none';
+                }
+            });
+        }
+
+        if (!window.isDelayMenuOpen) {
+            renderActionButtons('paButtonsContainer', 'paSection', paOptions, 'bg-sky-900/40 text-sky-400 border-sky-500/20 hover:bg-sky-800/60 shadow-[0_0_10px_rgba(14,165,233,0.1)] hover:shadow-[0_0_15px_rgba(14,165,233,0.2)]', 'PA');
+        }
         renderActionButtons('pncButtonsContainer', 'pncSection', pncOptions, 'bg-amber-900/40 text-amber-400 border-amber-500/20 hover:bg-amber-800/60 shadow-[0_0_10px_rgba(245,158,11,0.1)] hover:shadow-[0_0_15px_rgba(245,158,11,0.2)]', 'PNC');
 
         // 3. FLIGHT DECK TO TECH ACTIONS
@@ -2639,6 +2660,16 @@ window.renderBriefingTabs = () => {
                     }
                 }
                 break;
+            case 'incoming_pnc_call':
+                if (payload.state === 'start') {
+                    window.isCabinCallIncoming = true;
+                } else if (payload.state === 'stop') {
+                    window.isCabinCallIncoming = false;
+                }
+                if (window.populateDashboardActiveLeg && window.lastTelemetry) {
+                    window.populateDashboardActiveLeg(window.lastTelemetry);
+                }
+                break;
             case 'telemetry':
                 if (window._prevGlobalOffset !== payload.globalTimeOffsetSeconds) {
                     window._prevGlobalOffset = payload.globalTimeOffsetSeconds;
@@ -2815,6 +2846,20 @@ window.renderBriefingTabs = () => {
                             comfBar.style.backgroundColor = color;
                             comfBar.style.boxShadow = `0 0 8px ${color}80`;
                         }
+                    }
+                }
+
+                if (payload.crewEsteem !== undefined) {
+                    const esteemEl = document.getElementById('crewEsteemValue');
+                    if (esteemEl) {
+                        const val = payload.crewEsteem.toFixed(1);
+                        esteemEl.innerText = val;
+                        let color = '#34D399'; // default green/emerald
+                        if (payload.crewEsteem < 5.0) color = '#EF4444'; // red
+                        else if (payload.crewEsteem < 8.0) color = '#F59E0B'; // amber
+                        
+                        esteemEl.style.color = color;
+                        esteemEl.style.textShadow = `0 0 15px ${color}4A`;
                     }
                 }
 
@@ -4924,10 +4969,34 @@ function renderGroundOps(services) {
 window.renderManifest = function (manifest) {
     manifest = manifest || window.manifest;
     const container = document.getElementById('manifestContainer');
-    if (!container) return;
 
     let flightCrew = manifest?.FlightCrew || manifest?.flightCrew;
     let passengers = manifest?.Passengers || manifest?.passengers || (Array.isArray(manifest) ? manifest : null);
+
+    if (flightCrew) {
+        let purser = flightCrew.find(c => c.Role === "Purser" || c.role === "Purser");
+        let fas = flightCrew.filter(c => c.Role === "Flight Attendant" || c.role === "Flight Attendant");
+        
+        let pnc0 = document.getElementById('pncName0');
+        if (pnc0) pnc0.innerText = purser ? (purser.Name || purser.name) : '--';
+        let pnc1 = document.getElementById('pncName1');
+        if (pnc1) pnc1.innerText = fas[0] ? (fas[0].Name || fas[0].name) : '--';
+        let pnc2 = document.getElementById('pncName2');
+        if (pnc2) pnc2.innerText = fas[1] ? (fas[1].Name || fas[1].name) : '--';
+        let pnc3 = document.getElementById('pncName3');
+        if (pnc3) pnc3.innerText = fas[2] ? (fas[2].Name || fas[2].name) : '--';
+    } else {
+        let pnc0 = document.getElementById('pncName0');
+        if (pnc0) pnc0.innerText = '--';
+        let pnc1 = document.getElementById('pncName1');
+        if (pnc1) pnc1.innerText = '--';
+        let pnc2 = document.getElementById('pncName2');
+        if (pnc2) pnc2.innerText = '--';
+        let pnc3 = document.getElementById('pncName3');
+        if (pnc3) pnc3.innerText = '--';
+    }
+
+    if (!container) return;
 
     if (!manifest || (!flightCrew && !passengers)) {
         container.innerHTML = '<p style="color:#64748b;">Waiting for final manifest processing...</p>';

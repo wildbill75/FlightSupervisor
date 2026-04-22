@@ -123,11 +123,11 @@ namespace FlightSupervisor.UI.Services
 
         public void PlayPncCallDing()
         {
-            string chimePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "assets", "sounds", "chime_emergency.wav");
-            if (!System.IO.File.Exists(chimePath))
-                chimePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "assets", "sounds", "pa_chime.wav");
+            string chimePathWav = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "assets", "sounds", "pa_chime.wav");
+            string chimePathMp3 = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "assets", "sounds", "pa_chime.mp3");
+            string chimePath = System.IO.File.Exists(chimePathWav) ? chimePathWav : (System.IO.File.Exists(chimePathMp3) ? chimePathMp3 : null);
 
-            if (System.IO.File.Exists(chimePath))
+            if (!string.IsNullOrEmpty(chimePath))
             {
                 _queue.Enqueue(new AudioRequest {
                     Speaker = SpeakerId.Purser,
@@ -220,6 +220,7 @@ namespace FlightSupervisor.UI.Services
                     if (selectedAudioFile != null)
                     {
                         logText += $"Selected Audio File: {selectedAudioFile}\r\n";
+                        FlightSupervisor.UI.Services.DebugLogger.Log("AUDIO", $"[Play] Speaker: {item.Speaker}, File: {Path.GetFileName(selectedAudioFile)}");
                         
                         // Play via NAudio
                         try
@@ -253,7 +254,17 @@ namespace FlightSupervisor.UI.Services
                     }
                     else
                     {
+                        if (string.IsNullOrEmpty(item.FallbackText))
+                        {
+                            logText += "selectedAudioFile is null and FallbackText is empty. Skipping TTS.\r\n";
+                            FlightSupervisor.UI.Services.DebugLogger.Log("AUDIO", $"[Missing] Audio missing and no fallback for speaker {item.Speaker}. Skipping.");
+                            System.IO.File.AppendAllText(@"D:\FlightSupervisor\debug_audio.txt", logText);
+                            FinishPlayback();
+                            return;
+                        }
+
                         logText += "selectedAudioFile is null. Falling back to TTS...\r\n";
+                        FlightSupervisor.UI.Services.DebugLogger.Log("AUDIO", $"[TTS] Speaker: {item.Speaker}, Text: {item.FallbackText}");
                         System.IO.File.AppendAllText(@"D:\FlightSupervisor\debug_audio.txt", logText);
                         
                         // Fallback to TTS 

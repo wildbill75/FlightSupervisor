@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>TRUE AIRMANSHIP | Command Center</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="tailwind.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="app.css?v=6">
@@ -142,6 +142,9 @@
 
         <!-- Right Side Icons -->
         <div class="flex items-center gap-1 justify-end flex-1">
+            <button class="no-drag w-9 h-9 flex items-center justify-center text-rose-500/70 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors border border-transparent hover:border-rose-500/20" id="btnBug" title="Report a Bug (Drop Marker in Log)" onmousedown="event.stopPropagation();" onclick="if(window.chrome && window.chrome.webview) { window.chrome.webview.postMessage({action:'markBug'}); this.classList.add('bg-rose-500/30'); setTimeout(()=>this.classList.remove('bg-rose-500/30'), 300); }">
+                <span class="material-symbols-outlined text-[16px] font-light">pest_control</span>
+            </button>
             <button class="no-drag w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-white/5" id="btnPin" title="Toggle Always on Top" onmousedown="event.stopPropagation();" style="opacity: 0.4;">
                 <span class="material-symbols-outlined text-[16px] font-light">push_pin</span>
             </button>
@@ -559,34 +562,53 @@
                     </div>
 
                         <div id="pncCommsPanel" class="col-span-4 bg-[#1a1d24]/60 backdrop-blur-xl rounded-2xl p-6 flex flex-col h-full overflow-hidden border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.4)] relative">
-                            <div id="pncCommsOverlay" class="absolute inset-0 bg-[#0f1115] backdrop-blur-sm z-50 rounded-2xl flex items-center justify-center font-bold text-slate-500 tracking-widest text-xs uppercase hidden">Awaiting SimBrief OFP</div>
+                            
                         <div class="mb-6 flex flex-col items-center justify-center relative">
                             <span class="text-xs font-label tracking-[0.4em] text-[#b6b6b6] font-bold uppercase" data-i18n="dash_pnc_comms">PNC Comms</span>
                             <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse drop-shadow-[0_0_4px_rgba(56,189,248,0.8)] absolute -right-2 top-1.5 hidden"></span>
                         </div>
 
-                        <!-- Status Indicator -->
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-[10px] uppercase tracking-widest text-[#7b7b7b] font-bold">Status</span>
-                            <div class="flex items-center gap-2">
-                                <div id="pncStatusDot" class="w-2 h-2 rounded-full bg-slate-500 animate-pulse"></div>
-                                <span id="pncStatusLabel" class="text-xs font-semibold text-white tracking-wide">Standing By</span>
+                        <div class="flex flex-col mb-4 pb-4 border-b border-white/5 w-full">
+                            <div class="flex items-center justify-between w-full px-1">
+                                <!-- Left Side: Score Box -->
+                                <div class="w-[105px] shrink-0 border border-slate-600/50 bg-black/40 rounded-md overflow-hidden shadow-[0_0_10px_rgba(255,255,255,0.02)] flex flex-col justify-between">
+                                    <div class="bg-slate-800/60 w-full text-center py-1.5">
+                                        <span class="text-[9px] uppercase tracking-widest font-black text-slate-300">PNC STATISTICS</span>
+                                    </div>
+                                    <div class="flex items-end justify-center py-2 px-1">
+                                        <span id="crewEsteemValue" class="text-4xl font-black font-headline text-[#b6b6b6] tracking-tighter leading-none transition-colors duration-500">--</span>
+                                        <span class="text-[11px] font-bold text-[#7b7b7b] ml-[1px] mb-0.5">/10</span>
+                                    </div>
+                                </div>
+
+                                <!-- Right Side: Crew Names List -->
+                                <div class="flex-1 ml-5 border-l border-white/10 pl-5 py-0.5 flex gap-4">
+                                    
+                                    <!-- Purser Column -->
+                                    <div class="flex flex-col w-5/12 pr-2">
+                                        <span class="text-[9px] text-sky-400 font-bold uppercase tracking-widest mb-1.5 border-b border-white/5 pb-1">Purser</span>
+                                        <span id="pncName0" class="text-[12px] text-white font-mono font-bold truncate drop-shadow-sm pt-1">--</span>
+                                    </div>
+
+                                    <!-- Flight Attendants Column -->
+                                    <div class="flex flex-col w-7/12">
+                                        <span class="text-[9px] text-sky-400 font-bold uppercase tracking-widest mb-1.5 border-b border-white/5 pb-1">Flight Attendants</span>
+                                        <div class="flex flex-col gap-1 line-height-tight pt-0.5">
+                                            <span id="pncName1" class="text-[10px] text-slate-300 font-mono truncate">--</span>
+                                            <span id="pncName2" class="text-[10px] text-slate-300 font-mono truncate">--</span>
+                                            <span id="pncName3" class="text-[10px] text-slate-300 font-mono truncate">--</span>
+                                        </div>
+                                    </div>
+
+                                </div>
                             </div>
-                        </div>
-                        
-                        <!-- Virtual Crew Roster Stats -->
-                        <div class="grid grid-cols-3 gap-2 mb-4 pb-3 border-b border-white/5">
-                            <div class="flex flex-col items-center justify-center p-2 rounded-lg bg-black/20 border border-white/5 shadow-inner" title="Higher proactivity = Crew takes autonomous actions">
-                                <span class="text-[8px] uppercase tracking-widest text-[#7b7b7b] font-bold mb-1">Proact</span>
-                                <span id="crewProactivityLabel" class="text-xs font-black tracking-widest text-[#b6b6b6]">--</span>
-                            </div>
-                            <div class="flex flex-col items-center justify-center p-2 rounded-lg bg-black/20 border border-white/5 shadow-inner" title="Higher efficiency = Faster meal and clean services">
-                                <span class="text-[8px] uppercase tracking-widest text-[#7b7b7b] font-bold mb-1">Efficncy</span>
-                                <span id="crewEfficiencyLabel" class="text-xs font-black tracking-widest text-[#b6b6b6]">--</span>
-                            </div>
-                            <div class="flex flex-col items-center justify-center p-2 rounded-lg bg-black/20 border border-white/5 shadow-inner" title="High morale = Passengers are happier. Manual orders drop morale.">
-                                <span class="text-[8px] uppercase tracking-widest text-[#7b7b7b] font-bold mb-1">Morale</span>
-                                <span id="crewMoraleLabel" class="text-xs font-black tracking-widest text-[#b6b6b6]">--</span>
+                            
+                            <!-- Status Indicator (Merged) -->
+                            <div class="flex w-full justify-center mt-4">
+                                <div class="flex items-center gap-2 bg-black/30 px-4 py-2 rounded-full border border-white/5 shadow-inner">
+                                    <div id="pncStatusDot" class="w-2 h-2 rounded-full bg-slate-500 animate-pulse transition-colors duration-300"></div>
+                                    <span id="pncStatusLabel" class="text-[10px] uppercase font-bold text-slate-300 tracking-widest w-[110px] text-center">Standing By</span>
+                                </div>
                             </div>
                         </div>
 
@@ -1825,6 +1847,7 @@
 
 </body>
 </html>
+
 
 
 

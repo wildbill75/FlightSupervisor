@@ -255,6 +255,9 @@ namespace FlightSupervisor.UI
                 }
             };
 
+            FlightSupervisor.UI.Services.DebugLogger.Initialize();
+            FlightSupervisor.UI.Services.DebugLogger.Log("SYSTEM", "MainWindow initialized");
+
             _eventEngine = new FlightSupervisor.UI.Services.GroundEventEngine();
             _eventEngine.OnEventTriggered += OnGroundEventTriggered;
 
@@ -262,21 +265,31 @@ namespace FlightSupervisor.UI
             _cabinManager.CaptainName = $"{_profileManager.CurrentProfile.FirstName} {_profileManager.CurrentProfile.LastName}".Trim();
             if (string.IsNullOrEmpty(_cabinManager.CaptainName)) _cabinManager.CaptainName = "Pilot";
             _groundOpsResourceService = new GroundOpsResourceService(_groundOpsManager, _cabinManager);
-            _cabinManager.OnCrewMessage += (level, msg, audioSeq) => SendToWeb(new { type = "cabinLog", level = level, message = msg, audioSequence = audioSeq });
+            _cabinManager.OnCrewMessage += (level, msg, audioSeq) => {
+                FlightSupervisor.UI.Services.DebugLogger.Log("CREW_MSG", $"[{level}] {msg}");
+                SendToWeb(new { type = "cabinLog", level = level, message = msg, audioSequence = audioSeq });
+            };
             _cabinManager.OnPenaltyTriggered += (points, reason) => {
+                FlightSupervisor.UI.Services.DebugLogger.Log("PENALTY", $"[{points} pts] {reason}");
                 if (_scoreManager != null) _scoreManager.AddScore(points, reason, ScoreCategory.Airmanship);
+                SendToWeb(new { type = "cabinLog", level = "red", message = $"[PENALTY] {reason} ({points} pts)", audioSequence = (string)null });
             };
             _cabinManager.OnPncStatusChanged += (status, state) => {
+                FlightSupervisor.UI.Services.DebugLogger.Log("PNC_STATE", $"Status: {status}, State: {state}");
                 Dispatcher.Invoke(() => SendToWeb(new { type = "pncStatus", status = status, state = state.ToString() }));
             };
             _cabinManager.OnOperationBonusTriggered += (bonus, reason) => {
+                FlightSupervisor.UI.Services.DebugLogger.Log("BONUS", $"[{bonus} pts] {reason}");
                 if (reason == "pnc_ready_chime") {
                     SendToWeb(new { type = "playSound", sound = "chime_emergency" });
+                } else {
+                    SendToWeb(new { type = "cabinLog", level = "cyan", message = $"[BONUS] {reason} (+{bonus} pts)", audioSequence = (string)null });
                 }
             };
 
             
             _cabinManager.OnCabinCallIncoming += (callState) => {
+                FlightSupervisor.UI.Services.DebugLogger.Log("INTERCOM", $"Cabin Call UI State: {callState}");
                 SendToWeb(new { type = "incoming_pnc_call", state = callState });
             };
             _cabinManager.OnDeboardingComplete += () => {
@@ -312,7 +325,10 @@ namespace FlightSupervisor.UI
                     if (_currentSimTime == DateTime.MinValue || _currentSimTime.Year < 2000) 
                     {
                         _currentSimTime = DateTime.UtcNow;
-                        _cabinManager.CurrentSimLocalTime = DateTime.Now;
+                        if (_cabinManager.CurrentSimLocalTime == DateTime.MinValue)
+                        {
+                            _cabinManager.CurrentSimLocalTime = DateTime.Now;
+                        }
                     }
                     _currentSimTime = _currentSimTime.AddSeconds(1);
                     if (_cabinManager.CurrentSimLocalTime != DateTime.MinValue)
@@ -339,10 +355,6 @@ namespace FlightSupervisor.UI
                     {
                         Dispatcher.Invoke(() => {
                             LoadNextLeg();
-                            if (_fuelSheetWindow == null)
-                            {
-                                OpenFuelSheetWindow();
-                            }
                         });
                     }
                 }
@@ -485,6 +497,7 @@ namespace FlightSupervisor.UI
 
             _phaseManager = new FlightPhaseManager();
             _phaseManager.OnPhaseChanged += phase => {
+                FlightSupervisor.UI.Services.DebugLogger.Log("FLIGHT_PHASE", $"Transitioned to {phase}");
                 Dispatcher.Invoke(() => {
                     if (phase == FlightPhase.Pushback || phase == FlightPhase.TaxiOut)
                     {
@@ -793,7 +806,9 @@ namespace FlightSupervisor.UI
                                 General = new FlightSupervisor.UI.Models.SimBrief.GeneralInfo { Route = "WAITING FOR SIMBRIEF DATA", FlightNumber = "XXXX", Airline = _currentResponse?.General?.Airline ?? "" },
                                 Aircraft = new FlightSupervisor.UI.Models.SimBrief.AircraftInfo { IcaoCode = _currentResponse?.Aircraft?.IcaoCode ?? "", BaseType = _currentResponse?.Aircraft?.BaseType ?? "", Reg = _currentResponse?.Aircraft?.Reg ?? "" },
                                 Weights = new FlightSupervisor.UI.Models.SimBrief.WeightsInfo { BlockFuel = "0", PaxCount = "0" },
-                                Fuel = new FlightSupervisor.UI.Models.SimBrief.FuelInfo { PlanRamp = "0" }
+                                Fuel = new FlightSupervisor.UI.Models.SimBrief.FuelInfo { PlanRamp = "0" },
+                                Times = new FlightSupervisor.UI.Models.SimBrief.TimesInfo { SchedIn = "0", SchedOut = "0" },
+                                IsDummy = true
                             };
 
                             SendToWeb(new
@@ -1567,7 +1582,7 @@ namespace FlightSupervisor.UI
                 }
                 else if (action == "answerPncCall")
                 {
-                    _cabinManager?.AnswerPendingCall();
+                    _cabinManager?.AnswerCabinCall();
                 }
                 else if (action == "openManifestWindow")
                 {
@@ -2331,6 +2346,12 @@ namespace FlightSupervisor.UI
                 {
                     GenerateAgentDebugLog();
                 }
+                else if (action == "markBug")
+                {
+                    FlightSupervisor.UI.Services.DebugLogger.MarkBug();
+                    GenerateAgentDebugLog();
+                    SendToWeb(new { type = "cabinLog", level = "purple", message = $"[DEBUG] BUG MARKER INJECTED IN LOGS" });
+                }
                 else if (action == "debugToggleSimulation")
                 {
                     _phaseManager.IsSimulationMode = doc.RootElement.GetProperty("enabled").GetBoolean();
@@ -2345,6 +2366,22 @@ namespace FlightSupervisor.UI
                         {
                             _currentSimTime = DateTime.UtcNow;
                         }
+                        
+                        try {
+                            if (_currentResponse?.Origin?.PosLat != null && _currentResponse?.Origin?.PosLong != null &&
+                                double.TryParse(_currentResponse.Origin.PosLat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double lat) &&
+                                double.TryParse(_currentResponse.Origin.PosLong, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double lon))
+                            {
+                                string tzIana = GeoTimeZone.TimeZoneLookup.GetTimeZone(lat, lon).Result;
+                                TimeZoneInfo tzi = TimeZoneConverter.TZConvert.GetTimeZoneInfo(tzIana);
+                                _cabinManager.CurrentSimLocalTime = TimeZoneInfo.ConvertTimeFromUtc(_currentSimTime, tzi);
+                            } else {
+                                _cabinManager.CurrentSimLocalTime = _currentSimTime;
+                            }
+                        } catch {
+                            _cabinManager.CurrentSimLocalTime = _currentSimTime;
+                        }
+
                         // Set the aircraft to a safe parked state immediately so Ground Ops can begin
                         _phaseManager.SetSimulationState(FlightPhase.AtGate);
                     }
@@ -2965,8 +3002,8 @@ namespace FlightSupervisor.UI
                                 else destTempC = int.Parse(tStr);
                             }
 
-                            DateTime departureLocal = DateTime.Now;
-                            DateTime destLocal = DateTime.Now.AddMinutes(timeMins);
+                            DateTime departureLocal = _cabinManager.CurrentSimLocalTime != DateTime.MinValue ? _cabinManager.CurrentSimLocalTime : DateTime.Now;
+                            DateTime destLocal = departureLocal.AddMinutes(timeMins);
 
                             _cabinManager.AnnounceWelcome(destIcao, destName, timeMins, badWeather, destTempC, destLocal, departureLocal, metar);
                         }
@@ -2984,7 +3021,7 @@ namespace FlightSupervisor.UI
                             }
 
                             // Calculate destination time for approach (basically current time)
-                            DateTime destLocal = DateTime.Now;
+                            DateTime destLocal = _cabinManager.CurrentSimLocalTime != DateTime.MinValue ? _cabinManager.CurrentSimLocalTime : DateTime.Now;
 
                             _cabinManager.AnnounceApproach(destName, metar, destTempC, destLocal);
                         }
@@ -3013,7 +3050,8 @@ namespace FlightSupervisor.UI
                             string avgWind = _currentResponse?.General?.AvgWindComp ?? "";
                             int altitude = (int)_lastKnownAltitude;
 
-                            _cabinManager.AnnounceCruise(altitude, avgWind, destName, metar, enrtMetar, destTempC, DateTime.Now);
+                            string destIcao = _currentResponse?.Destination?.IcaoCode ?? "";
+                            _cabinManager.AnnounceCruise(altitude, avgWind, destIcao, destName, metar, enrtMetar, destTempC, DateTime.Now);
                         }
                         else if (annType != null && (annType == "Delay" || annType.StartsWith("Delay_")))
                         {
@@ -3298,6 +3336,7 @@ namespace FlightSupervisor.UI
                 anxiety = Math.Round(_cabinManager.PassengerAnxiety, 1),
                 comfort = Math.Round(_cabinManager.ComfortLevel, 1),
                 satisfaction = Math.Round(_cabinManager.Satisfaction, 1),
+                crewEsteem = Math.Round(_cabinManager.CrewEsteem / 10.0, 1),
                 crewProactivity = Math.Round(_cabinManager.CrewProactivity, 1),
                 crewEfficiency = Math.Round(_cabinManager.CrewEfficiency, 1),
                 crewMorale = Math.Round(_cabinManager.CrewMorale, 1),

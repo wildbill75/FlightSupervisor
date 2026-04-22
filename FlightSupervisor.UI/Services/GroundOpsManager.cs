@@ -513,281 +513,299 @@ namespace FlightSupervisor.UI.Services
 
             if (deltaD < 1.0) return; // Wait until at least 1 full second has accumulated
             
-            var delta = (int)deltaD;
-            _lastTick = _lastTick.AddSeconds(delta); // Advance _lastTick strictly by the consumed integer seconds to keep the fractional remainder
+            var totalDelta = (int)deltaD;
+            _lastTick = _lastTick.AddSeconds(totalDelta); // Advance _lastTick strictly by the consumed integer seconds to keep the fractional remainder
 
             if (Services.Count == 0) return;
 
-            bool allDone = true;
-            bool changed = false;
+            DateTime baseSimTime = currentZulu ?? DateTime.UtcNow;
+            if (baseSimTime.Year < 2000) baseSimTime = DateTime.UtcNow;
+            baseSimTime = baseSimTime.AddSeconds(-totalDelta); // Start from the past point
 
-            DateTime simTime = currentZulu ?? DateTime.UtcNow;
-            if (simTime.Year < 2000) simTime = DateTime.UtcNow;
+            bool globalChanged = false;
+            bool globalAllDone = false;
 
-            // --- AVAILABILITY AUDIT (Story 43) ---
-            bool isUnloadingActive = Services.Any(s => s.Name == "Deboarding" && s.State != GroundServiceState.Completed && s.State != GroundServiceState.Skipped);
-            
-            foreach (var s in Services)
+            // Execute time step chronologically in 1-second chunks to ensure queued services
+            // can unblock dynamically and absorb the remaining Time Warp delta uninterrupted.
+            for (int step = 0; step < totalDelta; step++)
             {
-                // Reset availability first
-                s.IsAvailable = true;
-
-                // Dependencies
-                if (s.Name == "Boarding" && isUnloadingActive) s.IsAvailable = false;
-                if (s.Name == "Refueling" && !IsFuelSheetValidated) s.IsAvailable = false;
+                baseSimTime = baseSimTime.AddSeconds(1);
                 
-                // You can't cater or clean while deboarding is in progress
-                if ((s.Name == "Catering" || s.Name.Contains("Clean") || s.Name.Contains("PNC")) && isUnloadingActive) s.IsAvailable = false;
+                if (Services.Count == 0) break;
 
-                if (s.State == GroundServiceState.Completed || s.State == GroundServiceState.Skipped) continue;
-                allDone = false;
+                bool allDone = true;
+                bool changed = false;
 
-                // Time-gated starts
-                if (s.State == GroundServiceState.NotStarted)
+                // --- AVAILABILITY AUDIT (Story 43) ---
+                bool isUnloadingActive = Services.Any(s => s.Name == "Deboarding" && s.State != GroundServiceState.Completed && s.State != GroundServiceState.Skipped);
+                
+                foreach (var s in Services)
                 {
-                    if (s.RequiresManualStart)
+                    // Reset availability first
+                    s.IsAvailable = true;
+
+                    // Dependencies
+                    if (s.Name == "Boarding" && isUnloadingActive) s.IsAvailable = false;
+                    if (s.Name == "Refueling" && !IsFuelSheetValidated) s.IsAvailable = false;
+                    
+                    // You can't cater or clean while deboarding is in progress
+                    if ((s.Name == "Catering" || s.Name.Contains("Clean") || s.Name.Contains("PNC")) && isUnloadingActive) s.IsAvailable = false;
+
+                    if (s.State == GroundServiceState.Completed || s.State == GroundServiceState.Skipped) continue;
+                    allDone = false;
+
+                    // Time-gated starts
+                    if (s.State == GroundServiceState.NotStarted)
                     {
-                        string forcedStatus = null;
-
-                        if (CurrentPhase == FlightPhase.Turnaround)
+                        if (s.RequiresManualStart)
                         {
-                            if (s.Name != "Deboarding" && s.Name != "Cargo Unloading")
-                            {
-                                forcedStatus = LocalizationService.Translate("Wait Turnaround", "Attente Turnaround");
-                            }
-                            else if (s.Name == "Deboarding" && IsSeatbeltsOn)
-                            {
-                                forcedStatus = LocalizationService.Translate("Wait Seatbelts", "Attentes Signes");
-                            }
-                            else if (s.Name == "Cargo Unloading" && IsBeaconOn)
-                            {
-                                forcedStatus = LocalizationService.Translate("Wait Beacon", "Attente Beacon");
-                            }
-                        }
+                            string forcedStatus = null;
 
-                        if (forcedStatus == null)
-                        {
-                            var boardingM = Services.FirstOrDefault(x => x.Name == "Boarding");
-                            var deboardingM = Services.FirstOrDefault(x => x.Name == "Deboarding");
-                            var cleaningM = Services.FirstOrDefault(x => x.Name.Contains("Clean"));
-                            var cateringM = Services.FirstOrDefault(x => x.Name == "Catering");
-
-                            bool isPaxMoving = (boardingM != null && boardingM.State == GroundServiceState.InProgress) ||
-                                               (deboardingM != null && deboardingM.State == GroundServiceState.InProgress);
-
-                            if ((s.Name.Contains("Clean") || s.Name == "Catering") && isPaxMoving)
+                            if (CurrentPhase == FlightPhase.Turnaround)
                             {
-                                forcedStatus = LocalizationService.Translate("Blocked (Pax)", "Bloqué (Pax)");
-                            }
-                            else if (s.Name == "Boarding")
-                            {
-                                bool cleaningActive = cleaningM != null && cleaningM.State == GroundServiceState.InProgress;
-                                bool cateringActive = cateringM != null && cateringM.State == GroundServiceState.InProgress;
-                                if (cleaningActive || cateringActive)
+                                if (s.Name != "Deboarding" && s.Name != "Cargo Unloading")
                                 {
-                                    forcedStatus = LocalizationService.Translate("Blocked (Crew)", "Bloqué (Serv.)");
+                                    forcedStatus = LocalizationService.Translate("Wait Turnaround", "Attente Turnaround");
+                                }
+                                else if (s.Name == "Deboarding" && IsSeatbeltsOn)
+                                {
+                                    forcedStatus = LocalizationService.Translate("Wait Seatbelts", "Attentes Signes");
+                                }
+                                else if (s.Name == "Cargo Unloading" && IsBeaconOn)
+                                {
+                                    forcedStatus = LocalizationService.Translate("Wait Beacon", "Attente Beacon");
                                 }
                             }
-                            else if (s.Name == "Refueling" && !IsFuelSheetValidated)
+
+                            if (forcedStatus == null)
                             {
-                                forcedStatus = LocalizationService.Translate("Awaiting Validation", "Attente Validation");
+                                var boardingM = Services.FirstOrDefault(x => x.Name == "Boarding");
+                                var deboardingM = Services.FirstOrDefault(x => x.Name == "Deboarding");
+                                var cleaningM = Services.FirstOrDefault(x => x.Name.Contains("Clean"));
+                                var cateringM = Services.FirstOrDefault(x => x.Name == "Catering");
+
+                                bool isPaxMoving = (boardingM != null && boardingM.State == GroundServiceState.InProgress) ||
+                                                   (deboardingM != null && deboardingM.State == GroundServiceState.InProgress);
+
+                                if ((s.Name.Contains("Clean") || s.Name == "Catering") && isPaxMoving)
+                                {
+                                    forcedStatus = LocalizationService.Translate("Blocked (Pax)", "Bloqué (Pax)");
+                                }
+                                else if (s.Name == "Boarding")
+                                {
+                                    bool cleaningActive = cleaningM != null && cleaningM.State == GroundServiceState.InProgress;
+                                    bool cateringActive = cateringM != null && cateringM.State == GroundServiceState.InProgress;
+                                    if (cleaningActive || cateringActive)
+                                    {
+                                        forcedStatus = LocalizationService.Translate("Blocked (Crew)", "Bloqué (Serv.)");
+                                    }
+                                }
+                                else if (s.Name == "Refueling" && !IsFuelSheetValidated)
+                                {
+                                    forcedStatus = LocalizationService.Translate("Awaiting Validation", "Attente Validation");
+                                }
+                            }
+
+                            if (forcedStatus != null)
+                            {
+                                s.StatusMessage = forcedStatus;
+                            }
+                            else
+                            {
+                                s.State = GroundServiceState.WaitingForAction;
+                                s.StatusMessage = LocalizationService.Translate("Waiting for Pilot...", "En attente d'action Cdt...");
+                            }
+                            
+                            changed = true;
+                            continue;
+                        }
+
+                        bool shouldStart = true;
+                        if (TargetSobt != null)
+                        {
+                            var startZulu = TargetSobt.Value.AddMinutes(s.StartOffsetMinutes);
+                            if (baseSimTime < startZulu)
+                            {
+                                var waitSec = (int)(startZulu - baseSimTime).TotalSeconds;
+                                s.StatusMessage = LocalizationService.Translate($"Scheduled in {waitSec/60}m", $"Prévu dans {waitSec/60}m");
+                                shouldStart = false;
+                                changed = true;
                             }
                         }
 
-                        if (forcedStatus != null)
+                        if (shouldStart)
                         {
-                            s.StatusMessage = forcedStatus;
+                            var boarding = Services.FirstOrDefault(x => x.Name == "Boarding");
+                            var catering = Services.FirstOrDefault(x => x.Name == "Catering");
+                            var cleaning = Services.FirstOrDefault(x => x.Name == "Cleaning");
+
+                            if (s.Name == "Boarding")
+                            {
+                                bool unloadingActive = Services.Any(x => x.Name == "Deboarding" && x.State != GroundServiceState.Completed && x.State != GroundServiceState.Skipped);
+                                bool cateringPending = catering != null && catering.State != GroundServiceState.Completed && catering.State != GroundServiceState.Skipped;
+                                bool cleaningPending = cleaning != null && cleaning.State != GroundServiceState.Completed && cleaning.State != GroundServiceState.Skipped;
+                                bool isLcc = IsLowCost;
+
+                                if (unloadingActive)
+                                {
+                                    shouldStart = false;
+                                    s.StatusMessage = LocalizationService.Translate("Wait Unloading", "Attente Débarquement");
+                                }
+                                else if (!isLcc && (cateringPending || cleaningPending))
+                                {
+                                    shouldStart = false;
+                                    if (cateringPending && cleaningPending)
+                                        s.StatusMessage = LocalizationService.Translate("Wait Cater/Clean", "Attente Cater/Ménage");
+                                    else if (cateringPending)
+                                        s.StatusMessage = LocalizationService.Translate("Wait Catering", "Attente Catering");
+                                    else
+                                        s.StatusMessage = LocalizationService.Translate("Wait Cleaning", "Attente Ménage");
+                                }
+                            }
+                            else if ((s.Name == "Cleaning" || s.Name == "Catering") && boarding != null && boarding.State != GroundServiceState.NotStarted && boarding.State != GroundServiceState.Skipped)
+                            {
+                                bool isLcc = IsLowCost;
+                                
+                                if (!isLcc)
+                                {
+                                    // If boarding has started or finished, cleaning and catering can't happen anymore (for Legacy carriers only).
+                                    s.State = GroundServiceState.Skipped;
+                                    s.StatusMessage = LocalizationService.Translate("Skipped (Pax on board)", "Annulé (Pax à bord)");
+                                    changed = true;
+                                    string actor = GetActorForService(s.Name);
+                                    OnOpsLog?.Invoke(LocalizationService.Translate(
+                                        $"[{actor}] {s.Name} skipped because passengers are already boarding or onboard.", 
+                                        $"[{actor}] {s.Name} annulé car les passagers embarquent ou sont à bord."));
+                                    continue;
+                                }
+                            }
+                        }
+
+                        if (shouldStart)
+                        {
+                            if (CurrentPhase == FlightPhase.Turnaround)
+                            {
+                                if (s.Name != "Deboarding" && s.Name != "Cargo Unloading")
+                                {
+                                    s.StatusMessage = LocalizationService.Translate("Wait Turnaround", "Attente Turnaround");
+                                    continue;
+                                }
+                                else if (s.Name == "Deboarding" && IsSeatbeltsOn)
+                                {
+                                    s.StatusMessage = LocalizationService.Translate("Wait Seatbelts", "Attentes Signes");
+                                    continue;
+                                }
+                                else if (s.Name == "Cargo Unloading" && IsBeaconOn)
+                                {
+                                    s.StatusMessage = LocalizationService.Translate("Wait Beacon", "Attente Beacon");
+                                    continue;
+                                }
+                                else if (EngineMaxN1 > 15.0 && !_hasEmittedN1Warning)
+                                {
+                                    _hasEmittedN1Warning = true;
+                                    OnOpsLog?.Invoke(LocalizationService.Translate("[WARNING] Ground Ops started while engines are running! This is extremely dangerous. Penalty applied.", "[WARNING] Opération lancée moteurs allumés ! Très dangereux. Pénalité affectée."));
+                                    OnPenaltyTriggered?.Invoke(-50, "Engines running during Turnaround OPs");
+                                }
+                            }
+
+                            s.State = GroundServiceState.InProgress;
+                            s.StatusMessage = LocalizationService.Translate("In Progress", "En cours");
+                            changed = true;
+                            
+                            // Virtual Actors Logging Start Events
+                            string actor = GetActorForService(s.Name);
+                            string startMsg = GetStartMessageForService(s.Name);
+                            OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] {startMsg}", $"[{actor}] {startMsg}"));
+                            OnServiceStarted?.Invoke(s.Name);
                         }
                         else
                         {
-                            s.State = GroundServiceState.WaitingForAction;
-                            s.StatusMessage = LocalizationService.Translate("Waiting for Pilot...", "En attente d'action Cdt...");
-                        }
-                        
-                        changed = true;
-                        continue;
-                    }
-
-                    bool shouldStart = true;
-                    if (TargetSobt != null)
-                    {
-                        var startZulu = TargetSobt.Value.AddMinutes(s.StartOffsetMinutes);
-                        if (simTime < startZulu)
-                        {
-                            var waitSec = (int)(startZulu - simTime).TotalSeconds;
-                            s.StatusMessage = LocalizationService.Translate($"Scheduled in {waitSec/60}m", $"Prévu dans {waitSec/60}m");
-                            shouldStart = false;
-                            changed = true;
+                            continue; // Don't tick progress if not started
                         }
                     }
 
-                    if (shouldStart)
+                    if (s.State == GroundServiceState.WaitingForAction) continue;
+
+                    // Progress the service by 1 second during this loop execution!
+                    s.ElapsedSec += 1;
+
+                    if (s.ElapsedSec >= s.TotalDurationSec + s.DelayAddedSec)
                     {
-                        var boarding = Services.FirstOrDefault(x => x.Name == "Boarding");
-                        var catering = Services.FirstOrDefault(x => x.Name == "Catering");
-                        var cleaning = Services.FirstOrDefault(x => x.Name == "Cleaning");
-
-                        if (s.Name == "Boarding")
-                        {
-                            bool unloadingActive = Services.Any(x => x.Name == "Deboarding" && x.State != GroundServiceState.Completed && x.State != GroundServiceState.Skipped);
-                            bool cateringPending = catering != null && catering.State != GroundServiceState.Completed && catering.State != GroundServiceState.Skipped;
-                            bool cleaningPending = cleaning != null && cleaning.State != GroundServiceState.Completed && cleaning.State != GroundServiceState.Skipped;
-                            bool isLcc = IsLowCost;
-
-                            if (unloadingActive)
-                            {
-                                shouldStart = false;
-                                s.StatusMessage = LocalizationService.Translate("Wait Unloading", "Attente Débarquement");
-                            }
-                            else if (!isLcc && (cateringPending || cleaningPending))
-                            {
-                                shouldStart = false;
-                                if (cateringPending && cleaningPending)
-                                    s.StatusMessage = LocalizationService.Translate("Wait Cater/Clean", "Attente Cater/Ménage");
-                                else if (cateringPending)
-                                    s.StatusMessage = LocalizationService.Translate("Wait Catering", "Attente Catering");
-                                else
-                                    s.StatusMessage = LocalizationService.Translate("Wait Cleaning", "Attente Ménage");
-                            }
-                        }
-                        else if ((s.Name == "Cleaning" || s.Name == "Catering") && boarding != null && boarding.State != GroundServiceState.NotStarted && boarding.State != GroundServiceState.Skipped)
-                        {
-                            bool isLcc = IsLowCost;
-                            
-                            if (!isLcc)
-                            {
-                                // If boarding has started or finished, cleaning and catering can't happen anymore (for Legacy carriers only).
-                                s.State = GroundServiceState.Skipped;
-                                s.StatusMessage = LocalizationService.Translate("Skipped (Pax on board)", "Annulé (Pax à bord)");
-                                changed = true;
-                                string actor = GetActorForService(s.Name);
-                                OnOpsLog?.Invoke(LocalizationService.Translate(
-                                    $"[{actor}] {s.Name} skipped because passengers are already boarding or onboard.", 
-                                    $"[{actor}] {s.Name} annulé car les passagers embarquent ou sont à bord."));
-                                continue;
-                            }
-                        }
-                    }
-
-                    if (shouldStart)
-                    {
-                        if (CurrentPhase == FlightPhase.Turnaround)
-                        {
-                            if (s.Name != "Deboarding" && s.Name != "Cargo Unloading")
-                            {
-                                s.StatusMessage = LocalizationService.Translate("Wait Turnaround", "Attente Turnaround");
-                                continue;
-                            }
-                            else if (s.Name == "Deboarding" && IsSeatbeltsOn)
-                            {
-                                s.StatusMessage = LocalizationService.Translate("Wait Seatbelts", "Attentes Signes");
-                                continue;
-                            }
-                            else if (s.Name == "Cargo Unloading" && IsBeaconOn)
-                            {
-                                s.StatusMessage = LocalizationService.Translate("Wait Beacon", "Attente Beacon");
-                                continue;
-                            }
-                            else if (EngineMaxN1 > 15.0 && !_hasEmittedN1Warning)
-                            {
-                                _hasEmittedN1Warning = true;
-                                OnOpsLog?.Invoke(LocalizationService.Translate("[WARNING] Ground Ops started while engines are running! This is extremely dangerous. Penalty applied.", "[WARNING] Opération lancée moteurs allumés ! Très dangereux. Pénalité affectée."));
-                                OnPenaltyTriggered?.Invoke(-50, "Engines running during Turnaround OPs");
-                            }
-                        }
-
-                        s.State = GroundServiceState.InProgress;
-                        s.StatusMessage = LocalizationService.Translate("In Progress", "En cours");
+                        s.State = GroundServiceState.Completed;
+                        s.StatusMessage = LocalizationService.Translate("Completed", "Terminé");
                         changed = true;
                         
-                        // Virtual Actors Logging Start Events
                         string actor = GetActorForService(s.Name);
-                        string startMsg = GetStartMessageForService(s.Name);
-                        OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] {startMsg}", $"[{actor}] {startMsg}"));
-                        OnServiceStarted?.Invoke(s.Name);
+                        string endMsg = GetEndMessageForService(s.Name);
+                        OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] {endMsg}", $"[{actor}] {endMsg}"));
+                        OnServiceCompleted?.Invoke(s.Name);
                     }
                     else
                     {
-                        continue; // Don't tick progress if not started
-                    }
-                }
-
-                if (s.State == GroundServiceState.WaitingForAction) continue;
-
-                // Progress the service
-                s.ElapsedSec += delta;
-
-                if (s.ElapsedSec >= s.TotalDurationSec + s.DelayAddedSec)
-                {
-                    s.State = GroundServiceState.Completed;
-                    s.StatusMessage = LocalizationService.Translate("Completed", "Terminé");
-                    changed = true;
-                    
-                    string actor = GetActorForService(s.Name);
-                    string endMsg = GetEndMessageForService(s.Name);
-                    OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] {endMsg}", $"[{actor}] {endMsg}"));
-                    OnServiceCompleted?.Invoke(s.Name);
-                }
-                else
-                {
-                    double chance = 0.0; // EventProbabilityPercent * 0.000005 * delta; // Bug 23: Debranch events
-                    if (!s.HasBeenDelayed && s.State != GroundServiceState.Delayed && chance > 0 && _rnd.NextDouble() < chance) 
-                    {
-                        s.State = GroundServiceState.Delayed;
-                        s.HasBeenDelayed = true;
-                        
-                        string eventDesc = "Perturbation inopinée";
-                        int additionalDelay = _rnd.Next(30, 90);
-                        
-                        if (_delayEvents.TryGetValue(s.Name, out var eventsList) && eventsList.Count > 0)
+                        double chance = 0.0; // EventProbabilityPercent * 0.000005 * delta; // Bug 23: Debranch events
+                        if (!s.HasBeenDelayed && s.State != GroundServiceState.Delayed && chance > 0 && _rnd.NextDouble() < chance) 
                         {
-                            var evt = eventsList[_rnd.Next(eventsList.Count)];
-                            eventDesc = evt.Description;
-                            additionalDelay = _rnd.Next(evt.MinDelaySec, evt.MaxDelaySec);
+                            s.State = GroundServiceState.Delayed;
+                            s.HasBeenDelayed = true;
+                            
+                            string eventDesc = "Perturbation inopinée";
+                            int additionalDelay = _rnd.Next(30, 90);
+                            
+                            if (_delayEvents.TryGetValue(s.Name, out var eventsList) && eventsList.Count > 0)
+                            {
+                                var evt = eventsList[_rnd.Next(eventsList.Count)];
+                                eventDesc = evt.Description;
+                                additionalDelay = _rnd.Next(evt.MinDelaySec, evt.MaxDelaySec);
 
-                            if (s.Name == "Boarding" && evt.DescriptionEn == "Missing passenger")
-                            {
-                                double efficRatio = Math.Max(50.0, CurrentCrewEsteem) / 100.0;
-                                additionalDelay = (int)(additionalDelay / efficRatio); // Un bon crew résout ça plus vite
-                                
-                                if (CurrentCrewEsteem >= 85)
-                                    OnOperationBonusTriggered?.Invoke(15, LocalizationService.Translate("Crew Efficiency: Swiftly found missing passenger", "Efficacité Équipage: Passager manquant géré rapidement"));
-                                else if (CurrentCrewEsteem < 65)
-                                    OnPenaltyTriggered?.Invoke(-10, LocalizationService.Translate("Crew Inefficiency: Failed to quickly find passenger", "Inefficacité Équipage: Passager manquant géré lentement"));
+                                if (s.Name == "Boarding" && evt.DescriptionEn == "Missing passenger")
+                                {
+                                    double efficRatio = Math.Max(50.0, CurrentCrewEsteem) / 100.0;
+                                    additionalDelay = (int)(additionalDelay / efficRatio); // Un bon crew résout ça plus vite
+                                    
+                                    if (CurrentCrewEsteem >= 85)
+                                        OnOperationBonusTriggered?.Invoke(15, LocalizationService.Translate("Crew Efficiency: Swiftly found missing passenger", "Efficacité Équipage: Passager manquant géré rapidement"));
+                                    else if (CurrentCrewEsteem < 65)
+                                        OnPenaltyTriggered?.Invoke(-10, LocalizationService.Translate("Crew Inefficiency: Failed to quickly find passenger", "Inefficacité Équipage: Passager manquant géré lentement"));
+                                }
+                                else if (s.Name == "Cleaning")
+                                {
+                                    double efficRatio = Math.Max(50.0, CurrentCrewEsteem) / 100.0;
+                                    additionalDelay = (int)(additionalDelay / efficRatio);
+                                    
+                                    if (CurrentCrewEsteem >= 85)
+                                        OnOperationBonusTriggered?.Invoke(10, LocalizationService.Translate("Crew Efficiency: Swiftly resolved cabin delay", "Efficacité Équipage: Incident cabine géré rapidement"));
+                                }
                             }
-                            else if (s.Name == "Cleaning")
-                            {
-                                double efficRatio = Math.Max(50.0, CurrentCrewEsteem) / 100.0;
-                                additionalDelay = (int)(additionalDelay / efficRatio);
-                                
-                                if (CurrentCrewEsteem >= 85)
-                                    OnOperationBonusTriggered?.Invoke(10, LocalizationService.Translate("Crew Efficiency: Swiftly resolved cabin delay", "Efficacité Équipage: Incident cabine géré rapidement"));
-                            }
+
+                            s.ActiveDelayEvent = eventDesc;
+                            s.DelayAddedSec += additionalDelay;
+                            s.StatusMessage = LocalizationService.Translate($"Delay: {eventDesc} (+{(int)Math.Ceiling(additionalDelay/60.0)}m)", $"Retard: {eventDesc} (+{(int)Math.Ceiling(additionalDelay/60.0)}m)");
+                            changed = true;
+                            
+                            string actor = GetActorForService(s.Name);
+                            OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] Ground Op issue: {eventDesc} (+{(int)Math.Ceiling(additionalDelay/60.0)} min)", $"[{actor}] Problème sur l'escale : {eventDesc} (+{(int)Math.Ceiling(additionalDelay/60.0)} min)"));
                         }
-
-                        s.ActiveDelayEvent = eventDesc;
-                        s.DelayAddedSec += additionalDelay;
-                        s.StatusMessage = LocalizationService.Translate($"Delay: {eventDesc} (+{(int)Math.Ceiling(additionalDelay/60.0)}m)", $"Retard: {eventDesc} (+{(int)Math.Ceiling(additionalDelay/60.0)}m)");
-                        changed = true;
-                        
-                        string actor = GetActorForService(s.Name);
-                        OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] Ground Op issue: {eventDesc} (+{(int)Math.Ceiling(additionalDelay/60.0)} min)", $"[{actor}] Problème sur l'escale : {eventDesc} (+{(int)Math.Ceiling(additionalDelay/60.0)} min)"));
-                    }
-                    // Recover from delay if progressing normally again
-                    else if (s.State == GroundServiceState.Delayed && _rnd.NextDouble() < 0.05)
-                    {
-                        s.State = GroundServiceState.InProgress;
-                        s.ActiveDelayEvent = "";
-                        s.StatusMessage = LocalizationService.Translate("In Progress", "En cours");
-                        changed = true;
-                        string actor = GetActorForService(s.Name);
-                        OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] Issue resolved. Operations resumed.", $"[{actor}] Problème résolu. Reprise de l'opération."));
+                        // Recover from delay if progressing normally again
+                        else if (s.State == GroundServiceState.Delayed && _rnd.NextDouble() < 0.05)
+                        {
+                            s.State = GroundServiceState.InProgress;
+                            s.ActiveDelayEvent = "";
+                            s.StatusMessage = LocalizationService.Translate("In Progress", "En cours");
+                            changed = true;
+                            string actor = GetActorForService(s.Name);
+                            OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] Issue resolved. Operations resumed.", $"[{actor}] Problème résolu. Reprise de l'opération."));
+                        }
                     }
                 }
+
+                if (changed) globalChanged = true;
+                globalAllDone = allDone;
+                
+                if (allDone) break; // Optimization: If everything is completed before Time Warp finishes, stop looping
             }
 
-            if (changed) OnOpsUpdated?.Invoke();
-            if (allDone) { _isStarted = false; OnOpsCompleted?.Invoke(); }
+            if (globalChanged) OnOpsUpdated?.Invoke();
+            if (globalAllDone) { _isStarted = false; OnOpsCompleted?.Invoke(); }
         }
         
         // --- Virtual Actor Data Mapping ---
