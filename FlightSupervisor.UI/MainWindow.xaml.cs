@@ -3084,8 +3084,16 @@ namespace FlightSupervisor.UI
                         {
                             string destIcao = _currentResponse?.Destination?.IcaoCode ?? "";
                             string destName = _currentResponse?.Destination?.Name ?? destIcao ?? "our destination";
-                            string metar = _weatherData?.Stations?.FirstOrDefault(s => s.Id.Equals("destination", StringComparison.OrdinalIgnoreCase))?.Metar ?? "";
-                            int destTempC = _weatherData?.Stations?.FirstOrDefault(s => s.Id.Equals("destination", StringComparison.OrdinalIgnoreCase))?.Temperature ?? 15;
+                            string metar = _currentResponse?.Weather?.DestMetar?.ToUpper() ?? "";
+                            
+                            int destTempC = 15;
+                            var match = System.Text.RegularExpressions.Regex.Match(metar, @"\s([M]?\d{2})\/([M]?\d{2})\s");
+                            if (match.Success) {
+                                string tStr = match.Groups[1].Value;
+                                if (tStr.StartsWith("M")) destTempC = -int.Parse(tStr.Substring(1));
+                                else destTempC = int.Parse(tStr);
+                            }
+
                             _cabinManager.AnnounceDescent(destIcao, destName, metar, destTempC);
                         }
                         else
