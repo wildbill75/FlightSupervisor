@@ -521,10 +521,12 @@ namespace FlightSupervisor.UI
                         });
                     }
                     */
+                    /* 
                     else if (phase == FlightPhase.Descent)
                     {
                         _cabinManager.AnnounceToCabin("Descent");
                     }
+                    */
                     else if (phase == FlightPhase.Landing)
                     {
                         if (_cabinManager.State != CabinState.LandingSecured || !_cabinManager.IsCrewSeated)

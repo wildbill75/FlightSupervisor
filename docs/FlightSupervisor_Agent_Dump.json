@@ -1,18 +1,18 @@
 {
-  "Timestamp": "2026-04-22T16:09:53.0772259Z",
+  "Timestamp": "2026-04-22T16:42:41.4943795Z",
   "Session": {
-    "CurrentPhase": "Climb",
+    "CurrentPhase": "Cruise",
     "SessionFlightsCompleted": 0,
-    "InternalClock": "2026-04-22T16:50:41.0000000Z"
+    "InternalClock": "2026-04-22T17:23:29.0000000Z"
   },
   "Cabin": {
     "PassengerCount": 115,
-    "Satisfaction": 79.7,
-    "Anxiety": 29.2,
+    "Satisfaction": 80.2,
+    "Anxiety": 0.2,
     "SecuringProgress": 0,
     "IsFirstFlightClean": false,
-    "WaterLevel": 99.95030063406139,
-    "WasteLevel": 0.06212420742333334
+    "WaterLevel": 94.38436651470934,
+    "WasteLevel": 7.019541856613327
   },
   "GroundOps": {
     "IsStarted": false,
@@ -64,6 +64,6 @@
     ]
   },
   "Telemetry": {
-    "FobKg": 5071
+    "FobKg": 3433
   }
 }
