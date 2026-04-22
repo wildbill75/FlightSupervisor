@@ -358,6 +358,7 @@ namespace FlightSupervisor.UI.Services
 
         private double _currentDelayMinutes = 0;
         private double _currentSecuringRate = 0;
+        private double _pncActionDelaySeconds = 0.0;
         private bool _isSecuring = false;
         public bool IsSecuringHalted { get; private set; } = false;
         public bool IsSecuringHurried { get; private set; } = false;
@@ -676,6 +677,14 @@ namespace FlightSupervisor.UI.Services
             _seatbeltsOn = on;
         }
 
+        private void SetPncActionDelay()
+        {
+            double delayMin = 5.0;
+            double delayMax = 10.0;
+            double esteemFactor = 1.0 - (Math.Max(0.0, CrewEsteem) / 100.0);
+            _pncActionDelaySeconds = Math.Max(0.0, delayMin + ((delayMax - delayMin) * esteemFactor) + (_rnd.NextDouble() * 2.0 - 1.0));
+        }
+
         public void HandleCommand(string command)
         {
             _issuedCommands.Add(command);
@@ -727,6 +736,7 @@ namespace FlightSupervisor.UI.Services
                     SecuringProgress = 0;
                     IsCrewSeated = false;
                     HasPlayedPrepareTakeoffPA = true; // SCORING
+                    SetPncActionDelay();
                     _audio?.PlayExactAsCaptain("TO_PNC/EN_Rowan_Prepare_TakeOff.mp3", null);
                     OnCrewMessage?.Invoke("info", LocalizationService.Translate("PA: Cabin Crew, prepare for takeoff.", "PA: PNC, préparez la cabine pour le décollage."), null);
                     OnPncStatusChanged?.Invoke("Securing Cabin...", State);
@@ -755,6 +765,7 @@ namespace FlightSupervisor.UI.Services
                     SecuringProgress = 0;
                     IsCrewSeated = false;
                     HasPlayedPrepareLandingPA = true; // SCORING
+                    SetPncActionDelay();
                     _audio?.PlayExactAsCaptain("TO_PNC/EN_Rowan_Prepare_Landing.mp3", null);
                     OnCrewMessage?.Invoke("info", LocalizationService.Translate("PA: Cabin Crew, prepare for landing.", "PA: PNC, préparez la cabine pour l'atterrissage."), null);
                     OnPncStatusChanged?.Invoke("Securing Cabin...", State);
@@ -770,6 +781,7 @@ namespace FlightSupervisor.UI.Services
                         InFlightServiceProgress = 0;
                         IsServiceHalted = false;
                         IsCrewSeated = false;
+                        SetPncActionDelay();
                         OnCrewMessage?.Invoke("info", LocalizationService.Translate("Cabin Crew, you may commence the in-flight service.", "PNC, vous pouvez débuter le service en vol."), null);
                         OnPncStatusChanged?.Invoke("Serving Meals", State);
                     }
@@ -906,6 +918,13 @@ namespace FlightSupervisor.UI.Services
             double deltaTimeSeconds = _lastTickTime == DateTime.MinValue ? 1.0 : (DateTime.Now - _lastTickTime).TotalSeconds;
             _lastTickTime = DateTime.Now;
             if (deltaTimeSeconds <= 0 || deltaTimeSeconds > 10) deltaTimeSeconds = 1.0;
+
+            if (_pncActionDelaySeconds > 0)
+            {
+                _pncActionDelaySeconds -= deltaTimeSeconds;
+                if (_pncActionDelaySeconds < 0) _pncActionDelaySeconds = 0;
+            }
+
 
             // Handle Cabin Call Queue Cooldown & Timeout
             if (_cabinCallCooldownEnd.HasValue)
@@ -1606,7 +1625,10 @@ namespace FlightSupervisor.UI.Services
                     {
                         effectiveRate *= 0.5; // Strategic Penalty: PNC distracted by Intercom Query
                     }
-                    SecuringProgress += effectiveRate;
+                    if (_pncActionDelaySeconds <= 0)
+                    {
+                        SecuringProgress += effectiveRate;
+                    }
                     if (SecuringProgress >= 100.0)
                     {
                         SecuringProgress = 100.0;
@@ -1817,7 +1839,10 @@ namespace FlightSupervisor.UI.Services
                     double baseRate = (100.0 / Math.Max(1.0, projectedSeconds)) * deltaTimeSeconds;
                     
                     double prevProgress = InFlightServiceProgress;
-                    InFlightServiceProgress += baseRate;
+                    if (_pncActionDelaySeconds <= 0)
+                    {
+                        InFlightServiceProgress += baseRate;
+                    }
                     
                     double prevRatio = prevProgress / 100.0;
                     double currentRatio = InFlightServiceProgress / 100.0;
