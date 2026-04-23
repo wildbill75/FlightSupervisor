@@ -1,64 +1,64 @@
 {
-  "Timestamp": "2026-04-23T22:54:34.0938381Z",
+  "Timestamp": "2026-04-23T23:07:47.1010755Z",
   "Session": {
     "CurrentPhase": "Turnaround",
     "SessionFlightsCompleted": 0,
-    "InternalClock": "2026-04-24T00:13:42.0000000Z"
+    "InternalClock": "2026-04-24T00:25:54.0000000Z"
   },
   "Cabin": {
     "PassengerCount": 115,
     "Satisfaction": 79.6,
-    "Anxiety": 0.2,
+    "Anxiety": 14.8,
     "SecuringProgress": 0,
     "IsFirstFlightClean": false,
-    "WaterLevel": 86.73754766940534,
-    "WasteLevel": 33.05306541324334
+    "WaterLevel": 67.63816004483466,
+    "WasteLevel": 24.252299943956668
   },
   "GroundOps": {
     "IsStarted": false,
     "IsFuelSheetValidated": true,
-    "TargetSobt": "2026-04-23T23:23:26.0000000Z",
+    "TargetSobt": "2026-04-23T23:35:45.0000000Z",
     "Services": [
       {
         "Name": "Refueling",
         "State": 3,
         "ElapsedSec": 0,
-        "TotalDurationSec": 541,
+        "TotalDurationSec": 569,
         "IsAvailable": true
       },
       {
         "Name": "Boarding",
         "State": 3,
         "ElapsedSec": 0,
-        "TotalDurationSec": 1021,
+        "TotalDurationSec": 909,
         "IsAvailable": true
       },
       {
         "Name": "Cargo Loading",
         "State": 3,
         "ElapsedSec": 0,
-        "TotalDurationSec": 660,
+        "TotalDurationSec": 649,
         "IsAvailable": true
       },
       {
         "Name": "Catering",
         "State": 3,
         "ElapsedSec": 0,
-        "TotalDurationSec": 344,
+        "TotalDurationSec": 340,
         "IsAvailable": true
       },
       {
         "Name": "PNC Chores",
         "State": 3,
         "ElapsedSec": 0,
-        "TotalDurationSec": 4,
+        "TotalDurationSec": 140,
         "IsAvailable": true
       },
       {
         "Name": "Water/Waste",
         "State": 3,
         "ElapsedSec": 0,
-        "TotalDurationSec": 135,
+        "TotalDurationSec": 116,
         "IsAvailable": true
       }
     ]

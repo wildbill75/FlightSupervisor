@@ -2353,9 +2353,10 @@ window.renderBriefingTabs = () => {
                 // Reset footer states
                 btnFinishDispatch.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
                 
-                // BUG FIX: Persist the active leg in Briefing when closing dispatch
-                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
-                if (window.populateBriefingView) window.populateBriefingView(window.dashboardActiveLegIndex || 0);
+                // BUG FIX: Automatically view the first leg in Briefing when closing dispatch (Initial Setup)
+                window.dashboardActiveLegIndex = 0;
+                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(0);
+                if (window.populateBriefingView) window.populateBriefingView(0);
                 if (window.renderBriefingTimeline) window.renderBriefingTimeline();
 
                 window.chrome.webview.postMessage({ action: 'finishDispatch' });
