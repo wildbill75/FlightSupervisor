@@ -30,3 +30,146 @@
 [DEBUG] Queue size is now 2, _currentResponse is SET
 [DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
 [DEBUG] StartOps() complete.
+
+[23 Apr 2026 11:58:30] submitShellRotation called. Legs payload found.
+[DEBUG] Deserializing dummy leg... Length: 207
+[DEBUG] Dummy leg enqueued.
+[DEBUG] Deserializing dummy leg... Length: 207
+[DEBUG] Dummy leg enqueued.
+
+[23 Apr 2026 11:59:32] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 622566...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 227...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[SCORE_FLOW] === Phase Ended: ATGATE ===
+[SCORE_FLOW] - Parking brakes: ON -> FAIL
+[SCORE_FLOW] - Thrust Lever: IDLE -> PASS
+[SCORE_FLOW] - Whipers (both): OFF -> PASS
+[SCORE_FLOW] - Flaps: ZERO -> PASS
+[SCORE_FLOW] - GND Spoilers: RETRACTED -> PASS
+[SCORE_FLOW] - Engine mode: NORM -> PASS
+[SCORE_FLOW] - Engine Master: OFF -> PASS
+[SCORE_FLOW] - Gear Lever: DOWN -> PASS
+[SCORE_FLOW] - Strobe light: AUTO -> PASS
+[SCORE_FLOW] - Landing lights: OFF/RETRACTED -> PASS
+[SCORE_FLOW] - Taxi lights: OFF -> PASS
+[SCORE_FLOW] - Rnw Turnoff: OFF -> PASS
+[SCORE_FLOW] - Seat belt: ON -> FAIL
+[SCORE_FLOW] -> Total Violations: 2
+[SCORE_FLOW] =======================================
+
+
+[SCORE_FLOW] === Phase Ended: PUSHBACK ===
+[SCORE_FLOW] - Beacon light: ON -> FAIL
+[SCORE_FLOW] - Seat belt: ON -> FAIL
+[SCORE_FLOW] - Thrust Lever: IDLE -> PASS
+[SCORE_FLOW] - Whipers (both): OFF -> PASS
+[SCORE_FLOW] - Flaps: ZERO -> PASS
+[SCORE_FLOW] - GND Spoilers: RETRACTED -> PASS
+[SCORE_FLOW] - Parking brakes: ON -> FAIL
+[SCORE_FLOW] - Gear Lever: DOWN -> PASS
+[SCORE_FLOW] - Strobe light: AUTO -> PASS
+[SCORE_FLOW] - Landing lights: OFF/RETRACTED -> PASS
+[SCORE_FLOW] - Taxi lights: OFF -> PASS
+[SCORE_FLOW] - Rnw Turnoff: OFF -> PASS
+[SCORE_FLOW] -> Total Violations: 3
+[SCORE_FLOW] =======================================
+
+
+[SCORE_FLOW] === Phase Ended: TAKEOFF ===
+[SCORE_FLOW] - Landing lights: ON -> FAIL
+[SCORE_FLOW] - Strobe light: ON -> FAIL
+[SCORE_FLOW] - Taxi lights: TO -> FAIL
+[SCORE_FLOW] - Rnw Turnoff: ON -> FAIL
+[SCORE_FLOW] - GND Spoilers: ARMED -> FAIL
+[SCORE_FLOW] - Seat belt: ON -> FAIL
+[SCORE_FLOW] -> Total Violations: 6
+[SCORE_FLOW] =======================================
+
+
+[SCORE_FLOW] === Phase Ended: CRUISE ===
+[SCORE_FLOW] - Gear Lever: UP -> FAIL
+[SCORE_FLOW] - Taxi lights: OFF -> PASS
+[SCORE_FLOW] - Rnw Turnoff: OFF -> PASS
+[SCORE_FLOW] - Flaps: ZERO -> PASS
+[SCORE_FLOW] - GND Spoilers: RETRACTED -> PASS
+[SCORE_FLOW] - Landing lights: OFF/RETRACTED -> PASS
+[SCORE_FLOW] -> Total Violations: 1
+[SCORE_FLOW] =======================================
+
+
+[SCORE_FLOW] === Phase Ended: DESCENT ===
+[SCORE_FLOW] - Gear Lever: UP -> FAIL
+[SCORE_FLOW] - Taxi lights: OFF -> PASS
+[SCORE_FLOW] - Rnw Turnoff: OFF -> PASS
+[SCORE_FLOW] - Seat belt: ON -> FAIL
+[SCORE_FLOW] - Landing lights: ON -> FAIL
+[SCORE_FLOW] -> Total Violations: 3
+[SCORE_FLOW] =======================================
+
+
+[SCORE_FLOW] === Phase Ended: ARRIVED ===
+[SCORE_FLOW] - Beacon light: OFF -> PASS
+[SCORE_FLOW] - Thrust Lever: IDLE -> PASS
+[SCORE_FLOW] - Whipers (both): OFF -> PASS
+[SCORE_FLOW] - Flaps: ZERO -> PASS
+[SCORE_FLOW] - GND Spoilers: RETRACTED -> PASS
+[SCORE_FLOW] - Engine mode: NORM -> PASS
+[SCORE_FLOW] - Engine Master: OFF -> PASS
+[SCORE_FLOW] - Gear Lever: DOWN -> PASS
+[SCORE_FLOW] - Strobe light: AUTO -> PASS
+[SCORE_FLOW] - Landing lights: OFF/RETRACTED -> PASS
+[SCORE_FLOW] - Taxi lights: OFF -> PASS
+[SCORE_FLOW] - Rnw Turnoff: OFF -> PASS
+[SCORE_FLOW] - Seat belt: OFF -> PASS
+[SCORE_FLOW] -> Total Violations: 0
+[SCORE_FLOW] =======================================
+
+
+[SCORE_FLOW] === Phase Ended: TURNAROUND ===
+[SCORE_FLOW] - Parking brakes: ON -> FAIL
+[SCORE_FLOW] - Thrust Lever: IDLE -> PASS
+[SCORE_FLOW] - Whipers (both): OFF -> PASS
+[SCORE_FLOW] - Flaps: ZERO -> PASS
+[SCORE_FLOW] - GND Spoilers: RETRACTED -> PASS
+[SCORE_FLOW] - Engine mode: NORM -> PASS
+[SCORE_FLOW] - Engine Master: OFF -> PASS
+[SCORE_FLOW] - Gear Lever: DOWN -> PASS
+[SCORE_FLOW] - Strobe light: AUTO -> PASS
+[SCORE_FLOW] - Landing lights: OFF/RETRACTED -> PASS
+[SCORE_FLOW] - Taxi lights: OFF -> PASS
+[SCORE_FLOW] - Rnw Turnoff: OFF -> PASS
+[SCORE_FLOW] - Seat belt: ON -> FAIL
+[SCORE_FLOW] -> Total Violations: 2
+[SCORE_FLOW] =======================================
+
+
+[23 Apr 2026 12:00:42] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 1
+[DEBUG] Deserializing element of length 618555...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 1, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[23 Apr 2026 16:42:00] submitShellRotation called. Legs payload found.
+[DEBUG] Deserializing dummy leg... Length: 207
+[DEBUG] Dummy leg enqueued.
+[DEBUG] Deserializing dummy leg... Length: 207
+[DEBUG] Dummy leg enqueued.
+
+[23 Apr 2026 16:42:07] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 623226...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 227...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.

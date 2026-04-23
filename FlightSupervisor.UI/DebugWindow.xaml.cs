@@ -36,5 +36,10 @@ namespace FlightSupervisor.UI
                 _mainWindow.ExecuteForcePhase(phase);
             }
         }
+
+        private void BtnCompleteOps_Click(object sender, RoutedEventArgs e)
+        {
+            _mainWindow.ExecuteCompleteAllOps();
+        }
     }
 }

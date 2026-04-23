@@ -9,7 +9,7 @@ namespace FlightSupervisor.UI.Services
     public class SimBriefService
     {
         private readonly HttpClient _httpClient;
-        private const string SimBriefApiUrl = "https://www.simbrief.com/api/xml.fetcher.php?username={0}&json=1";
+        private const string SimBriefApiUrl = "https://www.simbrief.com/api/xml.fetcher.php?username={0}&json=1&_nocache={1}";
 
         public SimBriefService()
         {
@@ -23,7 +23,8 @@ namespace FlightSupervisor.UI.Services
 
             try
             {
-                var url = string.Format(SimBriefApiUrl, Uri.EscapeDataString(username));
+                string nocache = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+                var url = string.Format(SimBriefApiUrl, Uri.EscapeDataString(username), nocache);
                 var response = await _httpClient.GetAsync(url);
                 
                 response.EnsureSuccessStatusCode();

@@ -1409,7 +1409,7 @@ namespace FlightSupervisor.UI
                         // Send the complete flight data for the Fuel/Load Sheet window
                         webView.CoreWebView2.NavigationCompleted += (s, ev) => {
                             var targetRes = legIndex == 0 ? _currentResponse : (legIndex > 0 && legIndex - 1 < _rotationQueue.Count ? _rotationQueue[legIndex - 1] : _currentResponse);
-                            int effectiveLegIndex = _cabinManager.SessionFlightsCompleted;
+                            int effectiveLegIndex = legIndex > 0 ? legIndex : (_rotationQueue.Count > 0 ? _cabinManager.SessionFlightsCompleted : 0);
                             bool isVal = _phaseManager.CurrentPhase == FlightPhase.Turnaround 
                                 ? false 
                                 : (_groundOpsManager?.IsFuelSheetValidated ?? false);
@@ -1684,7 +1684,7 @@ namespace FlightSupervisor.UI
                             Dispatcher.Invoke(() => {
                                 if (parentWindow is Window w && w.Title == "Fuel Dispatch") {
                                     w.Close();
-                                    OpenFuelSheetWindow(); // Forces state refresh for JS by respawning
+                                    OpenFuelSheetWindow(0); // For now, default to 0 on reload. Can be improved.
                                 }
                             });
                         });
@@ -1907,7 +1907,11 @@ namespace FlightSupervisor.UI
                 else if (action == "openFuelSheetWindow")
                 {
                     int legIndex = 0;
-                    if (doc.RootElement.TryGetProperty("payload", out var pl) && pl.TryGetProperty("legIndex", out var lp))
+                    if (doc.RootElement.TryGetProperty("legIndex", out var rootLp))
+                    {
+                        legIndex = rootLp.GetInt32();
+                    }
+                    else if (doc.RootElement.TryGetProperty("payload", out var pl) && pl.TryGetProperty("legIndex", out var lp))
                     {
                         legIndex = lp.GetInt32();
                     }
@@ -2077,24 +2081,8 @@ namespace FlightSupervisor.UI
                         if (legIndex > 0)
                         {
                             string simbriefUser = _profileManager.CurrentProfile.SimBriefUsername ?? "";
-                            if (!string.IsNullOrEmpty(simbriefUser))
-                            {
-                                try {
-                                    // Fetch le plan de vol le plus récent en silence.
-                                    await FetchFlightPlan(simbriefUser, false, null, _profileManager.CurrentProfile.WeatherSource ?? "simbrief", false);
-                                    // Rafraichir la cible
-                                    if (legIndex > 0 && legIndex - 1 < _rotationQueue.Count)
-                                    {
-                                        targetResponse = _rotationQueue[legIndex - 1];
-                                    }
-                                    else
-                                    {
-                                        targetResponse = _currentResponse;
-                                    }
-                                } catch (Exception innerEx) {
-                                    System.IO.File.AppendAllText("sync_debug.txt", $"\n[ERROR] FetchFlightPlan threw: {innerEx.Message}\n");
-                                }
-                            }
+                            // Silent fetch removed: The flight plan is already imported via the Dispatch UI.
+                            // Fetching blindly here caused rollbacks if the user hadn't generated the exact same leg yet.
                         }
 
                         // Auto-advance the backend if the user is validating a future leg

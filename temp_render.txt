@@ -1,0 +1,190 @@
+﻿
+> function renderGroundOps(services) {
+      const containerDash = document.getElementById('dashboardGroundOpsPillsGrid');
+      const containerBriefing = document.getElementById('groundOpsContainer');
+  
+      let html = '';
+  
+      if (!services || services.length === 0) {
+          html = `
+          <div class="flex flex-col items-center justify-center py-10 w-full h-full relative">
+              <span class="material-symbols-outlined text-slate-700 text-[48px] mb-4 font-light">flight_takeoff</span>
+              <p class="text-[11px] text-[#7b7b7b] uppercase tracking-[0.2em] font-bold text-center mb-6" 
+data-i18n="ground_pending">Ready for next leg</p>
+              
+              <button onclick="window.chrome.webview.postMessage({action: 'openSimbriefForCurrentLeg'});" class="group 
+relative flex items-center justify-center gap-2 px-6 py-2 bg-transparent border border-white/10 rounded-full 
+hover:bg-white/5 hover:border-white/20 transition-all duration-300">
+                  <span class="material-symbols-outlined text-[16px] text-sky-400 font-light group-hover:scale-110 
+transition-transform">download</span>
+                  <span class="text-[10px] uppercase font-bold tracking-widest text-[#b6b6b6] group-hover:text-white 
+transition-colors">Open SimBrief</span>
+              </button>
+          </div>`;
+      } else {
+          html = `
+          <div class="flex flex-col gap-3">`;
+  
+      let isDeboardingActive = services.some(s => (s.Name || s.name) === "Deboarding" && (s.State !== undefined ? 
+s.State : s.state) === 1);
+      let isBoardingActive = services.some(s => (s.Name || s.name) === "Boarding" && (s.State !== undefined ? s.State 
+: s.state) === 1);
+      let isCleaningActive = services.some(s => (s.Name || s.name).includes("Clean") && (s.State !== undefined ? 
+s.State : s.state) === 1);
+      let isCateringActive = services.some(s => (s.Name || s.name).includes("Catering") && (s.State !== undefined ? 
+s.State : s.state) === 1);
+      let isPaxMoving = isDeboardingActive || isBoardingActive;
+      let isCrewWorking = isCleaningActive || isCateringActive;
+  
+      let deboardingSrv = services.find(s => (s.Name || s.name) === "Deboarding");
+      let boardingSrv = services.find(s => (s.Name || s.name) === "Boarding");
+      let combinedServices = services.filter(s => (s.Name || s.name) !== "Deboarding" && (s.Name || s.name) !== 
+"Boarding");
+  
+      if (deboardingSrv && boardingSrv) {
+          let dState = deboardingSrv.State !== undefined ? deboardingSrv.State : deboardingSrv.state;
+          let dIsCompleted = dState === 3 || dState === 4 || deboardingSrv.IsPreServiced || 
+deboardingSrv.isPreServiced;
+          if (!dIsCompleted) combinedServices.push(deboardingSrv);
+          else combinedServices.push(boardingSrv);
+      } else if (deboardingSrv) {
+          combinedServices.push(deboardingSrv);
+      } else if (boardingSrv) {
+          combinedServices.push(boardingSrv);
+      }
+  
+      combinedServices.forEach(s => {
+          const mLang = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
+          const mDict = window.locales && window.locales[mLang] ? window.locales[mLang] : window.locales.en;
+  
+          let locName = s.Name !== undefined ? s.Name : s.name;
+          if (locName === "Refueling") locName = mDict.gops_refueling || locName;
+          else if (locName === "Boarding") locName = mDict.gops_boarding || locName;
+          else if (locName === "Deboarding") locName = mDict.gops_deboarding || locName;
+          else if (locName === "Cargo" || locName === "Cargo/Luggage") {
+              locName = mDict.gops_cargo || "Cargo";
+              let nState = s.State !== undefined ? s.State : s.state;
+              if (deboardingSrv) { // Turnaround
+                  if (nState === 1 && (s.ProgressPercent || 0) < 50) locName = `CARGO UNLOADING`;
+                  else if (nState === 1) locName = `CARGO LOADING`;
+                  else if (nState === 0 || nState === 5) locName = `CARGO UNLOAD/LOAD`;
+              } else { // Pristine
+                  if (nState === 0 || nState === 1 || nState === 5) locName = `CARGO LOADING`;
+              }
+          }
+          else if (locName === "Catering") locName = mDict.gops_catering || locName;
+          else if (locName === "Cleaning") locName = mDict.gops_cleaning || locName;
+          else if (locName === "Cabin Clean (PNC)" || locName === "PNC Chores") locName = "CLEANING (CREW)";
+          else if (locName === "Water/Waste") locName = mDict.gops_water || locName;
+  
+          let stateVal = s.State !== undefined ? s.State : s.state;
+          
+          let iconKey = s.Name !== undefined ? s.Name : s.name;
+          if (iconKey === "Cargo/Luggage") iconKey = "Cargo";
+          if (iconKey === "PNC Chores") iconKey = "Cabin Clean (PNC)";
+          const icon = GO_ICONS[iconKey] || 'ðŸ”¹';
+  
+          // No frontend physical blocks - let the backend/logic strictly dictate if it's startable.
+          let isCompleted = stateVal === 3 || stateVal === 4 || s.IsPreServiced || s.isPreServiced;
+          let isClickable = (stateVal === 0 || stateVal === 5) && window.isDispatchSignedOff;
+          let actionName = s.Name === 'Deboarding' ? 'startDeboarding' : 'startService';
+          let clickAction = isClickable ? `onclick="window.chrome.webview.postMessage({action: '${actionName}', 
+service: '${(s.Name || s.name)}'})"` : '';
+  
+          // Custom Boarding Lock logic visually explicitly requested by user
+          let boardBlockedText = null;
+          if (s.Name === "Boarding") {
+              let cleaningSrv = combinedServices.find(x => x.Name === "Cleaning" || 
+                                                           x.Name === "Cabin Clean (PNC)" || 
+                                                           x.Name === "PNC Chores" || 
+                                                           x.Name === "CLEANING (CREW)");
+              let cateringSrv = combinedServices.find(x => x.Name === "Catering");
+              let block1 = cleaningSrv && (cleaningSrv.State === 1 || cleaningSrv.state === 1);
+              let block2 = cateringSrv && (cateringSrv.State === 1 || cateringSrv.state === 1);
+              if (block1 || block2) {
+                  boardBlockedText = "WAIT FOR OTHER OPERATIONS";
+              }
+          }
+  
+          // Center Area Logic
+          let centerAreaHtml = '';
+          let smMsg = s.StatusMessage !== undefined ? s.StatusMessage : s.statusMessage;
+  
+          if (stateVal === 0 || stateVal === 5) {
+              let btnText = actionName === 'startDeboarding' ? 'START DEBOARDING' : `START ${(s.Name || s.name)}`;
+              
+              // Custom Refueling Logic
+              let isAmberLoadsheet = false;
+              if ((s.Name || s.name) === "Refueling" && !window.isFuelValidated) {
+                  btnText = "OPEN LOADSHEET";
+                  clickAction = `onclick="window.chrome.webview.postMessage({ action: 'openFuelSheetWindow' })"`;
+                  isClickable = true;
+                  isAmberLoadsheet = true;
+              }
+              
+              if (boardBlockedText) {
+                  centerAreaHtml = `<span class="text-orange-400 font-bold uppercase tracking-wide text-[9px] 
+md:text-[10px] flex justify-center items-center gap-1 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 
+cursor-not-allowed" style="text-shadow: 0 0 10px rgba(249,115,22,0.3);"><span class="material-symbols-outlined 
+text-[14px]">warning</span> WAIT FOR OPS</span>`;
+                  isClickable = false;
+              } else if (smMsg && smMsg.toLowerCase().includes("blocked") && (s.Name || s.name) !== "Refueling") {
+                  centerAreaHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[9px] 
+md:text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 
+cursor-not-allowed">${smMsg.toUpperCase()}</span>`;
+                  isClickable = false;
+              } else if (isAmberLoadsheet) {
+                  centerAreaHtml = `<button ${clickAction} class="bg-amber-500/10 text-amber-400 border 
+border-amber-500/20 w-[120px] md:w-[140px] py-1.5 md:py-2 rounded text-[9px] md:text-[10px] font-bold tracking-widest 
+hover:bg-amber-500 hover:text-white transition-all uppercase shadow-[0_0_10px_rgba(245,158,11,0.1)] outline-none 
+whitespace-nowrap flex-shrink-0">${btnText}</button>`;
+              } else {
+                  centerAreaHtml = `<button ${clickAction} class="bg-sky-500/10 text-sky-400 border border-sky-500/20 
+w-[120px] md:w-[140px] py-1.5 md:py-2 rounded text-[9px] md:text-[10px] font-bold tracking-widest hover:bg-sky-500 
+hover:text-white transition-all uppercase shadow-[0_0_10px_rgba(56,189,248,0.1)] outline-none whitespace-nowrap 
+flex-shrink-0">${btnText}</button>`;
+              }
+          } else if (stateVal === 1 || stateVal === 2) {
+              if (stateVal === 1) {
+                  if ((s.Name || s.name) === "Refueling") {
+                      let baseFob = window.initialFobKg || 3000;
+                      let tgtFob = window.planRampKg ? Math.round(window.planRampKg) : baseFob;
+                      let elapsed = s.ElapsedSec ?? s.elapsedSec ?? 0;
+                      let total = s.TotalDurationSec ?? s.totalDurationSec ?? 1;
+                      if (total <= 0) total = 1;
+                      let prog = Math.min(1.0, Math.max(0, elapsed / total));
+                      
+                      let cFob = Math.round(baseFob + (tgtFob - baseFob) * prog);
+                      let tFob = tgtFob;
+                      
+                      centerAreaHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[9px] 
+md:text-[10px] flex flex-col justify-center items-center whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0">
+                                          <div class="flex items-center gap-1"><span class="animate-pulse 
+shadow-[0_0_10px_rgba(56,189,248,0.5)] bg-sky-400 rounded-full w-2 h-2"></span> IN PROGRESS</div>
+                                          <div id="liveFuelTrackerUI" class="text-[8.5px] text-white/50 
+tracking-widenormal mt-0.5">${cFob} / ${tFob} KG</div>
+                                        </span>`;
+                  } else {
+                      centerAreaHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[9px] 
+md:text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0"><span 
+class="animate-pulse shadow-[0_0_10px_rgba(56,189,248,0.5)] bg-sky-400 rounded-full w-2 h-2"></span> ${smMsg ? 
+smMsg.toUpperCase() : 'IN PROGRESS'}</span>`;
+                  }
+              }
+              if (stateVal === 2) centerAreaHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest 
+text-[9px] md:text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] 
+flex-shrink-0"><span class="animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.5)] bg-orange-400 rounded-full w-2 
+h-2"></span> DELAYED</span>`;
+          } else if (isCompleted) {
+              centerAreaHtml = `<span class="text-emerald-500 font-bold uppercase tracking-widest text-[10px] flex 
+justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0">COMPLETED</span>`;
+              if ((s.Name || s.name) === "Refueling") {
+                  let liveFob = window.currentFobKg ? Math.round(window.currentFobKg) + " KG" : "COMPLETED";
+                  centerAreaHtml = `<span class="text-emerald-400 font-mono tracking-widest text-[11px] font-bold flex 
+flex-col justify-center items-center gap-[1px] whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 
+drop-shadow-[0_0_10px_rgba(52,211,153,0.4)]">${liveFob} <span class="uppercase tracking-[0.2em] font-sans 
+text-emerald-500/70 text-[7px]">LIVE FOB</span></span>`;
+              }
+          } else if (stateVal === 4) { // Skipped
+
+

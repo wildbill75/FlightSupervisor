@@ -37,6 +37,7 @@
                     <Button Content="FORCE CRUISE" Background="#0f172a" Foreground="#fb7185" BorderBrush="#e11d48" BorderThickness="1" Margin="5" Padding="10" Click="BtnForcePhase_Click" Tag="Cruise"/>
                     <Button Content="FORCE DESCENT" Background="#0f172a" Foreground="#fb7185" BorderBrush="#e11d48" BorderThickness="1" Margin="5" Padding="10" Click="BtnForcePhase_Click" Tag="Descent"/>
                     <Button Content="FORCE ARRIVED" Background="#0f172a" Foreground="#fb7185" BorderBrush="#e11d48" BorderThickness="1" Margin="5" Padding="10" Click="BtnForcePhase_Click" Tag="Arrived"/>
+                    <Button Content="COMPLETE ACTIVE OPS" Background="#064e3b" Foreground="#34d399" BorderBrush="#059669" BorderThickness="2" Margin="5" Padding="10" Click="BtnCompleteOps_Click"/>
                 </UniformGrid>
             </StackPanel>
         </Border>

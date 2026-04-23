@@ -288,16 +288,18 @@ namespace FlightSupervisor.UI.Services
             IsPaused = false;
         }
 
-        public void PrepareNextLeg(double currentFobKg, double currentCleanliness = 100.0, double currentCatering = 100.0)
+        public void PrepareNextLeg(SimBriefResponse nextLeg, double currentFobKg, double currentCleanliness = 100.0, double currentCatering = 100.0, double currentWater = 100.0, double currentWaste = 0.0)
         {
             // Reset state to allow importing a new flight plan seamlessly
             _isStarted = false;
             IsPaused = false;
-            IsFuelSheetValidated = false;
+            // Ne pas réinitialiser IsFuelSheetValidated ici s'il a déjà été validé par le Cdt pour ce vol précis
             _hasEmittedN1Warning = false;
             TargetSobt = null;
-            Services.Clear();
-            // Services will be populated by InitializeFromSimBrief when the new leg is fetched.
+            
+            // Construit immédiatement les services pour la nouvelle Leg !
+            InitializeFromSimBrief(nextLeg, false, currentFobKg, currentCleanliness, currentCatering, currentWater, currentWaste, null);
+            
             OnOpsUpdated?.Invoke();
         }
 

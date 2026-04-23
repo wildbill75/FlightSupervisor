@@ -2410,6 +2410,26 @@ window.renderBriefingTabs = () => {
                     window.triggerSimBriefImport();
                 }, 6000);
                 break;
+            case 'syncRotationsAndStart':
+                if (payload.payloadStr) {
+                    try {
+                        const parsed = JSON.parse(payload.payloadStr);
+                        window.allRotations = parsed;
+                        window.activeLegIndex = 0;
+                        window.dashboardActiveLegIndex = 0;
+                        if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(0);
+                        if (window.renderBriefingTimeline) window.renderBriefingTimeline();
+                        
+                        // Si une popup était ouverte (comme Dispatch), on peut la fermer
+                        const dispatchModalForSync = document.getElementById('simbriefDispatchModal');
+                        if (dispatchModalForSync) dispatchModalForSync.style.display = 'none';
+
+                        console.log("[IPC] UI Synced via syncRotationsAndStart", parsed);
+                    } catch (e) {
+                        console.error("[IPC] Failed to parse syncRotationsAndStart", e);
+                    }
+                }
+                break;
             case 'shellRotationValidated':
                 window.isBriefingUnlocked = true;
                 window.isFlightActive = true;
@@ -2542,7 +2562,7 @@ window.renderBriefingTabs = () => {
                 if (dashMeta) dashMeta.style.display = 'none';
 
                 if (window.renderBriefingTimeline) window.renderBriefingTimeline();
-                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(0);
+                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
                 
                 const btnFetchLabelDRL = document.getElementById('btnFetchPlanLabel');
                 if (btnFetchLabelDRL) btnFetchLabelDRL.innerText = "FETCH PLAN";
@@ -4150,6 +4170,11 @@ window.renderBriefingTabs = () => {
                     window.isFlightActive = true;
                     window.isDummyPreflight = false;
 
+                    const mText = document.getElementById('dashMetaText');
+                    const mFill = document.getElementById('dashMetaFill');
+                    if (mText) { mText.innerText = "STANDING BY"; mText.style.color = "#cbd5e1"; }
+                    if (mFill) mFill.style.backgroundColor = "#cbd5e1";
+
                     const dso = document.getElementById('dashStartOverlay');
                     if (dso) dso.classList.add('opacity-0', 'pointer-events-none');
 
@@ -4403,8 +4428,9 @@ window.renderBriefingTabs = () => {
 
                         // We also allow replacement if we are replacing the very first dummy leg
                         // STORY 43: We also allow replacement if we are currently at Turnaround and the origin matches (Pivot)
-                        const isTurnaroundPivot = window.flightPhase === 'Turnaround' && rotOrig === dOrig && i === window.activeLegIndex;
-                        if ((rotOrig === dOrig && rotDest === dDest) || (i === 0 && window.allRotations.length > 0) || isTurnaroundPivot) {
+                        // Relaxed Pivot: If we are at Turnaround or AtGate, and the active leg is a dummy, allow it to be replaced even if origin doesn't match perfectly.
+                        const isTurnaroundPivot = (window.flightPhase === 'Turnaround' || window.flightPhase === 'AtGate') && window.allRotations[i].data?.isDummy === true && i === window.activeLegIndex;
+                        if ((rotOrig === dOrig && rotDest === dDest) || isTurnaroundPivot) {
                             window.allRotations[i] = { data: d, briefing: payload.briefing, manifest: payload.manifest, airlineProfile: payload.airlineProfile };
                             replacedDummy = true;
                             break;
@@ -4710,10 +4736,15 @@ function renderGroundOps(services) {
         if (services && services.length > 0) titleTxt = `PENDING LEG ${pendingLegNum} LOADSHEET VALIDATION`;
 
         let btn3Class = "bg-transparent border border-white/10 text-[#b6b6b6] hover:bg-white/5 hover:border-white/20";
-        let btn3Action = "window.chrome.webview.postMessage({action: 'openFuelSheetWindow'});";
-            
+        let btn3Action = `window.chrome.webview.postMessage({action: 'openFuelSheetWindow', legIndex: window.activeLegIndex || 0});`;
         let btn3Icon = "assignment";
         let btn3Text = "text-[#b6b6b6] group-hover:text-white";
+        let btn3Label = "3. Validate Loadsheet";
+
+        if (window.flightPhase === 'Turnaround' || window.flightPhase === 'AtGate') {
+            btn3Class += " opacity-50 pointer-events-none";
+            btn3Label = "3. Validate Loadsheet (Wait for OFP)";
+        }
 
         html = `
         <div class="flex flex-col items-center justify-center py-6 w-full h-full relative gap-3">
@@ -4732,7 +4763,7 @@ function renderGroundOps(services) {
 
             <button onclick="${btn3Action}" class="group relative flex items-center justify-center gap-2 px-6 py-2 ${btn3Class} rounded-full transition-all duration-300">
                 <span class="material-symbols-outlined text-[16px] group-hover:scale-110 transition-transform">${btn3Icon}</span>
-                <span class="text-[10px] uppercase font-bold tracking-widest ${btn3Text} transition-colors">3. Validate Loadsheet</span>
+                <span class="text-[10px] uppercase font-bold tracking-widest ${btn3Text} transition-colors">${btn3Label}</span>
             </button>
         </div>`;
     } else {
@@ -4956,6 +4987,23 @@ function renderGroundOps(services) {
     });
 
     html += '</div>';
+
+    if (window.flightPhase === 'Turnaround' || window.flightPhase === 'AtGate') {
+        let isAllCompleted = services.length > 0 && services.every(s => {
+            let st = s.State !== undefined ? s.State : s.state;
+            return st === 3 || st === 4 || s.IsPreServiced || s.isPreServiced;
+        });
+        
+        if (isAllCompleted && window.allRotations && window.allRotations.length > (window.activeLegIndex || 0) + 1) {
+            html += `
+            <div class="mt-4 flex justify-center w-full">
+                <button onclick="window.chrome.webview.postMessage({action: 'prepareNextLeg'});" class="group relative flex items-center justify-center gap-2 px-8 py-3 bg-sky-500/20 border border-sky-500/50 rounded-full hover:bg-sky-500 hover:text-white shadow-[0_0_15px_rgba(14,165,233,0.3)] transition-all duration-300">
+                    <span class="material-symbols-outlined text-[20px] text-sky-400 group-hover:text-white group-hover:scale-110 transition-transform">next_plan</span>
+                    <span class="text-[12px] uppercase font-bold tracking-widest text-sky-400 group-hover:text-white transition-colors">Prepare Next Leg</span>
+                </button>
+            </div>`;
+        }
+    }
     }
 
     if (!window.isDispatchSignedOff) {
