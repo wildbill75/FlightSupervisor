@@ -24,33 +24,52 @@ window.updateDashboardAnimation = function(telemetry) {
     if (!progressLine || !airplaneIcon) return;
     
     let rawPercent = 0;
-    const phase = telemetry.phaseEnum || "Preflight";
-    const preF = ["Preflight", "Boarding", "TaxiOut"];
-    const postF = ["Landing", "TaxiIn", "Turnaround", "Arrived", "Finished"];
+    const activeIdx = window.activeLegIndex || 0;
+    const viewIdx = window.dashboardActiveLegIndex || 0;
     
-    if (preF.includes(phase)) {
-        rawPercent = 0;
-    } else if (postF.includes(phase)) {
+    if (viewIdx < activeIdx) {
+        // Viewing a completed leg
         rawPercent = 100;
+    } else if (viewIdx > activeIdx) {
+        // Viewing a future leg
+        rawPercent = 0;
     } else {
+        // Viewing the current active leg
+        const phase = telemetry.phaseEnum || "Preflight";
+        const preF = ["Preflight", "Boarding", "Pushback", "TaxiOut"];
+        const postF = ["Landing", "TaxiIn", "Arrived", "Finished"];
+        
         let totalDist = 0;
-        if (window.allRotations && window.allRotations.length > 0 && window.allRotations[0].data && window.allRotations[0].data.general) {
-            totalDist = parseFloat(window.allRotations[0].data.general.route_distance);
+        if (window.allRotations && window.allRotations.length > viewIdx && window.allRotations[viewIdx].data && window.allRotations[viewIdx].data.general) {
+            totalDist = parseFloat(window.allRotations[viewIdx].data.general.route_distance) || 0;
         }
         let flownDist = telemetry.originDistanceNM || 0;
-        
-        if (totalDist > 0 && flownDist > 0) {
-            rawPercent = (flownDist / totalDist) * 100;
-            if (rawPercent < 5) rawPercent = 5;
-            if (rawPercent > 95) rawPercent = 95;
-            if (phase === "Approach" && rawPercent < 90) rawPercent = 95;
-            if (phase === "Takeoff" && rawPercent > 10) rawPercent = 5;
+
+        if (preF.includes(phase)) {
+            rawPercent = 0;
+        } else if (postF.includes(phase)) {
+            rawPercent = 100;
+        } else if (phase === "Turnaround" || phase === "AtGate") {
+            // Disambiguate if we are at origin or destination
+            if (totalDist > 0 && flownDist > (totalDist / 2)) {
+                rawPercent = 100; // End of flight turnaround
+            } else {
+                rawPercent = 0; // Start of flight turnaround
+            }
         } else {
-            if (phase === "Takeoff") rawPercent = 5;
-            else if (phase === "Climb") rawPercent = 20;
-            else if (phase === "Cruise") rawPercent = 50;
-            else if (phase === "Descent") rawPercent = 80;
-            else if (phase === "Approach") rawPercent = 95;
+            if (totalDist > 0 && flownDist > 0) {
+                rawPercent = (flownDist / totalDist) * 100;
+                if (rawPercent < 5) rawPercent = 5;
+                if (rawPercent > 95) rawPercent = 95;
+                if (phase === "Approach" && rawPercent < 90) rawPercent = 95;
+                if (phase === "Takeoff" && rawPercent > 10) rawPercent = 5;
+            } else {
+                if (phase === "Takeoff") rawPercent = 5;
+                else if (phase === "InitialClimb" || phase === "Climb") rawPercent = 20;
+                else if (phase === "Cruise") rawPercent = 50;
+                else if (phase === "Descent") rawPercent = 80;
+                else if (phase === "Approach") rawPercent = 95;
+            }
         }
     }
     
