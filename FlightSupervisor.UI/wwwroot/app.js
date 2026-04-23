@@ -2453,6 +2453,8 @@ window.renderBriefingTabs = () => {
                 window.isFlightActive = true;
                 window.isDummyPreflight = true; // Track that we wait for OFP
                 
+                window.dashboardActiveLegIndex = 0;
+                
                 if (window.unlockDashboard) window.unlockDashboard();
                 
                 const drTarget = document.querySelector('.menu li[data-target="dashboard"]');
