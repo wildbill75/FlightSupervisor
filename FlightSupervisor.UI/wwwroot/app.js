@@ -2334,10 +2334,9 @@ window.renderBriefingTabs = () => {
                 // Reset footer states
                 btnFinishDispatch.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
                 
-                // BUG FIX: Automatically view the first leg in Briefing when closing dispatch
-                window.dashboardActiveLegIndex = 0;
-                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(0);
-                if (window.populateBriefingView) window.populateBriefingView(0);
+                // BUG FIX: Persist the active leg in Briefing when closing dispatch
+                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
+                if (window.populateBriefingView) window.populateBriefingView(window.dashboardActiveLegIndex || 0);
                 if (window.renderBriefingTimeline) window.renderBriefingTimeline();
 
                 window.chrome.webview.postMessage({ action: 'finishDispatch' });
@@ -2416,8 +2415,7 @@ window.renderBriefingTabs = () => {
                         const parsed = JSON.parse(payload.payloadStr);
                         window.allRotations = parsed;
                         window.activeLegIndex = 0;
-                        window.dashboardActiveLegIndex = 0;
-                        if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(0);
+                        if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
                         if (window.renderBriefingTimeline) window.renderBriefingTimeline();
                         
                         // Si une popup était ouverte (comme Dispatch), on peut la fermer
@@ -2441,7 +2439,7 @@ window.renderBriefingTabs = () => {
                 if (drTarget) drTarget.click();
                 
                 if (window.renderBriefingTimeline) window.renderBriefingTimeline();
-                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(0);
+                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
                 
                 if (typeof window.toggleDashPage === 'function' && window.currentDashPage === 1) {
                     window.toggleDashPage(1);
@@ -4236,10 +4234,9 @@ window.renderBriefingTabs = () => {
                                 const btnFinishDispatch = document.getElementById('btnFinishDispatch');
                                 if (btnFinishDispatch) btnFinishDispatch.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
                                 
-                                // BUG FIX: Automatically view the first leg in Briefing when closing dispatch
-                                window.dashboardActiveLegIndex = 0;
-                                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(0);
-                                if (window.populateBriefingView) window.populateBriefingView(0);
+                                // BUG FIX: Persist the active leg in Briefing when closing dispatch
+                                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
+                                if (window.populateBriefingView) window.populateBriefingView(window.dashboardActiveLegIndex || 0);
                                 if (window.renderBriefingTimeline) window.renderBriefingTimeline();
 
                             }, 800); // Small 800ms delay to let the dashboard prepare visually
@@ -4736,7 +4733,7 @@ function renderGroundOps(services) {
         if (services && services.length > 0) titleTxt = `PENDING LEG ${pendingLegNum} LOADSHEET VALIDATION`;
 
         let btn3Class = "bg-transparent border border-white/10 text-[#b6b6b6] hover:bg-white/5 hover:border-white/20";
-        let btn3Action = `window.chrome.webview.postMessage({action: 'openFuelSheetWindow', legIndex: window.activeLegIndex || 0});`;
+        let btn3Action = `window.chrome.webview.postMessage({action: 'openFuelSheetWindow', legIndex: window.dashboardActiveLegIndex || 0});`;
         let btn3Icon = "assignment";
         let btn3Text = "text-[#b6b6b6] group-hover:text-white";
         let btn3Label = "3. Validate Loadsheet";
@@ -4859,7 +4856,7 @@ function renderGroundOps(services) {
                 isClickable = false;
             } else if ((s.Name || s.name) === "Refueling") {
                 let btnRefuelAction = isClickable ? `onclick="window.chrome.webview.postMessage({action: 'startService', service: 'Refueling'})"` : '';
-                let btnLoadsheetAction = `onclick="window.chrome.webview.postMessage({ action: 'openFuelSheetWindow' })"`;
+                let btnLoadsheetAction = `onclick="window.chrome.webview.postMessage({ action: 'openFuelSheetWindow', legIndex: window.dashboardActiveLegIndex || 0 })"`;
                 centerAreaHtml = `
                     <div class="flex gap-2 justify-center items-center flex-shrink-0 w-[120px] md:w-[140px]">
                         <button ${btnLoadsheetAction} class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1.5 md:py-2 rounded text-[8px] md:text-[9px] font-bold tracking-widest hover:bg-amber-500 hover:text-white transition-all uppercase shadow-[0_0_10px_rgba(245,158,11,0.1)] outline-none whitespace-nowrap" title="Edit Loadsheet">LOADSHEET</button>

@@ -1,69 +1,69 @@
 {
-  "Timestamp": "2026-04-23T21:45:43.6714588Z",
+  "Timestamp": "2026-04-23T22:05:56.6528372Z",
   "Session": {
     "CurrentPhase": "Turnaround",
     "SessionFlightsCompleted": 0,
-    "InternalClock": "2026-04-23T23:05:30.0000000Z"
+    "InternalClock": "2026-04-23T23:25:35.0000000Z"
   },
   "Cabin": {
     "PassengerCount": 115,
-    "Satisfaction": 79.1,
-    "Anxiety": 1.2,
+    "Satisfaction": 79.9,
+    "Anxiety": 0.8,
     "SecuringProgress": 0,
     "IsFirstFlightClean": false,
-    "WaterLevel": 69.53693475405865,
-    "WasteLevel": 20.353831557426663
+    "WaterLevel": 86.23815973510133,
+    "WasteLevel": 16.552300331123334
   },
   "GroundOps": {
     "IsStarted": false,
     "IsFuelSheetValidated": true,
-    "TargetSobt": "2026-04-23T22:15:20.0000000Z",
+    "TargetSobt": "2026-04-23T22:35:25.0000000Z",
     "Services": [
       {
         "Name": "Refueling",
         "State": 3,
         "ElapsedSec": 0,
-        "TotalDurationSec": 595,
+        "TotalDurationSec": 630,
         "IsAvailable": true
       },
       {
         "Name": "Boarding",
         "State": 3,
         "ElapsedSec": 0,
-        "TotalDurationSec": 883,
+        "TotalDurationSec": 856,
         "IsAvailable": true
       },
       {
         "Name": "Cargo Loading",
         "State": 3,
         "ElapsedSec": 0,
-        "TotalDurationSec": 621,
+        "TotalDurationSec": 676,
         "IsAvailable": true
       },
       {
         "Name": "Catering",
         "State": 3,
         "ElapsedSec": 0,
-        "TotalDurationSec": 338,
+        "TotalDurationSec": 261,
         "IsAvailable": true
       },
       {
         "Name": "PNC Chores",
         "State": 3,
         "ElapsedSec": 0,
-        "TotalDurationSec": 67,
+        "TotalDurationSec": 41,
         "IsAvailable": true
       },
       {
         "Name": "Water/Waste",
         "State": 3,
         "ElapsedSec": 0,
-        "TotalDurationSec": 122,
+        "TotalDurationSec": 60,
         "IsAvailable": true
       }
     ]
   },
   "Telemetry": {
-    "FobKg": 5172
+    "FobKg": 5259
   }
 }
