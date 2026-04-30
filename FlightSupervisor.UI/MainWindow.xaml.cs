@@ -81,6 +81,7 @@ namespace FlightSupervisor.UI
         private List<FlightSupervisor.UI.Models.FlightArchive> _sessionArchives = new List<FlightSupervisor.UI.Models.FlightArchive>();
         
         private double _currentFobKg = 3000;
+        private double _fobWhenValidated = 0;
 
         private CabinManager _cabinManager;
         private GroundOpsResourceService _groundOpsResourceService;
@@ -160,31 +161,6 @@ namespace FlightSupervisor.UI
         }
         private Dictionary<string, double> _lastGsxStates = new();
 
-        private void TryAutoStartGsxService(string serviceName, double gsxState)
-        {
-            // Log changes to frontend for user to debug
-            if (!_lastGsxStates.ContainsKey(serviceName) || _lastGsxStates[serviceName] != gsxState)
-            {
-                _lastGsxStates[serviceName] = gsxState;
-                SendToWeb(new { type = "opsLog", message = $"[GSX DEBUG] {serviceName} LVar changed to: {gsxState}" });
-            }
-
-            if (!_gsxAutoSyncEnabled) return;
-
-            // GSX state: 1 = Requested, 2 = Moving to Aircraft, 3 = In Progress, 4 = Move away, 5 = Completed
-            // We trigger when GSX is actively doing something (>= 2).
-            if (gsxState >= 2.0 && gsxState <= 5.0)
-            {
-                var svc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == serviceName);
-                if (svc != null && (svc.State == GroundServiceState.NotStarted || svc.State == GroundServiceState.WaitingForAction))
-                {
-                    _groundOpsManager.StartManualService(serviceName);
-                    // Force immediate UI refresh
-                    SendToWeb(new { type = "groundOps", services = _groundOpsManager.Services });
-                }
-            }
-        }
-
         public MainWindow()
         {
             InitializeComponent();
@@ -199,9 +175,11 @@ namespace FlightSupervisor.UI
 
             _airlineDb = new AirlineProfileManager(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Airlines.json"));
             _profileManager = new ProfileManager();
+            _gsxAutoSyncEnabled = _profileManager.CurrentProfile.GsxAutoSyncEnabled;
             _airframeManager = new AirframeManager();
 
             _groundOpsManager = new GroundOpsManager();
+            _groundOpsManager.GsxAutoSyncEnabled = _gsxAutoSyncEnabled;
             _groundOpsManager.OnPenaltyTriggered += (points, reason) => {
                 if (_scoreManager != null) _scoreManager.AddScore(points, reason, ScoreCategory.FlightPhaseFlows);
             };
@@ -390,6 +368,22 @@ namespace FlightSupervisor.UI
                     // _eventEngine.Tick(_groundOpsManager.EventProbabilityPercent, CurrentAirline);
                 }
 
+                // Send live telemetry to the web UI
+                SendToWeb(new {
+                    type = "telemetryUpdate",
+                    telemetry = new {
+                        speed = _flowTrackerService.Airspeed,
+                        altitude = _flowTrackerService.RadioHeight,
+                        pitch = _flowTrackerService.Pitch,
+                        bank = _flowTrackerService.Bank,
+                        vs = _flowTrackerService.VerticalSpeed,
+                        gforce = _flowTrackerService.GForce,
+                        flaps = _flowTrackerService.FlapsIndex,
+                        gear = _flowTrackerService.IsGearDown ? "DOWN" : "UP",
+                        thrust = Math.Max(_flowTrackerService.Throttle1, _flowTrackerService.Throttle2)
+                    }
+                });
+
                 if (_groundOpsManager.IsAnyOperationInProgress() && (_phaseManager.GroundSpeed > 5.0 || !_phaseManager.IsOnGround))
                 {
                     _groundOpsManager.AbortAllOperations();
@@ -484,6 +478,18 @@ namespace FlightSupervisor.UI
                 // progressive et validées à la fin de leur progression par GroundOpsResourceService.Tick();
 
                 SendTelemetryToWeb();
+
+                if (_scoreFlowEvaluator != null)
+                {
+                    var rules = _scoreFlowEvaluator.GetRulesForPhase(_phaseManager.CurrentPhase);
+                    var payload = new
+                    {
+                        type = "phaseChecklist",
+                        phase = _phaseManager.CurrentPhase.ToString(),
+                        rules = rules
+                    };
+                    SendToWeb(payload);
+                }
                 
                 if (_panelServer != null)
                 {
@@ -1036,16 +1042,19 @@ namespace FlightSupervisor.UI
             _simConnectService.OnGsxBoardingStateReceived += (b, db) => {
                 _phaseManager.GsxBoardingState = b;
                 _phaseManager.GsxDeboardingState = db;
-                TryAutoStartGsxService("Boarding", b);
-                TryAutoStartGsxService("Deboarding", db);
+                if (_groundOpsManager != null)
+                {
+                    _groundOpsManager.GsxBoardingState = b;
+                    _groundOpsManager.GsxDeboardingState = db;
+                }
             };
             _simConnectService.OnGsxRefuelingStateReceived += (r) => {
                 _phaseManager.GsxRefuelingState = r;
-                TryAutoStartGsxService("Refueling", r);
+                if (_groundOpsManager != null) _groundOpsManager.GsxRefuelingState = r;
             };
             _simConnectService.OnGsxCateringStateReceived += (c) => {
                 _phaseManager.GsxCateringState = c;
-                TryAutoStartGsxService("Catering", c);
+                if (_groundOpsManager != null) _groundOpsManager.GsxCateringState = c;
             };
             _simConnectService.OnLightLandingReceived += l => { 
                 _phaseManager.IsLandingLightOn = l;
@@ -1139,6 +1148,7 @@ namespace FlightSupervisor.UI
                 _lastLogNoseLight = nl;
             };
             _simConnectService.OnRunwayTurnoffChanged += rwy => { _phaseManager.IsRunwayTurnoffLightOn = rwy; };
+            _simConnectService.OnDebugMessageReceived += msg => SendToWeb(new { type = "log", message = msg });
 
             _simConnectService.OnSimTimeReceived += time => { 
                 _currentSimTime = time;
@@ -1168,6 +1178,19 @@ namespace FlightSupervisor.UI
 
                     _currentFobKg = fuel;
                     _ghostFuelTrackerActive = false; // We have positive native fuel, disable ghost tracker safely.
+                    
+                    if (_groundOpsManager != null && _groundOpsManager.IsFuelSheetValidated && _gsxAutoSyncEnabled)
+                    {
+                        var refSvc = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Refueling");
+                        if (refSvc != null && (refSvc.State == GroundServiceState.NotStarted || refSvc.State == GroundServiceState.WaitingForAction))
+                        {
+                            if (fuel > _fobWhenValidated + 50)
+                            {
+                                SendToWeb(new { type = "opsLog", message = $"[GSX DEBUG] Native fuel increase detected ({fuel - _fobWhenValidated}kg). Auto-starting Refueling to sync with aircraft." });
+                                _groundOpsManager.StartManualService("Refueling");
+                            }
+                        }
+                    }
                 }
 
                 // For the very first leg, if the user hasn't yet validated the load sheet (locked it),
@@ -2063,6 +2086,7 @@ namespace FlightSupervisor.UI
                         }
 
                         _groundOpsManager.IsFuelSheetValidated = true;
+                        _fobWhenValidated = _currentFobKg;
 
                         // -- GHOST FUEL TRACKER INITIATION --
                         // If simulator lacks native fuel telemetry, or is cold and dark,
@@ -2762,6 +2786,9 @@ namespace FlightSupervisor.UI
                             else if (gsxProp.ValueKind == System.Text.Json.JsonValueKind.False) isSync = false;
                             else if (gsxProp.ValueKind == System.Text.Json.JsonValueKind.String && bool.TryParse(gsxProp.GetString(), out bool bS)) isSync = bS;
                             _gsxAutoSyncEnabled = isSync;
+                            if (_groundOpsManager != null) _groundOpsManager.GsxAutoSyncEnabled = isSync;
+                            if (_profileManager != null && _profileManager.CurrentProfile != null)
+                                _profileManager.CurrentProfile.GsxAutoSyncEnabled = isSync;
                         }
                         if (opts.TryGetProperty("volumePa", out var paProp))
                         {

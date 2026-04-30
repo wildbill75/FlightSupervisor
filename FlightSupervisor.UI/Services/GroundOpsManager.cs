@@ -66,6 +66,13 @@ namespace FlightSupervisor.UI.Services
 
         public bool IsFuelSheetValidated { get; set; } = false;
 
+        // GSX Sync Integration
+        public bool GsxAutoSyncEnabled { get; set; } = false;
+        public double GsxBoardingState { get; set; } = 0;
+        public double GsxDeboardingState { get; set; } = 0;
+        public double GsxRefuelingState { get; set; } = 0;
+        public double GsxCateringState { get; set; } = 0;
+
         private static readonly Dictionary<string, List<DelayEvent>> _delayEvents = new(StringComparer.OrdinalIgnoreCase)
         {
             { "Refueling", new List<DelayEvent> {
@@ -557,7 +564,7 @@ namespace FlightSupervisor.UI.Services
                     allDone = false;
 
                     // Time-gated starts
-                    if (s.State == GroundServiceState.NotStarted)
+                    if (s.State == GroundServiceState.NotStarted || s.State == GroundServiceState.WaitingForAction)
                     {
                         if (s.RequiresManualStart)
                         {
@@ -602,7 +609,7 @@ namespace FlightSupervisor.UI.Services
                                         forcedStatus = LocalizationService.Translate("Blocked (Crew)", "Bloqué (Serv.)");
                                     }
                                 }
-                                else if (s.Name == "Refueling" && !IsFuelSheetValidated)
+                                else if (s.Name == "Refueling" && !IsFuelSheetValidated && !GsxAutoSyncEnabled)
                                 {
                                     forcedStatus = LocalizationService.Translate("Awaiting Validation", "Attente Validation");
                                 }
@@ -614,8 +621,36 @@ namespace FlightSupervisor.UI.Services
                             }
                             else
                             {
-                                s.State = GroundServiceState.WaitingForAction;
-                                s.StatusMessage = LocalizationService.Translate("Waiting for Pilot...", "En attente d'action Cdt...");
+                                bool gsxWantsToStart = false;
+                                if (GsxAutoSyncEnabled)
+                                {
+                                    double gsxState = 0;
+                                    if (s.Name == "Boarding") gsxState = GsxBoardingState;
+                                    else if (s.Name == "Deboarding") gsxState = GsxDeboardingState;
+                                    else if (s.Name == "Refueling") gsxState = GsxRefuelingState;
+                                    else if (s.Name == "Catering") gsxState = GsxCateringState;
+
+                                    if (gsxState > 0.0 && gsxState < 5.0) gsxWantsToStart = true;
+                                }
+
+                                if (gsxWantsToStart)
+                                {
+                                    s.State = GroundServiceState.InProgress;
+                                    s.StatusMessage = LocalizationService.Translate("In Progress", "En cours");
+                                    s.RequiresManualStart = false;
+                                    changed = true;
+                                    
+                                    string actor = GetActorForService(s.Name);
+                                    string startMsg = GetStartMessageForService(s.Name);
+                                    OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] {startMsg} (GSX Auto-Sync)", $"[{actor}] {startMsg} (GSX Auto-Sync)"));
+                                    OnServiceStarted?.Invoke(s.Name);
+                                    continue;
+                                }
+                                else
+                                {
+                                    s.State = GroundServiceState.WaitingForAction;
+                                    s.StatusMessage = LocalizationService.Translate("Waiting for Pilot...", "En attente d'action Cdt...");
+                                }
                             }
                             
                             changed = true;
@@ -731,8 +766,75 @@ namespace FlightSupervisor.UI.Services
                     // Progress the service by 1 second during this loop execution!
                     s.ElapsedSec += 1;
 
-                    if (s.ElapsedSec >= s.TotalDurationSec + s.DelayAddedSec)
+                    // GSX Synchronization Logic
+                    bool gsxBlocksCompletion = false;
+                    bool gsxForcesCompletion = false;
+                    bool gsxBlocksProgress = false;
+
+                    if (GsxAutoSyncEnabled)
                     {
+                        double gsxState = 0;
+                        if (s.Name == "Boarding") gsxState = GsxBoardingState;
+                        else if (s.Name == "Deboarding") gsxState = GsxDeboardingState;
+                        else if (s.Name == "Refueling") gsxState = GsxRefuelingState;
+                        else if (s.Name == "Catering") gsxState = GsxCateringState;
+
+                        // GSX State definitions (approximate from community knowledge):
+                        // 1 = Requested, 2 = Vehicles Moving, 3 = In Progress, 4 = Finalizing, 5 = Completed
+                        if (gsxState > 0.0 && gsxState < 5.0) 
+                        {
+                            gsxBlocksCompletion = true;
+                        }
+
+                        if (s.Name == "Refueling" && gsxState > 0.0 && gsxState < 4.0)
+                        {
+                            gsxBlocksProgress = true;
+                            s.StatusMessage = LocalizationService.Translate("Waiting Fuel Truck", "Attente Camion Fuel");
+                        }
+                        else if (s.Name == "Boarding" && gsxState > 0.0 && gsxState < 3.0)
+                        {
+                            gsxBlocksProgress = true;
+                            s.StatusMessage = LocalizationService.Translate("Waiting Bus/Stairs", "Attente Bus/Escaliers");
+                        }
+                        else if (s.Name == "Deboarding" && gsxState > 0.0 && gsxState < 3.0)
+                        {
+                            gsxBlocksProgress = true;
+                            s.StatusMessage = LocalizationService.Translate("Waiting Bus/Stairs", "Attente Bus/Escaliers");
+                        }
+                        else if (s.Name == "Catering" && gsxState > 0.0 && gsxState < 3.0)
+                        {
+                            gsxBlocksProgress = true;
+                            s.StatusMessage = LocalizationService.Translate("Waiting Catering", "Attente Catering");
+                        }
+                        else if (gsxState >= 5.0)
+                        {
+                            // Fenix A320 bypasses GSX refueling, causing GSX state to jump to 5.0 immediately upon truck arrival.
+                            // If this happens, we ignore the early completion and let TA's progress bar run naturally.
+                            if (s.Name == "Refueling" && s.ElapsedSec < (s.TotalDurationSec + s.DelayAddedSec) * 0.9)
+                            {
+                                // Do not force completion, let TA progress normally
+                            }
+                            else
+                            {
+                                gsxForcesCompletion = true;
+                            }
+                        }
+
+                        if (gsxState >= 3.0 && gsxState < 5.0 && !gsxBlocksProgress)
+                        {
+                            s.StatusMessage = LocalizationService.Translate("In Progress (GSX)", "En cours (GSX)");
+                        }
+                    }
+
+                    if (gsxBlocksProgress)
+                    {
+                        changed = true;
+                        continue;
+                    }
+
+                    if (gsxForcesCompletion || (!gsxBlocksCompletion && s.ElapsedSec >= s.TotalDurationSec + s.DelayAddedSec))
+                    {
+                        s.ElapsedSec = s.TotalDurationSec + s.DelayAddedSec; // Snap to 100%
                         s.State = GroundServiceState.Completed;
                         s.StatusMessage = LocalizationService.Translate("Completed", "Terminé");
                         changed = true;
@@ -741,6 +843,13 @@ namespace FlightSupervisor.UI.Services
                         string endMsg = GetEndMessageForService(s.Name);
                         OnOpsLog?.Invoke(LocalizationService.Translate($"[{actor}] {endMsg}", $"[{actor}] {endMsg}"));
                         OnServiceCompleted?.Invoke(s.Name);
+                    }
+                    else if (gsxBlocksCompletion && s.ElapsedSec >= s.TotalDurationSec + s.DelayAddedSec)
+                    {
+                        // CAP at 99% while waiting for GSX to finish its animations
+                        s.ElapsedSec = (s.TotalDurationSec + s.DelayAddedSec) - 1;
+                        s.StatusMessage = LocalizationService.Translate("Waiting for GSX...", "Attente fin GSX...");
+                        changed = true;
                     }
                     else
                     {

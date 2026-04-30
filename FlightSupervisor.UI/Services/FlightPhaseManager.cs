@@ -69,7 +69,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<FlightPhase>? OnPhaseEnding;
         public event Action<FlightPhase>? OnPhaseChanged;
         public event Action? OnGoAroundFinished;
-        public event Action<string>? OnPenaltyTriggered;
+        
         public event Action<double>? OnTouchdown;
         public event Action<string, string>? OnFoMessage;
         
@@ -139,6 +139,8 @@ namespace FlightSupervisor.UI.Services
 
         public TurbulenceSeverityLevel TurbulenceSeverity { get; private set; } = TurbulenceSeverityLevel.None;
         private System.Collections.Generic.Queue<double> _gForceHistory = new System.Collections.Generic.Queue<double>();
+        private System.Collections.Generic.Queue<double> _touchdownGForceHistory = new System.Collections.Generic.Queue<double>();
+        private System.Collections.Generic.Queue<double> _touchdownVsHistory = new System.Collections.Generic.Queue<double>();
         private const int JitterWindowSize = 300; // ~5 seconds at Visual Frame rate (60Hz)
 
         // Fenix specific states
@@ -473,10 +475,7 @@ namespace FlightSupervisor.UI.Services
                     if (_overspeedSeconds >= 10 && !_hasTriggeredOverspeedPenalty)
                     {
                         _hasTriggeredOverspeedPenalty = true;
-                        OnPenaltyTriggered?.Invoke(LocalizationService.Translate(
-                            $"Overspeed: Aircraft exceeded 250 knots IAS below 10,000 ft! (IAS: {indicatedAirspeed:F0} kts)",
-                            $"Survitesse: Avion > 250 kts IAS sous 10,000 ft! (IAS: {indicatedAirspeed:F0} kts)"
-                        ));
+                        
                     }
                 }
                 else if (indicatedAirspeed <= 260.0)
@@ -488,40 +487,40 @@ namespace FlightSupervisor.UI.Services
                 if ((CurrentPhase == FlightPhase.Takeoff || CurrentPhase == FlightPhase.InitialClimb) && !isGearDown && radioHeight > 100 && !_hasTriggeredGearUpBonus)
                 {
                     _hasTriggeredGearUpBonus = true;
-                    OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Gear Retraction Bonus: Clean gear up after takeoff (+50)", "Bonus Train Rentré: Rentrée propre après décollage (+50)"));
+                    
                 }
 
                 // Gear deployed above 260 kts threshold
                 if (isGearDown && indicatedAirspeed > 260.0 && !_hasTriggeredGearOverspeed)
                 {
                     _hasTriggeredGearOverspeed = true;
-                    OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Safety Violation: Landing Gear deployed above maximum extended speed (VLE > 260kts).", "Violation Sécurité: Train atterrissage déployé au-dessus de la vitesse limite (VLE > 260kts)."));
+                    
                 }
 
                 // Abnormal Gear Deployment
                 if (isGearDown && (CurrentPhase == FlightPhase.Climb || CurrentPhase == FlightPhase.Cruise || CurrentPhase == FlightPhase.Descent) && !_hasTriggeredAbnormalGear)
                 {
                     _hasTriggeredAbnormalGear = true;
-                    OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Safety Violation: Abnormal Gear Deployment (Climb/Cruise/Descent)", "Violation Sécurité: Déploiement anormal du train d'atterrissage"));
+                    
                 }
 
                 // Gear forgotten on short final
                 if (CurrentPhase == FlightPhase.Approach && radioHeight < 1000 && radioHeight > 50 && !isGearDown && groundSpeed > 50 && !_hasTriggeredGearLate)
                 {
                     _hasTriggeredGearLate = true;
-                    OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Safety: Unstable Approach (Gear Not Down below 1000ft AGL).", "Sécurité: Approche Instable (Train non sorti sous 1000ft AGL)."));
+                    
                 }
 
                 // Pitch & Bank Limits (Airborne)
                 if (Math.Abs(bank) > 67.0 && (DateTime.Now - _lastBankPenalty).TotalSeconds > 10)
                 {
                     _lastBankPenalty = DateTime.Now;
-                    OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Safety Violation: Structural Bank Limit Exceeded ({Math.Abs(bank):F0}°)", $"Violation Sécurité: Limite Structurelle Roulis Dépassée ({Math.Abs(bank):F0}°)"));
+                    
                 }
                 else if (Math.Abs(bank) > 35.0 && (DateTime.Now - _lastBankPenalty).TotalSeconds > 10)
                 {
                     _lastBankPenalty = DateTime.Now;
-                    OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Safety Violation: Excessive Bank Angle ({Math.Abs(bank):F0}°)", $"Violation Sécurité: Angle d'inclinaison excessif ({Math.Abs(bank):F0}°)"));
+                    
                 }
                 
 
@@ -529,7 +528,7 @@ namespace FlightSupervisor.UI.Services
                 if ((pitch > 30.0 || pitch < -15.0) && (DateTime.Now - _lastPitchPenalty).TotalSeconds > 10)
                 {
                     _lastPitchPenalty = DateTime.Now;
-                    OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Safety Violation: Structural Pitch Limit Exceeded ({pitch:F0}°)", $"Violation Sécurité: Limite Structurelle Assiette Dépassée ({pitch:F0}°)"));
+                    
                 }
                 else 
                 {
@@ -537,7 +536,7 @@ namespace FlightSupervisor.UI.Services
                     if ((pitch > maxPitchUp || pitch < -10.0) && (DateTime.Now - _lastPitchPenalty).TotalSeconds > 10)
                     {
                         _lastPitchPenalty = DateTime.Now;
-                        OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Safety Violation: Excessive Pitch Angle ({pitch:F0}°)", $"Violation Sécurité: Assiette excessive ({pitch:F0}°)"));
+                        
                     }
                 }
 
@@ -553,12 +552,12 @@ namespace FlightSupervisor.UI.Services
                         if (GForce > 2.0 || GForce < 0.0)
                         {
                             _lastGForcePenalty = DateTime.Now;
-                            OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Safety Violation: Structural G-Force Limit Exceeded ({GForce:F2}G)", $"Violation Sécurité: Limite Structurelle Force G dépassée ({GForce:F2}G)"));
+                            
                         }
                         else if (GForce > 1.6 || GForce < 0.4)
                         {
                             _lastGForcePenalty = DateTime.Now;
-                            OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Safety Violation: Severe G-Force ({GForce:F2}G)", $"Violation Sécurité: Force G Sévère ({GForce:F2}G)"));
+                            
                         }
                     }
                 }
@@ -570,13 +569,13 @@ namespace FlightSupervisor.UI.Services
                     if (!IsLandingLightOn && (DateTime.Now - _lastLightPenalty).TotalMinutes > 0.5)
                     {
                         _lastLightPenalty = DateTime.Now;
-                        OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Safety Violation: Landing Lights OFF below 10,000ft", "Violation Sécurité: Phares d'atterrissage ETEINTS sous 10,000ft"));
+                        
                     }
                 }
                 else if (altitude >= 11000 && (IsLandingLightOn || FenixNoseLight == 2) && (DateTime.Now - _lastLightPenalty).TotalMinutes > 0.5)
                 {
                     _lastLightPenalty = DateTime.Now;
-                    OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Safety Violation: Landing Lights ON above 10,000ft", "Violation Sécurité: Phares d'atterrissage ALLUMES au-dessus de 10,000ft"));
+                    
                 }
 
             // APU Left ON during Cruise Penalty - DISABLED FOR NOW (STORY 48)
@@ -584,7 +583,7 @@ namespace FlightSupervisor.UI.Services
             if (CurrentPhase == FlightPhase.Cruise && FenixApuMaster && (DateTime.Now - _lastApuPenalty).TotalMinutes > 15)
             {
                 _lastApuPenalty = DateTime.Now;
-                OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Efficiency Violation: APU left running during Cruise!", "Violation Efficacité: APU oublié en Croisière!"));
+                
             }
             */
 
@@ -595,10 +594,7 @@ namespace FlightSupervisor.UI.Services
                 if ((DateTime.Now - _lastApuPenalty).TotalMinutes > 0.5)
                 {
                     _lastApuPenalty = DateTime.Now;
-                    OnPenaltyTriggered?.Invoke(LocalizationService.Translate(
-                        "Safety Violation: Unpressurized Takeoff! (Packs & APU Bleed OFF)", 
-                        "Violation Sécurité: Décollage non pressurisé ! (Packs & APU Bleed OFF)"
-                    ));
+                    
                 }
             }
 
@@ -612,7 +608,7 @@ namespace FlightSupervisor.UI.Services
                 if (((IsStrobeLightOn && FenixStrobeLight != 1) || IsLandingLightOn) && (DateTime.Now - _lastLightPenalty).TotalMinutes > 0.5)
                 {
                     _lastLightPenalty = DateTime.Now;
-                    OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Safety Violation: Strobes or Landing Lights ON during ground ops", "Violation Sécurité: Strobes ou phares atterrissage ALLUMÉS au sol"));
+                    
                 }
             }
 
@@ -633,7 +629,7 @@ namespace FlightSupervisor.UI.Services
                     if (_taxiOverspeedSeconds >= 10 && !_hasTriggeredTaxiPenalty)
                     {
                         _hasTriggeredTaxiPenalty = true;
-                        OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Taxi Overspeed: Aircraft exceeded 30kts on the ground for 10s!", "Excès vitesse Roulage: Avion > 30kts au sol pendant 10s!"));
+                        
                     }
                 }
                 else if (_taxiOverspeedSeconds > 0)
@@ -645,14 +641,14 @@ namespace FlightSupervisor.UI.Services
                 if (groundSpeed > 15.0 && turnRate >= 8.0 && (DateTime.Now - _lastTightTurnPenalty).TotalMinutes > 1)
                 {
                     _lastTightTurnPenalty = DateTime.Now;
-                    OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Comfort Violation: Tight turn at high speed (> 15kts)", "Violation Confort: Virage serré à vitesse élevée (> 15kts)"));
+                    
                 }
 
                 // Harsh Braking Penalty (Taxi)
                 if (decelerationKnotsPerSec > 8.0 && groundSpeed > 2.0 && (DateTime.Now - _lastBrakingPenalty).TotalMinutes > 1)
                 {
                     _lastBrakingPenalty = DateTime.Now;
-                    OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Comfort Violation: Harsh braking ({decelerationKnotsPerSec:F1} kts/sec)", $"Violation Confort: Freinage brusque ({decelerationKnotsPerSec:F1} kts/sec)"));
+                    
                 }
 
 
@@ -665,7 +661,7 @@ namespace FlightSupervisor.UI.Services
                  (!Eng1Combustion || !Eng2Combustion) && !_hasTriggeredEngineFailure)
             {
                 _hasTriggeredEngineFailure = true;
-                OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Critical Safety Violation: In-Flight Engine Failure", "Violation Sécurité Critique: Panne Moteur en vol"));
+                
             }
 
             // Intelligent Rule-Based State Machine
@@ -685,11 +681,11 @@ namespace FlightSupervisor.UI.Services
                     {
                         if (IsStrobeLightOn && (IsLandingLightOn || FenixNoseLight == 2) && (IsTaxiLightOn || FenixNoseLight >= 1))
                         {
-                            OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Line-up Configuration Bonus: Strobes/Landing/Taxi ON", "Bonus Alignement: Phares Strobes/Landing/Taxi ALLUMÉS"));
+                            
                         }
                         else
                         {
-                            OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Safety Violation: Poor Line-up Configuration (Missing Lights)", "Violation Sécurité: Configuration d'alignement incorrecte (Phares manquants)"));
+                            
                         }
                         ChangePhase(FlightPhase.Takeoff);
                     }
@@ -710,7 +706,7 @@ namespace FlightSupervisor.UI.Services
                         if (!IsLandingLightOn && FenixNoseLight == 0 && !IsSeatbeltsOn)
                         {
                             _hasTriggered10kClimbBonus = true;
-                            OnPenaltyTriggered?.Invoke(LocalizationService.Translate("10,000ft Climb Flow Complete (+50)", "Procédure de montée 10,000ft Complète (+50)"));
+                            
                         }
                     }
 
@@ -808,16 +804,13 @@ namespace FlightSupervisor.UI.Services
                         else
                             TouchdownGForce = GForce;
 
-                        string landingQualityEn = "Normal Landing";
-                        string landingQualityFr = "Atterrissage Normal";
-                        if (TouchdownFpm > -150) { landingQualityEn = "Butter Landing"; landingQualityFr = "Kiss Landing"; }
-                        else if (TouchdownFpm < -600) { landingQualityEn = "Severe Hard Landing"; landingQualityFr = "Atterrissage Très Dur"; }
-                        else if (TouchdownFpm < -450) { landingQualityEn = "Hard Landing"; landingQualityFr = "Atterrissage Dur"; }
+                        // string landingQualityEn = "Normal Landing";
+                        // string landingQualityFr = "Atterrissage Normal";
+                        // if (TouchdownFpm > -150) { landingQualityEn = "Butter Landing"; landingQualityFr = "Kiss Landing"; }
+                        // else if (TouchdownFpm < -600) { landingQualityEn = "Severe Hard Landing"; landingQualityFr = "Atterrissage Très Dur"; }
+                        // else if (TouchdownFpm < -450) { landingQualityEn = "Hard Landing"; landingQualityFr = "Atterrissage Dur"; }
                         
-                        OnPenaltyTriggered?.Invoke(LocalizationService.Translate(
-                            $"{landingQualityEn}: Touchdown at {TouchdownFpm:F0} fpm ({TouchdownGForce:F2}G)",
-                            $"{landingQualityFr}: Posé à {TouchdownFpm:F0} fpm ({TouchdownGForce:F2}G)"
-                        ));
+                        
 
                         OnTouchdown?.Invoke(TouchdownFpm);
 
@@ -831,42 +824,23 @@ namespace FlightSupervisor.UI.Services
                             if (AircraftCategory == "Heavy") { minFlare = 5.0; maxFlare = 9.0; }
                             else if (AircraftCategory == "Light") { minFlare = 3.0; maxFlare = 6.0; }
 
-                            if (flareSeconds < minFlare) {
-                                OnPenaltyTriggered?.Invoke(LocalizationService.Translate(
-                                    $"Short Flare (-100): Touchdown too early {flareSeconds:F1}s (Ideal: {minFlare}-{maxFlare}s)",
-                                    $"Arrondi Court (-100): Posé trop tôt {flareSeconds:F1}s (Idéal: {minFlare}-{maxFlare}s)"
-                                ));
-                            } 
-                            else if (flareSeconds > maxFlare) {
-                                OnPenaltyTriggered?.Invoke(LocalizationService.Translate(
-                                    $"Long Flare (-100): Touchdown too late {flareSeconds:F1}s (Ideal: {minFlare}-{maxFlare}s)",
-                                    $"Arrondi Long (-100): Posé trop tard {flareSeconds:F1}s (Idéal: {minFlare}-{maxFlare}s)"
-                                ));
-                            }
-                            else {
-                                OnPenaltyTriggered?.Invoke(LocalizationService.Translate(
-                                    $"Perfect Flare (+50): {flareSeconds:F1}s exactly in the ideal zone!",
-                                    $"Arrondi Parfait (+50): {flareSeconds:F1}s dans la zone idéale !"
-                                ));
-                            }
+                            if (flareSeconds < minFlare) { } 
+                            else if (flareSeconds > maxFlare) { }
+                            else { }
                         }
 
                         // Centerline logic
                         double dev = 0.0;
-                        string devSource = "";
+                        // string devSource = "";
                         if (HasLocalizer)
                         {
                             dev = Math.Abs(NavLocalizerError); // in degrees
-                            devSource = "ILS Localizer";
-                            if (dev > 1.0) OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Centerline Deviation (-100): {dev:F2}° off-center ({devSource}) !", $"Déviation Axe (-100): {dev:F2}° d'écart ({devSource}) !"));
-                            else OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Perfect Centerline (+50): {dev:F2}° exactly on center ({devSource})", $"Axe Parfait (+50): {dev:F2}° sur l'axe ({devSource})"));
+                            // devSource = "ILS Localizer";
                         }
                         else 
                         {
                             dev = Math.Abs(GpsCrossTrackError); // in meters
-                            devSource = "GPS Track";
-                            if (dev > 25.0) OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Centerline Deviation (-100): {dev:F0}m off-center ({devSource}) !", $"Déviation Axe (-100): {dev:F0}m d'écart ({devSource}) !"));
-                            else OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Perfect Centerline (+50): {dev:F0}m exactly on center ({devSource})", $"Axe Parfait (+50): {dev:F0}m sur l'axe ({devSource})"));
+                            // devSource = "GPS Track";
                         }
                         
                         // Override Crosswind Bonus if dev is bad
@@ -881,38 +855,34 @@ namespace FlightSupervisor.UI.Services
                         {
                             if (crosswind > 25.0)
                             {
-                                OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Extreme Crosswind Landing (+150): {crosswind:F0} kts crosswind neutralized!", $"Atterrissage Vent de Travers Extrême (+150): {crosswind:F0} kts maîtrisés !"));
+                                
                             }
                             else if (crosswind > 20.0)
                             {
-                                OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Great Crosswind Landing (+100): {crosswind:F0} kts crosswind neutralized!", $"Atterrissage Vent de Travers Fort (+100): {crosswind:F0} kts maîtrisés !"));
+                                
                             }
                             else if (crosswind > 15.0)
                             {
-                                OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Nice Crosswind Landing (+50): {crosswind:F0} kts crosswind neutralized!", $"Bon Atterrissage Vent de Travers (+50): {crosswind:F0} kts maîtrisés !"));
+                                
                             }
                             else if (headwind >= 20.0)
                             {
-                                OnPenaltyTriggered?.Invoke(LocalizationService.Translate($"Strong Headwind Landing (+50): {headwind:F0} kts headwind neutralized!", $"Fort Vent de Face (+50): {headwind:F0} kts maîtrisés !"));
+                                
                             }
                         }
                         else if (crosswind > 15.0 || headwind >= 20.0)
                         {
-                            OnPenaltyTriggered?.Invoke(LocalizationService.Translate("Crosswind/Headwind Bonus Cancelled: Centerline not maintained.", "Bonus Vent Annulé : Axe non maintenu."));
+                            
                         }
 
                         // Manual Flying Airmanship Bonus
                         if (ManualFlyingSecondsApproach >= 120)
                         {
-                            OnPenaltyTriggered?.Invoke(LocalizationService.Translate(
-                                $"True Airmanship (+200): Flown manually for {ManualFlyingSecondsApproach}s until touchdown!", 
-                                $"Pilotage Manuel Magistral (+200): Volé en manuel pendant {ManualFlyingSecondsApproach}s avant l'atterrissage !"));
+                            
                         }
                         else if (ManualFlyingSecondsApproach >= 60)
                         {
-                            OnPenaltyTriggered?.Invoke(LocalizationService.Translate(
-                                $"Good Airmanship (+100): Flown manually for {ManualFlyingSecondsApproach}s until touchdown!", 
-                                $"Bon Pilotage Manuel (+100): Volé en manuel pendant {ManualFlyingSecondsApproach}s avant l'atterrissage !"));
+                            
                         }
                     }
                     
@@ -1074,3 +1044,4 @@ namespace FlightSupervisor.UI.Services
         }
     }
 }
+

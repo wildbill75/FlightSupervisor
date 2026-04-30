@@ -15,6 +15,7 @@ namespace FlightSupervisor.UI.Models
         public string HomeBaseIcao { get; set; } = "LFPG";
         public string CountryCode { get; set; } = "fr"; // ISO 2-letter for flags
         public string FavoriteAircraft { get; set; } = "A320 Family";
+        public bool GsxAutoSyncEnabled { get; set; } = false;
         
         [System.Text.Json.Serialization.JsonIgnore]
         public string ProfileImageBase64 { get; set; } = ""; // Stored separately via virtual host to bypass IPC

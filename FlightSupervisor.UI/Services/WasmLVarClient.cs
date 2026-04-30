@@ -77,6 +77,11 @@ namespace FlightSupervisor.UI.Services
             public float GsxCateringState;   // Offset 124
             public float WiperL;             // Offset 128
             public float WiperR;             // Offset 132
+            public float ThrottleLeft;       // Offset 136
+            public float ThrottleRight;      // Offset 140
+            public float SpeedbrakePos;      // Offset 144
+            public float SpeedbrakeLock;     // Offset 148
+            public float GearLever;          // Offset 152
         }
 
         public WasmLVarClient(SimConnect simConnect)
@@ -200,8 +205,13 @@ namespace FlightSupervisor.UI.Services
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:FSDT_GSX_DEBOARDING_STATE,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:FSDT_GSX_REFUELING_STATE,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:FSDT_GSX_CATERING_STATE,Number)");
-                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_OH_WIPER_L,Number)");
-                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_OH_WIPER_R,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_MISC_WIPER_CAPT,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_MISC_WIPER_FO,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:A_FC_THROTTLE_LEFT_INPUT,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:A_FC_THROTTLE_RIGHT_INPUT,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:A_FC_SPEEDBRAKE,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:B_FC_SPEEDBRAKE,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_MIP_GEAR,Number)");
 
                 // Map variables to our client area in the exact struct order
                 SendCommand(CLIENT_DATA_ID.FS_Command, $"MF.SimVars.SetTarget.FlightSupervisor"); // Tell WASM which client area we are building
@@ -239,8 +249,13 @@ namespace FlightSupervisor.UI.Services
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:A32NX_FUEL_TOTAL_MASS,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:FSDT_GSX_REFUELING_STATE,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:FSDT_GSX_CATERING_STATE,Number)");
-                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_OH_WIPER_L,Number)");
-                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_OH_WIPER_R,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_MISC_WIPER_CAPT,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_MISC_WIPER_FO,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:A_FC_THROTTLE_LEFT_INPUT,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:A_FC_THROTTLE_RIGHT_INPUT,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:A_FC_SPEEDBRAKE,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:B_FC_SPEEDBRAKE,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_MIP_GEAR,Number)");
             }
             catch (Exception ex)
             {

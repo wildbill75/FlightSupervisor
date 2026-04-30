@@ -431,7 +431,7 @@
                             
                             <!-- PAGE 2: GROUND OPERATIONS (Hidden by default) -->
                             <div id="dashPage2_GroundOps" class="flex flex-col flex-1 w-full hidden animate-fade-in relative bg-[#242430]">
-                                <div class="flex justify-between items-center px-6 py-3 border-b border-white/5 bg-[#1a1c23]">
+                                <div id="dashTimeWarpBar" class="flex justify-between items-center px-6 py-3 border-b border-white/5 bg-[#1a1c23]">
                                     <span class="text-[10px] font-bold uppercase tracking-widest text-[#7b7b7b] flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">fast_forward</span> SIMULATION TIME WARP</span>
                                     <div class="flex justify-end gap-2">
                                         <button onclick="event.stopPropagation(); window.requestTimeSkip(1)" class="bg-indigo-600/20 hover:bg-indigo-500/40 text-indigo-400 hover:text-white border border-indigo-500/30 text-[11px] font-black font-mono px-4 py-1.5 rounded shadow shadow-indigo-500/20 transition-all">+1 MIN</button>
@@ -991,13 +991,6 @@
                                 <p class="text-[9px] text-[#7b7b7b] mt-2 font-mono">Fenix OFP Dropfolder. Usually found in <span class="text-sky-500">C:\ProgramData\Fenix\FenixSim A320</span></p>
                             </div>
 
-                            <div class="flex items-start gap-3">
-                                <input type="checkbox" id="chkGsxSync" class="mt-1 rounded border-white/20 bg-black/40 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 cursor-pointer w-4 h-4"/>
-                                <div>
-                                    <label class="text-slate-200 text-xs font-bold mb-1 block" data-i18n="set_gsx_sync">GSX Pro Auto-Sync</label>
-                                    <p class="text-[10px] text-red-400 leading-relaxed font-bold" data-i18n="set_gsx_warn">⚠️ Disable aircraft-specific GSX automations (e.g Fenix EFB Sync).</p>
-                                </div>
-                            </div>
                         </div>
                         
                     </div>
@@ -1457,7 +1450,7 @@
 
     <script src="locales.js?v=4" charset="utf-8"></script>
     <script src="narrative.js?v=1" charset="utf-8"></script>
-    <script src="app.js?v=29" charset="utf-8"></script>
+    <script src="app.js?v=30" charset="utf-8"></script>
     <script>
         // Update top bar dynamically using the flight status
         setInterval(() => {

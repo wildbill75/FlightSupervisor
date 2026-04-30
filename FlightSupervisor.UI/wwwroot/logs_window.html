@@ -42,10 +42,10 @@
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
         
         /* Scrollbars */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(62, 72, 82, 0.3); border-radius: 999px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(62, 72, 82, 0.6); }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(62, 72, 82, 0.3); border-radius: 999px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(62, 72, 82, 0.6); }
     </style>
 </head>
 <body class="bg-[#141414] text-[#b6b6b6] overflow-hidden select-none">
@@ -78,11 +78,71 @@
 
         <!-- Body -->
         <div class="flex-1 flex flex-col p-6 overflow-hidden">
+            <!-- Live Phase Checklist -->
+            <div class="bg-[#1a1b21] rounded-xl border border-white/10 mb-6 shrink-0 overflow-hidden flex flex-col max-h-[40%] shadow-lg">
+                <div class="px-4 py-2 bg-sky-900/20 border-b border-sky-500/20 flex items-center justify-between shrink-0">
+                    <span class="text-[10px] uppercase tracking-widest text-sky-400 font-bold flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[14px]">checklist</span>
+                        ACTIVE PHASE
+                    </span>
+                    <span id="activePhaseName" class="text-[10px] uppercase tracking-widest text-white font-black bg-sky-500/20 px-2 py-0.5 rounded">AWAITING</span>
+                </div>
+                <div class="p-3 overflow-y-auto flex-1 custom-scrollbar">
+                    <div id="activePhaseRules" class="space-y-0.5">
+                        <div class="text-xs text-slate-500 font-mono italic text-center py-4">No active checklist</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Telemetry -->
+            <div class="bg-[#1a1b21] rounded-xl border border-white/10 mb-6 shrink-0 overflow-hidden flex flex-col shadow-lg">
+                <div class="px-4 py-2 bg-emerald-900/20 border-b border-emerald-500/20 flex items-center justify-between shrink-0">
+                    <span class="text-[10px] uppercase tracking-widest text-emerald-400 font-bold flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[14px]">speed</span>
+                        LIVE TELEMETRY
+                    </span>
+                </div>
+                <div class="p-3 grid grid-cols-4 gap-2">
+                    <div class="bg-black/40 border border-white/5 rounded p-2 flex flex-col items-center">
+                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider mb-1">SPD</span>
+                        <span id="telSpeed" class="text-xs font-mono font-bold text-white">---</span>
+                    </div>
+                    <div class="bg-black/40 border border-white/5 rounded p-2 flex flex-col items-center">
+                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider mb-1">ALT</span>
+                        <span id="telAlt" class="text-xs font-mono font-bold text-white">---</span>
+                    </div>
+                    <div class="bg-black/40 border border-white/5 rounded p-2 flex flex-col items-center">
+                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider mb-1">VS</span>
+                        <span id="telVs" class="text-xs font-mono font-bold text-white">---</span>
+                    </div>
+                    <div class="bg-black/40 border border-white/5 rounded p-2 flex flex-col items-center">
+                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider mb-1">PITCH</span>
+                        <span id="telPitch" class="text-xs font-mono font-bold text-white">---</span>
+                    </div>
+                    <div class="bg-black/40 border border-white/5 rounded p-2 flex flex-col items-center">
+                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider mb-1">BANK</span>
+                        <span id="telBank" class="text-xs font-mono font-bold text-white">---</span>
+                    </div>
+                    <div class="bg-black/40 border border-white/5 rounded p-2 flex flex-col items-center">
+                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider mb-1">G-FORCE</span>
+                        <span id="telGforce" class="text-xs font-mono font-bold text-white">---</span>
+                    </div>
+                    <div class="bg-black/40 border border-white/5 rounded p-2 flex flex-col items-center">
+                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider mb-1">FLAPS</span>
+                        <span id="telFlaps" class="text-xs font-mono font-bold text-white">---</span>
+                    </div>
+                    <div class="bg-black/40 border border-white/5 rounded p-2 flex flex-col items-center">
+                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider mb-1">GEAR</span>
+                        <span id="telGear" class="text-xs font-mono font-bold text-white">---</span>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Score Display -->
-            <div class="bg-black/40 rounded-xl p-6 border border-sky-500/20 text-center mb-6 shrink-0 relative overflow-hidden group">
-                <div class="absolute inset-0 bg-sky-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <p class="text-[9px] text-sky-400/60 uppercase tracking-[0.4em] font-bold mb-2">SUPER SCORE</p>
-                <span id="topScoreValue" class="text-6xl font-black text-white font-headline tracking-tight drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]">---</span>
+            <div class="bg-black/40 rounded-xl p-4 border border-emerald-500/20 text-center mb-6 shrink-0 relative overflow-hidden group">
+                <div class="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <p class="text-[9px] text-emerald-400/60 uppercase tracking-[0.4em] font-bold mb-1">SUPER SCORE</p>
+                <span id="topScoreValue" class="text-5xl font-black text-white font-headline tracking-tight drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]">---</span>
             </div>
             
             <!-- Log List -->
@@ -93,13 +153,43 @@
                         Event History
                     </span>
                 </div>
-                <ul id="penaltyLogs" class="p-2 flex-1 overflow-y-auto space-y-1">
+                <ul id="penaltyLogs" class="p-2 flex-1 overflow-y-auto space-y-1 custom-scrollbar">
                     <!-- JS injected logs -->
                 </ul>
             </div>
         </div>
     </div>
     <script>
+        let currentChecklistPhase = "";
+
+        function freezeChecklistToHistory(phaseStr) {
+            const rulesContainer = document.getElementById('activePhaseRules');
+            if (!rulesContainer || rulesContainer.children.length === 0 || rulesContainer.innerText.includes("No active checklist")) return;
+            
+            const logs = document.getElementById('penaltyLogs');
+            
+            const wrapper = document.createElement('li');
+            wrapper.className = "bg-[#111111] border border-white/10 rounded-md my-2 p-3 shadow-md";
+            
+            const title = document.createElement('div');
+            title.className = "text-[10px] font-bold text-sky-400 tracking-widest mb-2 border-b border-white/10 pb-1 flex items-center gap-2";
+            title.innerHTML = `<span class="material-symbols-outlined text-[14px]">done_all</span> PHASE ENDED: ${phaseStr.toUpperCase()}`;
+            wrapper.appendChild(title);
+            
+            const clone = rulesContainer.cloneNode(true);
+            clone.id = ""; // remove id so it's not duplicated
+            
+            // Convert current items in clone to static snapshot
+            clone.querySelectorAll('div').forEach(el => {
+                // Dim the text slightly for history
+                if(el.classList.contains('text-[#b6b6b6]')) el.classList.replace('text-[#b6b6b6]', 'text-slate-500');
+            });
+            
+            wrapper.appendChild(clone);
+            logs.appendChild(wrapper);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
         // Set up C# message listener
         if (window.chrome && window.chrome.webview) {
             window.chrome.webview.addEventListener('message', event => {
@@ -114,6 +204,62 @@
                         logs.scrollTop = logs.scrollHeight;
                     }
                 } 
+                else if (payload.type === 'telemetryUpdate') {
+                    if (payload.telemetry) {
+                        const t = payload.telemetry;
+                        document.getElementById('telSpeed').innerText = Math.round(t.speed) + ' KT';
+                        document.getElementById('telAlt').innerText = Math.round(t.altitude) + ' FT';
+                        document.getElementById('telVs').innerText = Math.round(t.vs) + ' FPM';
+                        document.getElementById('telPitch').innerText = t.pitch.toFixed(1) + '°';
+                        document.getElementById('telBank').innerText = t.bank.toFixed(1) + '°';
+                        document.getElementById('telGforce').innerText = t.gforce.toFixed(2) + ' G';
+                        document.getElementById('telFlaps').innerText = t.flaps.toFixed(0);
+                        document.getElementById('telGear').innerText = t.gear;
+                    }
+                }
+                else if (payload.type === 'phaseChecklist') {
+                    const rules = payload.rules || [];
+                    const phase = payload.phase || "UNKNOWN";
+                    
+                    if (currentChecklistPhase !== "" && currentChecklistPhase !== phase) {
+                        freezeChecklistToHistory(currentChecklistPhase);
+                    }
+                    currentChecklistPhase = phase;
+                    
+                    document.getElementById('activePhaseName').innerText = phase.toUpperCase();
+                    
+                    const container = document.getElementById('activePhaseRules');
+                    container.innerHTML = '';
+                    
+                    if (rules.length === 0) {
+                        container.innerHTML = '<div class="text-xs text-slate-500 font-mono italic text-center py-4">No checklist items for this phase</div>';
+                    } else {
+                        rules.forEach(r => {
+                            const itemName = r.ItemName || r.itemName;
+                            const expected = r.Expected || r.expected;
+                            const actual = r.Actual || r.actual;
+                            const isPass = r.IsPass !== undefined ? r.IsPass : r.isPass;
+                            
+                            const div = document.createElement('div');
+                            div.className = "flex items-center justify-between text-[11px] py-1 border-b border-white/5 last:border-0";
+                            
+                            const labelDiv = document.createElement('div');
+                            labelDiv.className = "text-[#b6b6b6] font-mono tracking-wide";
+                            labelDiv.innerText = itemName;
+                            
+                            const statusDiv = document.createElement('div');
+                            statusDiv.className = isPass 
+                                ? "text-emerald-400 font-bold font-mono tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded" 
+                                : "text-rose-500 font-bold font-mono tracking-widest bg-rose-500/10 px-2 py-0.5 rounded animate-pulse";
+                            
+                            statusDiv.innerText = isPass ? expected : (actual ? actual : "FAIL");
+                            
+                            div.appendChild(labelDiv);
+                            div.appendChild(statusDiv);
+                            container.appendChild(div);
+                        });
+                    }
+                }
                 else if (payload.type === 'penalty') {
                     const logs = document.getElementById('penaltyLogs');
                     if (logs && payload.message) {

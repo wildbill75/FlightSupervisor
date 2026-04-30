@@ -69,6 +69,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<int>? OnNoseLightChanged;
         public event Action<bool>? OnRunwayTurnoffChanged;
         public event Action<double>? OnFuelTotalReceived;
+        public event Action<string>? OnDebugMessageReceived;
 
         enum DEFINITIONS { PlaneData, GForceData, TitleData }
         enum REQUESTS { PlaneDataReq, GForceReq, TitleReq }
@@ -333,13 +334,17 @@ namespace FlightSupervisor.UI.Services
                 
                 OnFuelTotalReceived?.Invoke(planeData.FuelTotalMass);
 
-                OnGearDownReceived?.Invoke(planeData.GearHandle > 0.5);
                 OnFlapsReceived?.Invoke(planeData.FlapsHandleIndex);
                 OnAutopilotReceived?.Invoke(planeData.AutopilotMaster > 0.5);
                 OnAutothrustReceived?.Invoke(planeData.AutothrustMaster > 0.5);
-                OnThrottleReceived?.Invoke(planeData.ThrottleLever);
-                OnSpoilersReceived?.Invoke(planeData.SpoilersHandle);
-                OnSpoilersArmedReceived?.Invoke(planeData.SpoilersArmed > 0.5);
+                
+                if (!IsWasmOverriding)
+                {
+                    OnThrottleReceived?.Invoke(planeData.ThrottleLever);
+                    OnGearDownReceived?.Invoke(planeData.GearHandle > 0.5);
+                    OnSpoilersReceived?.Invoke(planeData.SpoilersHandle);
+                    OnSpoilersArmedReceived?.Invoke(planeData.SpoilersArmed > 0.5);
+                }
                 OnPitchReceived?.Invoke(-planeData.Pitch);
                 OnBankReceived?.Invoke(-planeData.Bank);
                 OnSimOnGroundReceived?.Invoke(planeData.SimOnGround != 0);
@@ -409,6 +414,79 @@ namespace FlightSupervisor.UI.Services
                 OnGsxCateringStateReceived?.Invoke(data.GsxCateringState);
                 OnWipersStateReceived?.Invoke(data.WiperL > 0.5, data.WiperR > 0.5);
                 
+                // Robust Fenix Thrust Lever normalization (Custom Bertrand Calibration)
+                // IDLE = ~2.000, FULL REVERSE = 0.000, TOGA = ~3.828 (Left) / 3.243 (Right)
+                double maxThrust = Math.Max(data.ThrottleLeft, data.ThrottleRight);
+                OnDebugMessageReceived?.Invoke($"FENIX THRUST L:{data.ThrottleLeft:F3} R:{data.ThrottleRight:F3} | SPLR POS:{data.SpeedbrakePos:F3} LOCK:{data.SpeedbrakeLock:F3} | GEAR:{data.GearLever:F3}");
+                
+                double normalizedThrust = 0.0;
+                
+                if (maxThrust > 1.9 && maxThrust < 2.1) 
+                {
+                    // Perfectly in the IDLE deadband
+                    normalizedThrust = 0.0;
+                }
+                else if (maxThrust >= 2.1 && maxThrust <= 5.0)
+                {
+                    // Forward thrust (CLB, MCT, TOGA) - mapped from 2.1 to 3.828 (approx)
+                    normalizedThrust = ((maxThrust - 2.0) / 1.828) * 100.0;
+                }
+                else if (maxThrust >= 0.0 && maxThrust <= 1.9)
+                {
+                    // Reverse thrust (0.0 to 1.9)
+                    normalizedThrust = ((maxThrust - 2.0) / 2.0) * 20.0; // Gives a negative percentage
+                }
+                else if (Math.Abs(maxThrust) > 1000) 
+                {
+                    // Fallback for raw joystick just in case
+                    normalizedThrust = (maxThrust / 16383.0) * 100.0; 
+                }
+                else
+                {
+                    // Fallback for generic 0-1 scale
+                    normalizedThrust = maxThrust * 100.0;
+                }
+                OnThrottleReceived?.Invoke(normalizedThrust);
+
+                // Fenix Spoiler normalization based on raw values:
+                // ARMED = 0.0
+                // RETRACTED = 1.0
+                // DEPLOYED = 1.0 to 2.97
+                
+                double spoilerPos = 0.0;
+                bool spoilerArmed = false;
+
+                if (data.SpeedbrakePos < 0.5) 
+                {
+                    // It's in the ARMED detent (0.0)
+                    spoilerArmed = true;
+                    spoilerPos = 0.0; // Surfaces are flush
+                }
+                else if (data.SpeedbrakePos <= 1.05)
+                {
+                    // It's in the RETRACTED detent (1.0)
+                    spoilerArmed = false;
+                    spoilerPos = 0.0;
+                }
+                else 
+                {
+                    // It's DEPLOYED (> 1.05 up to ~2.97)
+                    spoilerArmed = false;
+                    spoilerPos = ((data.SpeedbrakePos - 1.0) / 1.97) * 100.0;
+                }
+
+                // Clamp to prevent negative noise or overflow
+                if (spoilerPos < 0) spoilerPos = 0;
+                if (spoilerPos > 100) spoilerPos = 100;
+                
+                OnSpoilersReceived?.Invoke(spoilerPos);
+                OnSpoilersArmedReceived?.Invoke(spoilerArmed);
+
+                // Fenix Gear Lever mapping
+                OnGearDownReceived?.Invoke(data.GearLever > 0.5);
+                
+
+
                 if (data.FenixEcamFob > 0)
                     OnFuelTotalReceived?.Invoke(data.FenixEcamFob);
                 else if (data.FbwTotalMass > 0)

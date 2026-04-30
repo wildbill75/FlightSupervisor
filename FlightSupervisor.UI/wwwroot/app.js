@@ -1838,6 +1838,16 @@ window.renderBriefingTabs = () => {
             const savedFfc = localStorage.getItem('firstFlightClean');
             const ffClean = document.getElementById('chkFirstFlightClean') ? document.getElementById('chkFirstFlightClean').checked : (savedFfc === 'true');
 
+            // Hide Time Skip when GSX is ON
+            const timeSkipModal = document.getElementById('timeSkipModal');
+            const btnTimeSkipToolbar = document.getElementById('btnTimeSkip'); // if there is a toolbar button
+            if (gsxSync) {
+                if (timeSkipModal) timeSkipModal.classList.add('hidden');
+                if (btnTimeSkipToolbar) btnTimeSkipToolbar.classList.add('hidden');
+            } else {
+                if (btnTimeSkipToolbar) btnTimeSkipToolbar.classList.remove('hidden');
+            }
+
             const selItems = ['selLanguage', 'selTimeFormat', 'selUnitSpeed', 'selUnitAlt', 'selUnitWeight', 'selUnitTemp', 'selUnitPress', 'selCrisisFreq'];
             selItems.forEach(id => {
                 const el = document.getElementById(id);
@@ -4031,6 +4041,26 @@ window.renderBriefingTabs = () => {
                     const prfDiversions = document.getElementById('prfDiversions');
                     if (prfDiversions) prfDiversions.innerText = profile.TotalDiversions || 0;
 
+                    // GSX Auto Sync init
+                    const gsxSync = profile.gsxAutoSyncEnabled ?? profile.GsxAutoSyncEnabled ?? false;
+                    window.gsxAutoSyncEnabled = gsxSync;
+                    localStorage.setItem('gsxSync', gsxSync);
+                    const chkGsx = document.getElementById('chkGsxSync');
+                    if (chkGsx) chkGsx.checked = gsxSync;
+                    
+                    // Hide Time Skip when GSX is ON
+                    const timeSkipModal = document.getElementById('timeSkipModal');
+                    const btnTimeSkipToolbar = document.getElementById('btnTimeSkip'); // if there is a toolbar button
+                    const dashTimeWarpBar = document.getElementById('dashTimeWarpBar'); // The bar in Ground Ops page
+                    if (gsxSync) {
+                        if (timeSkipModal) timeSkipModal.classList.add('hidden');
+                        if (btnTimeSkipToolbar) btnTimeSkipToolbar.classList.add('hidden');
+                        if (dashTimeWarpBar) dashTimeWarpBar.classList.add('hidden');
+                    } else {
+                        if (btnTimeSkipToolbar) btnTimeSkipToolbar.classList.remove('hidden');
+                        if (dashTimeWarpBar) dashTimeWarpBar.classList.remove('hidden');
+                    }
+
                     // WALL OF FAME RENDERING
                     const badgeDefs = [
                         { id: "first_entry", title: "First Entry", icon: "menu_book", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/30" },
@@ -4869,16 +4899,22 @@ function renderGroundOps(services) {
 
         if (stateVal === 0 || stateVal === 5) {
             let btnText = actionName === 'startDeboarding' ? 'START DEBOARDING' : `START ${(s.Name || s.name)}`;
+            let srvName = s.Name || s.name;
+            const gsxSync = window.gsxAutoSyncEnabled || localStorage.getItem('gsxSync') === 'true';
+            let isGsxLocked = gsxSync && ['Boarding', 'Deboarding', 'Refueling', 'Cargo', 'Cargo/Luggage', 'Catering'].includes(srvName);
             
             if (boardBlockedText) {
                 centerAreaHtml = `<span class="text-orange-400 font-bold uppercase tracking-wide text-[9px] md:text-[10px] flex justify-center items-center gap-1 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 cursor-not-allowed" style="text-shadow: 0 0 10px rgba(249,115,22,0.3);"><span class="material-symbols-outlined text-[14px]">warning</span> WAIT FOR OPS</span>`;
                 isClickable = false;
-            } else if (smMsg && smMsg.toLowerCase().includes("blocked") && (s.Name || s.name) !== "Refueling") {
+            } else if (smMsg && smMsg.toLowerCase().includes("blocked") && srvName !== "Refueling") {
                 centerAreaHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 cursor-not-allowed">${smMsg.toUpperCase()}</span>`;
                 isClickable = false;
-            } else if ((s.Name || s.name) === "Refueling") {
-                let btnRefuelAction = isClickable ? `onclick="window.chrome.webview.postMessage({action: 'startService', service: 'Refueling'})"` : '';
-                let btnLoadsheetAction = `onclick="window.chrome.webview.postMessage({ action: 'openFuelSheetWindow', legIndex: window.dashboardActiveLegIndex || 0 })"`;
+            } else if (isGsxLocked) {
+                isClickable = false;
+                centerAreaHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] flex justify-center items-center gap-1 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 cursor-not-allowed opacity-50" style="text-shadow: 0 0 10px rgba(56,189,248,0.3);"><span class="material-symbols-outlined text-[14px]">sensors</span> GSX CONTROL</span>`;
+            } else if (srvName === "Refueling") {
+                let btnRefuelAction = isClickable ? `onclick="event.stopPropagation(); window.chrome.webview.postMessage({action: 'startService', service: 'Refueling'})"` : '';
+                let btnLoadsheetAction = `onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'openFuelSheetWindow', legIndex: window.dashboardActiveLegIndex || 0 })"`;
                 centerAreaHtml = `
                     <div class="flex gap-2 justify-center items-center flex-shrink-0 w-[120px] md:w-[140px]">
                         <button ${btnLoadsheetAction} class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1.5 md:py-2 rounded text-[8px] md:text-[9px] font-bold tracking-widest hover:bg-amber-500 hover:text-white transition-all uppercase shadow-[0_0_10px_rgba(245,158,11,0.1)] outline-none whitespace-nowrap" title="Edit Loadsheet">LOADSHEET</button>
@@ -4920,14 +4956,21 @@ function renderGroundOps(services) {
         }
 
         let timeDisplay = '';
-        let remainingSec = s.RemainingSec !== undefined ? s.RemainingSec : s.remainingSec;
-        if (remainingSec > 0 && stateVal !== 3 && stateVal !== 4) {
-            const m = Math.floor(remainingSec / 60).toString().padStart(2, '0');
-            const sec = (remainingSec % 60).toString().padStart(2, '0');
-            let colorClass = stateVal === 2 ? 'text-orange-400 drop-shadow-[0_0_10px_rgba(249,115,22,0.3)]' : 'text-sky-400 drop-shadow-[0_0_10px_rgba(56,189,248,0.3)]';
-            timeDisplay = `<span class="font-mono text-base md:text-lg font-black tracking-widest ${colorClass} text-right tabular-nums w-[50px] flex-shrink-0">${m}:${sec}</span>`;
-        } else if (stateVal === 3 || stateVal === 4) {
-            timeDisplay = `<span class="font-mono text-base md:text-lg font-black tracking-widest text-slate-600 text-right tabular-nums w-[50px] flex-shrink-0">--:--</span>`;
+        const gsxSyncGlobal = window.gsxAutoSyncEnabled || localStorage.getItem('gsxSync') === 'true';
+        let isManagedByGsx = gsxSyncGlobal && ['Boarding', 'Deboarding', 'Refueling', 'Cargo', 'Cargo/Luggage', 'Catering'].includes(s.Name || s.name);
+        
+        if (isManagedByGsx) {
+            timeDisplay = `<span class="font-mono text-[9px] md:text-[10px] font-bold tracking-widest text-slate-600/60 text-right w-[50px] flex-shrink-0 uppercase" title="Duration managed by GSX">GSX</span>`;
+        } else {
+            let remainingSec = s.RemainingSec !== undefined ? s.RemainingSec : s.remainingSec;
+            if (remainingSec > 0 && stateVal !== 3 && stateVal !== 4) {
+                const m = Math.floor(remainingSec / 60).toString().padStart(2, '0');
+                const sec = (remainingSec % 60).toString().padStart(2, '0');
+                let colorClass = stateVal === 2 ? 'text-orange-400 drop-shadow-[0_0_10px_rgba(249,115,22,0.3)]' : 'text-sky-400 drop-shadow-[0_0_10px_rgba(56,189,248,0.3)]';
+                timeDisplay = `<span class="font-mono text-base md:text-lg font-black tracking-widest ${colorClass} text-right tabular-nums w-[50px] flex-shrink-0">${m}:${sec}</span>`;
+            } else if (stateVal === 3 || stateVal === 4) {
+                timeDisplay = `<span class="font-mono text-base md:text-lg font-black tracking-widest text-slate-600 text-right tabular-nums w-[50px] flex-shrink-0">--:--</span>`;
+            }
         }
 
         let extraBadgesHtml = '';

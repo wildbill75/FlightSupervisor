@@ -173,3 +173,99 @@
 [DEBUG] Queue size is now 2, _currentResponse is SET
 [DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
 [DEBUG] StartOps() complete.
+
+[29 Apr 2026 17:04:47] submitShellRotation called. Legs payload found.
+[DEBUG] Deserializing dummy leg... Length: 207
+[DEBUG] Dummy leg enqueued.
+[DEBUG] Deserializing dummy leg... Length: 207
+[DEBUG] Dummy leg enqueued.
+
+[29 Apr 2026 17:05:24] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 641513...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 227...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[29 Apr 2026 17:39:51] submitShellRotation called. Legs payload found.
+[DEBUG] Deserializing dummy leg... Length: 207
+[DEBUG] Dummy leg enqueued.
+[DEBUG] Deserializing dummy leg... Length: 207
+[DEBUG] Dummy leg enqueued.
+
+[29 Apr 2026 17:39:54] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 641513...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 227...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[29 Apr 2026 17:48:27] submitShellRotation called. Legs payload found.
+[DEBUG] Deserializing dummy leg... Length: 207
+[DEBUG] Dummy leg enqueued.
+[DEBUG] Deserializing dummy leg... Length: 207
+[DEBUG] Dummy leg enqueued.
+
+[29 Apr 2026 17:48:31] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 641513...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 227...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[29 Apr 2026 18:03:18] submitShellRotation called. Legs payload found.
+[DEBUG] Deserializing dummy leg... Length: 207
+[DEBUG] Dummy leg enqueued.
+[DEBUG] Deserializing dummy leg... Length: 207
+[DEBUG] Dummy leg enqueued.
+
+[29 Apr 2026 18:03:20] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 641513...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 227...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[29 Apr 2026 18:11:16] submitShellRotation called. Legs payload found.
+[DEBUG] Deserializing dummy leg... Length: 207
+[DEBUG] Dummy leg enqueued.
+[DEBUG] Deserializing dummy leg... Length: 207
+[DEBUG] Dummy leg enqueued.
+
+[29 Apr 2026 18:11:19] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 641513...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 227...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.
+
+[29 Apr 2026 18:19:30] submitShellRotation called. Legs payload found.
+[DEBUG] Deserializing dummy leg... Length: 207
+[DEBUG] Dummy leg enqueued.
+[DEBUG] Deserializing dummy leg... Length: 207
+[DEBUG] Dummy leg enqueued.
+
+[29 Apr 2026 18:19:33] syncRotationsAndStart called.
+[DEBUG] Parsing payload array of length 2
+[DEBUG] Deserializing element of length 641513...
+[DEBUG] Enqueued flight LFPO -> LFBO.
+[DEBUG] Deserializing element of length 227...
+[DEBUG] Enqueued flight LFBO -> LFPO.
+[DEBUG] Queue size is now 2, _currentResponse is SET
+[DEBUG] _currentResponse is already set! It has LFPO. Not calling LoadNextLeg().
+[DEBUG] StartOps() complete.

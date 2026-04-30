@@ -7282,3 +7282,25 @@ Found 5 files matching *.mp3.
 Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_PNC_Beth\TO_FD\Status_Reports\CabinCalm\EN_PNC_Beth_AC_Passengers_Calm_02.mp3
 Volume set to 0.28. Playing via NAudio...
 [23 Apr 2026 18:31:57] NAudio PlaybackStopped event triggered.
+[29 Apr 2026 18:51:41] Processing queue for speaker Purser.
+Resolving ExactFilePath: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\pa_chime.mp3
+Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\pa_chime.mp3
+Volume set to 1. Playing via NAudio...
+[29 Apr 2026 18:51:44] NAudio PlaybackStopped event triggered.
+[29 Apr 2026 18:51:44] Processing queue for speaker Purser.
+Resolving FolderPath: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_PNC_Beth\TO_FD\Status_Reports\BoardingInProgress
+Found 4 files matching *.mp3.
+Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_PNC_Beth\TO_FD\Status_Reports\BoardingInProgress\EN_PNC_Beth_Wait_Boarding_01.mp3
+Volume set to 1. Playing via NAudio...
+[29 Apr 2026 18:51:51] NAudio PlaybackStopped event triggered.
+[30 Apr 2026 11:19:09] Processing queue for speaker Purser.
+Resolving ExactFilePath: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\pa_chime.mp3
+Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\pa_chime.mp3
+Volume set to 1. Playing via NAudio...
+[30 Apr 2026 11:19:12] NAudio PlaybackStopped event triggered.
+[30 Apr 2026 11:19:12] Processing queue for speaker Purser.
+Resolving FolderPath: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_PNC_Beth\TO_FD\Status_Reports\BoardingInProgress
+Found 4 files matching *.mp3.
+Selected Audio File: D:\FlightSupervisor\FlightSupervisor.UI\bin\Release\net8.0-windows\wwwroot\assets\sounds\EN_PNC_Beth\TO_FD\Status_Reports\BoardingInProgress\EN_PNC_Beth_Wait_Boarding_01.mp3
+Volume set to 1. Playing via NAudio...
+[30 Apr 2026 11:19:18] NAudio PlaybackStopped event triggered.

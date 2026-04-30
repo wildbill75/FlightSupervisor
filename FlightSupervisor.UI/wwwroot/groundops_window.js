@@ -135,6 +135,13 @@ function renderGroundOps(services, isDispatchSignedOff = true, isSeatbeltsOn = t
             } else {
                 buttonStyles = 'color: #38bdf8; cursor: pointer;';
                 isClickable = true;
+                
+                const gsxSync = localStorage.getItem('gsxSync') === 'true';
+                if (gsxSync && ['Boarding', 'Deboarding', 'Refueling', 'Catering'].includes(s.Name || s.name)) {
+                    isClickable = false;
+                    buttonStyles = 'color: #7b7b7b; cursor: not-allowed;';
+                    buttonText = 'GSX CONTROL';
+                }
             }
         } else if (stateVal === 1 || stateVal === 2) {
             buttonText = locName.toUpperCase();
