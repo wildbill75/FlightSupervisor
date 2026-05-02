@@ -275,6 +275,10 @@ namespace FlightSupervisor.UI.Services
             {
                 Services.Add(existingDeboarding);
             }
+            if (existingCargo != null && existingCargo.State != GroundServiceState.Completed)
+            {
+                Services.Add(existingCargo);
+            }
             
             if (firstFlightClean)
             {

@@ -333,7 +333,16 @@ namespace FlightSupervisor.UI
                     if (!tasksPending)
                     {
                         Dispatcher.Invoke(() => {
-                            LoadNextLeg();
+                            // Turnaround Unloading is complete!
+                            // We DO NOT call LoadNextLeg() here, because we already called it at the START of the Turnaround phase.
+                            // Leg 2 is already loaded in _currentResponse and its services (Boarding, Fueling) are already in _groundOpsManager.Services.
+                            // All we need to do is advance the phase to AtGate so the user can begin Leg 2 loading operations!
+                            _phaseManager.ForcePhase(FlightPhase.AtGate);
+                            
+                            // Cleanup Turnaround-specific services from the UI
+                            _groundOpsManager.Services.RemoveAll(s => s.Name == "Deboarding" || s.Name.StartsWith("Cargo"));
+                            
+                            SendToWeb(new { type = "log", message = "[SYSTEM] Turnaround unloading complete. Transitioning to At Gate for loading phase." });
                         });
                     }
                 }
@@ -791,13 +800,15 @@ namespace FlightSupervisor.UI
                         SendToWeb(new { type = "log", message = $"[SYSTEM] Flight secured. Initiating turnaround deboarding. {remainingLegs} leg(s) remaining." });
                         
                         // STORY 43 : DEFERRED LOAD
-                        // Instead of LoadNextLeg(), we just add the deboarding/unloading tasks to the current set.
-                        // The user will click "Prepare Next Leg" in UI to trigger the fetch.
-                        _groundOpsManager.IsFuelSheetValidated = false; // MUST reset the validation from Leg 1 so it doesn't auto-load the next leg
+                        _groundOpsManager.IsFuelSheetValidated = true; // MUST keep true so UI shows Deboarding and Cargo for the current leg
                         _groundOpsManager.StopOps();
                         _groundOpsManager.Services.Clear();
                         
+                        // Capture paxCount from Leg 1
                         int paxCount = _cabinManager.PassengerManifest?.Count ?? 0;
+                        
+                        // We DO NOT call LoadNextLeg() here. We wait for the user to click "Prepare Next Leg" in the UI after unloading.
+                        
                         bool lcc = _groundOpsManager.IsLowCost;
                         int deboardDur = Math.Max(120, (int)(paxCount * (lcc ? 3.0 : 3.8))); // Max ~11 mins for 180pax
                         int cargoDur = Math.Max(180, (int)(paxCount * 3.5));
@@ -847,7 +858,8 @@ namespace FlightSupervisor.UI
                         }
                         else
                         {
-                            _currentResponse = _rotationQueue[0];
+                            // NO LONGER RE-INSERT the active leg into the queue at index 0.
+                            // FetchFlightPlan will directly update _currentResponse if it matches the current phase!
                             SendToWeb(new
                             {
                                 type = "flightPlan",
@@ -1445,6 +1457,9 @@ namespace FlightSupervisor.UI
                                 isValidated = isVal,
                                 flightData = targetRes
                             };
+
+                            System.IO.File.AppendAllText("sync_debug.txt", $"\n[{DateTime.Now}] OpenFuelSheetWindow(legIndex: {legIndex}) -> effectiveLeg: {effectiveLegIndex}. TargetRes Pax: {targetRes?.Weights?.PaxCount ?? "NULL"}. _currentResponse Pax: {_currentResponse?.Weights?.PaxCount ?? "NULL"}\n");
+
                             webView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(msgObj));
                         };
                     });
@@ -2185,8 +2200,20 @@ namespace FlightSupervisor.UI
                             return;
                         }
 
+                        if (_rotationQueue.Count == 0)
+                        {
+                            var dummy = new FlightSupervisor.UI.Models.SimBrief.SimBriefResponse {
+                                General = new FlightSupervisor.UI.Models.SimBrief.GeneralInfo { FlightNumber = "DUMMY" },
+                                Origin = _currentResponse?.Destination,
+                                Destination = new FlightSupervisor.UI.Models.SimBrief.AirportInfo { IcaoCode = "XXXX" },
+                                IsDummy = true
+                            };
+                            _rotationQueue.Add(dummy);
+                        }
+
                         if (_rotationQueue.Count > 0)
                         {
+                            _groundOpsManager.IsFuelSheetValidated = false;
                             LoadNextLeg();
                             // If the loaded leg is a real OFP (not a dummy), start Ground Ops
                             if (_currentResponse != null && _currentResponse.General?.FlightNumber != "DUMMY")
@@ -2337,7 +2364,7 @@ namespace FlightSupervisor.UI
                             
                             var s = _groundOpsManager.Services.FirstOrDefault(x => x.Name.Contains(serviceName, StringComparison.OrdinalIgnoreCase));
                             if (s != null) s.StatusMessage = $"Blocked ({failReason})";
-                            SendToWeb(new { type = "groundOps", services = _groundOpsManager.Services });
+                            SendToWeb(new { type = "groundOps", services = _groundOpsManager.Services, isDispatchSignedOff = _groundOpsManager.IsFuelSheetValidated });
                         }
                     }
                 }
@@ -2408,10 +2435,13 @@ namespace FlightSupervisor.UI
                                     _cabinManager.SessionFlightsCompleted++; // Mark first flight done
                                 
                                 // Push into Turnaround and add missing ground tasks manually
-                                _groundOpsManager.IsFuelSheetValidated = false;
+                                _groundOpsManager.IsFuelSheetValidated = true; // Keep true so UI shows Deboarding
                                 _groundOpsManager.Services.Clear();
                                 
                                 int paxCount = _cabinManager.PassengerManifest?.Count ?? 0;
+                                
+                                // LoadNextLeg() will be called via IPC "prepareNextLeg" once Deboarding completes
+                                
                                 bool lcc = _groundOpsManager.IsLowCost;
                                 int deboardDur = Math.Max(120, (int)(paxCount * (lcc ? 3.0 : 3.8))); 
                                 int cargoDur = Math.Max(180, (int)(paxCount * 3.5));
@@ -2615,7 +2645,7 @@ namespace FlightSupervisor.UI
                             }
                             
                             _cabinManager.FirstFlightClean = isClean;
-                            if (isClean)
+                            if (isClean && _cabinManager.SessionFlightsCompleted == 0)
                             {
                                 _cabinManager.SessionFlightsCompleted = 0;
                             }
@@ -2650,6 +2680,7 @@ namespace FlightSupervisor.UI
                                 System.IO.File.AppendAllText(logPath, $"\n[{DateTime.Now}] submitShellRotation called. Legs payload found.\n");
 
                                 _rotationQueue.Clear();
+                                bool isFirstItem = true;
                                 foreach (var item in legsProp.EnumerateArray())
                                 {
                                     try
@@ -2659,8 +2690,16 @@ namespace FlightSupervisor.UI
                                         var response = System.Text.Json.JsonSerializer.Deserialize<FlightSupervisor.UI.Models.SimBrief.SimBriefResponse>(rotData, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                                         if (response != null)
                                         {
-                                            _rotationQueue.Add(response);
-                                            System.IO.File.AppendAllText(logPath, $"[DEBUG] Dummy leg enqueued.\n");
+                                            if (isFirstItem && _currentResponse != null)
+                                            {
+                                                System.IO.File.AppendAllText(logPath, $"[DEBUG] Skipping Leg 1 addition to queue as _currentResponse is already active.\n");
+                                            }
+                                            else
+                                            {
+                                                _rotationQueue.Add(response);
+                                                System.IO.File.AppendAllText(logPath, $"[DEBUG] Dummy leg enqueued.\n");
+                                            }
+                                            isFirstItem = false;
                                         }
                                     }
                                     catch (Exception ex)
@@ -2973,6 +3012,7 @@ namespace FlightSupervisor.UI
                                 System.IO.File.AppendAllText(logPath, $"[DEBUG] Parsing payload array of length {arr.GetArrayLength()}\n");
                                 SendToWeb(new { type = "log", message = $"[DEBUG] syncRotationsAndStart: Parsing payload array of length {arr.GetArrayLength()}" });
                                 _rotationQueue.Clear();
+                                bool isFirstSync = true;
                                 foreach (var item in arr.EnumerateArray())
                                 {
                                 try
@@ -2981,8 +3021,17 @@ namespace FlightSupervisor.UI
                                     var response = System.Text.Json.JsonSerializer.Deserialize<SimBriefResponse>(item.GetRawText(), new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                                     if (response != null)
                                     {
-                                        _rotationQueue.Add(response);
-                                        System.IO.File.AppendAllText(logPath, $"[DEBUG] Enqueued flight {response.Origin?.IcaoCode} -> {response.Destination?.IcaoCode}.\n");
+                                        if (isFirstSync && _currentResponse != null)
+                                        {
+                                            // Skip adding the first leg to the upcoming queue if it's already active
+                                            System.IO.File.AppendAllText(logPath, $"[DEBUG] Skipping Leg 1 addition to queue as _currentResponse is already active.\n");
+                                        }
+                                        else
+                                        {
+                                            _rotationQueue.Add(response);
+                                            System.IO.File.AppendAllText(logPath, $"[DEBUG] Enqueued flight {response.Origin?.IcaoCode} -> {response.Destination?.IcaoCode}.\n");
+                                        }
+                                        isFirstSync = false;
                                     }
                                 }
                                 catch (Exception ex)
@@ -3508,7 +3557,8 @@ namespace FlightSupervisor.UI
                 SendToWeb(new 
                 {
                     type = "groundOps",
-                    services = _groundOpsManager.Services
+                    services = _groundOpsManager.Services,
+                    isDispatchSignedOff = _groundOpsManager.IsFuelSheetValidated
                 });
             }
         }
@@ -3519,11 +3569,14 @@ namespace FlightSupervisor.UI
             {
                 var response = _rotationQueue[0];
                 _rotationQueue.RemoveAt(0);
+                
+                bool wasContinuing = _currentResponse != null;
                 _currentResponse = response;
                 
                 RefreshPassengerDemographics();
                 
-                SendToWeb(new { type = "popLeg", index = 0 });
+                bool isTurnaround = _cabinManager.SessionFlightsCompleted > 0 && wasContinuing;
+                SendToWeb(new { type = "popLeg", isTurnaround = isTurnaround });
             }
             
             if (_cabinManager.SessionFlightsCompleted == 0)
@@ -3535,7 +3588,10 @@ namespace FlightSupervisor.UI
 
             // Upon preparing the next leg, we return the aircraft phase to AtGate for loading operations.
             // Turnaround phase is strictly meant for the intermediate UNLOADING step.
-            _phaseManager.Reset(false); // Force AtGate
+            if (_phaseManager.CurrentPhase != FlightPhase.Turnaround)
+            {
+                _phaseManager.Reset(false); // Force AtGate
+            }
             
             _scoreManager.Reset();
             _cabinManager.Reset();
@@ -3687,11 +3743,19 @@ namespace FlightSupervisor.UI
 
                     // STORY 43 Validation: The new OFP MUST originate from the CURRENT airport!
                     // This applies during Turnaround AND AtGate for subsequent legs (SessionFlightsCompleted > 0) to prevent stale cached OFPs from breaking the rotation
-                    if ((_phaseManager.CurrentPhase == FlightPhase.Turnaround || _cabinManager.SessionFlightsCompleted > 0) && _currentResponse != null && _currentResponse.IsDummy) 
+                    if ((_phaseManager.CurrentPhase == FlightPhase.Turnaround || _cabinManager.SessionFlightsCompleted > 0) && _currentResponse != null) 
                     {
-                        if (response.Origin?.IcaoCode?.ToUpper() != _currentResponse.Origin?.IcaoCode?.ToUpper())
+                        string expectedOrigin = _currentResponse.IsDummy ? _currentResponse.Origin?.IcaoCode?.ToUpper() : _currentResponse.Destination?.IcaoCode?.ToUpper();
+                        
+                        bool isFlownLeg = _phaseManager.CurrentPhase == FlightPhase.Turnaround || _phaseManager.CurrentPhase == FlightPhase.Arrived;
+                        
+                        bool isUpdatingCurrentLeg = !isFlownLeg && !_currentResponse.IsDummy && 
+                                                    _currentResponse.Origin?.IcaoCode?.ToUpper() == response.Origin?.IcaoCode?.ToUpper() &&
+                                                    _currentResponse.Destination?.IcaoCode?.ToUpper() == response.Destination?.IcaoCode?.ToUpper();
+
+                        if (!isUpdatingCurrentLeg && !string.IsNullOrEmpty(expectedOrigin) && response.Origin?.IcaoCode?.ToUpper() != expectedOrigin)
                         {
-                            SendToWeb(new { type = "log", message = $"[ERROR] Fetch Failed: SimBrief OFP ({response.Origin?.IcaoCode}->{response.Destination?.IcaoCode}) does not start at your current location ({_currentResponse.Origin?.IcaoCode}). Please generate the correct flight on SimBrief." });
+                            SendToWeb(new { type = "fetchStatus", status = "error", message = $"Geographic Continuity Error: Expected departure from {expectedOrigin}, but fetched flight plan departs from {response.Origin?.IcaoCode}. Please generate a new flight plan on SimBrief." });
                             Dispatcher.Invoke(() => {
                                 if (_fuelSheetWindow != null) {
                                     // Make sure it doesn't leave the user hanging without a clue
@@ -3706,6 +3770,7 @@ namespace FlightSupervisor.UI
                     bool isDupe = false;
                     int dupeIndex = -1;
                     bool replacesCurrent = false;
+                    bool isFullReset = false;
 
                     // Check if it replaces the ACTIVE leg
                     if (_currentResponse != null)
@@ -3714,8 +3779,28 @@ namespace FlightSupervisor.UI
                                              _currentResponse.Destination?.IcaoCode == response.Destination?.IcaoCode;
 
                         bool isDummyBlocker = _currentResponse.IsDummy;
+                        bool isFirstLegUnvalidated = _cabinManager.SessionFlightsCompleted == 0 && 
+                                                     (_groundOpsManager == null || !_groundOpsManager.IsFuelSheetValidated);
 
-                        if (origDestMatch && (_currentResponse.IsDummy || _currentResponse.General?.FlightNumber == response.General?.FlightNumber))
+                        if (isFirstLegUnvalidated)
+                        {
+                            // If we're on the very first leg and haven't started ground ops,
+                            // a new flight plan fetch should completely overwrite the current session.
+                            replacesCurrent = true;
+                            isDupe = true;
+                            isFullReset = true;
+                            
+                            // BUG FIX: Do not blindly clear the rotation queue, as it destroys the future dummy legs 
+                            // created by the Dispatch multi-leg planner. Only remove any non-dummy legs if we are 
+                            // doing a full reset, but keep the planned rotation sequence intact.
+                            var dummyLegs = _rotationQueue.Where(r => r.IsDummy).ToList();
+                            _rotationQueue.Clear();
+                            foreach (var dummy in dummyLegs)
+                            {
+                                _rotationQueue.Add(dummy);
+                            }
+                        }
+                        else if (origDestMatch && (_currentResponse.IsDummy || _currentResponse.General?.FlightNumber == response.General?.FlightNumber))
                         {
                             replacesCurrent = true;
                             isDupe = true;
@@ -3879,11 +3964,12 @@ namespace FlightSupervisor.UI
                     // Step 3: Apply the replacement
                     if (replacesCurrent)
                     {
+                        System.IO.File.AppendAllText("sync_debug.txt", $"\n[{DateTime.Now}] FetchFlightPlan: replacing _currentResponse with OFP Pax: {response.Weights?.PaxCount ?? "NULL"}\n");
                         _currentResponse = response;
                         RefreshPassengerDemographics();
                         _groundOpsManager.InitializeFromSimBrief(response, _cabinManager.SessionFlightsCompleted == 0 && _cabinManager.FirstFlightClean, _currentFobKg, _cabinManager.CabinCleanliness, _cabinManager.CateringCompletion, _cabinManager.WaterLevel, _cabinManager.WasteLevel, _nextSobtOverride);
                         SendToWeb(new { type = "groundOpsReady" });
-                        SendToWeb(new { type = "groundOps", services = _groundOpsManager.Services });
+                        SendToWeb(new { type = "groundOps", services = _groundOpsManager.Services, isDispatchSignedOff = _groundOpsManager.IsFuelSheetValidated });
                         
                         // Force update of fuel sheet if it is already open on another screen.
                         if (_fuelSheetWindow != null)
@@ -3896,6 +3982,14 @@ namespace FlightSupervisor.UI
                     if (dupeIndex >= 0)
                     {
                         _rotationQueue[dupeIndex] = response;
+                        
+                        // Force update of fuel sheet if we are fetching a queued Turnaround leg
+                        if (!replacesCurrent && _fuelSheetWindow != null)
+                        {
+                            Dispatcher.Invoke(() => {
+                                OpenFuelSheetWindow(dupeIndex + 1);
+                            });
+                        }
                     }
 
                     if (!isDupe)
@@ -3934,6 +4028,7 @@ namespace FlightSupervisor.UI
                     SendToWeb(new { 
                         type = "flightData", 
                         data = response,
+                        isFullReset = isFullReset,
                         briefing = briefingData,
                         manifest = manifestData,
                         airlineProfile = aProfile

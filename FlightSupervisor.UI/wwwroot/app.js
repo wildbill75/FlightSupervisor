@@ -1,4 +1,4 @@
-window.formatAirportData = function(cityRaw, nameRaw) {
+window.formatAirportData = function (cityRaw, nameRaw) {
     let city = (cityRaw || "").split('/')[0].trim();
     let name = (nameRaw || "").replace(/airport/gi, '').replace(/aéroport/gi, '').replace(/international/gi, '').replace(/intl/gi, '').trim();
     if (city && name.toLowerCase().startsWith(city.toLowerCase())) {
@@ -11,22 +11,22 @@ window.formatAirportData = function(cityRaw, nameRaw) {
     return { city: city.toUpperCase(), name: name.toUpperCase() };
 };
 
-window.formatAirportLabel = function(cityRaw, nameRaw) {
+window.formatAirportLabel = function (cityRaw, nameRaw) {
     const data = window.formatAirportData(cityRaw, nameRaw);
     if (!data.name) return data.city;
     return `${data.city} - ${data.name}`;
 };
 
-window.updateDashboardAnimation = function(telemetry) {
+window.updateDashboardAnimation = function (telemetry) {
     if (!telemetry) return;
     const progressLine = document.getElementById('dashboardProgressLine');
     const airplaneIcon = document.getElementById('dashboardAirplaneIcon');
     if (!progressLine || !airplaneIcon) return;
-    
+
     let rawPercent = 0;
     const activeIdx = window.activeLegIndex || 0;
     const viewIdx = window.dashboardActiveLegIndex || 0;
-    
+
     if (viewIdx < activeIdx) {
         // Viewing a completed leg
         rawPercent = 100;
@@ -38,7 +38,7 @@ window.updateDashboardAnimation = function(telemetry) {
         const phase = telemetry.phaseEnum || "Preflight";
         const preF = ["Preflight", "Boarding", "Pushback", "TaxiOut"];
         const postF = ["Landing", "TaxiIn", "Arrived", "Finished"];
-        
+
         let totalDist = 0;
         if (window.allRotations && window.allRotations.length > viewIdx && window.allRotations[viewIdx].data && window.allRotations[viewIdx].data.general) {
             totalDist = parseFloat(window.allRotations[viewIdx].data.general.route_distance) || 0;
@@ -72,7 +72,7 @@ window.updateDashboardAnimation = function(telemetry) {
             }
         }
     }
-    
+
     const svgX = 2 + (rawPercent / 100) * 96;
     progressLine.setAttribute('x2', svgX);
     airplaneIcon.style.left = svgX + '%';
@@ -81,7 +81,7 @@ window.updateDashboardAnimation = function(telemetry) {
 window.populateBriefingView = (index = 0) => {
     const briefingContent = document.getElementById('briefing-content');
     if (!briefingContent || !window.allRotations || window.allRotations.length === 0) return;
-    
+
     // Ensure content is visible
     briefingContent.classList.remove('hidden');
     setTimeout(() => {
@@ -91,17 +91,17 @@ window.populateBriefingView = (index = 0) => {
 
     const rot = window.allRotations[index];
     if (!rot) return;
-    
+
     const rd = rot.data;
     const briefingData = rot.briefing; // The WeatherBriefingData block
-    
+
     // Route Summary update
     const elRouteSummary = document.getElementById('briefingRouteSummary');
     if (elRouteSummary) {
         let routeString = rd.general?.route || '';
         let routeParts = routeString.split(' ').filter(p => p.trim() !== '');
         let formattedRoute = routeString;
-        if(routeParts.length > 1) {
+        if (routeParts.length > 1) {
             let sid = routeParts[0];
             let star = routeParts[routeParts.length - 1];
             let middle = routeParts.slice(1, routeParts.length - 1).join(' ');
@@ -110,7 +110,7 @@ window.populateBriefingView = (index = 0) => {
 
         let routeHtml = `
             <div class="grid grid-cols-6 items-center w-full bg-[#1C1F26]/80 p-5 rounded-xl border border-white/5 shadow-md divide-x divide-white/5">
-                <div class="flex flex-col items-center justify-center cursor-pointer group" onclick="if(window.showAirlineIdentityModal) window.showAirlineIdentityModal('${rd.general?.icao_airline||''}')">
+                <div class="flex flex-col items-center justify-center cursor-pointer group" onclick="if(window.showAirlineIdentityModal) window.showAirlineIdentityModal('${rd.general?.icao_airline || ''}')">
                     <span class="text-[9px] text-[#7b7b7b] font-bold tracking-widest uppercase mb-1">Airline</span>
                     <span class="text-emerald-400 group-hover:text-white transition-colors text-xl font-black tracking-widest font-headline">${rot.airlineProfile ? rot.airlineProfile.name : (rd.general?.airline_name || rd.general?.icao_airline || '---')}</span>
                 </div>
@@ -171,46 +171,57 @@ window.populateBriefingView = (index = 0) => {
             let pillsHtml = '';
             if (st.TempDew) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-orange-400 opacity-80"></div> <span class="text-white font-bold">${st.TempDew}</span></div>`;
             if (st.Qnh) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-sky-400 opacity-80"></div> <span class="text-white font-bold">${st.Qnh}</span></div>`;
-            
+
             if (st.Wind) {
                 let windColor = 'bg-slate-300', windText = 'text-white';
-                let wMatch = st.Wind.match(/(\d+)G(\d+)/) || st.Wind.match(/(\d+)\s*kt/);
-                if (wMatch) {
-                    let knots = parseInt(wMatch[2] || wMatch[1], 10);
-                    if (knots >= 35) { windColor = 'bg-red-500 animate-pulse'; windText = 'text-red-400'; }
-                    else if (knots >= 20) { windColor = 'bg-orange-500 animate-pulse'; windText = 'text-orange-400'; }
+                let rawSev = st.WindSeverity !== undefined ? st.WindSeverity : st.windSeverity;
+                if (rawSev === 2 || rawSev === 'Danger') { windColor = 'bg-red-500 animate-pulse'; windText = 'text-red-400'; }
+                else if (rawSev === 1 || rawSev === 'Warning') { windColor = 'bg-orange-500 animate-pulse'; windText = 'text-orange-400'; }
+                else {
+                    let wMatch = st.Wind.match(/(\d+)G(\d+)/i) || st.Wind.match(/(\d+)\s*(kt|mps)/i);
+                    if (wMatch) {
+                        let val = parseInt(wMatch[2] || wMatch[1], 10);
+                        let knots = st.Wind.toUpperCase().includes('MPS') ? val * 2 : val;
+                        if (knots >= 35) { windColor = 'bg-red-500 animate-pulse'; windText = 'text-red-400'; }
+                        else if (knots >= 20) { windColor = 'bg-orange-500 animate-pulse'; windText = 'text-orange-400'; }
+                    }
                 }
                 pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full ${windColor} opacity-80"></div> <span class="${windText} font-bold">${st.Wind}</span></div>`;
             }
 
             if (st.Visibility) {
                 let visColor = 'bg-violet-400', visText = 'text-white';
-                let isSM = st.Visibility.includes('SM') || st.Visibility.includes('sm');
-                let isM = st.Visibility.includes('m') && !isSM;
-                let numMatch = st.Visibility.match(/(\d+\.?\d*|\d+\/\d+)/);
-                if (numMatch) {
-                    let val = parseFloat(numMatch[1]);
-                    if (st.Visibility.includes('/')) {
-                        const parts = numMatch[1].split('/');
-                        val = parseInt(parts[0]) / parseInt(parts[1]);
+                let rawSev = st.VisibilitySeverity !== undefined ? st.VisibilitySeverity : st.visibilitySeverity;
+                if (rawSev === 2 || rawSev === 'Danger') { visColor = 'bg-red-500 animate-pulse'; visText = 'text-red-400'; }
+                else if (rawSev === 1 || rawSev === 'Warning') { visColor = 'bg-orange-500 animate-pulse'; visText = 'text-orange-400'; }
+                else {
+                    let isSM = st.Visibility.toUpperCase().includes('SM');
+                    let isM = st.Visibility.toLowerCase().includes('m') && !isSM;
+                    let numMatch = st.Visibility.match(/(\d+\.?\d*|\d+\/\d+)/);
+                    if (numMatch) {
+                        let val = parseFloat(numMatch[1]);
+                        if (st.Visibility.includes('/')) {
+                            const parts = numMatch[1].split('/');
+                            val = parseInt(parts[0]) / parseInt(parts[1]);
+                        }
+                        let isLow = false, isVeryLow = false;
+                        if (isSM) {
+                            if (val <= 0.5) isVeryLow = true;
+                            else if (val <= 1.5) isLow = true;
+                        } else if (isM) {
+                            if (val <= 800) isVeryLow = true;
+                            else if (val <= 2000) isLow = true;
+                        }
+                        if (isVeryLow) { visColor = 'bg-red-500 animate-pulse'; visText = 'text-red-400'; }
+                        else if (isLow) { visColor = 'bg-orange-500 animate-pulse'; visText = 'text-orange-400'; }
                     }
-                    let isLow = false, isVeryLow = false;
-                    if (isSM) {
-                        if (val <= 0.5) isVeryLow = true;
-                        else if (val <= 1.5) isLow = true;
-                    } else if (isM) {
-                        if (val <= 800) isVeryLow = true;
-                        else if (val <= 2000) isLow = true;
-                    }
-                    if (isVeryLow) { visColor = 'bg-red-500 animate-pulse'; visText = 'text-red-400'; }
-                    else if (isLow) { visColor = 'bg-orange-500 animate-pulse'; visText = 'text-orange-400'; }
                 }
                 pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full ${visColor} opacity-80"></div> <span class="${visText} font-bold">${st.Visibility}</span></div>`;
             }
 
             if (st.CloudBase) {
                 let cloudColor = 'bg-slate-500', cloudText = 'text-white';
-                let rawSev = st.CloudSeverity || st.cloudSeverity;
+                let rawSev = st.CloudSeverity !== undefined ? st.CloudSeverity : st.cloudSeverity;
                 if (rawSev === 2 || rawSev === 'Danger') { cloudColor = 'bg-red-500 animate-pulse'; cloudText = 'text-red-400'; }
                 else if (rawSev === 1 || rawSev === 'Warning') { cloudColor = 'bg-orange-500 animate-pulse'; cloudText = 'text-orange-400'; }
                 else {
@@ -224,7 +235,7 @@ window.populateBriefingView = (index = 0) => {
                 pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full ${cloudColor} opacity-80"></div> <span class="${cloudText} font-bold">${st.CloudBase}</span></div>`;
             }
 
-            
+
             if (st.RunwayAdvice && st.RunwayAdvice.includes('Runway')) {
                 const rwyMatch = st.RunwayAdvice.match(/Runway\s+([A-Z0-9]+)/i) || st.RunwayAdvice.match(/Piste.*?\s+([A-Z0-9]+)/i);
                 if (rwyMatch) pillsHtml += `<div class="bg-black/40 border border-white/5 rounded px-4 py-2 text-xs text-[#b6b6b6] flex items-center gap-2 font-mono shadow-sm"><div class="w-2 h-2 rounded-full bg-emerald-400 opacity-80"></div> <span class="text-white font-bold">RWY ${rwyMatch[1].toUpperCase()}</span></div>`;
@@ -287,7 +298,7 @@ window.populateBriefingView = (index = 0) => {
                                 </div>
                              </div>
                              <div class="text-slate-300 text-sm leading-relaxed font-sans bg-white/5 p-3 rounded-lg border-l-2 border-slate-500/50 italic">${st.Commentary || 'Pas de briefing météorologique narratif.'}</div>`;
-                             
+
             if (st.Id.toLowerCase() === 'origin' || st.Id.toLowerCase() === 'departure') {
                 depHtml = htmlBlock;
             } else if (st.Id.toLowerCase() === 'destination') {
@@ -296,7 +307,7 @@ window.populateBriefingView = (index = 0) => {
                 altHtml = htmlBlock;
             }
         });
-        
+
         // Combine all NOTAMs from all stations for this leg
         let allNotams = '';
         if (globalOpAlerts.length > 0) {
@@ -317,7 +328,7 @@ window.populateBriefingView = (index = 0) => {
         if (briefingData && briefingData.EnrouteText) {
             enRouteHtml = `<div class="text-slate-300 text-sm leading-relaxed font-sans bg-white/5 p-3 rounded-lg border-l-2 border-blue-500/50">${briefingData.EnrouteText}</div>`;
         } else {
-             enRouteHtml = `<div class="text-slate-300 text-sm leading-relaxed font-sans bg-white/5 p-3 rounded-lg border-l-2 border-slate-500/50 italic">No significant en-route weather detected. Operations normal.</div>`;
+            enRouteHtml = `<div class="text-slate-300 text-sm leading-relaxed font-sans bg-white/5 p-3 rounded-lg border-l-2 border-slate-500/50 italic">No significant en-route weather detected. Operations normal.</div>`;
         }
     }
 
@@ -345,11 +356,11 @@ window.navigateDashboardLeg = (dir) => {
     window.dashboardActiveLegIndex += dir;
     if (window.dashboardActiveLegIndex < 0) window.dashboardActiveLegIndex = 0;
     if (window.dashboardActiveLegIndex >= window.allRotations.length) window.dashboardActiveLegIndex = window.allRotations.length - 1;
-    
+
     if (oldIndex !== window.dashboardActiveLegIndex) {
         window.navDirection = dir; // 1 for right, -1 for left
     }
-    
+
     window.populateDashboardActiveLeg(window.dashboardActiveLegIndex);
     if (window.populateBriefingView) window.populateBriefingView(window.dashboardActiveLegIndex);
     if (window.renderBriefingTimeline) window.renderBriefingTimeline();
@@ -367,7 +378,7 @@ window.resetDashboardWidgets = () => {
         const el = document.getElementById(id);
         if (el) el.innerText = '--:--Z';
     });
-    
+
     const statuses = ['ttDepStatus', 'ttArrStatus'];
     statuses.forEach(id => {
         const el = document.getElementById(id);
@@ -393,9 +404,9 @@ window.resetDashboardWidgets = () => {
         const el = document.getElementById(id);
         if (el) {
             if (id.includes('Value')) {
-                 el.innerHTML = `${val.replace('%', '')}<span class="text-sm text-slate-600 font-light ml-1">%</span>`;
+                el.innerHTML = `${val.replace('%', '')}<span class="text-sm text-slate-600 font-light ml-1">%</span>`;
             } else {
-                 el.innerText = val;
+                el.innerText = val;
             }
             // Color coding for pristine state
             if (id === 'cleanlinessVal' || id === 'waterLevelVal' || id === 'cateringRationsVal') {
@@ -437,7 +448,7 @@ window.resetDashboardWidgets = () => {
     // 4. Meta / Score / Phase
     const dashMetaText = document.getElementById('dashMetaText');
     if (dashMetaText) dashMetaText.innerText = 'Standing By.';
-    
+
     // Hide meta bar if it was visible
     const dashMetaBar = document.getElementById('dashMetaBar');
     if (dashMetaBar) dashMetaBar.style.display = 'none';
@@ -460,24 +471,25 @@ window.populateDashboardActiveLeg = (index = 0) => {
     const activeContainer = document.getElementById('dashFlightVisualActive');
     const tlWrapper = document.getElementById('dashboard-timeline-wrapper');
     const valArea = document.getElementById('dashboard-validation-area');
-    
+
     if (!window.allRotations || window.allRotations.length === 0) {
         if (emptyContainer) emptyContainer.style.display = 'block';
         if (activeContainer) activeContainer.style.display = 'none';
         if (tlWrapper) tlWrapper.style.display = 'flex';
         if (valArea) valArea.classList.add('hidden');
-        
+
         // Ensure overlays are visible when empty
         const cOverlay = document.getElementById('cabinExperienceOverlay');
         const pOverlay = document.getElementById('pncCommsOverlay');
         if (cOverlay) cOverlay.classList.remove('hidden');
         if (pOverlay) pOverlay.classList.remove('hidden');
-        
+
+        if (window.renderBriefingTimeline) window.renderBriefingTimeline();
         return;
     }
-    
+
     if (emptyContainer) emptyContainer.style.display = 'none';
-    
+
     // Check if we are drafting or finalized
     if (!window.isBriefingUnlocked) {
         if (activeContainer) activeContainer.style.display = 'none';
@@ -498,7 +510,7 @@ window.populateDashboardActiveLeg = (index = 0) => {
         const icao = rd.general?.icao_airline || '---';
         const fn = (rd.general?.icao_airline || '') + (rd.general?.flight_number || '---');
         const ac = window.AIRLINES[icao] || rd.general?.airline_name || icao;
-        
+
         let ete = '--H--';
         if (rd.times?.est_time_enroute) {
             ete = Math.floor(rd.times.est_time_enroute / 3600).toString().padStart(2, '0') + 'H' + Math.floor((rd.times.est_time_enroute % 3600) / 60).toString().padStart(2, '0');
@@ -552,7 +564,7 @@ window.populateDashboardActiveLeg = (index = 0) => {
             if (dhAirline) {
                 dhAirline.innerText = rd.general?.airline_name || rd.general?.icao_airline || 'Unknown';
                 const aCode = rd.general?.icao_airline || '';
-                dhAirline.onclick = () => { if(window.showAirlineIdentityModal) window.showAirlineIdentityModal(aCode); };
+                dhAirline.onclick = () => { if (window.showAirlineIdentityModal) window.showAirlineIdentityModal(aCode); };
                 dhAirline.classList.add('cursor-pointer', 'hover:text-emerald-400', 'transition-colors');
             }
 
@@ -572,10 +584,10 @@ window.populateDashboardActiveLeg = (index = 0) => {
         // --- UPDATE STATIC TOP BANNER ---
         const elDashAirlineList = document.getElementById('dashAirlineText');
         if (elDashAirlineList) elDashAirlineList.innerText = ac;
-        
+
         const elDashFlightList = document.getElementById('dashFlightNumText');
         if (elDashFlightList) elDashFlightList.innerText = fn;
-        
+
         const elDashAirframe = document.getElementById('dashAirframeText');
         if (elDashAirframe) elDashAirframe.innerText = (rd.aircraft?.name || rd.aircraft?.base_type || '---').replace(/Airbus /gi, '').replace(/FENIX /gi, '').replace(/VNAV /gi, '');
 
@@ -585,7 +597,7 @@ window.populateDashboardActiveLeg = (index = 0) => {
         const elDashAirlineBtn = document.getElementById('dashAirlineBtn');
         if (elDashAirlineBtn) {
             elDashAirlineBtn.onclick = () => {
-                if(window.showAirlineIdentityModal) window.showAirlineIdentityModal(icao);
+                if (window.showAirlineIdentityModal) window.showAirlineIdentityModal(icao);
             };
         }
         // --------------------------------
@@ -596,7 +608,7 @@ window.populateDashboardActiveLeg = (index = 0) => {
             // Container layout is identical. Intercept to dynamically update text nodes only!
             const qnhDepEl = document.getElementById('dashDepQnh');
             if (qnhDepEl) qnhDepEl.innerText = depQnh;
-            
+
             const qnhArrEl = document.getElementById('dashArrQnh');
             if (qnhArrEl) qnhArrEl.innerText = arrQnh;
 
@@ -668,7 +680,7 @@ window.populateDashboardActiveLeg = (index = 0) => {
                             <!-- Center: ROUTE & ETE -->
                             <div class="flex flex-col items-center flex-1 px-8 z-10 w-full overflow-hidden pointer-events-none pb-4">
                                 <div class="text-[12px] font-bold tracking-[0.2em] text-[#7b7b7b] uppercase text-center mt-3 flex items-center justify-center gap-2">
-                                    <span class="bg-sky-500/10 text-sky-400 px-2 py-0.5 rounded border border-sky-500/20">LEG ${index + 1}</span> 
+                                    <span class="bg-sky-500/10 text-sky-400 px-2 py-0.5 rounded border border-sky-500/20">LEG ${(window.sessionFlightsCompleted || 0) + index + 1}</span> 
                                     ETE ${ete}
                                 </div>
                                 <div class="text-[16px] font-bold text-white tracking-widest uppercase mt-1 text-center">${fl}</div>
@@ -693,7 +705,7 @@ window.populateDashboardActiveLeg = (index = 0) => {
                                     ${rd.general?.route || (rd.isDummy || window.allRotations[index].isShell ? '' : 'CLEARED FOR DEPARTURE')}
                                 </div>
 
-                                ${ index === (window.activeLegIndex || 0) && (!window.currentPhase || window.currentPhase === 'AtGate' || window.currentPhase === 'Turnaround' || window.currentPhase === 'Preflight') ? `
+                                ${index === (window.activeLegIndex || 0) && (!window.currentPhase || window.currentPhase === 'AtGate' || window.currentPhase === 'Turnaround' || window.currentPhase === 'Preflight') ? `
                                     <div class="mt-4 w-full flex justify-center gap-3 z-40" style="pointer-events: auto;">
                                           <!-- Buttons moved to Ground Ops per Story 43 -->
                                     </div>
@@ -747,13 +759,13 @@ window.populateDashboardActiveLeg = (index = 0) => {
     }
 };
 
-window.clearCurrentLeg = function(forcedIdx) {
+window.clearCurrentLeg = function (forcedIdx) {
     const idx = forcedIdx !== undefined ? forcedIdx : (window.dashboardActiveLegIndex || 0);
 
     const rot = window.allRotations && window.allRotations[idx];
     if (rot && rot.isShell) {
         window.allRotations.splice(idx, 1);
-        window.dashboardActiveLegIndex = 0; 
+        window.dashboardActiveLegIndex = 0;
         if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(0);
         if (window.renderBriefingTimeline) window.renderBriefingTimeline();
     } else {
@@ -761,7 +773,7 @@ window.clearCurrentLeg = function(forcedIdx) {
     }
 };
 
-window.clearAllLegs = function() {
+window.clearAllLegs = function () {
     window.showSystemConfirm({
         title: "Factory Reset Rotation",
         message: "This will clear ALL loaded flight plans and reset your progress. Are you absolutely sure? All progress will be lost.",
@@ -787,13 +799,13 @@ window.confirmAddDummyLeg = () => {
     const orig = document.getElementById('dlgAddLegOrig').value.toUpperCase();
     const dest = document.getElementById('dlgAddLegDest').value.toUpperCase();
 
-    if(!orig || !dest || orig.length !== 4 || dest.length !== 4) {
+    if (!orig || !dest || orig.length !== 4 || dest.length !== 4) {
         alert("Please provide valid 4-letter ICAO codes for Origin and Destination.");
         return;
     }
 
-    if(!window.allRotations) window.allRotations = [];
-    
+    if (!window.allRotations) window.allRotations = [];
+
     // Create Dummy Leg Structure matching what renderBriefingTimeline expects
     const dummyLeg = {
         isShell: true,
@@ -815,9 +827,9 @@ window.confirmAddDummyLeg = () => {
             }
         }
     };
-    
+
     window.allRotations.push(dummyLeg);
-    
+
     // Close Modal
     document.getElementById('addDummyLegModal').classList.replace('opacity-100', 'opacity-0');
     document.getElementById('addDummyLegModal').classList.add('pointer-events-none');
@@ -889,7 +901,7 @@ window.updateAirportDatalist = (e) => {
     const val = e.target.value.toUpperCase();
     const dl = document.getElementById('aptDataList');
     if (!dl || !window.airportsDb) return;
-    
+
     // Only search if at least 1 character is typed
     if (val.length < 1) {
         dl.innerHTML = '';
@@ -914,7 +926,7 @@ window.updateAirportDatalist = (e) => {
 window.openAddLegModal = () => {
     const modal = document.getElementById('addDummyLegModal');
     if (!modal) return;
-    
+
     const dl = document.getElementById('aptDataList');
     if (dl) dl.innerHTML = ''; // Reset datalist
 
@@ -924,22 +936,22 @@ window.openAddLegModal = () => {
 
     if (window.allRotations && window.allRotations.length > 0) {
         const num = window.allRotations.length + 1;
-        if(title) title.innerText = `Add Leg ${num}`;
-        
+        if (title) title.innerText = `Add Leg ${num}`;
+
         // Inherit from previous leg target
         const lastLeg = window.allRotations[window.allRotations.length - 1];
         inputOrig.value = lastLeg.data?.destination?.icao_code || '';
         inputDest.value = lastLeg.data?.origin?.icao_code || '';
     } else {
-        if(title) title.innerText = 'Add Leg 1';
+        if (title) title.innerText = 'Add Leg 1';
         inputOrig.value = inputOrig.placeholder || '';
         inputDest.value = inputDest.placeholder || '';
     }
-    
+
     setTimeout(() => { inputDest.focus(); }, 150);
 
-    modal.classList.replace('opacity-0', 'opacity-100'); 
-    modal.classList.remove('pointer-events-none'); 
+    modal.classList.replace('opacity-0', 'opacity-100');
+    modal.classList.remove('pointer-events-none');
     modal.children[0].classList.replace('scale-95', 'scale-100');
 };
 
@@ -951,7 +963,7 @@ window.renderBriefingTimeline = () => {
     const rotations = window.allRotations || [];
     const currentIndex = window.dashboardActiveLegIndex || 0;
     const maxSlots = 6;
-    
+
     // 1. Render filled slots (Vols)
     rotations.forEach((rot, i) => {
         if (i >= maxSlots) return;
@@ -976,7 +988,7 @@ window.renderBriefingTimeline = () => {
                 </div>
 
                 <div class="absolute top-3 w-full text-center pointer-events-none left-0">
-                    <span class="text-xs uppercase tracking-[0.2em] text-[#7b7b7b] font-bold">Leg ${i+1}</span>
+                    <span class="text-xs uppercase tracking-[0.2em] text-[#7b7b7b] font-bold">Leg ${(window.sessionFlightsCompleted || 0) + i + 1}</span>
                 </div>
                 
                 <div class="flex items-center justify-between w-full mt-auto mb-1">
@@ -1057,12 +1069,12 @@ window.renderBriefingTimeline = () => {
 
 window.unlockDashboard = (silent = false) => {
     window.isBriefingUnlocked = true;
-    
+
     const dashBtn = document.getElementById('navDashboardBtn');
     if (dashBtn) {
         dashBtn.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
         dashBtn.classList.add('cursor-pointer', 'hover:bg-white/5', 'hover:text-sky-300', 'text-[#b6b6b6]');
-        dashBtn.title = "Dashboard"; 
+        dashBtn.title = "Dashboard";
     }
 
     // Keep validation area visible, but disable buttons
@@ -1080,7 +1092,7 @@ window.unlockDashboard = (silent = false) => {
     const qmCrz = document.getElementById('qmCrz');
     const qmZfw = document.getElementById('qmZfw');
     const qmTow = document.getElementById('qmTow');
-    
+
     if (qmBlock) qmBlock.innerText = document.getElementById('modalFuelBlockField')?.innerText || '---';
     if (qmCi) qmCi.innerText = document.getElementById('dispCiField')?.innerText || '---';
     if (qmCrz) qmCrz.innerText = document.getElementById('dispFlField')?.innerText || '---';
@@ -1106,7 +1118,7 @@ window.unlockDashboard = (silent = false) => {
             confirmButtonColor: '#0ea5e9',
             timer: 2000
         });
-        
+
         // Auto-switch to Dashboard Tab
         document.querySelectorAll('.sidebar button').forEach(b => b.classList.remove('active', 'text-white'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -1122,1121 +1134,1116 @@ window.unlockDashboard = (silent = false) => {
 
 window.renderBriefingTabs = () => {
     const idx = window.dashboardActiveLegIndex || 0;
-    if(window.populateBriefingView) {
+    if (window.populateBriefingView) {
         window.populateBriefingView(idx);
     }
 };
 
-    // --- AUDIO STRINGING ENGINE ---
-    class AudioQueue {
-        constructor() {
-            this.queue = [];
+// --- AUDIO STRINGING ENGINE ---
+class AudioQueue {
+    constructor() {
+        this.queue = [];
+        this.isPlaying = false;
+
+        // Single Audio Element
+        this.audioElement = new Audio();
+
+        // Web Audio API Context
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.audioCtx = new AudioContext();
+
+        // Nodes
+        this.sourceNode = this.audioCtx.createMediaElementSource(this.audioElement);
+
+        // Filter 1: Bandpass for Intercom effect (Phone/PA EQ)
+        this.bandpass = this.audioCtx.createBiquadFilter();
+        this.bandpass.type = 'bandpass';
+        this.bandpass.frequency.value = 1200; // Center frequency
+        this.bandpass.Q.value = 0.8; // Width
+
+        // Filter 2: Highshelf to cut harsh high frequencies and simulate cheap speakers
+        this.highshelf = this.audioCtx.createBiquadFilter();
+        this.highshelf.type = 'highshelf';
+        this.highshelf.frequency.value = 3500;
+        this.highshelf.gain.value = -12;
+
+        // Distortion (WaveShaper)
+        this.distorter = this.audioCtx.createWaveShaper();
+        this.distorter.curve = this.makeDistortionCurve(15); // Slight saturation / Crackle
+        this.distorter.oversample = '4x';
+
+        // Connections
+        this.sourceNode.connect(this.bandpass);
+        this.bandpass.connect(this.highshelf);
+        this.highshelf.connect(this.distorter);
+        this.distorter.connect(this.audioCtx.destination);
+
+        this.audioElement.onended = () => {
+            this.playNext();
+        };
+    }
+
+    makeDistortionCurve(amount) {
+        let k = typeof amount === 'number' ? amount : 50;
+        let n_samples = 44100;
+        let curve = new Float32Array(n_samples);
+        let deg = Math.PI / 180;
+        for (let i = 0; i < n_samples; ++i) {
+            let x = i * 2 / n_samples - 1;
+            curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+        }
+        return curve;
+    }
+
+    playSequence(sequence) {
+        if (this.audioCtx.state === 'suspended') {
+            this.audioCtx.resume();
+        }
+        if (!sequence || !Array.isArray(sequence) || sequence.length === 0) return;
+        this.queue.push(...sequence);
+        if (!this.isPlaying) {
+            this.playNext();
+        }
+    }
+
+    playNext() {
+        if (this.queue.length === 0) {
             this.isPlaying = false;
-
-            // Single Audio Element
-            this.audioElement = new Audio();
-
-            // Web Audio API Context
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            this.audioCtx = new AudioContext();
-
-            // Nodes
-            this.sourceNode = this.audioCtx.createMediaElementSource(this.audioElement);
-
-            // Filter 1: Bandpass for Intercom effect (Phone/PA EQ)
-            this.bandpass = this.audioCtx.createBiquadFilter();
-            this.bandpass.type = 'bandpass';
-            this.bandpass.frequency.value = 1200; // Center frequency
-            this.bandpass.Q.value = 0.8; // Width
-
-            // Filter 2: Highshelf to cut harsh high frequencies and simulate cheap speakers
-            this.highshelf = this.audioCtx.createBiquadFilter();
-            this.highshelf.type = 'highshelf';
-            this.highshelf.frequency.value = 3500;
-            this.highshelf.gain.value = -12;
-
-            // Distortion (WaveShaper)
-            this.distorter = this.audioCtx.createWaveShaper();
-            this.distorter.curve = this.makeDistortionCurve(15); // Slight saturation / Crackle
-            this.distorter.oversample = '4x';
-
-            // Connections
-            this.sourceNode.connect(this.bandpass);
-            this.bandpass.connect(this.highshelf);
-            this.highshelf.connect(this.distorter);
-            this.distorter.connect(this.audioCtx.destination);
-
-            this.audioElement.onended = () => {
-                this.playNext();
-            };
+            return;
         }
+        this.isPlaying = true;
+        const filename = this.queue.shift();
 
-        makeDistortionCurve(amount) {
-            let k = typeof amount === 'number' ? amount : 50;
-            let n_samples = 44100;
-            let curve = new Float32Array(n_samples);
-            let deg = Math.PI / 180;
-            for (let i = 0; i < n_samples; ++i) {
-                let x = i * 2 / n_samples - 1;
-                curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
-            }
-            return curve;
-        }
-
-        playSequence(sequence) {
-            if (this.audioCtx.state === 'suspended') {
-                this.audioCtx.resume();
-            }
-            if (!sequence || !Array.isArray(sequence) || sequence.length === 0) return;
-            this.queue.push(...sequence);
-            if (!this.isPlaying) {
-                this.playNext();
-            }
-        }
-
-        playNext() {
-            if (this.queue.length === 0) {
-                this.isPlaying = false;
-                return;
-            }
-            this.isPlaying = true;
-            const filename = this.queue.shift();
-
-            if (!filename) {
-                this.playNext();
-                return;
-            }
-
-            // Fallback intelligence : si le MP3 Ã©choue, on tente la suite.
-            this.audioElement.onerror = (e) => {
-                console.warn(`[AudioEngine] Fichier introuvable ou erreur de lecture - ${filename}`);
-                this.playNext(); // Failsafe
-            };
-
-            this.audioElement.src = `assets/sounds/${filename}`;
-            this.audioElement.load();
-
-            const playPromise = this.audioElement.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    console.warn(`[AudioEngine] autoplay empÃªchÃ© ou erreur sur ${filename}.mp3`, error);
-                    this.playNext();
-                });
-            }
-        }
-    }
-    window.audioEngine = new AudioQueue();
-    // ------------------------------
-    // Top Bar Dragging Interop
-    const topBar = document.getElementById('top-bar');
-    if (topBar) {
-        topBar.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.window-controls') || e.target.closest('button')) return;
-            if (e.button === 0) {
-                window.chrome.webview.postMessage({ action: 'drag' });
-            }
-        });
-    }
-
-
-    window.isAppBooting = true; // BOOT GUARD V3: Strict lock for 5 seconds
-    const menuItems = document.querySelectorAll('.menu li, li[data-target="profile"]');
-    const sections = document.querySelectorAll('section');
-
-    // Force initial state directly in DOM to avoid race conditions
-    sections.forEach(sec => {
-        if (sec.id === 'dashboard') sec.classList.add('active');
-        else sec.classList.remove('active');
-    });
-    menuItems.forEach(m => {
-        if (m.getAttribute('data-target') === 'dashboard') m.classList.add('active');
-        else m.classList.remove('active');
-    });
-
-    menuItems.forEach(item => {
-        item.addEventListener('click', () => {
-            const targetId = item.getAttribute('data-target');
-            if (!targetId) return;
-
-            // Update Active Menu
-            menuItems.forEach(m => m.classList.remove('active'));
-            item.classList.add('active');
-
-            // Update Active Section
-            // INTERCEPTION : Ground Operations ouvre maintenant la fenêtre indépendante
-            if (targetId === 'groundops') {
-                if (window.chrome && window.chrome.webview) {
-                    window.chrome.webview.postMessage({ action: 'openGroundOpsWindow' });
-                }
-                return; // Ne pas changer d'onglet
-            }
-            if (targetId === 'logbook') {
-                window.chrome.webview.postMessage({ action: 'fetchLogbook' });
-            }
-            sections.forEach(sec => {
-                if (sec.id === targetId) {
-                    sec.classList.add('active');
-                    if (targetId === 'briefing') {
-                        window.renderBriefingTimeline();
-                    }
-                }
-                else sec.classList.remove('active');
-            });
-        });
-    });
-
-
-
-    // Release Boot Guard after 5 seconds to allow normal operational auto-switching
-    setTimeout(() => {
-        window.isAppBooting = false;
-        console.log("[SYSTEM] Boot Guard V3 released. Auto-navigation enabled.");
-    }, 5000);
-
-    // Load airports data
-    window.airportsDb = {};
-    fetch('airports.json').then(r => r.json()).then(d => { 
-        window.airportsDb = d; 
-        if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0); 
-    }).catch(e => console.warn('No airports.json found.'));
-
-    // Restore Settings
-    const savedSpeed = localStorage.getItem('groundSpeed');
-    if (savedSpeed && document.getElementById('selGroundOpsSpeed')) {
-        document.getElementById('selGroundOpsSpeed').value = savedSpeed;
-    }
-
-    const savedWeather = localStorage.getItem('weatherSource');
-    if (savedWeather && document.getElementById('selWeatherSource')) {
-        document.getElementById('selWeatherSource').value = savedWeather;
-    }
-
-    const savedGsx = localStorage.getItem('gsxSync');
-    if (savedGsx !== null && document.getElementById('chkGsxSync')) {
-        document.getElementById('chkGsxSync').checked = (savedGsx === 'true');
-    }
-
-    // Audio Volumes
-    const savedVolPa = localStorage.getItem('volumePa');
-    if (savedVolPa !== null && document.getElementById('rngVolumePa')) {
-        document.getElementById('rngVolumePa').value = savedVolPa;
-        if (document.getElementById('lblVolumePa')) document.getElementById('lblVolumePa').innerText = savedVolPa + '%';
-    }
-    const savedVolPnc = localStorage.getItem('volumePnc');
-    if (savedVolPnc !== null && document.getElementById('rngVolumePnc')) {
-        document.getElementById('rngVolumePnc').value = savedVolPnc;
-        if (document.getElementById('lblVolumePnc')) document.getElementById('lblVolumePnc').innerText = savedVolPnc + '%';
-    }
-
-    // Connect slider input events
-    const rngVolPa = document.getElementById('rngVolumePa');
-    if (rngVolPa) {
-        rngVolPa.addEventListener('input', (e) => {
-            if (document.getElementById('lblVolumePa')) document.getElementById('lblVolumePa').innerText = e.target.value + '%';
-        });
-    }
-    const rngVolPnc = document.getElementById('rngVolumePnc');
-    if (rngVolPnc) {
-        rngVolPnc.addEventListener('input', (e) => {
-            if (document.getElementById('lblVolumePnc')) document.getElementById('lblVolumePnc').innerText = e.target.value + '%';
-        });
-    }
-
-    // UI Options Load
-    const selItems = ['selLanguage', 'selTimeFormat', 'selUnitSpeed', 'selUnitAlt', 'selUnitWeight', 'selUnitTemp', 'selUnitPress', 'selCrisisFreq'];
-    selItems.forEach(id => {
-        const val = localStorage.getItem(id);
-        const el = document.getElementById(id);
-        if (val && el) el.value = val;
-    });
-
-    setTimeout(() => {
-        const initialFreq = localStorage.getItem('selCrisisFreq') || 'Realistic';
-        window.chrome.webview.postMessage({ action: 'setCrisisFrequency', value: initialFreq });
-
-        // Sync Ground Ops configurations with C#
-        window.chrome.webview.postMessage({
-            action: 'saveSettings',
-            options: {
-                groundSpeed: localStorage.getItem('groundSpeed') || 'Realistic',
-                groundProb: localStorage.getItem('groundProb') || '25',
-                firstFlightClean: localStorage.getItem('firstFlightClean') === 'true',
-                gsxSync: localStorage.getItem('gsxSync') === 'true'
-            }
-        });
-    }, 500);
-
-    // Time Formatting
-    window.getFormattedTime = function (unix) {
-        if (!unix || unix == "0") return "--:--z";
-        const dt = new Date(unix * 1000);
-        const format = localStorage.getItem('selTimeFormat') || '24H';
-        let h = dt.getUTCHours();
-        let m = dt.getUTCMinutes().toString().padStart(2, '0');
-        if (format === '12H') {
-            let ampm = h >= 12 ? 'PM' : 'AM';
-            h = h % 12;
-            h = h ? h : 12;
-            return `${h.toString().padStart(2, '0')}:${m} ${ampm} Z`;
-        }
-        return `${h.toString().padStart(2, '0')}:${m}z`;
-    };
-
-    window.getLocalFormattedTime = function () {
-        if (window.simZuluTime) return window.simZuluTime + 'Z';
-        const dt = new Date();
-        const format = localStorage.getItem('selTimeFormat') || '24H';
-        return dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: format === '12H' }) + ' L';
-    };
-    let acarsTimeouts = [];
-
-    window.acknowledgeFlightReport = function() {
-        const modal = document.getElementById('flightReportModal');
-        if(modal) modal.style.display = 'none';
-        
-        if (window.isViewingHistoricalReport) {
-            window.isViewingHistoricalReport = false;
-        } else {
-            window.chrome.webview.postMessage({ action: 'acknowledgeFlightReport' });
-        }
-    };
-
-    window.cancelRotations = function () {
-        location.reload();
-    };
-
-    window.cancelRotations = function () { location.reload(); };
-    window.requestAcarsUpdate = function () {
-        if (!window.allRotations || window.allRotations.length === 0) return;
-
-        acarsTimeouts.forEach(t => clearTimeout(t));
-        acarsTimeouts = [];
-
-        let idx = window.activeLegIndex || 0;
-        if (idx >= window.allRotations.length) idx = window.allRotations.length - 1;
-
-        const rotation = window.allRotations[idx]?.data;
-        if (!rotation) return;
-
-        document.getElementById('acarsOrigin').innerText = rotation.origin?.icao_code || '----';
-        document.getElementById('acarsDest').innerText = rotation.destination?.icao_code || '----';
-        document.getElementById('acarsAltn').innerText = rotation.alternate?.icao_code || '----';
-
-        document.getElementById('acarsStatus').style.display = 'none';
-        document.getElementById('acarsScratchpad').innerText = '';
-
-        const btnSend = document.getElementById('btnAcarsSend');
-        if (btnSend) {
-            btnSend.style.display = 'flex';
-            btnSend.innerHTML = 'SEND REQ *';
-            btnSend.disabled = false;
-        }
-
-        const btnClose = document.getElementById('btnAcarsClose');
-        if (btnClose) btnClose.innerHTML = '&lt; CLOSE';
-
-        document.getElementById('acarsModal').style.display = 'flex';
-    };
-
-    window.sendAcarsReq = function () {
-        const btn = document.getElementById('btnAcarsSend');
-        if (btn) btn.style.display = 'none'; // hide send button
-
-        const statusStr = document.getElementById('acarsStatus');
-        const scratchpad = document.getElementById('acarsScratchpad');
-
-        if (statusStr) {
-            statusStr.style.display = 'block';
-            statusStr.innerText = 'SENDING...';
-            statusStr.className = 'text-amber-500 text-sm animate-pulse w-full text-center tracking-[0.2em] font-bold h-6';
-        }
-
-        if (scratchpad) scratchpad.innerText = 'COMM ESTABLISHED...';
-
-        acarsTimeouts.push(setTimeout(() => {
-            if (statusStr) {
-                statusStr.innerText = 'UPLINK IN PROGRESS';
-                statusStr.classList.replace('text-amber-500', 'text-sky-400');
-            }
-            if (scratchpad) scratchpad.innerText = 'AOC MSG RCV...';
-
-            acarsTimeouts.push(setTimeout(() => {
-                if (window.chrome && window.chrome.webview) {
-                    window.chrome.webview.postMessage({ action: 'acarsWeatherRequest' });
-                }
-
-                if (statusStr) {
-                    statusStr.innerText = 'UPLINK COMPLETE';
-                    statusStr.className = 'text-emerald-400 text-sm w-full text-center tracking-[0.2em] font-bold h-6';
-                }
-                if (scratchpad) scratchpad.innerText = 'WX DATA RECEIVED';
-
-                const btnClose = document.getElementById('btnAcarsClose');
-                if (btnClose) btnClose.innerHTML = '< EXIT';
-
-            }, 3000));
-        }, 2000));
-    };
-
-    // Language processing
-    function setLanguage(lang) {
-        if (!window.locales || !window.locales[lang]) return;
-        const dict = window.locales[lang];
-        document.querySelectorAll('[data-i18n]').forEach(el => {
-            const key = el.getAttribute('data-i18n');
-            if (dict[key]) {
-                if (el.tagName === 'INPUT' && el.type === 'text') {
-                    el.placeholder = dict[key];
-                } else {
-                    el.innerHTML = dict[key];
-                }
-            }
-        });
-
-        // Update btnStartGroundOps innerHTML preserving icon if it's not in progress
-        const startBtn = document.getElementById('btnStartGroundOps');
-        if (startBtn && !startBtn.disabled) {
-            startBtn.innerHTML = `<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> ${dict.btn_start_ops}`;
-        }
-
-        // Update Fetch button
-        const cancelLbl = document.getElementById('btnFetchPlanLabel');
-        if (cancelLbl) {
-            if (window.isFlightActive) {
-                cancelLbl.innerText = dict.modal_cancel_yes;
-            } else {
-                cancelLbl.innerText = dict.btn_fetch_plan;
-            }
-        }
-    }
-
-    // Initialize Language
-    const savedLang = localStorage.getItem('selLanguage') || 'EN';
-    const initialLang = savedLang.toLowerCase();
-    setLanguage(initialLang);
-
-    setTimeout(() => {
-        if (window.chrome && window.chrome.webview) {
-            window.chrome.webview.postMessage({ action: 'changeLanguage', language: initialLang });
-        }
-    }, 500);
-
-    window.closeSystemMenu = function () {
-        const sysMenu = document.getElementById('systemMenu');
-        sysMenu.classList.add('opacity-0', 'pointer-events-none');
-        sysMenu.classList.remove('opacity-100');
-    }
-
-    const renderActionButtons = (containerId, sectionId, options, colorClasses, type) => {
-        const container = document.getElementById(containerId);
-        const section = document.getElementById(sectionId);
-        if (!container) return;
-
-        let visibleOptions = options.filter(o => !o.disabled || o.alwaysShow);
-
-        if (visibleOptions.length === 0) {
-            container.innerHTML = '';
-            container.dataset.lastHtml = '';
+        if (!filename) {
+            this.playNext();
             return;
         }
 
-        const html = visibleOptions.map(o => {
-            const action = o.action || (type === 'PA' ? 'announceCabin' : 'pncCommand');
-            const propName = action === 'resolveCrisis' ? 'crisisType' : (type === 'PA' ? 'annType' : 'command');
-            
-            let onclickStr = '';
-            const lockStr = `this.classList.add('opacity-50', 'pointer-events-none');`;
-            
-            if (!o.disabled) {
-                if (action === 'openDelayMenu') {
-                    onclickStr = `window.showDelayReasons();`;
-                } else if (type === 'PA') {
-                    onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', ${propName}: '${o.val}'})`;
-                } else {
-                    if (action === 'pncCommand') {
-                        onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', command: '${o.val}'})`;
-                    } else if (action === 'resolveCrisis') {
-                        onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', crisisType: '${o.val}'})`;
-                    } else {
-                        onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', annType: '${o.val}'})`;
-                    }
+        // Fallback intelligence : si le MP3 Ã©choue, on tente la suite.
+        this.audioElement.onerror = (e) => {
+            console.warn(`[AudioEngine] Fichier introuvable ou erreur de lecture - ${filename}`);
+            this.playNext(); // Failsafe
+        };
+
+        this.audioElement.src = `assets/sounds/${filename}`;
+        this.audioElement.load();
+
+        const playPromise = this.audioElement.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                console.warn(`[AudioEngine] autoplay empÃªchÃ© ou erreur sur ${filename}.mp3`, error);
+                this.playNext();
+            });
+        }
+    }
+}
+window.audioEngine = new AudioQueue();
+// ------------------------------
+// Top Bar Dragging Interop
+const topBar = document.getElementById('top-bar');
+if (topBar) {
+    topBar.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.window-controls') || e.target.closest('button')) return;
+        if (e.button === 0) {
+            window.chrome.webview.postMessage({ action: 'drag' });
+        }
+    });
+}
+
+
+window.isAppBooting = true; // BOOT GUARD V3: Strict lock for 5 seconds
+const menuItems = document.querySelectorAll('.menu li, li[data-target="profile"]');
+const sections = document.querySelectorAll('section');
+
+// Force initial state directly in DOM to avoid race conditions
+sections.forEach(sec => {
+    if (sec.id === 'dashboard') sec.classList.add('active');
+    else sec.classList.remove('active');
+});
+menuItems.forEach(m => {
+    if (m.getAttribute('data-target') === 'dashboard') m.classList.add('active');
+    else m.classList.remove('active');
+});
+
+menuItems.forEach(item => {
+    item.addEventListener('click', () => {
+        const targetId = item.getAttribute('data-target');
+        if (!targetId) return;
+
+        // Update Active Menu
+        menuItems.forEach(m => m.classList.remove('active'));
+        item.classList.add('active');
+
+        // Update Active Section
+        // INTERCEPTION : Ground Operations ouvre maintenant la fenêtre indépendante
+        if (targetId === 'groundops') {
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage({ action: 'openGroundOpsWindow' });
+            }
+            return; // Ne pas changer d'onglet
+        }
+        if (targetId === 'logbook') {
+            window.chrome.webview.postMessage({ action: 'fetchLogbook' });
+        }
+        sections.forEach(sec => {
+            if (sec.id === targetId) {
+                sec.classList.add('active');
+                if (targetId === 'briefing') {
+                    window.renderBriefingTimeline();
                 }
             }
+            else sec.classList.remove('active');
+        });
+    });
+});
 
-            let finalClasses = o.customClass ? o.customClass : colorClasses;
-            let disabledAttr = o.disabled ? 'disabled' : '';
-            return `<button ${disabledAttr} ${onclickStr ? `onclick="${onclickStr}"` : ''} class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all ${finalClasses}">
+
+
+// Release Boot Guard after 5 seconds to allow normal operational auto-switching
+setTimeout(() => {
+    window.isAppBooting = false;
+    console.log("[SYSTEM] Boot Guard V3 released. Auto-navigation enabled.");
+}, 5000);
+
+// Load airports data
+window.airportsDb = {};
+fetch('airports.json').then(r => r.json()).then(d => {
+    window.airportsDb = d;
+    if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
+}).catch(e => console.warn('No airports.json found.'));
+
+// Restore Settings
+const savedSpeed = localStorage.getItem('groundSpeed');
+if (savedSpeed && document.getElementById('selGroundOpsSpeed')) {
+    document.getElementById('selGroundOpsSpeed').value = savedSpeed;
+}
+
+const savedWeather = localStorage.getItem('weatherSource');
+if (savedWeather && document.getElementById('selWeatherSource')) {
+    document.getElementById('selWeatherSource').value = savedWeather;
+}
+
+const savedGsx = localStorage.getItem('gsxSync');
+if (savedGsx !== null && document.getElementById('chkGsxSync')) {
+    document.getElementById('chkGsxSync').checked = (savedGsx === 'true');
+}
+
+// Audio Volumes
+const savedVolPa = localStorage.getItem('volumePa');
+if (savedVolPa !== null && document.getElementById('rngVolumePa')) {
+    document.getElementById('rngVolumePa').value = savedVolPa;
+    if (document.getElementById('lblVolumePa')) document.getElementById('lblVolumePa').innerText = savedVolPa + '%';
+}
+const savedVolPnc = localStorage.getItem('volumePnc');
+if (savedVolPnc !== null && document.getElementById('rngVolumePnc')) {
+    document.getElementById('rngVolumePnc').value = savedVolPnc;
+    if (document.getElementById('lblVolumePnc')) document.getElementById('lblVolumePnc').innerText = savedVolPnc + '%';
+}
+
+// Connect slider input events
+const rngVolPa = document.getElementById('rngVolumePa');
+if (rngVolPa) {
+    rngVolPa.addEventListener('input', (e) => {
+        if (document.getElementById('lblVolumePa')) document.getElementById('lblVolumePa').innerText = e.target.value + '%';
+    });
+}
+const rngVolPnc = document.getElementById('rngVolumePnc');
+if (rngVolPnc) {
+    rngVolPnc.addEventListener('input', (e) => {
+        if (document.getElementById('lblVolumePnc')) document.getElementById('lblVolumePnc').innerText = e.target.value + '%';
+    });
+}
+
+// UI Options Load
+const selItems = ['selLanguage', 'selTimeFormat', 'selUnitSpeed', 'selUnitAlt', 'selUnitWeight', 'selUnitTemp', 'selUnitPress', 'selCrisisFreq'];
+selItems.forEach(id => {
+    const val = localStorage.getItem(id);
+    const el = document.getElementById(id);
+    if (val && el) el.value = val;
+});
+
+setTimeout(() => {
+    const initialFreq = localStorage.getItem('selCrisisFreq') || 'Realistic';
+    window.chrome.webview.postMessage({ action: 'setCrisisFrequency', value: initialFreq });
+
+    // Sync Ground Ops configurations with C#
+    window.chrome.webview.postMessage({
+        action: 'saveSettings',
+        options: {
+            groundSpeed: localStorage.getItem('groundSpeed') || 'Realistic',
+            groundProb: localStorage.getItem('groundProb') || '25',
+            firstFlightClean: localStorage.getItem('firstFlightClean') === 'true',
+            gsxSync: localStorage.getItem('gsxSync') === 'true'
+        }
+    });
+}, 500);
+
+// Time Formatting
+window.getFormattedTime = function (unix) {
+    if (!unix || unix == "0") return "--:--z";
+    const dt = new Date(unix * 1000);
+    const format = localStorage.getItem('selTimeFormat') || '24H';
+    let h = dt.getUTCHours();
+    let m = dt.getUTCMinutes().toString().padStart(2, '0');
+    if (format === '12H') {
+        let ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12;
+        h = h ? h : 12;
+        return `${h.toString().padStart(2, '0')}:${m} ${ampm} Z`;
+    }
+    return `${h.toString().padStart(2, '0')}:${m}z`;
+};
+
+window.getLocalFormattedTime = function () {
+    if (window.simZuluTime) return window.simZuluTime + 'Z';
+    const dt = new Date();
+    const format = localStorage.getItem('selTimeFormat') || '24H';
+    return dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: format === '12H' }) + ' L';
+};
+let acarsTimeouts = [];
+
+window.acknowledgeFlightReport = function () {
+    const modal = document.getElementById('flightReportModal');
+    if (modal) modal.style.display = 'none';
+
+    if (window.isViewingHistoricalReport) {
+        window.isViewingHistoricalReport = false;
+    } else {
+        window.chrome.webview.postMessage({ action: 'acknowledgeFlightReport' });
+    }
+};
+
+window.cancelRotations = function () {
+    location.reload();
+};
+
+window.cancelRotations = function () { location.reload(); };
+window.requestAcarsUpdate = function () {
+    if (!window.allRotations || window.allRotations.length === 0) return;
+
+    acarsTimeouts.forEach(t => clearTimeout(t));
+    acarsTimeouts = [];
+
+    let idx = window.activeLegIndex || 0;
+    if (idx >= window.allRotations.length) idx = window.allRotations.length - 1;
+
+    const rotation = window.allRotations[idx]?.data;
+    if (!rotation) return;
+
+    document.getElementById('acarsOrigin').innerText = rotation.origin?.icao_code || '----';
+    document.getElementById('acarsDest').innerText = rotation.destination?.icao_code || '----';
+    document.getElementById('acarsAltn').innerText = rotation.alternate?.icao_code || '----';
+
+    document.getElementById('acarsStatus').style.display = 'none';
+    document.getElementById('acarsScratchpad').innerText = '';
+
+    const btnSend = document.getElementById('btnAcarsSend');
+    if (btnSend) {
+        btnSend.style.display = 'flex';
+        btnSend.innerHTML = 'SEND REQ *';
+        btnSend.disabled = false;
+    }
+
+    const btnClose = document.getElementById('btnAcarsClose');
+    if (btnClose) btnClose.innerHTML = '&lt; CLOSE';
+
+    document.getElementById('acarsModal').style.display = 'flex';
+};
+
+window.sendAcarsReq = function () {
+    const btn = document.getElementById('btnAcarsSend');
+    if (btn) btn.style.display = 'none'; // hide send button
+
+    const statusStr = document.getElementById('acarsStatus');
+    const scratchpad = document.getElementById('acarsScratchpad');
+
+    if (statusStr) {
+        statusStr.style.display = 'block';
+        statusStr.innerText = 'SENDING...';
+        statusStr.className = 'text-amber-500 text-sm animate-pulse w-full text-center tracking-[0.2em] font-bold h-6';
+    }
+
+    if (scratchpad) scratchpad.innerText = 'COMM ESTABLISHED...';
+
+    acarsTimeouts.push(setTimeout(() => {
+        if (statusStr) {
+            statusStr.innerText = 'UPLINK IN PROGRESS';
+            statusStr.classList.replace('text-amber-500', 'text-sky-400');
+        }
+        if (scratchpad) scratchpad.innerText = 'AOC MSG RCV...';
+
+        acarsTimeouts.push(setTimeout(() => {
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage({ action: 'acarsWeatherRequest' });
+            }
+
+            if (statusStr) {
+                statusStr.innerText = 'UPLINK COMPLETE';
+                statusStr.className = 'text-emerald-400 text-sm w-full text-center tracking-[0.2em] font-bold h-6';
+            }
+            if (scratchpad) scratchpad.innerText = 'WX DATA RECEIVED';
+
+            const btnClose = document.getElementById('btnAcarsClose');
+            if (btnClose) btnClose.innerHTML = '< EXIT';
+
+        }, 3000));
+    }, 2000));
+};
+
+// Language processing
+function setLanguage(lang) {
+    if (!window.locales || !window.locales[lang]) return;
+    const dict = window.locales[lang];
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (dict[key]) {
+            if (el.tagName === 'INPUT' && el.type === 'text') {
+                el.placeholder = dict[key];
+            } else {
+                el.innerHTML = dict[key];
+            }
+        }
+    });
+
+    // Update btnStartGroundOps innerHTML preserving icon if it's not in progress
+    const startBtn = document.getElementById('btnStartGroundOps');
+    if (startBtn && !startBtn.disabled) {
+        startBtn.innerHTML = `<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> ${dict.btn_start_ops}`;
+    }
+
+    // Update Fetch button
+    const cancelLbl = document.getElementById('btnFetchPlanLabel');
+    if (cancelLbl) {
+        if (window.isFlightActive) {
+            cancelLbl.innerText = dict.modal_cancel_yes;
+        } else {
+            cancelLbl.innerText = dict.btn_fetch_plan;
+        }
+    }
+}
+
+// Initialize Language
+const savedLang = localStorage.getItem('selLanguage') || 'EN';
+const initialLang = savedLang.toLowerCase();
+setLanguage(initialLang);
+
+setTimeout(() => {
+    if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.postMessage({ action: 'changeLanguage', language: initialLang });
+    }
+}, 500);
+
+window.closeSystemMenu = function () {
+    const sysMenu = document.getElementById('systemMenu');
+    sysMenu.classList.add('opacity-0', 'pointer-events-none');
+    sysMenu.classList.remove('opacity-100');
+}
+
+const renderActionButtons = (containerId, sectionId, options, colorClasses, type) => {
+    const container = document.getElementById(containerId);
+    const section = document.getElementById(sectionId);
+    if (!container) return;
+
+    let visibleOptions = options.filter(o => !o.disabled || o.alwaysShow);
+
+    if (visibleOptions.length === 0) {
+        container.innerHTML = '';
+        container.dataset.lastHtml = '';
+        return;
+    }
+
+    const html = visibleOptions.map(o => {
+        const action = o.action || (type === 'PA' ? 'announceCabin' : 'pncCommand');
+        const propName = action === 'resolveCrisis' ? 'crisisType' : (type === 'PA' ? 'annType' : 'command');
+
+        let onclickStr = '';
+        const lockStr = `this.classList.add('opacity-50', 'pointer-events-none');`;
+
+        if (!o.disabled) {
+            if (action === 'openDelayMenu') {
+                onclickStr = `window.showDelayReasons();`;
+            } else if (type === 'PA') {
+                onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', ${propName}: '${o.val}'})`;
+            } else {
+                if (action === 'pncCommand') {
+                    onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', command: '${o.val}'})`;
+                } else if (action === 'resolveCrisis') {
+                    onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', crisisType: '${o.val}'})`;
+                } else {
+                    onclickStr = `${lockStr} window.chrome.webview.postMessage({action: '${action}', annType: '${o.val}'})`;
+                }
+            }
+        }
+
+        let finalClasses = o.customClass ? o.customClass : colorClasses;
+        let disabledAttr = o.disabled ? 'disabled' : '';
+        return `<button ${disabledAttr} ${onclickStr ? `onclick="${onclickStr}"` : ''} class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all ${finalClasses}">
                         ${o.text}
                     </button>`;
-        }).join('');
+    }).join('');
 
-        if (container.dataset.lastHtml !== html) {
-             container.innerHTML = html;
-             container.dataset.lastHtml = html;
-        }
-    };
+    if (container.dataset.lastHtml !== html) {
+        container.innerHTML = html;
+        container.dataset.lastHtml = html;
+    }
+};
 
-    window.showDelayReasons = function() {
-        const container = document.getElementById('paButtonsContainer');
-        if (!container) return;
-        window.isDelayMenuOpen = true;
+window.showDelayReasons = function () {
+    const container = document.getElementById('paButtonsContainer');
+    if (!container) return;
+    window.isDelayMenuOpen = true;
 
-        const baseBtnStyle = "border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all";
-        const html = `
+    const baseBtnStyle = "border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all";
+    const html = `
             <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_ATC'}); window.lastIntercomPayload.issuedCommands.push('PA_Delay'); window.backToCommsMenu()" class="${baseBtnStyle} bg-sky-900/30 text-sky-400 border-sky-700/50 hover:bg-sky-500/20">A.T.C.</button>
             <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_Weather'}); window.lastIntercomPayload.issuedCommands.push('PA_Delay'); window.backToCommsMenu()" class="${baseBtnStyle} bg-sky-900/30 text-sky-400 border-sky-700/50 hover:bg-sky-500/20">Weather</button>
             <button onclick="window.backToCommsMenu()" class="${baseBtnStyle} text-slate-400 border-white/20 hover:text-white hover:bg-white/10">×</button>
         `;
-        container.innerHTML = html;
-        container.dataset.lastHtml = ''; // force redraw on next update
-    };
+    container.innerHTML = html;
+    container.dataset.lastHtml = ''; // force redraw on next update
+};
 
-    window.backToCommsMenu = function() {
-        window.isDelayMenuOpen = false;
-        if (window.lastIntercomPayload) {
-            document.getElementById('paButtonsContainer').dataset.lastHtml = ''; // uncache it to force re-render
-            updateIntercomButtons(window.lastIntercomPayload);
+window.backToCommsMenu = function () {
+    window.isDelayMenuOpen = false;
+    if (window.lastIntercomPayload) {
+        document.getElementById('paButtonsContainer').dataset.lastHtml = ''; // uncache it to force re-render
+        updateIntercomButtons(window.lastIntercomPayload);
+    }
+};
+
+
+function updateIntercomButtons(payload) {
+    window.lastIntercomPayload = payload;
+    const phase = payload.phaseEnum;
+    const used = payload.issuedCommands || [];
+
+    // 1. FLIGHT DECK PA ACTIONS
+    const paOptions = [];
+
+    if (!used.includes('PA_Welcome') && phase === 'AtGate') {
+        const boardingFinished = payload.passengers && payload.passengers.length > 0 ? payload.passengers.every(p => (p.IsBoarded !== undefined ? p.IsBoarded : p.isBoarded)) : false;
+        const ok = phase === 'AtGate' && boardingFinished;
+        paOptions.push({ val: 'Welcome', text: 'WELCOME', disabled: !ok });
+    }
+    if (!used.includes('PA_Approach') && ['Approach', 'FinalApproach'].includes(phase)) {
+        const ok = phase === 'Approach';
+        paOptions.push({ val: 'Approach', text: 'APPROACH', disabled: !ok });
+    }
+
+    if (!used.includes('PA_CruiseStatus')) {
+        paOptions.push({ val: 'CruiseStatus', text: 'CRUISE', disabled: phase !== 'Cruise' });
+    }
+    if (!used.includes('PA_Descent') && ['Descent', 'Approach'].includes(phase)) {
+        paOptions.push({ val: 'Descent', text: 'DESCENT' });
+    }
+
+    if (flightHasExperiencedDelay && !used.includes('PA_Delay') && !used.includes('PA_DelayApology')) {
+        paOptions.push({ val: '', text: 'DELAY', disabled: false, action: 'openDelayMenu' });
+    }
+
+    // Temporarily disabled as per user request (turbulence logic not fully stable)
+    // if (flightHasExperiencedTurbulence && !used.includes('PA_TurbulenceApology')) {
+    //     const isInAir = ['Takeoff', 'Climb', 'Cruise', 'Descent', 'Approach', 'FinalApproach'].includes(phase);
+    //     paOptions.push({ val: 'TurbulenceApology', text: 'TURB. APOLOGY', disabled: !isInAir });
+    // }
+
+    if (payload.isGoAroundActive && !used.includes('PA_GoAround')) {
+        paOptions.push({ val: 'GoAround', text: 'GO-AROUND', disabled: false });
+    }
+    if (payload.isSevereTurbulenceActive && phase === 'Cruise' && !used.includes('PA_Turbulence')) {
+        paOptions.push({ val: 'Turbulence', text: 'SEVERE TURB', disabled: false });
+    }
+    if (payload.activeCrisis === 'MedicalEmergency') {
+        paOptions.push({ val: 'MedicalEmergency', text: 'DOCTOR', disabled: false, action: 'resolveCrisis' });
+    }
+
+    // 2. FLIGHT DECK TO PNC ACTIONS
+    const pncOptions = [];
+
+    const diffSec = payload.cabinReportCooldownElapsed || 999;
+    const isCd = diffSec < 120;
+
+    const isCriticalPhase = (
+        phase === 4 || (typeof phase === 'string' && phase.toLowerCase() === 'takeoff') ||
+        phase === 5 || (typeof phase === 'string' && phase.toLowerCase() === 'initialclimb') ||
+        phase === 9 || (typeof phase === 'string' && phase.toLowerCase() === 'approach') ||
+        phase === 10 || (typeof phase === 'string' && phase.toLowerCase() === 'landing') ||
+        (typeof phase === 'string' && phase.toLowerCase() === 'finalapproach')
+    );
+    const reportDisabled = isCd || payload.isPlayingSafetyDemo || isCriticalPhase;
+
+    const isIncoming = window.isCabinCallIncoming === true;
+    const pncBaseClass = 'bg-amber-900/40 text-amber-400 border-amber-500/20';
+    const pncDisabledClass = 'bg-gray-800/40 text-gray-500 border-gray-600/20 opacity-50 border-dashed cursor-not-allowed pointer-events-none';
+    pncOptions.push({
+        val: 'intercomQuery',
+        text: 'CABIN REPORT',
+        disabled: reportDisabled,
+        alwaysShow: true,
+        action: 'intercomQuery',
+        customClass: reportDisabled ? pncDisabledClass : ''
+    });
+
+    pncOptions.push({
+        val: 'answerCall',
+        text: 'FROM PNC',
+        disabled: !isIncoming,
+        alwaysShow: true,
+        action: 'answerPncCall',
+        customClass: isIncoming ? 'animate-pulse bg-amber-500 text-black font-extrabold border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.8)]' : 'bg-gray-800/40 text-gray-500 border-gray-600/20 opacity-50 border-dashed cursor-not-allowed pointer-events-none'
+    });
+
+
+
+    if (!used.includes('ARM_DOORS') && ['AtGate', 'Pushback'].includes(phase)) {
+        const ok = payload.isBoardingComplete;
+        pncOptions.push({ val: 'ARM_DOORS', text: 'ARM DOORS', disabled: !ok, action: 'pncCommand' });
+    }
+    if (!used.includes('PREPARE_TAKEOFF') && phase === 'TaxiOut' && !payload.isPlayingSafetyDemo) {
+        pncOptions.push({ val: 'PREPARE_TAKEOFF', text: 'PREP TAKEOFF', disabled: false, action: 'pncCommand' });
+    } else if (used.includes('PREPARE_TAKEOFF') && payload.securingProgress > 0 && payload.securingProgress < 100 && !payload.isSecuringHurried) {
+        if (!pncOptions.some(o => o.val === 'HURRY_SECURING')) pncOptions.push({ val: 'HURRY_SECURING', text: 'HURRY PNC', disabled: false, action: 'pncCommand' });
+    }
+    if (!used.includes('SEATS_TAKEOFF') && phase === 'TaxiOut' && used.includes('PREPARE_TAKEOFF')) {
+        const isReady = payload.securingProgress >= 100;
+        pncOptions.push({ val: 'SEATS_TAKEOFF', text: isReady ? 'SEATS TAKEOFF' : 'FORCE SEATS', disabled: false, action: 'pncCommand' });
+    }
+    if (!used.includes('TOP_DESCENT') && ['Cruise'].includes(phase)) {
+        const todDistNM = payload.altitude ? (payload.altitude / 1000) * 3 : 0;
+        const todWarningThreshold = todDistNM + 50; // Show 50 NM before approximate TOD
+        const isNearTod = payload.destDistanceNM != null && payload.destDistanceNM > 0
+            ? payload.destDistanceNM <= todWarningThreshold
+            : true; // fallback if no dest dist
+
+        if (isNearTod) {
+            pncOptions.push({ val: 'TOP_DESCENT', text: 'TOP DESCENT', disabled: false, action: 'pncCommand' });
         }
-    };
+    }
+    if (!used.includes('PREPARE_LANDING') && ['Cruise', 'Descent', 'Approach', 'FinalApproach'].includes(phase)) {
+        const ok = payload.altitude <= 10000 && phase !== 'Cruise';
+        pncOptions.push({ val: 'PREPARE_LANDING', text: 'PREP LANDING', disabled: !ok, action: 'pncCommand' });
+    } else if (used.includes('PREPARE_LANDING') && payload.securingProgress > 0 && payload.securingProgress < 100 && !payload.isSecuringHurried) {
+        if (!pncOptions.some(o => o.val === 'HURRY_SECURING')) pncOptions.push({ val: 'HURRY_SECURING', text: 'HURRY PNC', disabled: false, action: 'pncCommand' });
+    }
+    if (!used.includes('SEATS_LANDING') && ['Descent', 'Approach'].includes(phase)) {
+        const ok = phase === 'Approach' || payload.altitude <= 5000;
+        const isReady = payload.securingProgress >= 100;
+        pncOptions.push({ val: 'SEATS_LANDING', text: isReady ? 'SEATS LANDING' : 'FORCE SEATS', disabled: !ok, action: 'pncCommand' });
+    }
+    if (payload.cabinState === 'ServingMeals') {
+        const svcText = payload.isServiceHalted ? 'RESUME SVC' : 'PAUSE SVC';
+        pncOptions.push({ val: 'toggleService', text: svcText, disabled: false, action: 'toggleService' });
+    }
+    if (payload.activeCrisis === 'UnrulyPassenger') {
+        pncOptions.push({ val: 'UnrulyPassenger', text: 'RESTRAIN PAX', disabled: false, action: 'resolveCrisis' });
+    }
 
-
-    function updateIntercomButtons(payload) {
-        window.lastIntercomPayload = payload;
-        const phase = payload.phaseEnum;
-        const used = payload.issuedCommands || [];
-
-        // 1. FLIGHT DECK PA ACTIONS
-        const paOptions = [];
-
-        if (!used.includes('PA_Welcome') && phase === 'AtGate') {
-            const boardingFinished = payload.passengers && payload.passengers.length > 0 ? payload.passengers.every(p => (p.IsBoarded !== undefined ? p.IsBoarded : p.isBoarded)) : false;
-            const ok = phase === 'AtGate' && boardingFinished;
-            paOptions.push({ val: 'Welcome', text: 'WELCOME', disabled: !ok });
-        }
-        if (!used.includes('PA_Approach') && ['Approach', 'FinalApproach'].includes(phase)) {
-            const ok = phase === 'Approach';
-            paOptions.push({ val: 'Approach', text: 'APPROACH', disabled: !ok });
-        }
-
-        if (!used.includes('PA_CruiseStatus')) {
-            paOptions.push({ val: 'CruiseStatus', text: 'CRUISE', disabled: phase !== 'Cruise' });
-        }
-        if (!used.includes('PA_Descent') && ['Descent', 'Approach'].includes(phase)) {
-            paOptions.push({ val: 'Descent', text: 'DESCENT' });
-        }
-
-        if (flightHasExperiencedDelay && !used.includes('PA_Delay') && !used.includes('PA_DelayApology')) {
-            paOptions.push({ val: '', text: 'DELAY', disabled: false, action: 'openDelayMenu' });
-        }
-
-        // Temporarily disabled as per user request (turbulence logic not fully stable)
-        // if (flightHasExperiencedTurbulence && !used.includes('PA_TurbulenceApology')) {
-        //     const isInAir = ['Takeoff', 'Climb', 'Cruise', 'Descent', 'Approach', 'FinalApproach'].includes(phase);
-        //     paOptions.push({ val: 'TurbulenceApology', text: 'TURB. APOLOGY', disabled: !isInAir });
-        // }
-
-        if (payload.isGoAroundActive && !used.includes('PA_GoAround')) {
-            paOptions.push({ val: 'GoAround', text: 'GO-AROUND', disabled: false });
-        }
-        if (payload.isSevereTurbulenceActive && phase === 'Cruise' && !used.includes('PA_Turbulence')) {
-            paOptions.push({ val: 'Turbulence', text: 'SEVERE TURB', disabled: false });
-        }
-        if (payload.activeCrisis === 'MedicalEmergency') {
-            paOptions.push({ val: 'MedicalEmergency', text: 'DOCTOR', disabled: false, action: 'resolveCrisis' });
-        }
-
-        // 2. FLIGHT DECK TO PNC ACTIONS
-        const pncOptions = [];
-
-        const diffSec = payload.cabinReportCooldownElapsed || 999;
-        const isCd = diffSec < 120;
-        
-        const isCriticalPhase = (
-            phase === 4 || (typeof phase === 'string' && phase.toLowerCase() === 'takeoff') ||
-            phase === 5 || (typeof phase === 'string' && phase.toLowerCase() === 'initialclimb') ||
-            phase === 9 || (typeof phase === 'string' && phase.toLowerCase() === 'approach') ||
-            phase === 10 || (typeof phase === 'string' && phase.toLowerCase() === 'landing') ||
-            (typeof phase === 'string' && phase.toLowerCase() === 'finalapproach')
-        );
-        const reportDisabled = isCd || payload.isPlayingSafetyDemo || isCriticalPhase;
-        
-        const isIncoming = window.isCabinCallIncoming === true;
-        const pncBaseClass = 'bg-amber-900/40 text-amber-400 border-amber-500/20';
-        const pncDisabledClass = 'bg-gray-800/40 text-gray-500 border-gray-600/20 opacity-50 border-dashed cursor-not-allowed pointer-events-none';
-        pncOptions.push({
-            val: 'intercomQuery',
-            text: 'CABIN REPORT',
-            disabled: reportDisabled,
-            alwaysShow: true,
-            action: 'intercomQuery',
-            customClass: reportDisabled ? pncDisabledClass : ''
+    if (isIncoming) {
+        paOptions.forEach(opt => {
+            opt.disabled = true;
+            if (!opt.customClass) opt.customClass = 'bg-gray-800/40 text-gray-500 border-gray-600/20 opacity-50 border-dashed cursor-not-allowed pointer-events-none';
         });
-
-        pncOptions.push({
-            val: 'answerCall',
-            text: 'FROM PNC',
-            disabled: !isIncoming,
-            alwaysShow: true,
-            action: 'answerPncCall',
-            customClass: isIncoming ? 'animate-pulse bg-amber-500 text-black font-extrabold border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.8)]' : 'bg-gray-800/40 text-gray-500 border-gray-600/20 opacity-50 border-dashed cursor-not-allowed pointer-events-none'
-        });
-
-
-        
-        if (!used.includes('ARM_DOORS') && ['AtGate', 'Pushback'].includes(phase)) {
-            const ok = payload.isBoardingComplete;
-            pncOptions.push({ val: 'ARM_DOORS', text: 'ARM DOORS', disabled: !ok, action: 'pncCommand' });
-        }
-        if (!used.includes('PREPARE_TAKEOFF') && phase === 'TaxiOut' && !payload.isPlayingSafetyDemo) {
-            pncOptions.push({ val: 'PREPARE_TAKEOFF', text: 'PREP TAKEOFF', disabled: false, action: 'pncCommand' });
-        } else if (used.includes('PREPARE_TAKEOFF') && payload.securingProgress > 0 && payload.securingProgress < 100 && !payload.isSecuringHurried) {
-            if (!pncOptions.some(o => o.val === 'HURRY_SECURING')) pncOptions.push({ val: 'HURRY_SECURING', text: 'HURRY PNC', disabled: false, action: 'pncCommand' });
-        }
-        if (!used.includes('SEATS_TAKEOFF') && phase === 'TaxiOut' && used.includes('PREPARE_TAKEOFF')) {
-            const isReady = payload.securingProgress >= 100;
-            pncOptions.push({ val: 'SEATS_TAKEOFF', text: isReady ? 'SEATS TAKEOFF' : 'FORCE SEATS', disabled: false, action: 'pncCommand' });
-        }
-        if (!used.includes('TOP_DESCENT') && ['Cruise'].includes(phase)) {
-            const todDistNM = payload.altitude ? (payload.altitude / 1000) * 3 : 0;
-            const todWarningThreshold = todDistNM + 50; // Show 50 NM before approximate TOD
-            const isNearTod = payload.destDistanceNM != null && payload.destDistanceNM > 0 
-                ? payload.destDistanceNM <= todWarningThreshold 
-                : true; // fallback if no dest dist
-
-            if (isNearTod) {
-                pncOptions.push({ val: 'TOP_DESCENT', text: 'TOP DESCENT', disabled: false, action: 'pncCommand' });
-            }
-        }
-        if (!used.includes('PREPARE_LANDING') && ['Cruise', 'Descent', 'Approach', 'FinalApproach'].includes(phase)) {
-            const ok = payload.altitude <= 10000 && phase !== 'Cruise';
-            pncOptions.push({ val: 'PREPARE_LANDING', text: 'PREP LANDING', disabled: !ok, action: 'pncCommand' });
-        } else if (used.includes('PREPARE_LANDING') && payload.securingProgress > 0 && payload.securingProgress < 100 && !payload.isSecuringHurried) {
-            if (!pncOptions.some(o => o.val === 'HURRY_SECURING')) pncOptions.push({ val: 'HURRY_SECURING', text: 'HURRY PNC', disabled: false, action: 'pncCommand' });
-        }
-        if (!used.includes('SEATS_LANDING') && ['Descent', 'Approach'].includes(phase)) {
-            const ok = phase === 'Approach' || payload.altitude <= 5000;
-            const isReady = payload.securingProgress >= 100;
-            pncOptions.push({ val: 'SEATS_LANDING', text: isReady ? 'SEATS LANDING' : 'FORCE SEATS', disabled: !ok, action: 'pncCommand' });
-        }
-        if (payload.cabinState === 'ServingMeals') {
-            const svcText = payload.isServiceHalted ? 'RESUME SVC' : 'PAUSE SVC';
-            pncOptions.push({ val: 'toggleService', text: svcText, disabled: false, action: 'toggleService' });
-        }
-        if (payload.activeCrisis === 'UnrulyPassenger') {
-            pncOptions.push({ val: 'UnrulyPassenger', text: 'RESTRAIN PAX', disabled: false, action: 'resolveCrisis' });
-        }
-
-        if (isIncoming) {
-            paOptions.forEach(opt => { 
-                opt.disabled = true; 
+        pncOptions.forEach(opt => {
+            if (opt.val !== 'answerCall') {
+                opt.disabled = true;
                 if (!opt.customClass) opt.customClass = 'bg-gray-800/40 text-gray-500 border-gray-600/20 opacity-50 border-dashed cursor-not-allowed pointer-events-none';
-            });
-            pncOptions.forEach(opt => {
-                if (opt.val !== 'answerCall') {
-                    opt.disabled = true;
-                    if (!opt.customClass) opt.customClass = 'bg-gray-800/40 text-gray-500 border-gray-600/20 opacity-50 border-dashed cursor-not-allowed pointer-events-none';
-                }
-            });
-        }
-
-        if (!window.isDelayMenuOpen) {
-            renderActionButtons('paButtonsContainer', 'paSection', paOptions, 'bg-sky-900/40 text-sky-400 border-sky-500/20 hover:bg-sky-800/60 shadow-[0_0_10px_rgba(14,165,233,0.1)] hover:shadow-[0_0_15px_rgba(14,165,233,0.2)]', 'PA');
-        }
-        renderActionButtons('pncButtonsContainer', 'pncSection', pncOptions, 'bg-amber-900/40 text-amber-400 border-amber-500/20 hover:bg-amber-800/60 shadow-[0_0_10px_rgba(245,158,11,0.1)] hover:shadow-[0_0_15px_rgba(245,158,11,0.2)]', 'PNC');
-
-        // 3. FLIGHT DECK TO TECH ACTIONS
-        const techOptions = [];
-        if (['AtGate', 'Turnaround'].includes(phase) && payload.isMaintenanceRequired) {
-            techOptions.push({ val: 'repair', text: 'REQUEST REPAIR', disabled: false, action: 'requestTechRepair' });
-        }
-
-        renderActionButtons('techButtonsContainer', 'techSection', techOptions, 'bg-emerald-900/40 text-emerald-400 border-emerald-500/20 hover:bg-emerald-800/60 shadow-[0_0_10px_rgba(16,185,129,0.1)] hover:shadow-[0_0_15px_rgba(16,185,129,0.2)]', 'TECH');
-    }
-
-
-    const selLanguage = document.getElementById('selLanguage');
-    if (selLanguage) {
-        selLanguage.addEventListener('change', (e) => {
-            const lang = e.target.value.toLowerCase();
-            setLanguage(lang);
-            // Notify C# Backend about language change
-            window.chrome.webview.postMessage({ action: 'changeLanguage', language: lang });
+            }
         });
     }
 
-    const savedHardcore = localStorage.getItem('chkHardcore');
-    if (savedHardcore !== null && document.getElementById('chkHardcore')) {
-        document.getElementById('chkHardcore').checked = (savedHardcore === 'true');
+    if (!window.isDelayMenuOpen) {
+        renderActionButtons('paButtonsContainer', 'paSection', paOptions, 'bg-sky-900/40 text-sky-400 border-sky-500/20 hover:bg-sky-800/60 shadow-[0_0_10px_rgba(14,165,233,0.1)] hover:shadow-[0_0_15px_rgba(14,165,233,0.2)]', 'PA');
+    }
+    renderActionButtons('pncButtonsContainer', 'pncSection', pncOptions, 'bg-amber-900/40 text-amber-400 border-amber-500/20 hover:bg-amber-800/60 shadow-[0_0_10px_rgba(245,158,11,0.1)] hover:shadow-[0_0_15px_rgba(245,158,11,0.2)]', 'PNC');
+
+    // 3. FLIGHT DECK TO TECH ACTIONS
+    const techOptions = [];
+    if (['AtGate', 'Turnaround'].includes(phase) && payload.isMaintenanceRequired) {
+        techOptions.push({ val: 'repair', text: 'REQUEST REPAIR', disabled: false, action: 'requestTechRepair' });
     }
 
-    const savedFFClean = localStorage.getItem('firstFlightClean');
-    if (savedFFClean !== null && document.getElementById('chkFirstFlightClean')) {
-        document.getElementById('chkFirstFlightClean').checked = (savedFFClean === 'true');
-    }
+    renderActionButtons('techButtonsContainer', 'techSection', techOptions, 'bg-emerald-900/40 text-emerald-400 border-emerald-500/20 hover:bg-emerald-800/60 shadow-[0_0_10px_rgba(16,185,129,0.1)] hover:shadow-[0_0_15px_rgba(16,185,129,0.2)]', 'TECH');
+}
 
-    const savedSyncTime = localStorage.getItem('chkSyncTime');
-    if ((savedSyncTime === 'true' || savedSyncTime === null) && document.getElementById('chkSyncTime')) {
-        document.getElementById('chkSyncTime').checked = true;
-        if (document.getElementById('lblSyncTimeMode')) document.getElementById('lblSyncTimeMode').innerText = 'MSFS SIM';
-    }
 
-    const savedTop = localStorage.getItem('chkAlwaysOnTop');
-    if (savedTop !== null && document.getElementById('chkAlwaysOnTop')) {
-        const isTop = (savedTop === 'true');
-        document.getElementById('chkAlwaysOnTop').checked = isTop;
+const selLanguage = document.getElementById('selLanguage');
+if (selLanguage) {
+    selLanguage.addEventListener('change', (e) => {
+        const lang = e.target.value.toLowerCase();
+        setLanguage(lang);
+        // Notify C# Backend about language change
+        window.chrome.webview.postMessage({ action: 'changeLanguage', language: lang });
+    });
+}
+
+const savedHardcore = localStorage.getItem('chkHardcore');
+if (savedHardcore !== null && document.getElementById('chkHardcore')) {
+    document.getElementById('chkHardcore').checked = (savedHardcore === 'true');
+}
+
+const savedFFClean = localStorage.getItem('firstFlightClean');
+if (savedFFClean !== null && document.getElementById('chkFirstFlightClean')) {
+    document.getElementById('chkFirstFlightClean').checked = (savedFFClean === 'true');
+}
+
+const savedSyncTime = localStorage.getItem('chkSyncTime');
+if ((savedSyncTime === 'true' || savedSyncTime === null) && document.getElementById('chkSyncTime')) {
+    document.getElementById('chkSyncTime').checked = true;
+    if (document.getElementById('lblSyncTimeMode')) document.getElementById('lblSyncTimeMode').innerText = 'MSFS SIM';
+}
+
+const savedTop = localStorage.getItem('chkAlwaysOnTop');
+if (savedTop !== null && document.getElementById('chkAlwaysOnTop')) {
+    const isTop = (savedTop === 'true');
+    document.getElementById('chkAlwaysOnTop').checked = isTop;
+    if (document.getElementById('btnPin')) {
+        document.getElementById('btnPin').style.opacity = isTop ? '1' : '0.4';
+    }
+    window.chrome.webview.postMessage({ action: 'setAlwaysOnTop', value: isTop });
+}
+
+const rngProb = document.getElementById('rngProb');
+const lblProb = document.getElementById('lblProb');
+if (rngProb && lblProb) {
+    rngProb.addEventListener('input', () => { lblProb.innerText = rngProb.value + '%'; });
+    const savedProb = localStorage.getItem('groundProb');
+    if (savedProb) {
+        rngProb.value = savedProb;
+        lblProb.innerText = savedProb + '%';
+    }
+}
+
+// Reset Settings
+const btnResetGroundOps = document.getElementById('btnResetGroundOps');
+if (btnResetGroundOps) {
+    btnResetGroundOps.addEventListener('click', () => {
+        const speedSel = document.getElementById('selGroundOpsSpeed');
+        const probRng = document.getElementById('rngProb');
+        const probLbl = document.getElementById('lblProb');
+
+        if (speedSel) speedSel.value = 'Realistic';
+        if (probRng) probRng.value = 25;
+        if (probLbl) probLbl.innerText = '25%';
+
+        localStorage.setItem('groundSpeed', 'Realistic');
+        localStorage.setItem('groundProb', '25');
+    });
+}
+
+const savedFenixPath = localStorage.getItem('fenixExportPath');
+if (savedFenixPath !== null && document.getElementById('fenixExportPath')) {
+    document.getElementById('fenixExportPath').value = savedFenixPath;
+}
+
+// Save Settings
+const btnSaveSettings = document.getElementById('btnSaveSettings');
+if (btnSaveSettings) {
+    btnSaveSettings.addEventListener('click', () => {
+        const username = document.getElementById('sbUsername') ? document.getElementById('sbUsername').value : '';
+        const groundSpeed = document.getElementById('selGroundOpsSpeed') ? document.getElementById('selGroundOpsSpeed').value : 'Realistic';
+        const groundProb = document.getElementById('rngProb') ? document.getElementById('rngProb').value : '25';
+        const weatherSrc = document.getElementById('selWeatherSource') ? document.getElementById('selWeatherSource').value : 'noaa';
+        const fenixPath = document.getElementById('fenixExportPath') ? document.getElementById('fenixExportPath').value : '';
+        const gsxSync = document.getElementById('chkGsxSync') ? document.getElementById('chkGsxSync').checked : false;
+        const volPa = document.getElementById('rngVolumePa') ? document.getElementById('rngVolumePa').value : '100';
+        const volPnc = document.getElementById('rngVolumePnc') ? document.getElementById('rngVolumePnc').value : '100';
+        const savedFfc = localStorage.getItem('firstFlightClean');
+        const ffClean = document.getElementById('chkFirstFlightClean') ? document.getElementById('chkFirstFlightClean').checked : (savedFfc === 'true');
+
+        // Hide Time Skip when GSX is ON
+        const timeSkipModal = document.getElementById('timeSkipModal');
+        const btnTimeSkipToolbar = document.getElementById('btnTimeSkip'); // if there is a toolbar button
+        if (gsxSync) {
+            if (timeSkipModal) timeSkipModal.classList.add('hidden');
+            if (btnTimeSkipToolbar) btnTimeSkipToolbar.classList.add('hidden');
+        } else {
+            if (btnTimeSkipToolbar) btnTimeSkipToolbar.classList.remove('hidden');
+        }
+
+        const selItems = ['selLanguage', 'selTimeFormat', 'selUnitSpeed', 'selUnitAlt', 'selUnitWeight', 'selUnitTemp', 'selUnitPress', 'selCrisisFreq'];
+        selItems.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                localStorage.setItem(id, el.value);
+                if (id === 'selCrisisFreq') {
+                    window.chrome.webview.postMessage({ action: 'setCrisisFrequency', value: el.value });
+                }
+            }
+        });
+        const hardcore = document.getElementById('chkHardcore') ? document.getElementById('chkHardcore').checked : false;
+        localStorage.setItem('chkHardcore', hardcore);
+        localStorage.setItem('firstFlightClean', ffClean);
+        localStorage.setItem('volumePa', volPa);
+        localStorage.setItem('volumePnc', volPnc);
+
+        const isTop = document.getElementById('chkAlwaysOnTop') ? document.getElementById('chkAlwaysOnTop').checked : false;
+        localStorage.setItem('chkAlwaysOnTop', isTop);
         if (document.getElementById('btnPin')) {
             document.getElementById('btnPin').style.opacity = isTop ? '1' : '0.4';
         }
         window.chrome.webview.postMessage({ action: 'setAlwaysOnTop', value: isTop });
-    }
 
-    const rngProb = document.getElementById('rngProb');
-    const lblProb = document.getElementById('lblProb');
-    if (rngProb && lblProb) {
-        rngProb.addEventListener('input', () => { lblProb.innerText = rngProb.value + '%'; });
-        const savedProb = localStorage.getItem('groundProb');
-        if (savedProb) {
-            rngProb.value = savedProb;
-            lblProb.innerText = savedProb + '%';
-        }
-    }
-
-    // Reset Settings
-    const btnResetGroundOps = document.getElementById('btnResetGroundOps');
-    if (btnResetGroundOps) {
-        btnResetGroundOps.addEventListener('click', () => {
-            const speedSel = document.getElementById('selGroundOpsSpeed');
-            const probRng = document.getElementById('rngProb');
-            const probLbl = document.getElementById('lblProb');
-
-            if (speedSel) speedSel.value = 'Realistic';
-            if (probRng) probRng.value = 25;
-            if (probLbl) probLbl.innerText = '25%';
-
-            localStorage.setItem('groundSpeed', 'Realistic');
-            localStorage.setItem('groundProb', '25');
-        });
-    }
-
-    const savedFenixPath = localStorage.getItem('fenixExportPath');
-    if (savedFenixPath !== null && document.getElementById('fenixExportPath')) {
-        document.getElementById('fenixExportPath').value = savedFenixPath;
-    }
-
-    // Save Settings
-    const btnSaveSettings = document.getElementById('btnSaveSettings');
-    if (btnSaveSettings) {
-        btnSaveSettings.addEventListener('click', () => {
-            const username = document.getElementById('sbUsername') ? document.getElementById('sbUsername').value : '';
-            const groundSpeed = document.getElementById('selGroundOpsSpeed') ? document.getElementById('selGroundOpsSpeed').value : 'Realistic';
-            const groundProb = document.getElementById('rngProb') ? document.getElementById('rngProb').value : '25';
-            const weatherSrc = document.getElementById('selWeatherSource') ? document.getElementById('selWeatherSource').value : 'SimBrief';
-            const fenixPath = document.getElementById('fenixExportPath') ? document.getElementById('fenixExportPath').value : '';
-            const gsxSync = document.getElementById('chkGsxSync') ? document.getElementById('chkGsxSync').checked : false;
-            const volPa = document.getElementById('rngVolumePa') ? document.getElementById('rngVolumePa').value : '100';
-            const volPnc = document.getElementById('rngVolumePnc') ? document.getElementById('rngVolumePnc').value : '100';
-            const savedFfc = localStorage.getItem('firstFlightClean');
-            const ffClean = document.getElementById('chkFirstFlightClean') ? document.getElementById('chkFirstFlightClean').checked : (savedFfc === 'true');
-
-            // Hide Time Skip when GSX is ON
-            const timeSkipModal = document.getElementById('timeSkipModal');
-            const btnTimeSkipToolbar = document.getElementById('btnTimeSkip'); // if there is a toolbar button
-            if (gsxSync) {
-                if (timeSkipModal) timeSkipModal.classList.add('hidden');
-                if (btnTimeSkipToolbar) btnTimeSkipToolbar.classList.add('hidden');
-            } else {
-                if (btnTimeSkipToolbar) btnTimeSkipToolbar.classList.remove('hidden');
+        if (username) localStorage.setItem('sbUsername', username);
+        localStorage.setItem('groundSpeed', groundSpeed);
+        window.chrome.webview.postMessage({ action: 'updateGroundSpeed', value: groundSpeed });
+        localStorage.setItem('groundProb', groundProb);
+        window.chrome.webview.postMessage({
+            action: 'saveSettings',
+            options: {
+                groundSpeed: groundSpeed,
+                groundProb: groundProb,
+                firstFlightClean: ffClean,
+                gsxSync: gsxSync,
+                volumePa: volPa,
+                volumePnc: volPnc
             }
-
-            const selItems = ['selLanguage', 'selTimeFormat', 'selUnitSpeed', 'selUnitAlt', 'selUnitWeight', 'selUnitTemp', 'selUnitPress', 'selCrisisFreq'];
-            selItems.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    localStorage.setItem(id, el.value);
-                    if (id === 'selCrisisFreq') {
-                        window.chrome.webview.postMessage({ action: 'setCrisisFrequency', value: el.value });
-                    }
-                }
-            });
-            const hardcore = document.getElementById('chkHardcore') ? document.getElementById('chkHardcore').checked : false;
-            localStorage.setItem('chkHardcore', hardcore);
-            localStorage.setItem('firstFlightClean', ffClean);
-            localStorage.setItem('volumePa', volPa);
-            localStorage.setItem('volumePnc', volPnc);
-
-            const isTop = document.getElementById('chkAlwaysOnTop') ? document.getElementById('chkAlwaysOnTop').checked : false;
-            localStorage.setItem('chkAlwaysOnTop', isTop);
-            if (document.getElementById('btnPin')) {
-                document.getElementById('btnPin').style.opacity = isTop ? '1' : '0.4';
-            }
-            window.chrome.webview.postMessage({ action: 'setAlwaysOnTop', value: isTop });
-
-            if (username) localStorage.setItem('sbUsername', username);
-            localStorage.setItem('groundSpeed', groundSpeed);
-            window.chrome.webview.postMessage({ action: 'updateGroundSpeed', value: groundSpeed });
-            localStorage.setItem('groundProb', groundProb);
-            window.chrome.webview.postMessage({
-                action: 'saveSettings',
-                options: {
-                    groundSpeed: groundSpeed,
-                    groundProb: groundProb,
-                    firstFlightClean: ffClean,
-                    gsxSync: gsxSync,
-                    volumePa: volPa,
-                    volumePnc: volPnc
-                }
-            });
-            localStorage.setItem('weatherSource', weatherSrc);
-            localStorage.setItem('gsxSync', gsxSync);
-            localStorage.setItem('fenixExportPath', fenixPath);
-
-            const lang = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
-            const dict = window.locales && window.locales[lang] ? window.locales[lang] : window.locales.en;
-
-            btnSaveSettings.innerText = dict.btn_settings_saved || 'Settings Saved';
-            btnSaveSettings.style.backgroundColor = '#34D399';
-
-            setTimeout(() => {
-                btnSaveSettings.innerText = dict.btn_save_settings || 'Save Settings';
-                btnSaveSettings.style.backgroundColor = '#4A90E2';
-            }, 1500);
         });
-    }
+        localStorage.setItem('weatherSource', weatherSrc);
+        localStorage.setItem('gsxSync', gsxSync);
+        localStorage.setItem('fenixExportPath', fenixPath);
 
-    // Fetch Flight Plan / Cancel Flight
-    const btnFetchPlan = document.getElementById('btnFetchPlan');
-    const cancelModal = document.getElementById('cancelModal');
-    const btnCancelYes = document.getElementById('btnCancelYes');
-    const btnCancelNo = document.getElementById('btnCancelNo');
+        const lang = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
+        const dict = window.locales && window.locales[lang] ? window.locales[lang] : window.locales.en;
 
-    if (btnCancelNo) btnCancelNo.addEventListener('click', () => { cancelModal.style.display = 'none'; });
-    if (btnCancelYes) btnCancelYes.addEventListener('click', () => {
-        cancelModal.style.display = 'none';
-        window.chrome.webview.postMessage({ action: 'cancelFlight' });
+        btnSaveSettings.innerText = dict.btn_settings_saved || 'Settings Saved';
+        btnSaveSettings.style.backgroundColor = '#34D399';
+
+        setTimeout(() => {
+            btnSaveSettings.innerText = dict.btn_save_settings || 'Save Settings';
+            btnSaveSettings.style.backgroundColor = '#4A90E2';
+        }, 1500);
     });
+}
 
-    // Profile Avatar Upload
-    const avatarInput = document.getElementById('avatarUploadInput');
-    if (avatarInput) {
-        avatarInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const base64Str = event.target.result;
-                    // Update UI immediately
-                    const sbImg = document.getElementById('sbProfileImg');
-                    if (sbImg) {
-                        sbImg.src = base64Str;
-                        sbImg.classList.remove('hidden');
-                        document.getElementById('sbProfileIcon').classList.add('hidden');
-                    }
+// Fetch Flight Plan / Cancel Flight
+const btnFetchPlan = document.getElementById('btnFetchPlan');
+const cancelModal = document.getElementById('cancelModal');
+const btnCancelYes = document.getElementById('btnCancelYes');
+const btnCancelNo = document.getElementById('btnCancelNo');
 
-                    const bigImg = document.getElementById('prfBigAvatar');
-                    if (bigImg) {
-                        bigImg.src = base64Str;
-                        bigImg.style.objectPosition = "50% 50%";
-                        bigImg.classList.remove('hidden');
-                        document.getElementById('prfBigIcon').classList.add('hidden');
-                    }
+if (btnCancelNo) btnCancelNo.addEventListener('click', () => { cancelModal.style.display = 'none'; });
+if (btnCancelYes) btnCancelYes.addEventListener('click', () => {
+    cancelModal.style.display = 'none';
+    window.chrome.webview.postMessage({ action: 'cancelFlight' });
+});
 
-                    // Send to backend C# ProfileManager
-                    window.chrome.webview.postMessage({ action: 'updateAvatar', payload: base64Str });
-                    window.chrome.webview.postMessage({ action: 'updateProfileField', field: 'AvatarPosition', value: '50% 50%' });
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-
-    const btnEditAvatar = document.getElementById('btnEditAvatar');
-    if (btnEditAvatar) {
-        btnEditAvatar.addEventListener('click', () => {
-            if (avatarInput) avatarInput.click();
-        });
-    }
-
-    const btnSaveIdentity = document.getElementById('btnSaveIdentity');
-    if (btnSaveIdentity) {
-        btnSaveIdentity.addEventListener('click', () => {
-            const fieldsToSave = [
-                { id: 'prfCallsign', field: 'CallSign' },
-                { id: 'prfFullName', field: 'FullName' },
-                { id: 'prfHomeBase', field: 'HomeBaseIcao' },
-                { id: 'prfCountry', field: 'CountryCode' }
-            ];
-            fieldsToSave.forEach(pf => {
-                const el = document.getElementById(pf.id);
-                if (el) {
-                    let v = el.innerText.trim();
-                    if (pf.field === 'HomeBaseIcao') v = v.toUpperCase();
-                    if (pf.field === 'CountryCode') v = v.toUpperCase();
-                    window.chrome.webview.postMessage({
-                        action: 'updateProfileField',
-                        field: pf.field,
-                        value: v
-                    });
+// Profile Avatar Upload
+const avatarInput = document.getElementById('avatarUploadInput');
+if (avatarInput) {
+    avatarInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const base64Str = event.target.result;
+                // Update UI immediately
+                const sbImg = document.getElementById('sbProfileImg');
+                if (sbImg) {
+                    sbImg.src = base64Str;
+                    sbImg.classList.remove('hidden');
+                    document.getElementById('sbProfileIcon').classList.add('hidden');
                 }
-            });
 
-            const callsign = document.getElementById('prfCallsign')?.innerText.trim() || 'MAVERICK';
-            const sbCallsign = document.getElementById('sbProfileCallsign');
-            if (sbCallsign) sbCallsign.innerText = callsign;
+                const bigImg = document.getElementById('prfBigAvatar');
+                if (bigImg) {
+                    bigImg.src = base64Str;
+                    bigImg.style.objectPosition = "50% 50%";
+                    bigImg.classList.remove('hidden');
+                    document.getElementById('prfBigIcon').classList.add('hidden');
+                }
 
-            // Visual feedback
-            const originalText = btnSaveIdentity.innerText;
-            btnSaveIdentity.innerText = 'SAVED!';
-            btnSaveIdentity.classList.remove('text-emerald-400', 'border-emerald-500/30');
-            btnSaveIdentity.classList.add('text-white', 'border-white', 'bg-emerald-600/80');
-            setTimeout(() => {
-                btnSaveIdentity.innerText = originalText;
-                btnSaveIdentity.classList.add('text-emerald-400', 'border-emerald-500/30');
-                btnSaveIdentity.classList.remove('text-white', 'border-white', 'bg-emerald-600/80');
-            }, 1500);
-        });
-    }
+                // Send to backend C# ProfileManager
+                window.chrome.webview.postMessage({ action: 'updateAvatar', payload: base64Str });
+                window.chrome.webview.postMessage({ action: 'updateProfileField', field: 'AvatarPosition', value: '50% 50%' });
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+}
 
-    const prfBigAvatar = document.getElementById('prfBigAvatar');
-    if (prfBigAvatar) {
-        let isDraggingAvatar = false;
-        let startX, startY;
-        let startPosX = 50, startPosY = 50;
+const btnEditAvatar = document.getElementById('btnEditAvatar');
+if (btnEditAvatar) {
+    btnEditAvatar.addEventListener('click', () => {
+        if (avatarInput) avatarInput.click();
+    });
+}
 
-        prfBigAvatar.addEventListener('mousedown', (e) => {
-            isDraggingAvatar = true;
-            startX = e.clientX;
-            startY = e.clientY;
-            let currentPos = prfBigAvatar.style.objectPosition || '50% 50%';
-            let parts = currentPos.trim().split(/\s+/);
-            if (parts.length >= 2) {
-                startPosX = parseFloat(parts[0]) || 50;
-                startPosY = parseFloat(parts[1]) || 50;
-            }
-            prfBigAvatar.style.cursor = 'grabbing';
-            e.preventDefault();
-        });
-
-        window.addEventListener('mousemove', (e) => {
-            if (!isDraggingAvatar) return;
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
-            // Negative mapping so pulling mouse left brings the object position right (natural grabbing)
-            const newX = Math.max(0, Math.min(100, startPosX - (dx * 0.5)));
-            const newY = Math.max(0, Math.min(100, startPosY - (dy * 0.5)));
-            const pos = `${newX}% ${newY}%`;
-            prfBigAvatar.style.objectPosition = pos;
-
-            const sbImg = document.getElementById('sbProfileImg');
-            if (sbImg) sbImg.style.objectPosition = pos;
-        });
-
-        window.addEventListener('mouseup', () => {
-            if (isDraggingAvatar) {
-                isDraggingAvatar = false;
-                prfBigAvatar.style.cursor = 'grab';
-                window.chrome.webview.postMessage({
-                    action: 'updateProfileField',
-                    field: 'AvatarPosition',
-                    value: prfBigAvatar.style.objectPosition
-                });
-            }
-        });
-
-        prfBigAvatar.style.cursor = 'grab';
-    }
-
-    // Profile Text Fields Edit
-    const profileFields = [
-        { id: 'prfCallsign', field: 'CallSign' },
-        { id: 'prfFullName', field: 'FullName' },
-        { id: 'prfHomeBase', field: 'HomeBaseIcao' },
-        { id: 'prfCountry', field: 'CountryCode' }
-    ];
-
-    profileFields.forEach(pf => {
-        const el = document.getElementById(pf.id);
-        if (el) {
-            el.addEventListener('blur', () => {
+const btnSaveIdentity = document.getElementById('btnSaveIdentity');
+if (btnSaveIdentity) {
+    btnSaveIdentity.addEventListener('click', () => {
+        const fieldsToSave = [
+            { id: 'prfCallsign', field: 'CallSign' },
+            { id: 'prfFullName', field: 'FullName' },
+            { id: 'prfHomeBase', field: 'HomeBaseIcao' },
+            { id: 'prfCountry', field: 'CountryCode' }
+        ];
+        fieldsToSave.forEach(pf => {
+            const el = document.getElementById(pf.id);
+            if (el) {
                 let v = el.innerText.trim();
-                // We keep HomeBase and Country in uppercase naturally, but Callsign can be mixed case
                 if (pf.field === 'HomeBaseIcao') v = v.toUpperCase();
                 if (pf.field === 'CountryCode') v = v.toUpperCase();
-                if (el.innerText !== v) el.innerText = v;
                 window.chrome.webview.postMessage({
                     action: 'updateProfileField',
                     field: pf.field,
                     value: v
                 });
-            });
-            el.addEventListener('input', () => {
-                // Save immediately without reformatting text to prevent cursor jump
-                window.chrome.webview.postMessage({
-                    action: 'updateProfileField',
-                    field: pf.field,
-                    value: el.innerText.trim()
-                });
-            });
-            el.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    el.blur();
-                }
+            }
+        });
+
+        const callsign = document.getElementById('prfCallsign')?.innerText.trim() || 'MAVERICK';
+        const sbCallsign = document.getElementById('sbProfileCallsign');
+        if (sbCallsign) sbCallsign.innerText = callsign;
+
+        // Visual feedback
+        const originalText = btnSaveIdentity.innerText;
+        btnSaveIdentity.innerText = 'SAVED!';
+        btnSaveIdentity.classList.remove('text-emerald-400', 'border-emerald-500/30');
+        btnSaveIdentity.classList.add('text-white', 'border-white', 'bg-emerald-600/80');
+        setTimeout(() => {
+            btnSaveIdentity.innerText = originalText;
+            btnSaveIdentity.classList.add('text-emerald-400', 'border-emerald-500/30');
+            btnSaveIdentity.classList.remove('text-white', 'border-white', 'bg-emerald-600/80');
+        }, 1500);
+    });
+}
+
+const prfBigAvatar = document.getElementById('prfBigAvatar');
+if (prfBigAvatar) {
+    let isDraggingAvatar = false;
+    let startX, startY;
+    let startPosX = 50, startPosY = 50;
+
+    prfBigAvatar.addEventListener('mousedown', (e) => {
+        isDraggingAvatar = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        let currentPos = prfBigAvatar.style.objectPosition || '50% 50%';
+        let parts = currentPos.trim().split(/\s+/);
+        if (parts.length >= 2) {
+            startPosX = parseFloat(parts[0]) || 50;
+            startPosY = parseFloat(parts[1]) || 50;
+        }
+        prfBigAvatar.style.cursor = 'grabbing';
+        e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDraggingAvatar) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        // Negative mapping so pulling mouse left brings the object position right (natural grabbing)
+        const newX = Math.max(0, Math.min(100, startPosX - (dx * 0.5)));
+        const newY = Math.max(0, Math.min(100, startPosY - (dy * 0.5)));
+        const pos = `${newX}% ${newY}%`;
+        prfBigAvatar.style.objectPosition = pos;
+
+        const sbImg = document.getElementById('sbProfileImg');
+        if (sbImg) sbImg.style.objectPosition = pos;
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (isDraggingAvatar) {
+            isDraggingAvatar = false;
+            prfBigAvatar.style.cursor = 'grab';
+            window.chrome.webview.postMessage({
+                action: 'updateProfileField',
+                field: 'AvatarPosition',
+                value: prfBigAvatar.style.objectPosition
             });
         }
     });
 
-    // Connected to Simulator (Abort Modal Removed)
-    
-    const btnDismissReport = document.getElementById('btnDismissReport');
-    if (btnDismissReport) btnDismissReport.addEventListener('click', () => {
-        document.getElementById('flightReportModal').style.display = 'none';
-        if (window.isViewingHistoricalReport) {
-            window.isViewingHistoricalReport = false;
-        } else {
-            window.chrome.webview.postMessage({ action: 'acknowledgeDebrief' });
-        }
-    });
+    prfBigAvatar.style.cursor = 'grab';
+}
 
-    let currentDutyState = null;
+// Profile Text Fields Edit
+const profileFields = [
+    { id: 'prfCallsign', field: 'CallSign' },
+    { id: 'prfFullName', field: 'FullName' },
+    { id: 'prfHomeBase', field: 'HomeBaseIcao' },
+    { id: 'prfCountry', field: 'CountryCode' }
+];
 
-    window.selectDutyState = function (state) {
-        currentDutyState = state;
-        const pristine = document.getElementById('cardPristine');
-        const turnaround = document.getElementById('cardTurnaround');
-        if (!pristine || !turnaround) return;
-
-        pristine.classList.remove('border-sky-500', 'bg-sky-900/10');
-        pristine.classList.add('border-white/5', 'bg-[#12141A]', 'opacity-50');
-        turnaround.classList.remove('border-orange-500', 'bg-orange-500/10', 'hover:border-orange-500/50');
-        turnaround.classList.add('border-white/5', 'bg-[#12141A]', 'opacity-50');
-
-        if (state === 'pristine') {
-            pristine.classList.add('border-sky-500', 'bg-sky-900/10');
-            pristine.classList.remove('border-white/5', 'bg-[#12141A]', 'opacity-50');
-        } else {
-            turnaround.classList.add('border-orange-500', 'bg-orange-500/10', 'hover:border-orange-500/50');
-            turnaround.classList.remove('border-white/5', 'bg-[#12141A]', 'opacity-50');
-        }
-    };
-
-    if (btnFetchPlan) {
-        btnFetchPlan.addEventListener('click', () => {
-            if (window.isDummyPreflight) {
-                // Modifié par directive utilisateur : on n'envoie plus d'ouverture automatique par le header.
-                // Logique relocalisée sur le gros bouton "IMPORT FROM SIMBRIEF" au milieu.
-                window.chrome.webview.postMessage({ action: 'openSimbriefForCurrentLeg' });
-                return;
-            }
-
-            if (window.isFlightActive) {
-                if (window.flightPhase === 'Turnaround' || window.flightPhase === 'AtGate') {
-                    // Send to backend to advance the leg queue
-                    window.chrome.webview.postMessage({ action: 'prepareNextLeg' });
-                    return;
-                }
-                if (cancelModal) cancelModal.style.display = 'flex';
-                return;
-            }
-
-            const dutyModal = document.getElementById('dutySetupModal');
-            if (dutyModal) {
-                const sbUser = localStorage.getItem('sbUsername') || '';
-                const unInput = document.getElementById('dutySbUsername');
-                if (unInput) unInput.value = sbUser;
-
-                if (!currentDutyState) selectDutyState('pristine');
-
-                dutyModal.style.display = 'flex';
+profileFields.forEach(pf => {
+    const el = document.getElementById(pf.id);
+    if (el) {
+        el.addEventListener('blur', () => {
+            let v = el.innerText.trim();
+            // We keep HomeBase and Country in uppercase naturally, but Callsign can be mixed case
+            if (pf.field === 'HomeBaseIcao') v = v.toUpperCase();
+            if (pf.field === 'CountryCode') v = v.toUpperCase();
+            if (el.innerText !== v) el.innerText = v;
+            window.chrome.webview.postMessage({
+                action: 'updateProfileField',
+                field: pf.field,
+                value: v
+            });
+        });
+        el.addEventListener('input', () => {
+            // Save immediately without reformatting text to prevent cursor jump
+            window.chrome.webview.postMessage({
+                action: 'updateProfileField',
+                field: pf.field,
+                value: el.innerText.trim()
+            });
+        });
+        el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                el.blur();
             }
         });
     }
+});
 
+// Connected to Simulator (Abort Modal Removed)
 
-    window.currentLegCounter = 1;
+const btnDismissReport = document.getElementById('btnDismissReport');
+if (btnDismissReport) btnDismissReport.addEventListener('click', () => {
+    document.getElementById('flightReportModal').style.display = 'none';
+    if (window.isViewingHistoricalReport) {
+        window.isViewingHistoricalReport = false;
+    } else {
+        window.chrome.webview.postMessage({ action: 'acknowledgeDebrief' });
+    }
+});
 
-    window.plannedDummyLegs = [];
-    window.currentDutyMode = 'custom';
-    window.predefinedRosters = null;
-    window.selectedRosterId = null;
+let currentDutyState = null;
 
-    window.setStepMode = (mode) => {
-        window.currentDutyMode = mode;
-        const btnCustom = document.getElementById('btnModeCustom');
-        const btnRoster = document.getElementById('btnModeRoster');
-        const viewCustom = document.getElementById('viewModeCustom');
-        const viewRoster = document.getElementById('viewModeRoster');
+window.selectDutyState = function (state) {
+    currentDutyState = state;
+    const pristine = document.getElementById('cardPristine');
+    const turnaround = document.getElementById('cardTurnaround');
+    if (!pristine || !turnaround) return;
 
-        if (mode === 'custom') {
-            btnCustom.classList.add('bg-sky-500/20', 'text-sky-400', 'border-sky-500/50', 'shadow-[0_0_15px_rgba(14,165,233,0.2)]');
-            btnCustom.classList.remove('text-slate-500', 'border-transparent');
-            btnRoster.classList.remove('bg-sky-500/20', 'text-sky-400', 'border-sky-500/50', 'shadow-[0_0_15px_rgba(14,165,233,0.2)]');
-            btnRoster.classList.add('text-slate-500', 'border-transparent');
-            viewCustom.style.display = 'grid';
-            viewRoster.style.display = 'none';
-        } else {
-            btnRoster.classList.add('bg-sky-500/20', 'text-sky-400', 'border-sky-500/50', 'shadow-[0_0_15px_rgba(14,165,233,0.2)]');
-            btnRoster.classList.remove('text-slate-500', 'border-transparent');
-            btnCustom.classList.remove('bg-sky-500/20', 'text-sky-400', 'border-sky-500/50', 'shadow-[0_0_15px_rgba(14,165,233,0.2)]');
-            btnCustom.classList.add('text-slate-500', 'border-transparent');
-            viewCustom.style.display = 'none';
-            viewRoster.style.display = 'flex';
+    pristine.classList.remove('border-sky-500', 'bg-sky-900/10');
+    pristine.classList.add('border-white/5', 'bg-[#12141A]', 'opacity-50');
+    turnaround.classList.remove('border-orange-500', 'bg-orange-500/10', 'hover:border-orange-500/50');
+    turnaround.classList.add('border-white/5', 'bg-[#12141A]', 'opacity-50');
 
-            if (!window.predefinedRosters) {
-                fetch('./data/predefined_rotations.json')
-                    .then(res => res.json())
-                    .then(data => {
-                        window.predefinedRosters = data;
-                        window.updateRosterUI();
-                    })
-                    .catch(err => console.error("Failed to load predefined rotations", err));
-            } else {
-                window.updateRosterUI();
-            }
-        }
-    };
+    if (state === 'pristine') {
+        pristine.classList.add('border-sky-500', 'bg-sky-900/10');
+        pristine.classList.remove('border-white/5', 'bg-[#12141A]', 'opacity-50');
+    } else {
+        turnaround.classList.add('border-orange-500', 'bg-orange-500/10', 'hover:border-orange-500/50');
+        turnaround.classList.remove('border-white/5', 'bg-[#12141A]', 'opacity-50');
+    }
+};
 
-    window.selectRoster = (id) => {
-        window.selectedRosterId = id;
-        document.querySelectorAll('.roster-card').forEach(card => {
-            if (card.dataset.id === id) {
-                card.classList.add('border-emerald-500', 'bg-emerald-900/20', 'shadow-[0_0_15px_rgba(16,185,129,0.3)]');
-                card.classList.remove('border-white/5', 'bg-[#1C1F26]', 'opacity-40');
-            } else {
-                card.classList.remove('border-emerald-500', 'bg-emerald-900/20', 'shadow-[0_0_15px_rgba(16,185,129,0.3)]');
-                card.classList.add('border-white/5', 'bg-[#1C1F26]', 'opacity-40');
-            }
-        });
-    };
-
-    window.updateRosterUI = () => {
-        const grid = document.getElementById('rosterGrid');
-        if (!grid || !window.predefinedRosters) return;
-
-        const airline = document.getElementById('rosterSelAirline').value;
-        const hub = document.getElementById('rosterSelHub').value;
-
-        const rotations = window.predefinedRosters[airline] && window.predefinedRosters[airline][hub] ? window.predefinedRosters[airline][hub] : [];
-
-        grid.innerHTML = '';
-        if (rotations.length === 0) {
-            grid.innerHTML = '<div class="text-slate-500 text-xs italic col-span-full py-8">No rotations found for this selection.</div>';
+if (btnFetchPlan) {
+    btnFetchPlan.addEventListener('click', () => {
+        if (window.isDummyPreflight) {
+            // Modifié par directive utilisateur : on n'envoie plus d'ouverture automatique par le header.
+            // Logique relocalisée sur le gros bouton "IMPORT FROM SIMBRIEF" au milieu.
+            window.chrome.webview.postMessage({ action: 'openSimbriefForCurrentLeg' });
             return;
         }
 
-        rotations.forEach(rot => {
-            let icon = rot.type === 'Classic' ? 'schedule' : 'warning';
-            let color = rot.type === 'Classic' ? 'text-sky-400' : 'text-orange-400';
-            let diffStars = '';
-            for (let i = 0; i < 5; i++) {
-                diffStars += `<span class="material-symbols-outlined text-[10px] ${i < rot.difficulty ? 'text-amber-400' : 'text-slate-700'}">star</span>`;
-            }
+        if (window.isFlightActive) {
+            if (cancelModal) cancelModal.style.display = 'flex';
+            return;
+        }
 
-            const routeHtml = rot.legs.join('<span class="material-symbols-outlined text-[10px] text-slate-600 mx-1 relative top-[1px]">navigate_next</span>');
+        const dutyModal = document.getElementById('dutySetupModal');
+        if (dutyModal) {
+            const sbUser = localStorage.getItem('sbUsername') || '';
+            const unInput = document.getElementById('dutySbUsername');
+            if (unInput) unInput.value = sbUser;
 
-            const isSelected = window.selectedRosterId === rot.id;
-            const extraClasses = isSelected ? 'border-emerald-500 bg-emerald-900/20 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'border-white/5 bg-[#1C1F26] opacity-40';
+            if (!currentDutyState) selectDutyState('pristine');
 
-            grid.innerHTML += `
+            dutyModal.style.display = 'flex';
+        }
+    });
+}
+
+
+window.currentLegCounter = 1;
+
+window.plannedDummyLegs = [];
+window.currentDutyMode = 'custom';
+window.predefinedRosters = null;
+window.selectedRosterId = null;
+
+window.setStepMode = (mode) => {
+    window.currentDutyMode = mode;
+    const btnCustom = document.getElementById('btnModeCustom');
+    const btnRoster = document.getElementById('btnModeRoster');
+    const viewCustom = document.getElementById('viewModeCustom');
+    const viewRoster = document.getElementById('viewModeRoster');
+
+    if (mode === 'custom') {
+        btnCustom.classList.add('bg-sky-500/20', 'text-sky-400', 'border-sky-500/50', 'shadow-[0_0_15px_rgba(14,165,233,0.2)]');
+        btnCustom.classList.remove('text-slate-500', 'border-transparent');
+        btnRoster.classList.remove('bg-sky-500/20', 'text-sky-400', 'border-sky-500/50', 'shadow-[0_0_15px_rgba(14,165,233,0.2)]');
+        btnRoster.classList.add('text-slate-500', 'border-transparent');
+        viewCustom.style.display = 'grid';
+        viewRoster.style.display = 'none';
+    } else {
+        btnRoster.classList.add('bg-sky-500/20', 'text-sky-400', 'border-sky-500/50', 'shadow-[0_0_15px_rgba(14,165,233,0.2)]');
+        btnRoster.classList.remove('text-slate-500', 'border-transparent');
+        btnCustom.classList.remove('bg-sky-500/20', 'text-sky-400', 'border-sky-500/50', 'shadow-[0_0_15px_rgba(14,165,233,0.2)]');
+        btnCustom.classList.add('text-slate-500', 'border-transparent');
+        viewCustom.style.display = 'none';
+        viewRoster.style.display = 'flex';
+
+        if (!window.predefinedRosters) {
+            fetch('./data/predefined_rotations.json')
+                .then(res => res.json())
+                .then(data => {
+                    window.predefinedRosters = data;
+                    window.updateRosterUI();
+                })
+                .catch(err => console.error("Failed to load predefined rotations", err));
+        } else {
+            window.updateRosterUI();
+        }
+    }
+};
+
+window.selectRoster = (id) => {
+    window.selectedRosterId = id;
+    document.querySelectorAll('.roster-card').forEach(card => {
+        if (card.dataset.id === id) {
+            card.classList.add('border-emerald-500', 'bg-emerald-900/20', 'shadow-[0_0_15px_rgba(16,185,129,0.3)]');
+            card.classList.remove('border-white/5', 'bg-[#1C1F26]', 'opacity-40');
+        } else {
+            card.classList.remove('border-emerald-500', 'bg-emerald-900/20', 'shadow-[0_0_15px_rgba(16,185,129,0.3)]');
+            card.classList.add('border-white/5', 'bg-[#1C1F26]', 'opacity-40');
+        }
+    });
+};
+
+window.updateRosterUI = () => {
+    const grid = document.getElementById('rosterGrid');
+    if (!grid || !window.predefinedRosters) return;
+
+    const airline = document.getElementById('rosterSelAirline').value;
+    const hub = document.getElementById('rosterSelHub').value;
+
+    const rotations = window.predefinedRosters[airline] && window.predefinedRosters[airline][hub] ? window.predefinedRosters[airline][hub] : [];
+
+    grid.innerHTML = '';
+    if (rotations.length === 0) {
+        grid.innerHTML = '<div class="text-slate-500 text-xs italic col-span-full py-8">No rotations found for this selection.</div>';
+        return;
+    }
+
+    rotations.forEach(rot => {
+        let icon = rot.type === 'Classic' ? 'schedule' : 'warning';
+        let color = rot.type === 'Classic' ? 'text-sky-400' : 'text-orange-400';
+        let diffStars = '';
+        for (let i = 0; i < 5; i++) {
+            diffStars += `<span class="material-symbols-outlined text-[10px] ${i < rot.difficulty ? 'text-amber-400' : 'text-slate-700'}">star</span>`;
+        }
+
+        const routeHtml = rot.legs.join('<span class="material-symbols-outlined text-[10px] text-slate-600 mx-1 relative top-[1px]">navigate_next</span>');
+
+        const isSelected = window.selectedRosterId === rot.id;
+        const extraClasses = isSelected ? 'border-emerald-500 bg-emerald-900/20 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'border-white/5 bg-[#1C1F26] opacity-40';
+
+        grid.innerHTML += `
                 <div class="roster-card cursor-pointer p-4 rounded-xl border transition-all hover:opacity-100 hover:border-emerald-500/50 flex flex-col items-start text-left relative overflow-hidden ${extraClasses}"
                      data-id="${rot.id}" onclick="window.selectRoster('${rot.id}')">
                     <div class="flex items-center justify-between w-full mb-2">
@@ -2251,1584 +2258,1584 @@ window.renderBriefingTabs = () => {
                     <div class="text-slate-500 text-[10px] leading-snug flex-grow">${rot.description}</div>
                 </div>
             `;
-        });
+    });
 
-        let found = false;
-        if (window.selectedRosterId) {
-            found = rotations.some(r => r.id === window.selectedRosterId);
-        }
-        if (!found && rotations.length > 0) {
-            window.selectRoster(rotations[0].id);
+    let found = false;
+    if (window.selectedRosterId) {
+        found = rotations.some(r => r.id === window.selectedRosterId);
+    }
+    if (!found && rotations.length > 0) {
+        window.selectRoster(rotations[0].id);
+    }
+};
+
+
+// --- HAVERSINE DUMMY ETE ESTIMATOR ---
+function getDummyLeg(originIcao, destIcao) {
+    if (!window.airportsDb || !window.airportsDb[originIcao] || !window.airportsDb[destIcao]) return null;
+
+    const deg2rad = deg => deg * (Math.PI / 180);
+    const lat1 = deg2rad(window.airportsDb[originIcao].lat);
+    const lon1 = deg2rad(window.airportsDb[originIcao].lon);
+    const lat2 = deg2rad(window.airportsDb[destIcao].lat);
+    const lon2 = deg2rad(window.airportsDb[destIcao].lon);
+
+    const dLat = lat2 - lat1;
+    const dLon = lon2 - lon1;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const R = 3440.065; // Earth radius in Nautical Miles
+    const distanceNM = R * c;
+
+    // 420 KTAS average speed + 30 mins maneuvering penalty (SID/STAR)
+    const dummyEteMinutes = Math.round((distanceNM / 420) * 60 + 30);
+
+    return {
+        isDummy: true,
+        origin: {
+            icao_code: originIcao,
+            name: window.airportsDb[originIcao].name,
+            plan_elevation: window.airportsDb[originIcao].elevation
+        },
+        destination: {
+            icao_code: destIcao,
+            name: window.airportsDb[destIcao].name,
+            plan_elevation: window.airportsDb[destIcao].elevation
+        },
+        alternate: { icao_code: "NONE" },
+        times: {
+            est_time_enroute: dummyEteMinutes * 60
+        },
+        aircraft: {
+            icaocode: "A320",
+            name: "Airbus A320-200",
+            reg: "PENDING"
+        },
+        general: {
+            flight_number: "9999",
+            icao_airline: "EZY",
+            initial_alt: "FL350",
+            route: "DCT"
+        },
+        weights: {
+            est_zfw: 60000,
+            est_tow: 70000,
+            est_ldw: 65000,
+            block_fuel: 10000,
+            pax_count: 150
         }
     };
+}
+
+window.populateRecentIcaos = function () {
+    const dl = document.getElementById('recentIcaos');
+    if (!dl) return;
+    dl.innerHTML = '';
+    const recent = JSON.parse(localStorage.getItem('recentIcaos') || '[]');
+    recent.forEach(icao => {
+        const opt = document.createElement('option');
+        opt.value = icao;
+        dl.appendChild(opt);
+    });
+};
+
+// Call once on initialized
+window.populateRecentIcaos();
+
+const btnCancelDispatch = document.getElementById('btnCancelDispatch');
+if (btnCancelDispatch) {
+    btnCancelDispatch.addEventListener('click', () => {
+        document.getElementById('simbriefDispatchModal').style.display = 'none';
+    });
+}
 
 
-    // --- HAVERSINE DUMMY ETE ESTIMATOR ---
-    function getDummyLeg(originIcao, destIcao) {
-        if (!window.airportsDb || !window.airportsDb[originIcao] || !window.airportsDb[destIcao]) return null;
+const btnFinishDispatch = document.getElementById('btnFinishDispatch');
+if (btnFinishDispatch) {
+    btnFinishDispatch.addEventListener('click', () => {
+        const dispatchModal = document.getElementById('simbriefDispatchModal');
+        if (dispatchModal) dispatchModal.style.display = 'none';
 
-        const deg2rad = deg => deg * (Math.PI / 180);
-        const lat1 = deg2rad(window.airportsDb[originIcao].lat);
-        const lon1 = deg2rad(window.airportsDb[originIcao].lon);
-        const lat2 = deg2rad(window.airportsDb[destIcao].lat);
-        const lon2 = deg2rad(window.airportsDb[destIcao].lon);
-
-        const dLat = lat2 - lat1;
-        const dLon = lon2 - lon1;
-        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        const R = 3440.065; // Earth radius in Nautical Miles
-        const distanceNM = R * c;
-
-        // 420 KTAS average speed + 30 mins maneuvering penalty (SID/STAR)
-        const dummyEteMinutes = Math.round((distanceNM / 420) * 60 + 30);
-
-        return {
-            isDummy: true,
-            origin: {
-                icao_code: originIcao,
-                name: window.airportsDb[originIcao].name,
-                plan_elevation: window.airportsDb[originIcao].elevation
-            },
-            destination: {
-                icao_code: destIcao,
-                name: window.airportsDb[destIcao].name,
-                plan_elevation: window.airportsDb[destIcao].elevation
-            },
-            alternate: { icao_code: "NONE" },
-            times: {
-                est_time_enroute: dummyEteMinutes * 60
-            },
-            aircraft: {
-                icaocode: "A320",
-                name: "Airbus A320-200",
-                reg: "PENDING"
-            },
-            general: {
-                flight_number: "9999",
-                icao_airline: "EZY",
-                initial_alt: "FL350",
-                route: "DCT"
-            },
-            weights: {
-                est_zfw: 60000,
-                est_tow: 70000,
-                est_ldw: 65000,
-                block_fuel: 10000,
-                pax_count: 150
-            }
-        };
-    }
-
-    window.populateRecentIcaos = function () {
-        const dl = document.getElementById('recentIcaos');
-        if (!dl) return;
-        dl.innerHTML = '';
-        const recent = JSON.parse(localStorage.getItem('recentIcaos') || '[]');
-        recent.forEach(icao => {
-            const opt = document.createElement('option');
-            opt.value = icao;
-            dl.appendChild(opt);
-        });
-    };
-
-    // Call once on initialized
-    window.populateRecentIcaos();
-
-    const btnCancelDispatch = document.getElementById('btnCancelDispatch');
-    if (btnCancelDispatch) {
-        btnCancelDispatch.addEventListener('click', () => {
-            document.getElementById('simbriefDispatchModal').style.display = 'none';
-        });
-    }
-
-
-    const btnFinishDispatch = document.getElementById('btnFinishDispatch');
-    if (btnFinishDispatch) {
-        btnFinishDispatch.addEventListener('click', () => {
-            const dispatchModal = document.getElementById('simbriefDispatchModal');
-            if (dispatchModal) dispatchModal.style.display = 'none';
-
-            let sbPayloadStr = "[]";
-            try {
-                let sbPayload = [];
-                if (window.allRotations && window.allRotations.length > 0) {
-                    sbPayload = window.allRotations.map(r => r.data);
-                    if (window.activeLegIndex) {
-                        sbPayload = sbPayload.slice(window.activeLegIndex);
-                    }
+        let sbPayloadStr = "[]";
+        try {
+            let sbPayload = [];
+            if (window.allRotations && window.allRotations.length > 0) {
+                sbPayload = window.allRotations.map(r => r.data);
+                if (window.activeLegIndex) {
+                    sbPayload = sbPayload.slice(window.activeLegIndex);
                 }
-                sbPayloadStr = JSON.stringify(sbPayload);
-                window.chrome.webview.postMessage({ action: 'syncRotationsAndStart', payloadStr: sbPayloadStr });
-                // Reset footer states
-                btnFinishDispatch.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
-                
-                // BUG FIX: Automatically view the first leg in Briefing when closing dispatch (Initial Setup)
-                window.dashboardActiveLegIndex = 0;
-                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(0);
-                if (window.populateBriefingView) window.populateBriefingView(0);
-                if (window.renderBriefingTimeline) window.renderBriefingTimeline();
-
-                window.chrome.webview.postMessage({ action: 'finishDispatch' });
-            } catch (err) {
-                console.error("Failed to stringify or send payload", err);
-                // Fallback to finishDispatch anyway to unblock the UI
-                window.chrome.webview.postMessage({ action: 'finishDispatch' });
             }
-        });
-    }
+            sbPayloadStr = JSON.stringify(sbPayload);
+            window.chrome.webview.postMessage({ action: 'syncRotationsAndStart', payloadStr: sbPayloadStr });
+            // Reset footer states
+            btnFinishDispatch.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
 
-    // Connect to Simulator
-    let isSimConnected = false;
-    var lastSimTime = null;
-    window.locationMismatchModalShown = false;
-    const btnSmartConnect = document.getElementById('btnSmartConnect');
-    if (btnSmartConnect) {
-        btnSmartConnect.addEventListener('click', () => {
-            window.chrome.webview.postMessage({ action: isSimConnected ? 'disconnectSim' : 'connectSim' });
-            if (!isSimConnected) {
-                btnSmartConnect.innerHTML = '<span class="material-symbols-outlined text-[18px]">wifi_find</span>';
-                btnSmartConnect.title = 'Connecting...';
-                btnSmartConnect.className = 'flex items-center justify-center w-10 h-10 rounded-xl bg-orange-900/20 text-orange-400 border border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.1)] transition-colors cursor-wait';
-                btnSmartConnect.style.color = '';
-            }
-        });
-    }
+            // BUG FIX: Automatically view the first leg in Briefing when closing dispatch (Initial Setup)
+            window.dashboardActiveLegIndex = 0;
+            if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(0);
+            if (window.populateBriefingView) window.populateBriefingView(0);
+            if (window.renderBriefingTimeline) window.renderBriefingTimeline();
 
-    const btnMin = document.getElementById('btnMin');
-    const btnMax = document.getElementById('btnMax');
-    const btnClose = document.getElementById('btnClose');
-    const btnPin = document.getElementById('btnPin');
-
-    if (btnMin) btnMin.addEventListener('click', () => window.chrome.webview.postMessage({ action: 'minimizeApp' }));
-    if (btnMax) btnMax.addEventListener('click', () => {
-        window.chrome.webview.postMessage({ action: 'maximizeApp' });
-        const icon = btnMax.querySelector('.material-symbols-outlined');
-        if (icon) icon.innerText = icon.innerText === 'crop_square' ? 'content_copy' : 'crop_square';
+            window.chrome.webview.postMessage({ action: 'finishDispatch' });
+        } catch (err) {
+            console.error("Failed to stringify or send payload", err);
+            // Fallback to finishDispatch anyway to unblock the UI
+            window.chrome.webview.postMessage({ action: 'finishDispatch' });
+        }
     });
-    if (btnClose) btnClose.addEventListener('click', () => window.chrome.webview.postMessage({ action: 'closeApp' }));
-    if (btnPin) btnPin.addEventListener('click', () => {
-        let isTop = localStorage.getItem('chkAlwaysOnTop') === 'true';
-        isTop = !isTop;
-        localStorage.setItem('chkAlwaysOnTop', isTop);
-        if (document.getElementById('chkAlwaysOnTop')) document.getElementById('chkAlwaysOnTop').checked = isTop;
-        btnPin.style.opacity = isTop ? '1' : '0.4';
-        window.chrome.webview.postMessage({ action: 'setAlwaysOnTop', value: isTop });
+}
+
+// Connect to Simulator
+let isSimConnected = false;
+var lastSimTime = null;
+window.locationMismatchModalShown = false;
+const btnSmartConnect = document.getElementById('btnSmartConnect');
+if (btnSmartConnect) {
+    btnSmartConnect.addEventListener('click', () => {
+        window.chrome.webview.postMessage({ action: isSimConnected ? 'disconnectSim' : 'connectSim' });
+        if (!isSimConnected) {
+            btnSmartConnect.innerHTML = '<span class="material-symbols-outlined text-[18px]">wifi_find</span>';
+            btnSmartConnect.title = 'Connecting...';
+            btnSmartConnect.className = 'flex items-center justify-center w-10 h-10 rounded-xl bg-orange-900/20 text-orange-400 border border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.1)] transition-colors cursor-wait';
+            btnSmartConnect.style.color = '';
+        }
     });
+}
 
-    let currentSobtUnix = 0;
-    let isFlightCancelled = false;
-    let flightHasExperiencedDelay = false;
-    let flightHasExperiencedTurbulence = false;
+const btnMin = document.getElementById('btnMin');
+const btnMax = document.getElementById('btnMax');
+const btnClose = document.getElementById('btnClose');
+const btnPin = document.getElementById('btnPin');
 
-    // WebView2 Global Message Receiver
-    window.chrome.webview.addEventListener('message', event => {
-        const payload = event.data;
-        if (!payload || !payload.type) return;
+if (btnMin) btnMin.addEventListener('click', () => window.chrome.webview.postMessage({ action: 'minimizeApp' }));
+if (btnMax) btnMax.addEventListener('click', () => {
+    window.chrome.webview.postMessage({ action: 'maximizeApp' });
+    const icon = btnMax.querySelector('.material-symbols-outlined');
+    if (icon) icon.innerText = icon.innerText === 'crop_square' ? 'content_copy' : 'crop_square';
+});
+if (btnClose) btnClose.addEventListener('click', () => window.chrome.webview.postMessage({ action: 'closeApp' }));
+if (btnPin) btnPin.addEventListener('click', () => {
+    let isTop = localStorage.getItem('chkAlwaysOnTop') === 'true';
+    isTop = !isTop;
+    localStorage.setItem('chkAlwaysOnTop', isTop);
+    if (document.getElementById('chkAlwaysOnTop')) document.getElementById('chkAlwaysOnTop').checked = isTop;
+    btnPin.style.opacity = isTop ? '1' : '0.4';
+    window.chrome.webview.postMessage({ action: 'setAlwaysOnTop', value: isTop });
+});
 
-        switch (payload.type) {
-            case 'simbriefWindowClosed':
+let currentSobtUnix = 0;
+let isFlightCancelled = false;
+let flightHasExperiencedDelay = false;
+let flightHasExperiencedTurbulence = false;
+
+// WebView2 Global Message Receiver
+window.chrome.webview.addEventListener('message', event => {
+    const payload = event.data;
+    if (!payload || !payload.type) return;
+
+    switch (payload.type) {
+        case 'simbriefWindowClosed':
+            window.triggerSimBriefImport();
+            break;
+        case 'simbriefPlanReady':
+            if (window.showSimbriefStatus) window.showSimbriefStatus('OFP Generation Detected. Waiting for SimBrief...', 'emerald');
+
+            // Add a 6-second delay to allow SimBrief's backend to finish generating the OFP
+            // before our application fetches it via the API.
+            setTimeout(() => {
                 window.triggerSimBriefImport();
-                break;
-            case 'simbriefPlanReady':
-                if (window.showSimbriefStatus) window.showSimbriefStatus('OFP Generation Detected. Waiting for SimBrief...', 'emerald');
-                
-                // Add a 6-second delay to allow SimBrief's backend to finish generating the OFP
-                // before our application fetches it via the API.
-                setTimeout(() => {
-                    window.triggerSimBriefImport();
-                }, 6000);
-                break;
-            case 'syncRotationsAndStart':
-                if (payload.payloadStr) {
-                    try {
-                        const parsed = JSON.parse(payload.payloadStr);
-                        window.allRotations = parsed;
-                        window.activeLegIndex = 0;
-                        if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
-                        if (window.renderBriefingTimeline) window.renderBriefingTimeline();
-                        
-                        // Si une popup était ouverte (comme Dispatch), on peut la fermer
-                        const dispatchModalForSync = document.getElementById('simbriefDispatchModal');
-                        if (dispatchModalForSync) dispatchModalForSync.style.display = 'none';
-
-                        console.log("[IPC] UI Synced via syncRotationsAndStart", parsed);
-                    } catch (e) {
-                        console.error("[IPC] Failed to parse syncRotationsAndStart", e);
-                    }
-                }
-                break;
-            case 'shellRotationValidated':
-                window.isBriefingUnlocked = true;
-                window.isFlightActive = true;
-                window.isDummyPreflight = true; // Track that we wait for OFP
-                
-                window.dashboardActiveLegIndex = 0;
-                
-                if (window.unlockDashboard) window.unlockDashboard();
-                
-                const drTarget = document.querySelector('.menu li[data-target="dashboard"]');
-                if (drTarget) drTarget.click();
-                
-                if (window.renderBriefingTimeline) window.renderBriefingTimeline();
-                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
-                
-                if (typeof window.toggleDashPage === 'function' && window.currentDashPage === 1) {
-                    window.toggleDashPage(1);
-                }
-                
-                // Auto-open SimBrief has been removed per user directive.
-                
-                const sbMod = document.getElementById('simbriefDispatchModal');
-                if (sbMod) sbMod.style.display = 'none';
-
-                const btnFetchLabelDR = document.getElementById('btnFetchPlanLabel');
-                if (btnFetchLabelDR) btnFetchLabelDR.innerText = window.locales && window.locales['en'] ? window.locales['en'].btn_fetch_plan || 'FETCH PLAN' : 'FETCH PLAN';
-                const btnFetchDR = document.getElementById('btnFetchPlan');
-                if (btnFetchDR && btnFetchDR.querySelector('.material-symbols-outlined')) {
-                    btnFetchDR.querySelector('.material-symbols-outlined').innerText = 'cloud_download';
-                }
-                break;
-            case 'gatekeeperPassed':
-                window.chrome.webview.postMessage({
-                    action: 'syncRotationsAndStart',
-                    payload: window.gatekeeperPendingPayload || []
-                });
-                const btnPass = document.getElementById('btnStartGroundOps');
-                if (btnPass) {
-                    btnPass.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> In Progress';
-                }
-                const groundOpsTarget = document.querySelector('.menu li[data-target="groundops"]');
-                if (groundOpsTarget) groundOpsTarget.click();
-                break;
-            case 'gatekeeperFailed':
-                // Use SweetAlert to show the user instead of a generic browser alert
-                if (window.Swal) {
-                    Swal.fire({
-                        title: 'ACTION DENIED',
-                        text: payload.reason || 'Launch MSFS first and start a flight in Cold & Dark state (Engines OFF, On Ground).',
-                        icon: 'error',
-                        background: '#1C1F26',
-                        color: '#f8fafc',
-                        confirmButtonColor: '#0ea5e9'
-                    });
-                } else {
-                    alert("ACTION DENIED: " + (payload.reason || "Launch MSFS first and start a flight in Cold & Dark state (Engines OFF, On Ground)."));
-                }
-                const btnFail = document.getElementById('btnStartGroundOps');
-                if (btnFail) {
-                    btnFail.disabled = false;
-                    btnFail.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> START OPS';
-                }
-                break;
-            case 'manifest':
-                window.manifest = payload.manifest;
-                if (window.manifest && document.getElementById('cabin') && document.getElementById('cabin').classList.contains('active')) {
-                    if (typeof window.renderManifest === 'function') {
-                        window.renderManifest(window.manifest);
-                    }
-                }
-                break;
-            case 'briefingUpdate':
-                if (payload.briefing && window.allRotations && window.allRotations[window.activeLegIndex || 0]) {
-                    window.allRotations[window.activeLegIndex || 0].briefing = payload.briefing;
-                }
-                if (window.populateBriefingView) {
-                    window.populateBriefingView(window.dashboardActiveLegIndex || 0);
-                }
-                // Refresh Timeline whenever we get briefing data
-                if (window.renderBriefingTimeline) window.renderBriefingTimeline();
-
-                if (window.renderBriefingTabs) {
-                    // Store the current tab index so we don't jump back to the last tab when re-rendering
-                    const activeViewIndex = Array.from(document.querySelectorAll('.briefing-view')).findIndex(v => v.style.display !== 'none');
-                    window.renderBriefingTabs();
+            }, 6000);
+            break;
+        case 'syncRotationsAndStart':
+            if (payload.payloadStr) {
+                try {
+                    const parsed = JSON.parse(payload.payloadStr);
+                    window.allRotations = parsed;
+                    window.activeLegIndex = 0;
                     if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
-                    if (activeViewIndex >= 0 && window.setBriefingTab) {
-                        window.setBriefingTab(activeViewIndex);
-                    }
-                }
-                break;
-            case 'fuelValidationRejected':
-                // STORY 38: RESET BUTTON AND SHOW MODAL
-                if (window.Swal) {
-                    Swal.fire({
-                        title: 'ACTION BLOQUÉE',
-                        text: payload.message || 'Validation impossible.',
-                        icon: 'warning',
-                        background: '#1C1F26',
-                        color: '#f8fafc',
-                        confirmButtonColor: '#0ea5e9'
-                    });
-                }
-                const fvBtn = document.getElementById('fuelValidateBtn');
-                const fvBtnText = document.getElementById('fuelValidateBtnText');
-                if (fvBtn) {
-                    fvBtn.classList.add('bg-transparent', 'text-[#b6b6b6]', 'hover:bg-white/5', 'hover:text-white', 'border-white/10', 'hover:border-white/20', 'shadow-none', 'group');
-                    if (fvBtnText) fvBtnText.innerText = "Validate & Sign";
-                    const fvIcon = fvBtn.querySelector('.material-symbols-outlined');
-                    if (fvIcon) fvIcon.innerText = "verified_user";
-                    fvBtn.onclick = () => { if(window.requestFuelValidation) window.requestFuelValidation(window.dashboardActiveLegIndex || 0); };
-                }
-                break;
-            case 'flightReset':
-                window.currentFlight = null;
-                window.manifest = null;
-                window.dashboardActiveLegIndex = 0;
-                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg();
-                if (window.resetDashboardWidgets) window.resetDashboardWidgets();
-                if (window.renderBriefingTimeline) window.renderBriefingTimeline();
-                break;
-            case 'popLeg':
-                window.isDummyPreflight = true;
-                window.isDispatchSignedOff = false;
-                
-                // Track Leg numbering correctly based on internal cycle
-                if (typeof window.currentLegCounter !== 'undefined') {
-                    window.currentLegCounter += 1;
-                }
-                
-                const dashMeta = document.getElementById('dashMetaBar');
-                if (dashMeta) dashMeta.style.display = 'none';
+                    if (window.renderBriefingTimeline) window.renderBriefingTimeline();
 
-                if (window.renderBriefingTimeline) window.renderBriefingTimeline();
+                    // Si une popup était ouverte (comme Dispatch), on peut la fermer
+                    const dispatchModalForSync = document.getElementById('simbriefDispatchModal');
+                    if (dispatchModalForSync) dispatchModalForSync.style.display = 'none';
+
+                    console.log("[IPC] UI Synced via syncRotationsAndStart", parsed);
+                } catch (e) {
+                    console.error("[IPC] Failed to parse syncRotationsAndStart", e);
+                }
+            }
+            break;
+        case 'shellRotationValidated':
+            window.isBriefingUnlocked = true;
+            window.isFlightActive = true;
+            window.isDummyPreflight = true; // Track that we wait for OFP
+
+            window.dashboardActiveLegIndex = 0;
+
+            if (window.unlockDashboard) window.unlockDashboard();
+
+            const drTarget = document.querySelector('.menu li[data-target="dashboard"]');
+            if (drTarget) drTarget.click();
+
+            if (window.renderBriefingTimeline) window.renderBriefingTimeline();
+            if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
+
+            if (typeof window.toggleDashPage === 'function' && window.currentDashPage === 1) {
+                window.toggleDashPage(1);
+            }
+
+            // Auto-open SimBrief has been removed per user directive.
+
+            const sbMod = document.getElementById('simbriefDispatchModal');
+            if (sbMod) sbMod.style.display = 'none';
+
+            const btnFetchLabelDR = document.getElementById('btnFetchPlanLabel');
+            if (btnFetchLabelDR) btnFetchLabelDR.innerText = window.locales && window.locales['en'] ? window.locales['en'].btn_fetch_plan || 'FETCH PLAN' : 'FETCH PLAN';
+            const btnFetchDR = document.getElementById('btnFetchPlan');
+            if (btnFetchDR && btnFetchDR.querySelector('.material-symbols-outlined')) {
+                btnFetchDR.querySelector('.material-symbols-outlined').innerText = 'cloud_download';
+            }
+            break;
+        case 'gatekeeperPassed':
+            window.chrome.webview.postMessage({
+                action: 'syncRotationsAndStart',
+                payload: window.gatekeeperPendingPayload || []
+            });
+            const btnPass = document.getElementById('btnStartGroundOps');
+            if (btnPass) {
+                btnPass.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> In Progress';
+            }
+            const groundOpsTarget = document.querySelector('.menu li[data-target="groundops"]');
+            if (groundOpsTarget) groundOpsTarget.click();
+            break;
+        case 'gatekeeperFailed':
+            // Use SweetAlert to show the user instead of a generic browser alert
+            if (window.Swal) {
+                Swal.fire({
+                    title: 'ACTION DENIED',
+                    text: payload.reason || 'Launch MSFS first and start a flight in Cold & Dark state (Engines OFF, On Ground).',
+                    icon: 'error',
+                    background: '#1C1F26',
+                    color: '#f8fafc',
+                    confirmButtonColor: '#0ea5e9'
+                });
+            } else {
+                alert("ACTION DENIED: " + (payload.reason || "Launch MSFS first and start a flight in Cold & Dark state (Engines OFF, On Ground)."));
+            }
+            const btnFail = document.getElementById('btnStartGroundOps');
+            if (btnFail) {
+                btnFail.disabled = false;
+                btnFail.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> START OPS';
+            }
+            break;
+        case 'manifest':
+            window.manifest = payload.manifest;
+            if (window.manifest && document.getElementById('cabin') && document.getElementById('cabin').classList.contains('active')) {
+                if (typeof window.renderManifest === 'function') {
+                    window.renderManifest(window.manifest);
+                }
+            }
+            break;
+        case 'briefingUpdate':
+            if (payload.briefing && window.allRotations && window.allRotations[window.activeLegIndex || 0]) {
+                window.allRotations[window.activeLegIndex || 0].briefing = payload.briefing;
+            }
+            if (window.populateBriefingView) {
+                window.populateBriefingView(window.dashboardActiveLegIndex || 0);
+            }
+            // Refresh Timeline whenever we get briefing data
+            if (window.renderBriefingTimeline) window.renderBriefingTimeline();
+
+            if (window.renderBriefingTabs) {
+                // Store the current tab index so we don't jump back to the last tab when re-rendering
+                const activeViewIndex = Array.from(document.querySelectorAll('.briefing-view')).findIndex(v => v.style.display !== 'none');
+                window.renderBriefingTabs();
                 if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
-                
-                const btnFetchLabelDRL = document.getElementById('btnFetchPlanLabel');
-                if (btnFetchLabelDRL) btnFetchLabelDRL.innerText = "FETCH PLAN";
-                const btnFetchL = document.getElementById('btnFetchPlan');
-                if (btnFetchL && btnFetchL.querySelector('.material-symbols-outlined')) {
-                    btnFetchL.querySelector('.material-symbols-outlined').innerText = 'cloud_download';
+                if (activeViewIndex >= 0 && window.setBriefingTab) {
+                    window.setBriefingTab(activeViewIndex);
                 }
-                break;
-            case 'rotationCleared':
-                window.allRotations = [];
-                window.activeLegIndex = 0;
-                window.dashboardActiveLegIndex = 0;
-                window.isBriefingUnlocked = false;
-                window.isDispatchSignedOff = false;
-                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg();
-                if (window.resetDashboardWidgets) window.resetDashboardWidgets();
-                if (window.renderBriefingTimeline) window.renderBriefingTimeline();
-                
+            }
+            break;
+        case 'fuelValidationRejected':
+            // STORY 38: RESET BUTTON AND SHOW MODAL
+            if (window.Swal) {
+                Swal.fire({
+                    title: 'ACTION BLOQUÉE',
+                    text: payload.message || 'Validation impossible.',
+                    icon: 'warning',
+                    background: '#1C1F26',
+                    color: '#f8fafc',
+                    confirmButtonColor: '#0ea5e9'
+                });
+            }
+            const fvBtn = document.getElementById('fuelValidateBtn');
+            const fvBtnText = document.getElementById('fuelValidateBtnText');
+            if (fvBtn) {
+                fvBtn.classList.add('bg-transparent', 'text-[#b6b6b6]', 'hover:bg-white/5', 'hover:text-white', 'border-white/10', 'hover:border-white/20', 'shadow-none', 'group');
+                if (fvBtnText) fvBtnText.innerText = "Validate & Sign";
+                const fvIcon = fvBtn.querySelector('.material-symbols-outlined');
+                if (fvIcon) fvIcon.innerText = "verified_user";
+                fvBtn.onclick = () => { if (window.requestFuelValidation) window.requestFuelValidation(window.dashboardActiveLegIndex || 0); };
+            }
+            break;
+        case 'flightReset':
+            window.currentFlight = null;
+            window.manifest = null;
+            window.dashboardActiveLegIndex = 0;
+            if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg();
+            if (window.resetDashboardWidgets) window.resetDashboardWidgets();
+            if (window.renderBriefingTimeline) window.renderBriefingTimeline();
+            break;
+        case 'popLeg':
+            if (payload.isTurnaround === true) {
+                if (window.allRotations && window.allRotations.length > 0) {
+                    window.allRotations.shift(); // Remove completed leg
+                }
+                if (window.simbriefSavedLegsNodes && window.simbriefSavedLegsNodes.length > 0) {
+                    window.simbriefSavedLegsNodes.shift(); // Remove completed leg HTML from dispatch modal
+                }
+            }
 
-                break;
-            case 'removeLegAtIndex':
-                if (window.allRotations && payload.index !== undefined) {
-                    window.allRotations.splice(payload.index, 1);
-                    // Reset view to active leg if we were viewing the deleted one or if indices shifted
-                    window.dashboardActiveLegIndex = 0; 
-                    if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg();
+            window.dashboardActiveLegIndex = 0; // Point to new active leg
+            window.activeLegIndex = 0;
+
+            window.isDummyPreflight = true;
+            window.isDispatchSignedOff = false;
+            window.manifest = null; // Clear manifest to force reload for new leg
+            window.finalAobtUnix = null; // Clear cached times
+            window.finalAibtUnix = null; // Clear cached times
+
+            // Track Leg numbering correctly based on internal cycle
+            if (typeof window.currentLegCounter !== 'undefined') {
+                window.currentLegCounter += 1;
+            }
+
+            const dashMeta = document.getElementById('dashMetaBar');
+            if (dashMeta) dashMeta.style.display = 'none';
+
+            if (window.renderBriefingTimeline) window.renderBriefingTimeline();
+            if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
+            if (window.populateBriefingView) window.populateBriefingView(window.dashboardActiveLegIndex || 0);
+
+            const btnFetchLabelDRL = document.getElementById('btnFetchPlanLabel');
+            if (btnFetchLabelDRL) btnFetchLabelDRL.innerText = "FETCH PLAN";
+            const btnFetchL = document.getElementById('btnFetchPlan');
+            if (btnFetchL && btnFetchL.querySelector('.material-symbols-outlined')) {
+                btnFetchL.querySelector('.material-symbols-outlined').innerText = 'cloud_download';
+            }
+            break;
+        case 'rotationCleared':
+            window.allRotations = [];
+            window.activeLegIndex = 0;
+            window.dashboardActiveLegIndex = 0;
+            window.isBriefingUnlocked = false;
+            window.isDispatchSignedOff = false;
+            if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg();
+            if (window.resetDashboardWidgets) window.resetDashboardWidgets();
+            if (window.renderBriefingTimeline) window.renderBriefingTimeline();
+
+
+            break;
+        case 'removeLegAtIndex':
+            if (window.allRotations && payload.index !== undefined) {
+                window.allRotations.splice(payload.index, 1);
+                // Reset view to active leg if we were viewing the deleted one or if indices shifted
+                window.dashboardActiveLegIndex = 0;
+                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg();
+            }
+            break;
+        case 'fuelValidationSuccess': {
+            if (payload.blockFuel) {
+                window.planRampKg = payload.blockFuel;
+            }
+            const validationIdx = window.dashboardActiveLegIndex || 0;
+            if (window.allRotations && window.allRotations[validationIdx]) {
+                window.allRotations[validationIdx].data.isFuelValidated = true;
+            }
+            window.isFuelValidated = true;
+
+            // Force UI re-render for Ground Ops (changes loadsheet button)
+            if (window.groundOpsCache && window.renderGroundOps) {
+                window.renderGroundOps(window.groundOpsCache);
+            }
+
+            const validationDashBtn = document.getElementById('fuelValidateBtn');
+            if (validationDashBtn) {
+                validationDashBtn.onclick = null;
+                validationDashBtn.classList.remove('bg-transparent', 'text-[#b6b6b6]', 'hover:bg-white/5', 'hover:text-white', 'border-white/10', 'hover:border-white/20', 'shadow-none', 'group');
+                validationDashBtn.classList.add('bg-transparent', 'text-emerald-400', 'border-emerald-500/20', 'cursor-not-allowed');
+                const validationDashBtnText = document.getElementById('fuelValidateBtnText');
+                if (validationDashBtnText) validationDashBtnText.innerText = 'FUEL VALIDATED';
+                const validationIcon = validationDashBtn.querySelector('.material-symbols-outlined');
+                if (validationIcon) validationIcon.innerText = 'check_circle';
+            }
+            const validationMetaText = document.getElementById('dashMetaText');
+            if (validationMetaText) {
+                validationMetaText.innerText = "FUEL VALIDATED";
+                validationMetaText.style.color = "#34d399";
+            }
+            const validationFinalBtn = document.getElementById('btnToggleLoadSheet');
+            if (validationFinalBtn) {
+                validationFinalBtn.classList.remove('hidden');
+                validationFinalBtn.classList.add('flex');
+            }
+            if (window.unlockDashboard) window.unlockDashboard();
+            break;
+        }
+        case 'phaseChanged':
+            console.log(`[IPC] Phase changed to ${payload.phase}`);
+            if (payload.phase === 'GroundOps') {
+                // ONLY switch to dashboard automatically if dispatch is signed off AND we are NOT booting
+                if (window.isDispatchSignedOff && !window.isAppBooting) {
+                    const navDashboard = document.getElementById('navDashboardBtn');
+                    if (navDashboard) navDashboard.click(); // Switch to the dashboard
                 }
-                break;
-            case 'fuelValidationSuccess': {
-                if (payload.blockFuel) {
-                    window.planRampKg = payload.blockFuel;
+
+                if (window.populateActiveFlightDetails) {
+                    window.populateActiveFlightDetails();
                 }
-                const validationIdx = window.dashboardActiveLegIndex || 0;
-                if (window.allRotations && window.allRotations[validationIdx]) {
-                    window.allRotations[validationIdx].data.isFuelValidated = true;
-                }
-                window.isFuelValidated = true;
-                
-                // Force UI re-render for Ground Ops (changes loadsheet button)
+
+                // Ensure Ground Ops UI forces a render
                 if (window.groundOpsCache && window.renderGroundOps) {
                     window.renderGroundOps(window.groundOpsCache);
                 }
-
-                const validationDashBtn = document.getElementById('fuelValidateBtn');
-                if (validationDashBtn) {
-                    validationDashBtn.onclick = null;
-                    validationDashBtn.classList.remove('bg-transparent', 'text-[#b6b6b6]', 'hover:bg-white/5', 'hover:text-white', 'border-white/10', 'hover:border-white/20', 'shadow-none', 'group');
-                    validationDashBtn.classList.add('bg-transparent', 'text-emerald-400', 'border-emerald-500/20', 'cursor-not-allowed');
-                    const validationDashBtnText = document.getElementById('fuelValidateBtnText');
-                    if (validationDashBtnText) validationDashBtnText.innerText = 'FUEL VALIDATED';
-                    const validationIcon = validationDashBtn.querySelector('.material-symbols-outlined');
-                    if (validationIcon) validationIcon.innerText = 'check_circle';
-                }
-                const validationMetaText = document.getElementById('dashMetaText');
-                if (validationMetaText) {
-                    validationMetaText.innerText = "FUEL VALIDATED";
-                    validationMetaText.style.color = "#34d399";
-                }
-                const validationFinalBtn = document.getElementById('btnToggleLoadSheet');
-                if (validationFinalBtn) {
-                    validationFinalBtn.classList.remove('hidden');
-                    validationFinalBtn.classList.add('flex');
-                }
-                if (window.unlockDashboard) window.unlockDashboard();
-                break;
             }
-            case 'phaseChanged':
-                console.log(`[IPC] Phase changed to ${payload.phase}`);
-                if (payload.phase === 'GroundOps') {
-                    // ONLY switch to dashboard automatically if dispatch is signed off AND we are NOT booting
-                    if (window.isDispatchSignedOff && !window.isAppBooting) {
-                        const navDashboard = document.getElementById('navDashboardBtn');
-                        if (navDashboard) navDashboard.click(); // Switch to the dashboard
-                    }
-                    
-                    if (window.populateActiveFlightDetails) {
-                        window.populateActiveFlightDetails();
-                    }
+            break;
+        case 'savedUsername':
+            document.getElementById('sbUsername').value = payload.username;
+            if (payload.username) {
+                localStorage.setItem('sbUsername', payload.username);
+            }
+            break;
+        case 'appVersion':
+            const el = document.getElementById('appBuildString');
+            if (el) el.innerText = payload.version;
+            break;
+        case 'simConnectStatus':
+            isSimConnected = payload.status.includes('Connected') || payload.status.includes('Linked');
+            const smartBtn = document.getElementById('btnSmartConnect');
+            const langSim = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
+            const dictSim = window.locales ? window.locales[langSim] : null;
 
-                    // Ensure Ground Ops UI forces a render
-                    if (window.groundOpsCache && window.renderGroundOps) {
-                        window.renderGroundOps(window.groundOpsCache);
+            if (isSimConnected) {
+                if (smartBtn) {
+                    smartBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">wifi</span>';
+                    smartBtn.title = payload.status.includes('Linked') ? 'Linked' : 'Connected';
+                    smartBtn.className = 'flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-900/20 text-emerald-400 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)] hover:bg-emerald-900/40 transition-colors cursor-pointer';
+                    smartBtn.style.color = '';
+                }
+            } else {
+                if (smartBtn) {
+                    smartBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">wifi_off</span>';
+                    smartBtn.title = dictSim ? dictSim.btn_not_connected : 'Not Connected';
+                    smartBtn.className = 'flex items-center justify-center w-10 h-10 rounded-xl bg-red-900/20 text-red-500 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:bg-red-900/40 transition-colors cursor-pointer';
+                    smartBtn.style.color = '';
+                }
+            }
+            break;
+        case 'incoming_pnc_call':
+            if (payload.state === 'start') {
+                window.isCabinCallIncoming = true;
+            } else if (payload.state === 'stop') {
+                window.isCabinCallIncoming = false;
+            }
+            if (window.populateDashboardActiveLeg && window.lastTelemetry) {
+                window.populateDashboardActiveLeg(window.lastTelemetry);
+            }
+            break;
+        case 'telemetry':
+            if (window._prevGlobalOffset !== payload.globalTimeOffsetSeconds) {
+                window._prevGlobalOffset = payload.globalTimeOffsetSeconds;
+                if (window.renderBriefingTabs) window.renderBriefingTabs();
+            }
+            window.lastTelemetry = payload;
+            if (payload.phaseEnum) {
+                window.flightPhase = payload.phaseEnum;
+                window.currentPhase = payload.phaseEnum;
+            }
+            if (payload.fob !== undefined) {
+                window.currentFobKg = payload.fob;
+            }
+            if (payload.aircraftState && payload.aircraftState.initialFobKg !== undefined) {
+                window.initialFobKg = payload.aircraftState.initialFobKg;
+            } else if (payload.aircraftState && payload.aircraftState.InitialFobKg !== undefined) {
+                window.initialFobKg = payload.aircraftState.InitialFobKg;
+            }
+            if (typeof window.checkTimeSkipVisibility === 'function') {
+                window.checkTimeSkipVisibility(payload.phaseEnum);
+            }
+            if (payload.isDelayed === true) flightHasExperiencedDelay = true;
+            if (payload.turbulenceSeverity > 1) flightHasExperiencedTurbulence = true; // Moderate, Severe or Extreme
+
+            // Debug GroundOps changes:
+            if (window._prevGsxBoarding !== payload.gsxBoardingState || window._prevMainDoor !== payload.isMainDoorOpen || window._prevBeacon !== payload.isBeaconOn || window._prevEngN1 !== payload.eng1N1) {
+                console.log(`[GroundOps Telemetry] Beacon: ${payload.isBeaconOn} | MainDoor: ${payload.isMainDoorOpen} | Jetway: ${payload.isJetwayConnected} | GSX Bdg: ${payload.gsxBoardingState} | ENG1: ${payload.eng1N1}`);
+                window._prevGsxBoarding = payload.gsxBoardingState;
+                window._prevMainDoor = payload.isMainDoorOpen;
+                window._prevBeacon = payload.isBeaconOn;
+                window._prevEngN1 = payload.eng1N1;
+            }
+
+            // Airport Location Gatekeeper (Proactive Warning)
+            const locWarning = document.getElementById('locationMismatchWarning');
+            const locModal = document.getElementById('locationMismatchModal');
+            if (locWarning) {
+                if (payload.isAtWrongAirport) {
+                    locWarning.classList.remove('hidden');
+                    locWarning.title = `Current position is > 10 NM from planned origin (${payload.plannedOriginIcao}). Distance: ${payload.originDistanceNM} NM`;
+
+                    // Modal is now disabled as per User Request (Story 38).
+                    // We keep the modal hidden for now.
+                    if (locModal) locModal.classList.add('hidden');
+                } else {
+                    locWarning.classList.add('hidden');
+                    if (locModal) locModal.classList.add('hidden');
+                    window.locationMismatchModalShown = false; // Reset if they get back in range
+                }
+            }
+
+            updateIntercomButtons(payload);
+            document.getElementById('flightPhase').innerText = `${payload.phase}`;
+
+            if (typeof window.updateDashboardAnimation === 'function') window.updateDashboardAnimation(payload);
+
+            // Start Ops Button Lifecycle (Point 11)
+            const startOpsBtn = document.getElementById('btnStartGroundOps');
+            if (startOpsBtn) {
+                if (payload.phaseEnum !== 'AtGate' && payload.phaseEnum !== 'Turnaround') {
+                    if (!startOpsBtn.disabled || !startOpsBtn.innerText.includes('FLIGHT')) {
+                        startOpsBtn.disabled = true;
+                        startOpsBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">lock</span> FLIGHT IN PROGRESS';
+                    }
+                    const gPnl = document.getElementById('manualGroundOpsPnl');
+                    if (gPnl) gPnl.style.display = 'none';
+                } else if (startOpsBtn.disabled && startOpsBtn.innerText.includes('FLIGHT')) {
+                    startOpsBtn.disabled = false;
+                    startOpsBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> GROUND OPS PNL';
+                }
+
+                // Show manual ground ops panel
+                if (payload.phaseEnum === 'AtGate' || payload.phaseEnum === 'Turnaround') {
+                    const gPnl = document.getElementById('manualGroundOpsPnl');
+                    if (gPnl) gPnl.style.display = 'grid';
+
+                    const btnDeboardToggle = document.getElementById('btnDeboardingToggle');
+                    if (btnDeboardToggle) {
+                        if (payload.isDeboardingAvailable && !payload.isDeboardingCompleted) {
+                            btnDeboardToggle.innerText = 'START DEBOARDING';
+                            // It should send action 'startDeboarding' to the backend
+                            btnDeboardToggle.onclick = () => window.chrome.webview.postMessage({ action: 'startDeboarding' });
+                        } else {
+                            btnDeboardToggle.innerText = 'START BOARDING';
+                            // It should send action 'startService' for Boarding
+                            btnDeboardToggle.onclick = () => window.chrome.webview.postMessage({ action: 'startService', service: 'Boarding' });
+                        }
                     }
                 }
-                break;
-            case 'savedUsername':
-                document.getElementById('sbUsername').value = payload.username;
-                if (payload.username) {
-                    localStorage.setItem('sbUsername', payload.username);
-                }
-                break;
-            case 'appVersion':
-                const el = document.getElementById('appBuildString');
-                if (el) el.innerText = payload.version;
-                break;
-            case 'simConnectStatus':
-                isSimConnected = payload.status.includes('Connected') || payload.status.includes('Linked');
-                const smartBtn = document.getElementById('btnSmartConnect');
-                const langSim = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
-                const dictSim = window.locales ? window.locales[langSim] : null;
+            }
 
-                if (isSimConnected) {
-                    if (smartBtn) {
-                        smartBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">wifi</span>';
-                        smartBtn.title = payload.status.includes('Linked') ? 'Linked' : 'Connected';
-                        smartBtn.className = 'flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-900/20 text-emerald-400 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)] hover:bg-emerald-900/40 transition-colors cursor-pointer';
-                        smartBtn.style.color = '';
+            // Turbulence Severity Update (Story 25)
+            if (payload.turbulenceSeverity !== undefined) {
+                const turbValue = document.getElementById('turbSeverityValue');
+                const turbBar = document.getElementById('turbSeverityBar');
+                const severities = ['NONE', 'LIGHT', 'MODERATE', 'SEVERE', 'EXTREME'];
+                const colors = ['#64748b', '#38bdf8', '#fb923c', '#ef4444', '#a855f7'];
+                const percentages = [0, 25, 50, 75, 100];
+
+                const index = payload.turbulenceSeverity;
+                if (turbValue) {
+                    turbValue.innerText = severities[index] || 'UNKNOWN';
+                    turbValue.style.color = colors[index] || '#64748b';
+                }
+                if (turbBar) {
+                    turbBar.style.width = percentages[index] + '%';
+                    turbBar.style.backgroundColor = colors[index] || '#64748b';
+                    turbBar.style.boxShadow = `0 0 8px ${colors[index] || '#64748b'}80`;
+                }
+            }
+
+            // Passenger Manifest Refresh (Story 25)
+            if (payload.passengers && Array.isArray(payload.passengers)) {
+                let paxArray = window.manifest?.Passengers || window.manifest?.passengers || (Array.isArray(window.manifest) ? window.manifest : null);
+                if (paxArray) {
+                    paxArray.forEach(p => {
+                        const state = payload.passengers.find(s => s.seat === p.Seat || s.Seat === p.Seat);
+                        if (state) {
+                            p.IsBoarded = (state.IsBoarded !== undefined) ? state.IsBoarded : state.isBoarded;
+                            p.IsSeatbeltFastened = (state.IsSeatbeltFastened !== undefined) ? state.IsSeatbeltFastened : state.isSeatbeltFastened;
+                            p.IsInjured = (state.IsInjured !== undefined) ? state.IsInjured : state.isInjured;
+                            p.IndividualAnxiety = (state.IndividualAnxiety !== undefined) ? state.IndividualAnxiety : state.individualAnxiety;
+                        }
+                    });
+                }
+                const cabinTab = document.getElementById('cabin');
+                if (cabinTab && cabinTab.classList.contains('active')) {
+                    window.renderManifest(window.manifest);
+                }
+            }
+
+            const isAtGate = payload.phaseEnum === 'AtGate' || payload.phaseEnum === 'Turnaround';
+            const boardingFinished = payload.passengers && payload.passengers.length > 0 ? payload.passengers.every(p => (p.IsBoarded !== undefined ? p.IsBoarded : p.isBoarded)) : false;
+            const hideCabinStats = isAtGate && !boardingFinished;
+
+            if (payload.anxiety !== undefined) {
+                const anxEl = document.getElementById('paxAnxietyValue');
+                const anxBar = document.getElementById('paxAnxietyBar');
+                if (anxEl && anxBar) {
+                    if (hideCabinStats) {
+                        anxEl.innerHTML = `--<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
+                        anxEl.style.color = '#64748b'; // slate-500
+                        anxEl.style.textShadow = 'none';
+                        anxBar.style.width = '0%';
+                    } else {
+                        anxEl.innerHTML = `${Math.round(payload.anxiety)}<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
+                        anxBar.style.width = `${Math.round(payload.anxiety)}%`;
+                        let color = '#34D399';
+                        if (payload.anxiety >= 60) color = '#EF4444';
+                        else if (payload.anxiety >= 30) color = '#F59E0B';
+
+                        anxEl.style.color = color;
+                        anxEl.style.textShadow = `0 0 20px ${color}4A`;
+                        anxBar.style.backgroundColor = color;
+                        anxBar.style.boxShadow = `0 0 8px ${color}80`;
+                    }
+                }
+            }
+            if (payload.comfort !== undefined) {
+                const comfEl = document.getElementById('paxComfortValue');
+                const comfBar = document.getElementById('paxComfortBar');
+                if (comfEl && comfBar) {
+                    if (hideCabinStats) {
+                        comfEl.innerHTML = `--<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
+                        comfEl.style.color = '#64748b';
+                        comfEl.style.textShadow = 'none';
+                        comfBar.style.width = '0%';
+                    } else {
+                        comfEl.innerHTML = `${Math.round(payload.comfort)}<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
+                        comfBar.style.width = `${Math.round(payload.comfort)}%`;
+                        let color = '#38bdf8';
+                        if (payload.comfort <= 30) color = '#EF4444';
+                        else if (payload.comfort <= 60) color = '#F59E0B';
+                        else if (payload.comfort <= 80) color = '#34D399';
+
+                        comfEl.style.color = color;
+                        comfEl.style.textShadow = `0 0 20px ${color}4A`;
+                        comfBar.style.backgroundColor = color;
+                        comfBar.style.boxShadow = `0 0 8px ${color}80`;
+                    }
+                }
+            }
+
+            if (payload.crewEsteem !== undefined) {
+                const esteemEl = document.getElementById('crewEsteemValue');
+                if (esteemEl) {
+                    const val = payload.crewEsteem.toFixed(1);
+                    esteemEl.innerText = val;
+                    let color = '#34D399'; // default green/emerald
+                    if (payload.crewEsteem < 5.0) color = '#EF4444'; // red
+                    else if (payload.crewEsteem < 8.0) color = '#F59E0B'; // amber
+
+                    esteemEl.style.color = color;
+                    esteemEl.style.textShadow = `0 0 15px ${color}4A`;
+                }
+            }
+
+            if (payload.satisfaction !== undefined) {
+                const satEl = document.getElementById('paxSatisfactionValue');
+                const satBar = document.getElementById('paxSatisfactionBar');
+                if (satEl && satBar) {
+                    if (hideCabinStats) {
+                        satEl.innerHTML = `--<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
+                        satEl.style.color = '#64748b';
+                        satEl.style.textShadow = 'none';
+                        satBar.style.width = '0%';
+                    } else {
+                        satEl.innerHTML = `${Math.round(payload.satisfaction)}<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
+                        satBar.style.width = `${Math.round(payload.satisfaction)}%`;
+                        let color = '#34D399'; // Emerald
+                        if (payload.satisfaction < 50) color = '#EF4444'; // Red
+                        else if (payload.satisfaction < 80) color = '#F59E0B'; // Amber
+
+                        satEl.style.color = color;
+                        satEl.style.textShadow = `0 0 20px ${color}4A`;
+                        satBar.style.backgroundColor = color;
+                        satBar.style.boxShadow = `0 0 8px ${color}80`;
+                    }
+                }
+            }
+
+            // --- CABIN RESOURCES MULTI-LEG ---
+            if (payload.cabinCleanliness !== undefined) {
+                const cleanEl = document.getElementById('cleanlinessVal');
+                if (cleanEl) {
+                    cleanEl.innerText = `${Math.round(payload.cabinCleanliness)}%`;
+                    cleanEl.style.color = payload.cabinCleanliness < 50 ? '#EF4444' : (payload.cabinCleanliness < 75 ? '#F59E0B' : '#34D399');
+                }
+            }
+            if (payload.cateringRations !== undefined) {
+                const catEl = document.getElementById('cateringRationsVal');
+                if (catEl) {
+                    catEl.innerText = payload.cateringRations;
+                    catEl.style.color = payload.cateringRations <= 10 ? '#EF4444' : (payload.cateringRations <= 25 ? '#F59E0B' : '#34D399');
+                }
+            }
+            if (payload.waterLevel !== undefined) {
+                const waterEl = document.getElementById('waterLevelVal');
+                if (waterEl) {
+                    waterEl.innerText = `${Math.round(payload.waterLevel)}%`;
+                    waterEl.style.color = payload.waterLevel < 20 ? '#EF4444' : (payload.waterLevel < 50 ? '#F59E0B' : '#60A5FA'); // blue-400
+                }
+            }
+            if (payload.wasteLevel !== undefined) {
+                const wasteEl = document.getElementById('wasteLevelVal');
+                if (wasteEl) {
+                    wasteEl.innerText = `${Math.round(payload.wasteLevel)}%`;
+                    wasteEl.style.color = payload.wasteLevel > 90 ? '#EF4444' : (payload.wasteLevel > 70 ? '#F59E0B' : '#60A5FA'); // blue-400
+                }
+            }
+
+            if (payload.crewProactivity !== undefined) {
+                const formatColor = (val, el) => {
+                    if (el && val !== undefined) {
+                        el.innerText = Math.round(val);
+                        let color = '#34D399'; // Emerald
+                        if (val < 40) color = '#EF4444'; // Red
+                        else if (val < 75) color = '#F59E0B'; // Amber
+                        el.style.color = color;
+                        el.style.textShadow = `0 0 10px ${color}60`;
+                    }
+                };
+
+                formatColor(payload.crewProactivity, document.getElementById('crewProactivityLabel'));
+                formatColor(payload.crewEfficiency, document.getElementById('crewEfficiencyLabel'));
+                formatColor(payload.crewMorale, document.getElementById('crewMoraleLabel'));
+            }
+
+
+            // Satiety and Catering Progression
+            const sIcon = document.getElementById('satietyIcon');
+            if (sIcon) {
+                if (payload.satietyActive) sIcon.classList.remove('hidden');
+                else sIcon.classList.add('hidden');
+            }
+
+            if (payload.serviceProgress !== undefined && payload.cabinState) {
+                const cBox = document.getElementById('cateringProgressBox');
+                const cBar = document.getElementById('cateringBar');
+                const cVal = document.getElementById('cateringValue');
+
+                if (cBox && cBar && cVal) {
+                    if (payload.cabinState === 'ServingMeals' && payload.serviceProgress > 0 && payload.serviceProgress < 100) {
+                        cBox.classList.remove('opacity-0', 'h-0');
+                        cBox.classList.add('opacity-100', 'h-10');
+                        cBar.style.width = `${payload.serviceProgress}%`;
+                        cVal.innerHTML = `${Math.round(payload.serviceProgress)}<span class="text-[10px] text-slate-500 font-light ml-1">%</span>`;
+
+                        if (payload.isServiceHalted) {
+                            cBar.classList.add('bg-red-500', 'animate-pulse');
+                            cBar.classList.remove('bg-sky-500');
+                            cVal.classList.add('text-red-500');
+                        } else {
+                            cBar.classList.remove('bg-red-500', 'animate-pulse');
+                            cBar.classList.add('bg-sky-500');
+                            cVal.classList.remove('text-red-500');
+                        }
+                    } else {
+                        cBox.classList.remove('opacity-100', 'h-10');
+                        cBox.classList.add('opacity-0', 'h-0');
+                    }
+                }
+            }
+
+            // Cabin Temperature
+            if (payload.cabinTemp !== undefined) {
+                const tVal = document.getElementById('thermalValue');
+                const tNeedle = document.getElementById('thermalNeedle');
+
+                if (tVal && tNeedle) {
+                    tVal.innerHTML = `${payload.cabinTemp.toFixed(1)}<span class="text-[10px] text-slate-500 font-light ml-1">°C</span>`;
+
+                    // Map 18-30°C to 0-100% position
+                    let mappedPercent = ((payload.cabinTemp - 18.0) / 12.0) * 100.0;
+                    if (mappedPercent < 0) mappedPercent = 0;
+                    if (mappedPercent > 100) mappedPercent = 100;
+
+                    tNeedle.style.left = `${mappedPercent}%`;
+
+                    // Dynamically color the value text based on ranges
+                    tVal.classList.remove('text-slate-200', 'text-blue-400', 'text-red-400', 'text-emerald-400');
+                    if (payload.cabinTemp < 20.0) tVal.classList.add('text-blue-400');
+                    else if (payload.cabinTemp > 25.0) tVal.classList.add('text-red-400');
+                    else if (payload.cabinTemp >= 21.0 && payload.cabinTemp <= 24.0) tVal.classList.add('text-emerald-400');
+                    else tVal.classList.add('text-slate-200');
+                }
+            }
+
+            if (payload.securingProgress !== undefined) {
+                const pBox = document.getElementById('pncProgressBox');
+                const pBar = document.getElementById('pncProgressBar');
+                if (pBox && pBar) {
+                    if (payload.securingProgress > 0 && payload.securingProgress < 100) {
+                        pBox.classList.remove('opacity-0', 'h-0', 'mb-0');
+                        pBox.classList.add('opacity-100', 'h-2', 'mb-4');
+                        pBar.style.width = `${payload.securingProgress}%`;
+
+                        if (payload.isSecuringHalted) {
+                            pBar.classList.add('bg-red-500', 'animate-pulse');
+                            pBar.classList.remove('bg-orange-500');
+                        } else {
+                            pBar.classList.remove('bg-red-500', 'animate-pulse');
+                            pBar.classList.add('bg-orange-500');
+                        }
+                    } else {
+                        pBox.classList.remove('opacity-100', 'h-2', 'mb-4');
+                        pBox.classList.add('opacity-0', 'h-0', 'mb-0');
+                    }
+                }
+            }
+
+            // Update Flight Details Dashboard
+            if (payload.sessionFlightsCompleted !== undefined) {
+                window.sessionFlightsCompleted = payload.sessionFlightsCompleted;
+            }
+            const dashDetails = document.getElementById('dashFlightDetails');
+            if (dashDetails && window.allRotations && window.allRotations.length > 0) {
+                const currentIdx = Math.min(window.activeLegIndex || 0, window.allRotations.length - 1);
+                const currentFlight = window.allRotations[currentIdx]?.data;
+
+                if (currentFlight) {
+                    dashDetails.style.display = 'flex';
+
+                    document.getElementById('dashDepIcao').innerText = currentFlight.origin?.icao_code || '---';
+                    document.getElementById('dashArrIcao').innerText = currentFlight.destination?.icao_code || '---';
+
+                    const GLOBAL_AIRLINES = {
+                        'AFR': 'Air France', 'BAW': 'British Airways', 'EZY': 'easyJet', 'RYR': 'Ryanair',
+                        'DLH': 'Lufthansa', 'UAE': 'Emirates', 'QTR': 'Qatar Airways', 'DAL': 'Delta',
+                        'AAL': 'American Airlines', 'UAL': 'United', 'SWA': 'Southwest'
+                    };
+                    let aCode = currentFlight.general?.icao_airline || '';
+                    let dashFlightCo = document.getElementById('dashFlightCompany');
+                    if (dashFlightCo) {
+                        dashFlightCo.innerText = GLOBAL_AIRLINES[aCode] || currentFlight.general?.airline_name || aCode || 'AIRLINE';
+                        dashFlightCo.onclick = () => { if (window.showAirlineIdentityModal) window.showAirlineIdentityModal(aCode); };
+                        dashFlightCo.classList.add('cursor-pointer', 'hover:text-emerald-400', 'transition-colors');
+                    }
+
+                    document.getElementById('dashFlightIdent').innerText = `${currentFlight.general?.icao_airline || ''}${currentFlight.general?.flight_number || ''}`;
+
+                    let acType = currentFlight.aircraft?.name || currentFlight.aircraft?.base_type || currentFlight.aircraft?.icaocode || 'Unknown';
+                    if (acType.toUpperCase().includes('FENIX') || acType === 'A320') {
+                        acType = 'Airbus A320-200';
+                    }
+                    else if (acType === 'A20N') acType = 'Airbus A320neo';
+                    else if (acType === 'B738') acType = 'Boeing 737-800';
+                    else if (acType === 'B77W') acType = 'Boeing 777-300ER';
+
+                    document.getElementById('dashAircraftType').innerText = acType;
+                    document.getElementById('dashAircraftReg').innerText = currentFlight.aircraft?.reg || 'NO REG';
+
+                    let depCity = currentFlight.origin?.city || '';
+                    let depNameStr = currentFlight.origin?.name || '---';
+                    let depIcao = currentFlight.origin?.icao_code;
+
+                    let arrCity = currentFlight.destination?.city || '';
+                    let arrNameStr = currentFlight.destination?.name || '---';
+                    let arrIcao = currentFlight.destination?.icao_code;
+
+                    if (depIcao && window.airportsDb && window.airportsDb[depIcao]) {
+                        depCity = window.airportsDb[depIcao].city || depCity;
+                        depNameStr = window.airportsDb[depIcao].name || depNameStr;
+                    }
+
+                    if (arrIcao && window.airportsDb && window.airportsDb[arrIcao]) {
+                        arrCity = window.airportsDb[arrIcao].city || arrCity;
+                        arrNameStr = window.airportsDb[arrIcao].name || arrNameStr;
+                    }
+
+                    const depFormat = window.formatAirportData(depCity, depNameStr);
+                    document.getElementById('dashDepCity').innerText = depFormat.city;
+                    document.getElementById('dashDepName').innerText = depFormat.name;
+
+                    const arrFormat = window.formatAirportData(arrCity, arrNameStr);
+                    document.getElementById('dashArrCity').innerText = arrFormat.city;
+                    document.getElementById('dashArrName').innerText = arrFormat.name;
+
+                    if (currentFlight.times?.sched_out) {
+                        let offset = window.lastTelemetry?.globalTimeOffsetSeconds || 0;
+                        currentSobtUnix = parseInt(currentFlight.times.sched_out) + offset;
+                        const ttSchedDep = document.getElementById('ttSchedDep');
+                        if (ttSchedDep) ttSchedDep.innerText = getFormattedTime(currentSobtUnix);
+                    }
+                    if (currentFlight.times?.sched_in) {
+                        let offset = window.lastTelemetry?.globalTimeOffsetSeconds || 0;
+                        window.currentSibtUnix = parseInt(currentFlight.times.sched_in) + offset;
+                        const ttSchedArr = document.getElementById('ttSchedArr');
+                        if (ttSchedArr) ttSchedArr.innerText = getFormattedTime(window.currentSibtUnix);
+                    }
+                }
+            }
+
+            if (typeof window.updateFuelTelemetry === 'function') window.updateFuelTelemetry();
+            break;
+        case 'pncStatus':
+            const pncDot = document.getElementById('pncStatusDot');
+            const pncLbl = document.getElementById('pncStatusLabel');
+            if (pncDot && pncLbl && payload.status) {
+                pncLbl.innerText = payload.status;
+                if (payload.state === 'SecuringForTakeoff' || payload.state === 'SecuringForLanding') {
+                    pncDot.className = "w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse";
+                } else if (payload.state === 'TakeoffSecured' || payload.state === 'LandingSecured') {
+                    pncDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]";
+                } else if (payload.state === 'ServingMeals') {
+                    pncDot.className = "w-2.5 h-2.5 rounded-full bg-sky-500";
+                } else {
+                    pncDot.className = "w-2.5 h-2.5 rounded-full bg-slate-500";
+                }
+            }
+            break;
+        case 'simTime':
+            let localSuffix = payload.localTime && payload.localTime !== '--:--' ? ` / ${payload.localTime} LOCAL` : '';
+            let utcTime = payload.rawUnix ? getFormattedTime(payload.rawUnix).replace(/z/gi, '') : payload.time.replace(/z/gi, '');
+            window.simZuluTime = utcTime;
+            document.getElementById('zuluTime').innerText = `${utcTime} UTC${localSuffix}`;
+
+            let localDateSuffix = payload.localDate && payload.localDate !== '--/--/----' ? ` / ${payload.localDate} LOCAL` : '';
+            const topDateEl = document.getElementById('topDate');
+            if (topDateEl && payload.date) topDateEl.innerText = `${payload.date} UTC${localDateSuffix}`;
+
+            const zuluDateEl = document.getElementById('zuluDate');
+            if (zuluDateEl && payload.date) zuluDateEl.innerText = `${payload.date} UTC${localDateSuffix}`;
+
+            const topZuluEl = document.getElementById('topZulu');
+            if (topZuluEl) topZuluEl.innerText = `${utcTime} UTC${localSuffix}`;
+
+            const dashDateEl = document.getElementById('dashboardDate');
+            if (dashDateEl && payload.date) dashDateEl.innerText = `${payload.date} UTC${localDateSuffix}`;
+
+            const cd = document.getElementById('flightCountdown');
+
+            // --- DYNAMIC TIMETABLE UPDATE ---
+            let simFlight = window.currentFlight;
+            if (window.allRotations && window.allRotations.length > 0) {
+                const cIdx = Math.min(window.activeLegIndex || 0, window.allRotations.length - 1);
+                if (window.allRotations[cIdx]?.data) simFlight = window.allRotations[cIdx].data;
+            }
+
+            if (payload.rawUnix && simFlight && simFlight.times) {
+                let offset = window.lastTelemetry?.globalTimeOffsetSeconds || 0;
+
+                if (payload.groundOps && payload.groundOps.TargetSobt) {
+                    let tSobtDate = new Date(payload.groundOps.TargetSobt);
+                    currentSobtUnix = Math.floor(tSobtDate.getTime() / 1000);
+
+                    // We also calculate what the turnaround block duration was designed to be to move SIBT properly
+                    let blockSecs = parseInt(simFlight.times.sched_in) - parseInt(simFlight.times.sched_out);
+                    if (isNaN(blockSecs) || blockSecs <= 0) blockSecs = 3600;
+                    window.currentSibtUnix = currentSobtUnix + blockSecs;
+                } else {
+                    currentSobtUnix = parseInt(simFlight.times.sched_out) + offset;
+                    window.currentSibtUnix = parseInt(simFlight.times.sched_in) + offset;
+                }
+
+                const ttSchedDep = document.getElementById('ttSchedDep');
+                const ttSchedArr = document.getElementById('ttSchedArr');
+                if (ttSchedDep) ttSchedDep.innerText = getFormattedTime(currentSobtUnix);
+                if (ttSchedArr) ttSchedArr.innerText = getFormattedTime(window.currentSibtUnix);
+
+                const ttActDep = document.getElementById('ttActDep');
+                const ttDepStatus = document.getElementById('ttDepStatus');
+                const ttActArr = document.getElementById('ttActArr');
+                const ttArrStatus = document.getElementById('ttArrStatus');
+
+                const setBadge = (statusSpan, delaySec) => {
+                    if (!statusSpan) return;
+                    let m = Math.floor(Math.abs(delaySec) / 60);
+                    let h = Math.floor(m / 60);
+                    m = m % 60;
+                    let timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+
+                    if (delaySec >= -300 && delaySec <= 300) {
+                        statusSpan.innerText = `ON TIME`;
+                        statusSpan.className = "px-2 py-0.5 rounded bg-emerald-500/10 text-[10px] text-emerald-400 uppercase font-bold tracking-wider";
+                    } else if (delaySec < -300) {
+                        statusSpan.innerText = `EARLY : ${timeStr}`;
+                        statusSpan.className = "px-2 py-0.5 rounded bg-sky-500/10 text-[10px] text-sky-400 uppercase font-bold tracking-wider";
+                    } else if (delaySec <= 900) {
+                        statusSpan.innerText = `LATE : ${timeStr}`;
+                        statusSpan.className = "px-2 py-0.5 rounded bg-amber-500/10 text-[10px] text-amber-500 uppercase font-bold tracking-wider";
+                    } else {
+                        statusSpan.innerText = `LATE : ${timeStr}`;
+                        statusSpan.className = "px-2 py-0.5 rounded bg-rose-500/10 text-[10px] text-rose-500 uppercase font-bold tracking-wider";
+                    }
+                };
+
+                let currDelay = 0;
+                if (window.finalAobtUnix) {
+                    currDelay = window.finalAobtUnix - currentSobtUnix;
+                    if (ttActDep) {
+                        ttActDep.innerText = getFormattedTime(window.finalAobtUnix);
+                        ttActDep.className = "py-4 font-mono text-slate-300 font-bold";
+                    }
+                    if (ttDepStatus) {
+                        ttDepStatus.innerText = "DEPARTED";
+                        ttDepStatus.className = "px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-400 uppercase font-bold tracking-wider";
                     }
                 } else {
-                    if (smartBtn) {
-                        smartBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">wifi_off</span>';
-                        smartBtn.title = dictSim ? dictSim.btn_not_connected : 'Not Connected';
-                        smartBtn.className = 'flex items-center justify-center w-10 h-10 rounded-xl bg-red-900/20 text-red-500 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:bg-red-900/40 transition-colors cursor-pointer';
-                        smartBtn.style.color = '';
+                    currDelay = payload.rawUnix > currentSobtUnix ? payload.rawUnix - currentSobtUnix : 0;
+                    if (ttActDep) {
+                        ttActDep.innerText = getFormattedTime(currentSobtUnix + currDelay);
+                        ttActDep.className = currDelay > 180 ? "py-4 font-mono text-rose-400 font-bold animate-pulse" : "py-4 font-mono text-sky-400 font-bold animate-pulse";
                     }
-                }
-                break;
-            case 'incoming_pnc_call':
-                if (payload.state === 'start') {
-                    window.isCabinCallIncoming = true;
-                } else if (payload.state === 'stop') {
-                    window.isCabinCallIncoming = false;
-                }
-                if (window.populateDashboardActiveLeg && window.lastTelemetry) {
-                    window.populateDashboardActiveLeg(window.lastTelemetry);
-                }
-                break;
-            case 'telemetry':
-                if (window._prevGlobalOffset !== payload.globalTimeOffsetSeconds) {
-                    window._prevGlobalOffset = payload.globalTimeOffsetSeconds;
-                    if (window.renderBriefingTabs) window.renderBriefingTabs();
-                }
-                window.lastTelemetry = payload;
-                if (payload.fob !== undefined) {
-                    window.currentFobKg = payload.fob;
-                }
-                if (payload.aircraftState && payload.aircraftState.initialFobKg !== undefined) {
-                    window.initialFobKg = payload.aircraftState.initialFobKg;
-                } else if (payload.aircraftState && payload.aircraftState.InitialFobKg !== undefined) {
-                    window.initialFobKg = payload.aircraftState.InitialFobKg;
-                }
-                if (typeof window.checkTimeSkipVisibility === 'function') {
-                    window.checkTimeSkipVisibility(payload.phaseEnum);
-                }
-                if (payload.isDelayed === true) flightHasExperiencedDelay = true;
-                if (payload.turbulenceSeverity > 1) flightHasExperiencedTurbulence = true; // Moderate, Severe or Extreme
-
-                // Debug GroundOps changes:
-                if (window._prevGsxBoarding !== payload.gsxBoardingState || window._prevMainDoor !== payload.isMainDoorOpen || window._prevBeacon !== payload.isBeaconOn || window._prevEngN1 !== payload.eng1N1) {
-                    console.log(`[GroundOps Telemetry] Beacon: ${payload.isBeaconOn} | MainDoor: ${payload.isMainDoorOpen} | Jetway: ${payload.isJetwayConnected} | GSX Bdg: ${payload.gsxBoardingState} | ENG1: ${payload.eng1N1}`);
-                    window._prevGsxBoarding = payload.gsxBoardingState;
-                    window._prevMainDoor = payload.isMainDoorOpen;
-                    window._prevBeacon = payload.isBeaconOn;
-                    window._prevEngN1 = payload.eng1N1;
+                    setBadge(ttDepStatus, currDelay);
                 }
 
-                // Airport Location Gatekeeper (Proactive Warning)
-                const locWarning = document.getElementById('locationMismatchWarning');
-                const locModal = document.getElementById('locationMismatchModal');
-                if (locWarning) {
-                    if (payload.isAtWrongAirport) {
-                        locWarning.classList.remove('hidden');
-                        locWarning.title = `Current position is > 10 NM from planned origin (${payload.plannedOriginIcao}). Distance: ${payload.originDistanceNM} NM`;
-                        
-                        // Modal is now disabled as per User Request (Story 38).
-                        // We keep the modal hidden for now.
-                        if (locModal) locModal.classList.add('hidden');
-                    } else {
-                        locWarning.classList.add('hidden');
-                        if (locModal) locModal.classList.add('hidden');
-                        window.locationMismatchModalShown = false; // Reset if they get back in range
-                    }
-                }
-
-                updateIntercomButtons(payload);
-                document.getElementById('flightPhase').innerText = `${payload.phase}`;
-                
-                if (typeof window.updateDashboardAnimation === 'function') window.updateDashboardAnimation(payload);
-
-                // Start Ops Button Lifecycle (Point 11)
-                const startOpsBtn = document.getElementById('btnStartGroundOps');
-                if (startOpsBtn) {
-                    if (payload.phaseEnum !== 'AtGate' && payload.phaseEnum !== 'Turnaround') {
-                        if (!startOpsBtn.disabled || !startOpsBtn.innerText.includes('FLIGHT')) {
-                            startOpsBtn.disabled = true;
-                            startOpsBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">lock</span> FLIGHT IN PROGRESS';
+                if (window.currentSibtUnix > 0) {
+                    if (window.finalAibtUnix) {
+                        let arrDelay = window.finalAibtUnix - window.currentSibtUnix;
+                        if (ttActArr) {
+                            ttActArr.innerText = getFormattedTime(window.finalAibtUnix);
+                            ttActArr.className = "py-4 font-mono text-slate-300 font-bold";
                         }
-                        const gPnl = document.getElementById('manualGroundOpsPnl');
-                        if (gPnl) gPnl.style.display = 'none';
-                    } else if (startOpsBtn.disabled && startOpsBtn.innerText.includes('FLIGHT')) {
-                        startOpsBtn.disabled = false;
-                        startOpsBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">flight_takeoff</span> GROUND OPS PNL';
-                    }
-
-                    // Show manual ground ops panel
-                    if (payload.phaseEnum === 'AtGate' || payload.phaseEnum === 'Turnaround') {
-                        const gPnl = document.getElementById('manualGroundOpsPnl');
-                        if (gPnl) gPnl.style.display = 'grid';
-
-                        const btnDeboardToggle = document.getElementById('btnDeboardingToggle');
-                        if (btnDeboardToggle) {
-                            if (payload.isDeboardingAvailable && !payload.isDeboardingCompleted) {
-                                btnDeboardToggle.innerText = 'START DEBOARDING';
-                                // It should send action 'startDeboarding' to the backend
-                                btnDeboardToggle.onclick = () => window.chrome.webview.postMessage({ action: 'startDeboarding' });
-                            } else {
-                                btnDeboardToggle.innerText = 'START BOARDING';
-                                // It should send action 'startService' for Boarding
-                                btnDeboardToggle.onclick = () => window.chrome.webview.postMessage({ action: 'startService', service: 'Boarding' });
-                            }
-                        }
-                    }
-                }
-
-                // Turbulence Severity Update (Story 25)
-                if (payload.turbulenceSeverity !== undefined) {
-                    const turbValue = document.getElementById('turbSeverityValue');
-                    const turbBar = document.getElementById('turbSeverityBar');
-                    const severities = ['NONE', 'LIGHT', 'MODERATE', 'SEVERE', 'EXTREME'];
-                    const colors = ['#64748b', '#38bdf8', '#fb923c', '#ef4444', '#a855f7'];
-                    const percentages = [0, 25, 50, 75, 100];
-
-                    const index = payload.turbulenceSeverity;
-                    if (turbValue) {
-                        turbValue.innerText = severities[index] || 'UNKNOWN';
-                        turbValue.style.color = colors[index] || '#64748b';
-                    }
-                    if (turbBar) {
-                        turbBar.style.width = percentages[index] + '%';
-                        turbBar.style.backgroundColor = colors[index] || '#64748b';
-                        turbBar.style.boxShadow = `0 0 8px ${colors[index] || '#64748b'}80`;
-                    }
-                }
-
-                // Passenger Manifest Refresh (Story 25)
-                if (payload.passengers && Array.isArray(payload.passengers)) {
-                    let paxArray = window.manifest?.Passengers || window.manifest?.passengers || (Array.isArray(window.manifest) ? window.manifest : null);
-                    if (paxArray) {
-                        paxArray.forEach(p => {
-                            const state = payload.passengers.find(s => s.seat === p.Seat || s.Seat === p.Seat);
-                            if (state) {
-                                p.IsBoarded = (state.IsBoarded !== undefined) ? state.IsBoarded : state.isBoarded;
-                                p.IsSeatbeltFastened = (state.IsSeatbeltFastened !== undefined) ? state.IsSeatbeltFastened : state.isSeatbeltFastened;
-                                p.IsInjured = (state.IsInjured !== undefined) ? state.IsInjured : state.isInjured;
-                                p.IndividualAnxiety = (state.IndividualAnxiety !== undefined) ? state.IndividualAnxiety : state.individualAnxiety;
-                            }
-                        });
-                    }
-                    const cabinTab = document.getElementById('cabin');
-                    if (cabinTab && cabinTab.classList.contains('active')) {
-                        window.renderManifest(window.manifest);
-                    }
-                }
-
-                const isAtGate = payload.phaseEnum === 'AtGate' || payload.phaseEnum === 'Turnaround';
-                const boardingFinished = payload.passengers && payload.passengers.length > 0 ? payload.passengers.every(p => (p.IsBoarded !== undefined ? p.IsBoarded : p.isBoarded)) : false;
-                const hideCabinStats = isAtGate && !boardingFinished;
-
-                if (payload.anxiety !== undefined) {
-                    const anxEl = document.getElementById('paxAnxietyValue');
-                    const anxBar = document.getElementById('paxAnxietyBar');
-                    if (anxEl && anxBar) {
-                        if (hideCabinStats) {
-                            anxEl.innerHTML = `--<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
-                            anxEl.style.color = '#64748b'; // slate-500
-                            anxEl.style.textShadow = 'none';
-                            anxBar.style.width = '0%';
-                        } else {
-                            anxEl.innerHTML = `${Math.round(payload.anxiety)}<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
-                            anxBar.style.width = `${Math.round(payload.anxiety)}%`;
-                            let color = '#34D399';
-                            if (payload.anxiety >= 60) color = '#EF4444';
-                            else if (payload.anxiety >= 30) color = '#F59E0B';
-
-                            anxEl.style.color = color;
-                            anxEl.style.textShadow = `0 0 20px ${color}4A`;
-                            anxBar.style.backgroundColor = color;
-                            anxBar.style.boxShadow = `0 0 8px ${color}80`;
-                        }
-                    }
-                }
-                if (payload.comfort !== undefined) {
-                    const comfEl = document.getElementById('paxComfortValue');
-                    const comfBar = document.getElementById('paxComfortBar');
-                    if (comfEl && comfBar) {
-                        if (hideCabinStats) {
-                            comfEl.innerHTML = `--<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
-                            comfEl.style.color = '#64748b';
-                            comfEl.style.textShadow = 'none';
-                            comfBar.style.width = '0%';
-                        } else {
-                            comfEl.innerHTML = `${Math.round(payload.comfort)}<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
-                            comfBar.style.width = `${Math.round(payload.comfort)}%`;
-                            let color = '#38bdf8';
-                            if (payload.comfort <= 30) color = '#EF4444';
-                            else if (payload.comfort <= 60) color = '#F59E0B';
-                            else if (payload.comfort <= 80) color = '#34D399';
-
-                            comfEl.style.color = color;
-                            comfEl.style.textShadow = `0 0 20px ${color}4A`;
-                            comfBar.style.backgroundColor = color;
-                            comfBar.style.boxShadow = `0 0 8px ${color}80`;
-                        }
-                    }
-                }
-
-                if (payload.crewEsteem !== undefined) {
-                    const esteemEl = document.getElementById('crewEsteemValue');
-                    if (esteemEl) {
-                        const val = payload.crewEsteem.toFixed(1);
-                        esteemEl.innerText = val;
-                        let color = '#34D399'; // default green/emerald
-                        if (payload.crewEsteem < 5.0) color = '#EF4444'; // red
-                        else if (payload.crewEsteem < 8.0) color = '#F59E0B'; // amber
-                        
-                        esteemEl.style.color = color;
-                        esteemEl.style.textShadow = `0 0 15px ${color}4A`;
-                    }
-                }
-
-                if (payload.satisfaction !== undefined) {
-                    const satEl = document.getElementById('paxSatisfactionValue');
-                    const satBar = document.getElementById('paxSatisfactionBar');
-                    if (satEl && satBar) {
-                        if (hideCabinStats) {
-                            satEl.innerHTML = `--<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
-                            satEl.style.color = '#64748b';
-                            satEl.style.textShadow = 'none';
-                            satBar.style.width = '0%';
-                        } else {
-                            satEl.innerHTML = `${Math.round(payload.satisfaction)}<span class="text-sm text-slate-500 font-light ml-1">%</span>`;
-                            satBar.style.width = `${Math.round(payload.satisfaction)}%`;
-                            let color = '#34D399'; // Emerald
-                            if (payload.satisfaction < 50) color = '#EF4444'; // Red
-                            else if (payload.satisfaction < 80) color = '#F59E0B'; // Amber
-
-                            satEl.style.color = color;
-                            satEl.style.textShadow = `0 0 20px ${color}4A`;
-                            satBar.style.backgroundColor = color;
-                            satBar.style.boxShadow = `0 0 8px ${color}80`;
-                        }
-                    }
-                }
-
-                // --- CABIN RESOURCES MULTI-LEG ---
-                if (payload.cabinCleanliness !== undefined) {
-                    const cleanEl = document.getElementById('cleanlinessVal');
-                    if (cleanEl) {
-                        cleanEl.innerText = `${Math.round(payload.cabinCleanliness)}%`;
-                        cleanEl.style.color = payload.cabinCleanliness < 50 ? '#EF4444' : (payload.cabinCleanliness < 75 ? '#F59E0B' : '#34D399');
-                    }
-                }
-                if (payload.cateringRations !== undefined) {
-                    const catEl = document.getElementById('cateringRationsVal');
-                    if (catEl) {
-                        catEl.innerText = payload.cateringRations;
-                        catEl.style.color = payload.cateringRations <= 10 ? '#EF4444' : (payload.cateringRations <= 25 ? '#F59E0B' : '#34D399');
-                    }
-                }
-                if (payload.waterLevel !== undefined) {
-                    const waterEl = document.getElementById('waterLevelVal');
-                    if (waterEl) {
-                        waterEl.innerText = `${Math.round(payload.waterLevel)}%`;
-                        waterEl.style.color = payload.waterLevel < 20 ? '#EF4444' : (payload.waterLevel < 50 ? '#F59E0B' : '#60A5FA'); // blue-400
-                    }
-                }
-                if (payload.wasteLevel !== undefined) {
-                    const wasteEl = document.getElementById('wasteLevelVal');
-                    if (wasteEl) {
-                        wasteEl.innerText = `${Math.round(payload.wasteLevel)}%`;
-                        wasteEl.style.color = payload.wasteLevel > 90 ? '#EF4444' : (payload.wasteLevel > 70 ? '#F59E0B' : '#60A5FA'); // blue-400
-                    }
-                }
-
-                if (payload.crewProactivity !== undefined) {
-                    const formatColor = (val, el) => {
-                        if (el && val !== undefined) {
-                            el.innerText = Math.round(val);
-                            let color = '#34D399'; // Emerald
-                            if (val < 40) color = '#EF4444'; // Red
-                            else if (val < 75) color = '#F59E0B'; // Amber
-                            el.style.color = color;
-                            el.style.textShadow = `0 0 10px ${color}60`;
-                        }
-                    };
-
-                    formatColor(payload.crewProactivity, document.getElementById('crewProactivityLabel'));
-                    formatColor(payload.crewEfficiency, document.getElementById('crewEfficiencyLabel'));
-                    formatColor(payload.crewMorale, document.getElementById('crewMoraleLabel'));
-                }
-
-
-                // Satiety and Catering Progression
-                const sIcon = document.getElementById('satietyIcon');
-                if (sIcon) {
-                    if (payload.satietyActive) sIcon.classList.remove('hidden');
-                    else sIcon.classList.add('hidden');
-                }
-
-                if (payload.serviceProgress !== undefined && payload.cabinState) {
-                    const cBox = document.getElementById('cateringProgressBox');
-                    const cBar = document.getElementById('cateringBar');
-                    const cVal = document.getElementById('cateringValue');
-
-                    if (cBox && cBar && cVal) {
-                        if (payload.cabinState === 'ServingMeals' && payload.serviceProgress > 0 && payload.serviceProgress < 100) {
-                            cBox.classList.remove('opacity-0', 'h-0');
-                            cBox.classList.add('opacity-100', 'h-10');
-                            cBar.style.width = `${payload.serviceProgress}%`;
-                            cVal.innerHTML = `${Math.round(payload.serviceProgress)}<span class="text-[10px] text-slate-500 font-light ml-1">%</span>`;
-
-                            if (payload.isServiceHalted) {
-                                cBar.classList.add('bg-red-500', 'animate-pulse');
-                                cBar.classList.remove('bg-sky-500');
-                                cVal.classList.add('text-red-500');
-                            } else {
-                                cBar.classList.remove('bg-red-500', 'animate-pulse');
-                                cBar.classList.add('bg-sky-500');
-                                cVal.classList.remove('text-red-500');
-                            }
-                        } else {
-                            cBox.classList.remove('opacity-100', 'h-10');
-                            cBox.classList.add('opacity-0', 'h-0');
-                        }
-                    }
-                }
-
-                // Cabin Temperature
-                if (payload.cabinTemp !== undefined) {
-                    const tVal = document.getElementById('thermalValue');
-                    const tNeedle = document.getElementById('thermalNeedle');
-
-                    if (tVal && tNeedle) {
-                        tVal.innerHTML = `${payload.cabinTemp.toFixed(1)}<span class="text-[10px] text-slate-500 font-light ml-1">°C</span>`;
-
-                        // Map 18-30°C to 0-100% position
-                        let mappedPercent = ((payload.cabinTemp - 18.0) / 12.0) * 100.0;
-                        if (mappedPercent < 0) mappedPercent = 0;
-                        if (mappedPercent > 100) mappedPercent = 100;
-
-                        tNeedle.style.left = `${mappedPercent}%`;
-
-                        // Dynamically color the value text based on ranges
-                        tVal.classList.remove('text-slate-200', 'text-blue-400', 'text-red-400', 'text-emerald-400');
-                        if (payload.cabinTemp < 20.0) tVal.classList.add('text-blue-400');
-                        else if (payload.cabinTemp > 25.0) tVal.classList.add('text-red-400');
-                        else if (payload.cabinTemp >= 21.0 && payload.cabinTemp <= 24.0) tVal.classList.add('text-emerald-400');
-                        else tVal.classList.add('text-slate-200');
-                    }
-                }
-
-                if (payload.securingProgress !== undefined) {
-                    const pBox = document.getElementById('pncProgressBox');
-                    const pBar = document.getElementById('pncProgressBar');
-                    if (pBox && pBar) {
-                        if (payload.securingProgress > 0 && payload.securingProgress < 100) {
-                            pBox.classList.remove('opacity-0', 'h-0', 'mb-0');
-                            pBox.classList.add('opacity-100', 'h-2', 'mb-4');
-                            pBar.style.width = `${payload.securingProgress}%`;
-
-                            if (payload.isSecuringHalted) {
-                                pBar.classList.add('bg-red-500', 'animate-pulse');
-                                pBar.classList.remove('bg-orange-500');
-                            } else {
-                                pBar.classList.remove('bg-red-500', 'animate-pulse');
-                                pBar.classList.add('bg-orange-500');
-                            }
-                        } else {
-                            pBox.classList.remove('opacity-100', 'h-2', 'mb-4');
-                            pBox.classList.add('opacity-0', 'h-0', 'mb-0');
-                        }
-                    }
-                }
-
-                // Update Flight Details Dashboard
-                if (payload.sessionFlightsCompleted !== undefined) {
-                    let targetIndex = payload.sessionFlightsCompleted;
-                    
-                    // GEL UI END OF FLIGHT: Maintient l'UI calée sur le statut d'arrivée (Phase Arrived uniquement).
-                    // Au Turnaround, on lève le gel pour permettre le nettoyage de l'UI (Leg 2).
-                    if (window.currentPhase === 'Arrived') {
-                        // Si sessionFlightsCompleted est 1, ça veut dire qu'on a fini 1 vol, et on reste calé sur l'index 0.
-                        targetIndex = Math.max(0, payload.sessionFlightsCompleted - 1);
-                    }
-
-                    if (window.activeLegIndex !== targetIndex) {
-                        window.navDirection = 1; // Auto-slide to the right when advancing leg
-                        window.activeLegIndex = targetIndex;
-                        // Sync dashboard view with active leg
-                        window.dashboardActiveLegIndex = window.activeLegIndex;
-                        window.manifest = null; // Clear manifest to force reload for new leg
-                        window.finalAobtUnix = null; // Clear cached times
-                        window.finalAibtUnix = null; // Clear cached times
-                        if (window.renderBriefingTabs) window.renderBriefingTabs();
-                        if (window.renderBriefingTimeline) window.renderBriefingTimeline();
-                        if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex);
-                    }
-                }
-                const dashDetails = document.getElementById('dashFlightDetails');
-                if (dashDetails && window.allRotations && window.allRotations.length > 0) {
-                    const currentIdx = Math.min(window.activeLegIndex || 0, window.allRotations.length - 1);
-                    const currentFlight = window.allRotations[currentIdx]?.data;
-
-                    if (currentFlight) {
-                        dashDetails.style.display = 'flex';
-
-                        document.getElementById('dashDepIcao').innerText = currentFlight.origin?.icao_code || '---';
-                        document.getElementById('dashArrIcao').innerText = currentFlight.destination?.icao_code || '---';
-
-                        const GLOBAL_AIRLINES = {
-                            'AFR': 'Air France', 'BAW': 'British Airways', 'EZY': 'easyJet', 'RYR': 'Ryanair',
-                            'DLH': 'Lufthansa', 'UAE': 'Emirates', 'QTR': 'Qatar Airways', 'DAL': 'Delta',
-                            'AAL': 'American Airlines', 'UAL': 'United', 'SWA': 'Southwest'
-                        };
-                        let aCode = currentFlight.general?.icao_airline || '';
-                        let dashFlightCo = document.getElementById('dashFlightCompany');
-                        if (dashFlightCo) {
-                            dashFlightCo.innerText = GLOBAL_AIRLINES[aCode] || currentFlight.general?.airline_name || aCode || 'AIRLINE';
-                            dashFlightCo.onclick = () => { if(window.showAirlineIdentityModal) window.showAirlineIdentityModal(aCode); };
-                            dashFlightCo.classList.add('cursor-pointer', 'hover:text-emerald-400', 'transition-colors');
-                        }
-                        
-                        document.getElementById('dashFlightIdent').innerText = `${currentFlight.general?.icao_airline || ''}${currentFlight.general?.flight_number || ''}`;
-
-                        let acType = currentFlight.aircraft?.name || currentFlight.aircraft?.base_type || currentFlight.aircraft?.icaocode || 'Unknown';
-                        if (acType.toUpperCase().includes('FENIX') || acType === 'A320') {
-                            acType = 'Airbus A320-200';
-                        }
-                        else if (acType === 'A20N') acType = 'Airbus A320neo';
-                        else if (acType === 'B738') acType = 'Boeing 737-800';
-                        else if (acType === 'B77W') acType = 'Boeing 777-300ER';
-
-                        document.getElementById('dashAircraftType').innerText = acType;
-                        document.getElementById('dashAircraftReg').innerText = currentFlight.aircraft?.reg || 'NO REG';
-
-                        let depCity = currentFlight.origin?.city || '';
-                        let depNameStr = currentFlight.origin?.name || '---';
-                        let depIcao = currentFlight.origin?.icao_code;
-
-                        let arrCity = currentFlight.destination?.city || '';
-                        let arrNameStr = currentFlight.destination?.name || '---';
-                        let arrIcao = currentFlight.destination?.icao_code;
-
-                        if (depIcao && window.airportsDb && window.airportsDb[depIcao]) {
-                            depCity = window.airportsDb[depIcao].city || depCity;
-                            depNameStr = window.airportsDb[depIcao].name || depNameStr;
-                        }
-
-                        if (arrIcao && window.airportsDb && window.airportsDb[arrIcao]) {
-                            arrCity = window.airportsDb[arrIcao].city || arrCity;
-                            arrNameStr = window.airportsDb[arrIcao].name || arrNameStr;
-                        }
-
-                        const depFormat = window.formatAirportData(depCity, depNameStr);
-                        document.getElementById('dashDepCity').innerText = depFormat.city;
-                        document.getElementById('dashDepName').innerText = depFormat.name;
-
-                        const arrFormat = window.formatAirportData(arrCity, arrNameStr);
-                        document.getElementById('dashArrCity').innerText = arrFormat.city;
-                        document.getElementById('dashArrName').innerText = arrFormat.name;
-
-                        if (currentFlight.times?.sched_out) {
-                            let offset = window.lastTelemetry?.globalTimeOffsetSeconds || 0;
-                            currentSobtUnix = parseInt(currentFlight.times.sched_out) + offset;
-                            const ttSchedDep = document.getElementById('ttSchedDep');
-                            if (ttSchedDep) ttSchedDep.innerText = getFormattedTime(currentSobtUnix);
-                        }
-                        if (currentFlight.times?.sched_in) {
-                            let offset = window.lastTelemetry?.globalTimeOffsetSeconds || 0;
-                            window.currentSibtUnix = parseInt(currentFlight.times.sched_in) + offset;
-                            const ttSchedArr = document.getElementById('ttSchedArr');
-                            if (ttSchedArr) ttSchedArr.innerText = getFormattedTime(window.currentSibtUnix);
-                        }
-                    }
-                }
-                
-                if (typeof window.updateFuelTelemetry === 'function') window.updateFuelTelemetry();
-                break;
-            case 'pncStatus':
-                const pncDot = document.getElementById('pncStatusDot');
-                const pncLbl = document.getElementById('pncStatusLabel');
-                if (pncDot && pncLbl && payload.status) {
-                    pncLbl.innerText = payload.status;
-                    if (payload.state === 'SecuringForTakeoff' || payload.state === 'SecuringForLanding') {
-                        pncDot.className = "w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse";
-                    } else if (payload.state === 'TakeoffSecured' || payload.state === 'LandingSecured') {
-                        pncDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]";
-                    } else if (payload.state === 'ServingMeals') {
-                        pncDot.className = "w-2.5 h-2.5 rounded-full bg-sky-500";
-                    } else {
-                        pncDot.className = "w-2.5 h-2.5 rounded-full bg-slate-500";
-                    }
-                }
-                break;
-            case 'simTime':
-                let localSuffix = payload.localTime && payload.localTime !== '--:--' ? ` / ${payload.localTime} LOCAL` : '';
-                let utcTime = payload.rawUnix ? getFormattedTime(payload.rawUnix).replace(/z/gi, '') : payload.time.replace(/z/gi, '');
-                window.simZuluTime = utcTime;
-                document.getElementById('zuluTime').innerText = `${utcTime} UTC${localSuffix}`;
-
-                let localDateSuffix = payload.localDate && payload.localDate !== '--/--/----' ? ` / ${payload.localDate} LOCAL` : '';
-                const topDateEl = document.getElementById('topDate');
-                if (topDateEl && payload.date) topDateEl.innerText = `${payload.date} UTC${localDateSuffix}`;
-
-                const zuluDateEl = document.getElementById('zuluDate');
-                if (zuluDateEl && payload.date) zuluDateEl.innerText = `${payload.date} UTC${localDateSuffix}`;
-
-                const topZuluEl = document.getElementById('topZulu');
-                if (topZuluEl) topZuluEl.innerText = `${utcTime} UTC${localSuffix}`;
-
-                const dashDateEl = document.getElementById('dashboardDate');
-                if (dashDateEl && payload.date) dashDateEl.innerText = `${payload.date} UTC${localDateSuffix}`;
-
-                const cd = document.getElementById('flightCountdown');
-
-                // --- DYNAMIC TIMETABLE UPDATE ---
-                let simFlight = window.currentFlight;
-                if (window.allRotations && window.allRotations.length > 0) {
-                    const cIdx = Math.min(window.activeLegIndex || 0, window.allRotations.length - 1);
-                    if (window.allRotations[cIdx]?.data) simFlight = window.allRotations[cIdx].data;
-                }
-
-                if (payload.rawUnix && simFlight && simFlight.times) {
-                    let offset = window.lastTelemetry?.globalTimeOffsetSeconds || 0;
-                    
-                    if (payload.groundOps && payload.groundOps.TargetSobt) {
-                        let tSobtDate = new Date(payload.groundOps.TargetSobt);
-                        currentSobtUnix = Math.floor(tSobtDate.getTime() / 1000);
-                        
-                        // We also calculate what the turnaround block duration was designed to be to move SIBT properly
-                        let blockSecs = parseInt(simFlight.times.sched_in) - parseInt(simFlight.times.sched_out);
-                        if (isNaN(blockSecs) || blockSecs <= 0) blockSecs = 3600;
-                        window.currentSibtUnix = currentSobtUnix + blockSecs;
-                    } else {
-                        currentSobtUnix = parseInt(simFlight.times.sched_out) + offset;
-                        window.currentSibtUnix = parseInt(simFlight.times.sched_in) + offset;
-                    }
-
-                    const ttSchedDep = document.getElementById('ttSchedDep');
-                    const ttSchedArr = document.getElementById('ttSchedArr');
-                    if (ttSchedDep) ttSchedDep.innerText = getFormattedTime(currentSobtUnix);
-                    if (ttSchedArr) ttSchedArr.innerText = getFormattedTime(window.currentSibtUnix);
-
-                    const ttActDep = document.getElementById('ttActDep');
-                    const ttDepStatus = document.getElementById('ttDepStatus');
-                    const ttActArr = document.getElementById('ttActArr');
-                    const ttArrStatus = document.getElementById('ttArrStatus');
-
-                    const setBadge = (statusSpan, delaySec) => {
-                        if (!statusSpan) return;
-                        let m = Math.floor(Math.abs(delaySec) / 60);
-                        let h = Math.floor(m / 60);
-                        m = m % 60;
-                        let timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-                        
-                        if (delaySec >= -300 && delaySec <= 300) {
-                            statusSpan.innerText = `ON TIME`;
-                            statusSpan.className = "px-2 py-0.5 rounded bg-emerald-500/10 text-[10px] text-emerald-400 uppercase font-bold tracking-wider";
-                        } else if (delaySec < -300) {
-                            statusSpan.innerText = `EARLY : ${timeStr}`;
-                            statusSpan.className = "px-2 py-0.5 rounded bg-sky-500/10 text-[10px] text-sky-400 uppercase font-bold tracking-wider";
-                        } else if (delaySec <= 900) {
-                            statusSpan.innerText = `LATE : ${timeStr}`;
-                            statusSpan.className = "px-2 py-0.5 rounded bg-amber-500/10 text-[10px] text-amber-500 uppercase font-bold tracking-wider";
-                        } else {
-                            statusSpan.innerText = `LATE : ${timeStr}`;
-                            statusSpan.className = "px-2 py-0.5 rounded bg-rose-500/10 text-[10px] text-rose-500 uppercase font-bold tracking-wider";
-                        }
-                    };
-
-                    let currDelay = 0;
-                    if (window.finalAobtUnix) {
-                        currDelay = window.finalAobtUnix - currentSobtUnix;
-                        if (ttActDep) {
-                            ttActDep.innerText = getFormattedTime(window.finalAobtUnix);
-                            ttActDep.className = "py-4 font-mono text-slate-300 font-bold";
-                        }
-                        if (ttDepStatus) {
-                            ttDepStatus.innerText = "DEPARTED";
-                            ttDepStatus.className = "px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-400 uppercase font-bold tracking-wider";
+                        if (ttArrStatus) {
+                            ttArrStatus.innerText = "ARRIVED";
+                            ttArrStatus.className = "px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-400 uppercase font-bold tracking-wider";
                         }
                     } else {
-                        currDelay = payload.rawUnix > currentSobtUnix ? payload.rawUnix - currentSobtUnix : 0;
-                        if (ttActDep) {
-                            ttActDep.innerText = getFormattedTime(currentSobtUnix + currDelay);
-                            ttActDep.className = currDelay > 180 ? "py-4 font-mono text-rose-400 font-bold animate-pulse" : "py-4 font-mono text-sky-400 font-bold animate-pulse";
+                        let arrDelay = currDelay;
+                        if (window.flightPhase === "Landing" || window.flightPhase === "Taxi In") {
+                            arrDelay = payload.rawUnix - window.currentSibtUnix;
+                        } else if (payload.rawUnix + currDelay > window.currentSibtUnix) {
+                            arrDelay = payload.rawUnix - window.currentSibtUnix;
                         }
-                        setBadge(ttDepStatus, currDelay);
-                    }
-
-                    if (window.currentSibtUnix > 0) {
-                        if (window.finalAibtUnix) {
-                            let arrDelay = window.finalAibtUnix - window.currentSibtUnix;
-                            if (ttActArr) {
-                                ttActArr.innerText = getFormattedTime(window.finalAibtUnix);
-                                ttActArr.className = "py-4 font-mono text-slate-300 font-bold";
-                            }
-                            if (ttArrStatus) {
-                                ttArrStatus.innerText = "ARRIVED";
-                                ttArrStatus.className = "px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-400 uppercase font-bold tracking-wider";
-                            }
-                        } else {
-                            let arrDelay = currDelay;
-                            if (window.flightPhase === "Landing" || window.flightPhase === "Taxi In") {
-                                arrDelay = payload.rawUnix - window.currentSibtUnix;
-                            } else if (payload.rawUnix + currDelay > window.currentSibtUnix) {
-                                arrDelay = payload.rawUnix - window.currentSibtUnix;
-                            }
-                            if (ttActArr) {
-                                ttActArr.innerText = getFormattedTime(window.currentSibtUnix + arrDelay);
-                                ttActArr.className = arrDelay > 300 ? "py-4 font-mono text-rose-400 font-bold animate-pulse" : "py-4 font-mono text-sky-400 font-bold animate-pulse";
-                            }
-                            setBadge(ttArrStatus, arrDelay);
+                        if (ttActArr) {
+                            ttActArr.innerText = getFormattedTime(window.currentSibtUnix + arrDelay);
+                            ttActArr.className = arrDelay > 300 ? "py-4 font-mono text-rose-400 font-bold animate-pulse" : "py-4 font-mono text-sky-400 font-bold animate-pulse";
                         }
+                        setBadge(ttArrStatus, arrDelay);
                     }
                 }
-                 if (cd && payload.rawUnix && currentSobtUnix > 0) {
-                    let d = 0; 
-                    let phase = payload.phase || window.flightPhase;
-                    
-                    if (window.finalAibtUnix && window.currentSibtUnix > 0) {
-                        d = window.finalAibtUnix - window.currentSibtUnix;
-                    } else if ((phase === 'Landing' || phase === 'Taxi In') && window.currentSibtUnix > 0) {
+            }
+            if (cd && payload.rawUnix && currentSobtUnix > 0) {
+                let d = 0;
+                let phase = payload.phase || window.flightPhase;
+
+                if (window.finalAibtUnix && window.currentSibtUnix > 0) {
+                    d = window.finalAibtUnix - window.currentSibtUnix;
+                } else if ((phase === 'Landing' || phase === 'Taxi In') && window.currentSibtUnix > 0) {
+                    d = payload.rawUnix - window.currentSibtUnix;
+                } else if (window.finalAobtUnix && window.currentSibtUnix > 0) {
+                    d = window.finalAobtUnix - currentSobtUnix;
+                    if (payload.rawUnix > window.currentSibtUnix) {
                         d = payload.rawUnix - window.currentSibtUnix;
-                    } else if (window.finalAobtUnix && window.currentSibtUnix > 0) {
-                        d = window.finalAobtUnix - currentSobtUnix;
-                        if (payload.rawUnix > window.currentSibtUnix) {
-                            d = payload.rawUnix - window.currentSibtUnix;
+                    }
+                } else {
+                    d = payload.rawUnix - currentSobtUnix;
+                }
+
+                let absDiff = Math.floor(Math.abs(d));
+                let mTotal = Math.floor(absDiff / 60);
+                let hStr = Math.floor(mTotal / 60).toString().padStart(2, '0');
+                let mStr = (mTotal % 60).toString().padStart(2, '0');
+                let timeStr = `${hStr}:${mStr}`;
+
+                let cCol = '#10b981';
+                if (d < -300) {
+                    cd.innerText = `EARLY : ${timeStr}`;
+                    cCol = '#38bdf8';
+                } else if (d <= 300) {
+                    cd.innerText = "ON TIME";
+                    cCol = '#10b981';
+                } else if (d <= 900) {
+                    cd.innerText = `LATE : ${timeStr}`;
+                    cCol = '#f59e0b';
+                } else {
+                    cd.innerText = `LATE : ${timeStr}`;
+                    cCol = '#ef4444';
+                }
+                cd.style.color = cCol;
+
+                if (window.finalAibtUnix && window.currentSibtUnix > 0) {
+                    let aibtSp = document.getElementById('bdAibt');
+                    if (aibtSp) {
+                        let diff = window.finalAibtUnix - window.currentSibtUnix;
+                        let cCol = '#10b981';
+                        if (diff < -300) cCol = '#3b82f6';
+                        else if (diff <= 180) cCol = '#10b981';
+                        else if (diff <= 420) cCol = '#eab308';
+                        else if (diff <= 600) cCol = '#f97316';
+                        else cCol = '#ef4444';
+                        aibtSp.style.color = cCol;
+                    }
+                }
+                if (window.finalAobtUnix) {
+                    let aobtSp = document.getElementById('bdAobt');
+                    if (aobtSp) {
+                        let diff = window.finalAobtUnix - currentSobtUnix;
+                        let cCol = '#10b981';
+                        if (diff < -300) cCol = '#3b82f6';
+                        else if (diff <= 180) cCol = '#10b981';
+                        else if (diff <= 420) cCol = '#eab308';
+                        else if (diff <= 600) cCol = '#f97316';
+                        else cCol = '#ef4444';
+                        aobtSp.style.color = cCol;
+                    }
+                }
+            }
+
+            // --- Global Rotation Timer Logic ---
+            const globalBanner = document.getElementById('globalRotationBanner');
+            if (globalBanner && window.allRotations && window.allRotations.length > 0 && payload.rawUnix) {
+                globalBanner.classList.remove('hidden');
+
+                let currentIdx = window.activeLegIndex || 0;
+                document.getElementById('globalRotationStatus').innerText = `Leg ${currentIdx + 1} of ${window.allRotations.length}`;
+                document.getElementById('currentLegStatus').innerText = `Leg ${currentIdx + 1}`;
+
+                let curLegData = window.allRotations[currentIdx]?.data;
+                let lastLeg = window.allRotations[window.allRotations.length - 1]?.data;
+                let offset = window.lastTelemetry?.globalTimeOffsetSeconds || 0;
+                let curLegFinalUnix = curLegData?.times?.sched_in ? parseInt(curLegData.times.sched_in) + offset : 0;
+                let finalUnix = lastLeg?.times?.sched_in ? parseInt(lastLeg.times.sched_in) + offset : 0;
+
+                // Calculate current accumulated delay
+                let currentDelay = 0;
+                if (window.finalAibtUnix && window.currentSibtUnix > 0) {
+                    currentDelay = window.finalAibtUnix - window.currentSibtUnix;
+                } else if (window.finalAobtUnix && typeof currentSobtUnix !== 'undefined' && currentSobtUnix > 0) {
+                    currentDelay = window.finalAobtUnix - currentSobtUnix;
+                } else if (typeof currentSobtUnix !== 'undefined' && currentSobtUnix > 0 && payload.rawUnix > currentSobtUnix && !window.finalAobtUnix) {
+                    currentDelay = payload.rawUnix - currentSobtUnix;
+                }
+
+                // CURRENT LEG TIMER
+                if (curLegFinalUnix > 0) {
+                    let estArrival = curLegFinalUnix;
+                    if (currentDelay > 0) estArrival += currentDelay;
+
+                    let rem = estArrival - payload.rawUnix;
+                    if (rem > 0) {
+                        let cM = Math.floor((rem % 3600) / 60);
+                        let cS = rem % 60;
+                        let cH = Math.floor(rem / 3600);
+                        document.getElementById('currentLegTimer').innerText = `${cH.toString().padStart(2, '0')}:${cM.toString().padStart(2, '0')}:${cS.toString().padStart(2, '0')}`;
+
+                        if (cH === 0 && cM < 30) document.getElementById('currentLegTimer').className = "font-mono text-xl md:text-2xl font-black text-rose-500 tracking-wider drop-shadow-[0_0_10px_rgba(244,63,94,0.4)]";
+                        else if (cH === 0) document.getElementById('currentLegTimer').className = "font-mono text-xl md:text-2xl font-black text-amber-400 tracking-wider drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]";
+                        else document.getElementById('currentLegTimer').className = "font-mono text-xl md:text-2xl font-black text-emerald-400 tracking-wider drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]";
+                    } else {
+                        document.getElementById('currentLegTimer').innerText = "00:00:00";
+                    }
+                }
+
+                // GLOBAL ROTATION TIMER
+                if (finalUnix > 0) {
+                    let estimatedFinalArrival = finalUnix;
+                    if (currentDelay > 0) {
+                        estimatedFinalArrival += currentDelay;
+                    }
+
+                    let remainingSecs = estimatedFinalArrival - payload.rawUnix;
+                    if (remainingSecs > 0) {
+                        let gH = Math.floor(remainingSecs / 3600);
+                        let gM = Math.floor((remainingSecs % 3600) / 60);
+                        let gS = remainingSecs % 60;
+                        document.getElementById('globalRotationTimer').innerText = `${gH.toString().padStart(2, '0')}:${gM.toString().padStart(2, '0')}:${gS.toString().padStart(2, '0')}`;
+
+                        // Color logic
+                        if (gH === 0 && gM < 30) document.getElementById('globalRotationTimer').className = "font-mono text-xl md:text-2xl font-black text-rose-500 tracking-wider drop-shadow-[0_0_10px_rgba(244,63,94,0.4)]";
+                        else if (gH === 0) document.getElementById('globalRotationTimer').className = "font-mono text-xl md:text-2xl font-black text-amber-400 tracking-wider drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]";
+                        else document.getElementById('globalRotationTimer').className = "font-mono text-xl md:text-2xl font-black text-sky-400 tracking-wider drop-shadow-[0_0_10px_rgba(56,189,248,0.3)]";
+                    } else {
+                        document.getElementById('globalRotationTimer').innerText = "00:00:00";
+                    }
+                }
+            } else if (globalBanner) {
+                globalBanner.classList.add('hidden');
+            }
+            break;
+        case 'crisisTriggered':
+            const crisisBanner = document.getElementById('crisisBanner');
+            const crisisTitle = document.getElementById('crisisTitle');
+            const crisisDesc = document.getElementById('crisisDesc');
+            const crisisAudio = document.getElementById('crisisAudio');
+
+            if (crisisBanner) {
+                if (crisisTitle) crisisTitle.innerText = payload.title || "CRITICAL ALERT";
+                if (crisisDesc) crisisDesc.innerText = payload.desc || "Immediate crew action required in the cabin.";
+                crisisBanner.style.transform = 'translateY(0)';
+            }
+            if (crisisAudio) {
+                crisisAudio.loop = true;
+                crisisAudio.play().catch(e => console.warn("Audio autoplay blocked:", e));
+            }
+            break;
+        case 'crisisTick':
+            const cTimer = document.getElementById('crisisTimer');
+            if (cTimer && payload.elapsedSeconds !== undefined) {
+                const elapsed = payload.elapsedSeconds;
+                const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                const s = (elapsed % 60).toString().padStart(2, '0');
+                cTimer.innerText = `${m}:${s}`;
+                cTimer.classList.remove('text-white', 'text-red-400');
+                if (elapsed > 60) cTimer.classList.add('text-red-400');
+                else cTimer.classList.add('text-white');
+            }
+            break;
+        case 'crisisResolved':
+            const cBannerRes = document.getElementById('crisisBanner');
+            const cAudioRes = document.getElementById('crisisAudio');
+
+            if (cBannerRes) {
+                cBannerRes.style.transform = 'translateY(-100%)';
+            }
+            if (cAudioRes) {
+                cAudioRes.pause();
+                cAudioRes.currentTime = 0;
+            }
+            break;
+        case 'phaseUpdate':
+            document.getElementById('flightPhase').innerText = `${payload.phase}`;
+
+            if (payload.hasOwnProperty('aobtUnix')) {
+                window.finalAobtUnix = payload.aobtUnix;
+                let el = document.getElementById('bdAobt') || document.getElementById('ttActDep');
+                if (el) {
+                    if (payload.aobtUnix) el.innerText = getFormattedTime(payload.aobtUnix);
+                    else {
+                        el.innerText = '--:--z';
+                        const ts = document.getElementById('ttDepStatus');
+                        if (ts) { ts.innerText = 'WAITING'; ts.className = 'px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider'; }
+                    }
+                }
+            } else if (payload.aobt) {
+                let el = document.getElementById('bdAobt') || document.getElementById('ttActDep');
+                if (el) el.innerText = payload.aobt;
+            }
+
+            if (payload.hasOwnProperty('aibtUnix')) {
+                window.finalAibtUnix = payload.aibtUnix;
+                let el = document.getElementById('bdAibt') || document.getElementById('ttActArr');
+                if (el) {
+                    if (payload.aibtUnix) el.innerText = getFormattedTime(payload.aibtUnix);
+                    else {
+                        el.innerText = '--:--z';
+                        const ts = document.getElementById('ttArrStatus');
+                        if (ts) { ts.innerText = 'WAITING'; ts.className = 'px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider'; }
+                    }
+                }
+            } else if (payload.aibt) {
+                let el = document.getElementById('bdAibt') || document.getElementById('ttActArr');
+                if (el) el.innerText = payload.aibt;
+            }
+            break;
+        case 'logbookData':
+            renderLogbook(payload.history);
+            break;
+        case 'flightReport':
+            {
+                const rep = payload.report;
+                const isFinal = payload.isFinal;
+                const allReps = payload.allReports || [];
+
+                let isLate = rep.delaySec > 300;
+                let isEarly = rep.rawDelaySec < -300;
+                let puncText = isLate ? `${Math.round(rep.delaySec / 60)}m Late` : (isEarly ? `${Math.abs(Math.round(rep.rawDelaySec / 60))}m Early` : 'On Time');
+                let puncClass = isLate ? 'red' : (isEarly ? 'blue' : 'green');
+                if (rep.delaySec <= 300 && rep.rawDelaySec > 300) puncClass = 'orange'; // Ops Delay Pardon
+
+                const evtTitle = document.querySelector('[data-i18n="report_title"]');
+                if (evtTitle) {
+                    if (isFinal) {
+                        evtTitle.innerText = "ROTATION DEBRIEFING";
+                    } else {
+                        evtTitle.innerText = "POST-FLIGHT DEBRIEF";
+                    }
+                }
+
+                // Super Averages Display
+                const rotSummary = document.getElementById('frRotationSummaryContainer');
+                if (isFinal && allReps && allReps.length > 1 && rotSummary) {
+                    rotSummary.style.display = 'block';
+
+                    let totalBlock = 0;
+                    let totalDelay = 0;
+                    let sumSafety = 0;
+                    let sumComfort = 0;
+                    let sumSuper = 0;
+
+                    allReps.forEach(r => {
+                        totalBlock += parseInt(r.BlockTime) || 0;
+                        totalDelay += parseInt(r.DelaySec) || 0;
+                        sumSafety += parseInt(r.AirmanshipPoints) || 0;
+                        sumComfort += parseInt(r.PassengerExperiencePoints) || 0;
+                        sumSuper += parseInt(r.Score) || 0;
+                    });
+
+                    let numFlights = allReps.length;
+
+                    document.getElementById('frRotBlockTime').innerText = `${Math.floor(totalBlock / 60)}h ${Math.floor(totalBlock % 60)}m`;
+                    let delayMins = Math.round(totalDelay / 60);
+                    document.getElementById('frRotDelay').innerText = delayMins > 0 ? `+${delayMins}m` : `${delayMins}m`;
+                    if (delayMins > 10) document.getElementById('frRotDelay').className = "text-xl font-mono text-rose-400";
+                    else if (delayMins > 0) document.getElementById('frRotDelay').className = "text-xl font-mono text-amber-400";
+                    else document.getElementById('frRotDelay').className = "text-xl font-mono text-emerald-400";
+
+                    document.getElementById('frRotSafety').innerText = Math.round(sumSafety);
+                    document.getElementById('frRotComfort').innerText = Math.round(sumComfort);
+                    document.getElementById('frRotSuper').innerText = Math.round(sumSuper / numFlights);
+                } else if (rotSummary) {
+                    rotSummary.style.display = 'none';
+                }
+
+                document.getElementById('frFlightNo').innerText = `${rep.Airline || rep.airline || ''}${rep.FlightNo || rep.flightNo || ''}`;
+                document.getElementById('frRoute').innerText = `${rep.Dep || rep.dep || 'UNK'} -> ${rep.Arr || rep.arr || 'UNK'}`;
+
+                const mainScoreEl = document.getElementById('frScore');
+                mainScoreEl.innerText = rep.Score;
+                mainScoreEl.classList.remove('text-emerald-400', 'text-fuchsia-400', 'text-red-400', 'text-amber-400');
+                if (rep.Score >= 1100) mainScoreEl.classList.add('text-fuchsia-400');
+                else if (rep.Score >= 1000) mainScoreEl.classList.add('text-emerald-400');
+                else if (rep.Score >= 800) mainScoreEl.classList.add('text-amber-400');
+                else mainScoreEl.classList.add('text-red-400');
+                const setSubScore = (id, pts) => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    el.innerText = (pts > 0 ? '+' : '') + pts;
+                    el.classList.remove('text-emerald-400', 'text-red-400', 'text-white');
+                    if (pts > 0) el.classList.add('text-emerald-400');
+                    else if (pts < 0) el.classList.add('text-red-400');
+                    else el.classList.add('text-white');
+                };
+
+                setSubScore('frFlightPhaseFlowsScore', rep.FlightPhaseFlowsPoints ?? rep.flightPhaseFlowsPoints ?? 0);
+                setSubScore('frCommunicationScore', rep.CommunicationPoints ?? rep.communicationPoints ?? 0);
+                setSubScore('frAirmanshipScore', rep.AirmanshipPoints ?? rep.airmanshipPoints ?? 0);
+                setSubScore('frMaintenanceScore', rep.MaintenancePoints ?? rep.maintenancePoints ?? 0);
+                setSubScore('frAbnormalOperationsScore', rep.AbnormalOperationsPoints ?? rep.abnormalOperationsPoints ?? 0);
+                setSubScore('frPassengerExperienceScore', rep.PassengerExperiencePoints ?? rep.passengerExperiencePoints ?? 0);
+
+                let btHours = Math.floor(rep.blockTime ? rep.blockTime / 60 : 0);
+                let btMins = (rep.blockTime || 0) % 60;
+                let frBlock = document.getElementById('frBlock');
+                if (frBlock) frBlock.innerText = `${btHours}h ${btMins}m`;
+
+                const puncBadge = document.getElementById('frPunc');
+                if (puncBadge) {
+                    let repDelaySec = rep.DelaySec ?? rep.delaySec ?? 0;
+                    let repRawDelaySec = rep.RawDelaySec ?? rep.rawDelaySec ?? 0;
+                    puncBadge.innerText = puncText;
+                    puncBadge.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'bg-red-500/20', 'text-red-400', 'bg-orange-500/20', 'text-orange-400', 'bg-sky-500/20', 'text-sky-400');
+                    if (isLate) puncBadge.classList.add('bg-red-500/20', 'text-red-400');
+                    else if (isEarly) puncBadge.classList.add('bg-sky-500/20', 'text-sky-400');
+                    else if (repDelaySec <= 300 && repRawDelaySec > 300) puncBadge.classList.add('bg-orange-500/20', 'text-orange-400');
+                    else puncBadge.classList.add('bg-emerald-500/20', 'text-emerald-400');
+                }
+
+                let frFuel = document.getElementById('frFuel');
+                if (frFuel) frFuel.innerText = rep.blockFuel ?? rep.BlockFuel ?? 0;
+
+                const fpmEl = document.getElementById('frFpm');
+                if (fpmEl) {
+                    let tzFpm = rep.TouchdownFpm ?? rep.touchdownFpm ?? 0;
+                    fpmEl.innerText = `${tzFpm.toFixed(0)} fpm`;
+                    fpmEl.classList.remove('text-emerald-400', 'text-red-500', 'text-slate-200');
+                    if (tzFpm < -400) fpmEl.classList.add('text-red-500');
+                    else if (tzFpm > -150) fpmEl.classList.add('text-emerald-400');
+                    else fpmEl.classList.add('text-slate-200');
+                }
+
+                const effEl = document.getElementById('frTurnaround');
+                if (effEl) {
+                    let effSec = rep.TurnaroundEfficiencySec ?? rep.turnaroundEfficiencySec ?? 0;
+                    effEl.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'bg-red-500/20', 'text-red-400', 'bg-slate-500/20', 'text-slate-200');
+                    if (effSec > 60) {
+                        effEl.innerText = `-${Math.floor(effSec / 60)}m (Early)`;
+                        effEl.classList.add('bg-emerald-500/20', 'text-emerald-400', 'px-2', 'py-1', 'rounded', 'uppercase', 'tracking-wider');
+                    } else if (effSec < -60) {
+                        effEl.innerText = `+${Math.floor(Math.abs(effSec) / 60)}m (Late)`;
+                        effEl.classList.add('bg-red-500/20', 'text-red-400', 'px-2', 'py-1', 'rounded', 'uppercase', 'tracking-wider');
+                    } else {
+                        effEl.innerText = "Target";
+                        effEl.classList.add('bg-slate-500/20', 'text-slate-200', 'px-2', 'py-1', 'rounded', 'uppercase', 'tracking-wider');
+                    }
+                }
+
+                const gEl = document.getElementById('frGForce');
+                if (gEl) {
+                    let tzG = rep.TouchdownGForce ?? rep.touchdownGForce ?? 1.0;
+                    gEl.innerText = `${tzG.toFixed(2)} G`;
+                    gEl.classList.remove('text-red-500', 'text-slate-200');
+                    if (tzG > 1.4) gEl.classList.add('text-red-500');
+                    else gEl.classList.add('text-slate-200');
+                }
+
+                const ecoContainer = document.getElementById('frEcoContainer');
+                if (ecoContainer) {
+                    let expectedFu = rep.ExpectedBlockBurnKg ?? rep.expectedBlockBurnKg ?? 0;
+                    let actualFu = rep.ActualBlockBurnKg ?? rep.actualBlockBurnKg ?? 0;
+
+                    // only show if expectations are > 0 (e.g. simbrief was properly loaded)
+                    if (expectedFu > 0 && actualFu > 0) {
+                        ecoContainer.style.display = 'flex';
+                        let deltaParams = actualFu - expectedFu;
+
+                        const ecoBg = document.getElementById('frEcoBg');
+                        const ecoIcon = document.getElementById('frEcoIcon');
+                        const ecoStatus = document.getElementById('frEcoStatus');
+                        const ecoDetails = document.getElementById('frEcoDetails');
+                        const ecoDelta = document.getElementById('frEcoDelta');
+
+                        ecoDetails.innerText = `Expected: ${Math.round(expectedFu)} kg | Realized: ${Math.round(actualFu)} kg`;
+
+                        let deltaPrefix = deltaParams > 0 ? "+" : "";
+                        ecoDelta.innerText = `${deltaPrefix}${Math.round(deltaParams)} kg`;
+
+                        const resetStyles = () => {
+                            ecoBg.className = 'w-16 h-full absolute left-0 top-0 flex items-center justify-center border-r';
+                            ecoIcon.className = 'material-symbols-outlined text-3xl';
+                            ecoStatus.className = 'font-black font-headline text-2xl uppercase tracking-widest leading-none';
+                            ecoDelta.className = 'text-xl font-mono font-bold';
+                        };
+
+                        resetStyles();
+
+                        if (deltaParams <= 0) {
+                            // Efficient (Saved fuel)
+                            ecoBg.classList.add('bg-emerald-500/10', 'border-emerald-500/20');
+                            ecoIcon.classList.add('text-emerald-400');
+                            ecoIcon.innerText = 'eco';
+                            ecoStatus.classList.add('text-emerald-400');
+                            ecoStatus.innerText = 'EFFICIENT BURN';
+                            ecoDelta.classList.add('text-emerald-400');
+                        } else if (deltaParams <= 200) {
+                            // Mild overburn
+                            ecoBg.classList.add('bg-amber-500/10', 'border-amber-500/20');
+                            ecoIcon.classList.add('text-amber-400');
+                            ecoIcon.innerText = 'local_gas_station';
+                            ecoStatus.classList.add('text-amber-400');
+                            ecoStatus.innerText = 'MARGINAL OVERBURN';
+                            ecoDelta.classList.add('text-amber-400');
+                        } else {
+                            // Wasted fuel
+                            ecoBg.classList.add('bg-rose-500/10', 'border-rose-500/20');
+                            ecoIcon.classList.add('text-rose-500');
+                            ecoIcon.innerText = 'warning';
+                            ecoStatus.classList.add('text-rose-500');
+                            ecoStatus.innerText = 'EXCESSIVE BURN';
+                            ecoDelta.classList.add('text-rose-500');
                         }
                     } else {
-                        d = payload.rawUnix - currentSobtUnix;
-                    }
-
-                    let absDiff = Math.floor(Math.abs(d));
-                    let mTotal = Math.floor(absDiff / 60);
-                    let hStr = Math.floor(mTotal / 60).toString().padStart(2, '0');
-                    let mStr = (mTotal % 60).toString().padStart(2, '0');
-                    let timeStr = `${hStr}:${mStr}`;
-
-                    let cCol = '#10b981';
-                    if (d < -300) {
-                        cd.innerText = `EARLY : ${timeStr}`;
-                        cCol = '#38bdf8';
-                    } else if (d <= 300) {
-                        cd.innerText = "ON TIME";
-                        cCol = '#10b981';
-                    } else if (d <= 900) {
-                        cd.innerText = `LATE : ${timeStr}`;
-                        cCol = '#f59e0b';
-                    } else {
-                        cd.innerText = `LATE : ${timeStr}`;
-                        cCol = '#ef4444';
-                    }
-                    cd.style.color = cCol;
-
-                    if (window.finalAibtUnix && window.currentSibtUnix > 0) {
-                        let aibtSp = document.getElementById('bdAibt');
-                        if (aibtSp) {
-                            let diff = window.finalAibtUnix - window.currentSibtUnix;
-                            let cCol = '#10b981';
-                            if (diff < -300) cCol = '#3b82f6';
-                            else if (diff <= 180) cCol = '#10b981';
-                            else if (diff <= 420) cCol = '#eab308';
-                            else if (diff <= 600) cCol = '#f97316';
-                            else cCol = '#ef4444';
-                            aibtSp.style.color = cCol;
-                        }
-                    }
-                    if (window.finalAobtUnix) {
-                        let aobtSp = document.getElementById('bdAobt');
-                        if (aobtSp) {
-                            let diff = window.finalAobtUnix - currentSobtUnix;
-                            let cCol = '#10b981';
-                            if (diff < -300) cCol = '#3b82f6';
-                            else if (diff <= 180) cCol = '#10b981';
-                            else if (diff <= 420) cCol = '#eab308';
-                            else if (diff <= 600) cCol = '#f97316';
-                            else cCol = '#ef4444';
-                            aobtSp.style.color = cCol;
-                        }
+                        ecoContainer.style.display = 'none';
                     }
                 }
 
-                    // --- Global Rotation Timer Logic ---
-                    const globalBanner = document.getElementById('globalRotationBanner');
-                    if (globalBanner && window.allRotations && window.allRotations.length > 0 && payload.rawUnix) {
-                        globalBanner.classList.remove('hidden');
+                // Store flight events for category filtering
+                window._currentFlightEvents = rep.FlightEvents || [];
 
-                        let currentIdx = window.activeLegIndex || 0;
-                        document.getElementById('globalRotationStatus').innerText = `Leg ${currentIdx + 1} of ${window.allRotations.length}`;
-                        document.getElementById('currentLegStatus').innerText = `Leg ${currentIdx + 1}`;
-
-                        let curLegData = window.allRotations[currentIdx]?.data;
-                        let lastLeg = window.allRotations[window.allRotations.length - 1]?.data;
-                        let offset = window.lastTelemetry?.globalTimeOffsetSeconds || 0;
-                        let curLegFinalUnix = curLegData?.times?.sched_in ? parseInt(curLegData.times.sched_in) + offset : 0;
-                        let finalUnix = lastLeg?.times?.sched_in ? parseInt(lastLeg.times.sched_in) + offset : 0;
-
-                        // Calculate current accumulated delay
-                        let currentDelay = 0;
-                        if (window.finalAibtUnix && window.currentSibtUnix > 0) {
-                            currentDelay = window.finalAibtUnix - window.currentSibtUnix;
-                        } else if (window.finalAobtUnix && typeof currentSobtUnix !== 'undefined' && currentSobtUnix > 0) {
-                            currentDelay = window.finalAobtUnix - currentSobtUnix;
-                        } else if (typeof currentSobtUnix !== 'undefined' && currentSobtUnix > 0 && payload.rawUnix > currentSobtUnix && !window.finalAobtUnix) {
-                            currentDelay = payload.rawUnix - currentSobtUnix;
-                        }
-
-                        // CURRENT LEG TIMER
-                        if (curLegFinalUnix > 0) {
-                            let estArrival = curLegFinalUnix;
-                            if (currentDelay > 0) estArrival += currentDelay;
-
-                            let rem = estArrival - payload.rawUnix;
-                            if (rem > 0) {
-                                let cM = Math.floor((rem % 3600) / 60);
-                                let cS = rem % 60;
-                                let cH = Math.floor(rem / 3600);
-                                document.getElementById('currentLegTimer').innerText = `${cH.toString().padStart(2, '0')}:${cM.toString().padStart(2, '0')}:${cS.toString().padStart(2, '0')}`;
-
-                                if (cH === 0 && cM < 30) document.getElementById('currentLegTimer').className = "font-mono text-xl md:text-2xl font-black text-rose-500 tracking-wider drop-shadow-[0_0_10px_rgba(244,63,94,0.4)]";
-                                else if (cH === 0) document.getElementById('currentLegTimer').className = "font-mono text-xl md:text-2xl font-black text-amber-400 tracking-wider drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]";
-                                else document.getElementById('currentLegTimer').className = "font-mono text-xl md:text-2xl font-black text-emerald-400 tracking-wider drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]";
-                            } else {
-                                document.getElementById('currentLegTimer').innerText = "00:00:00";
-                            }
-                        }
-
-                        // GLOBAL ROTATION TIMER
-                        if (finalUnix > 0) {
-                            let estimatedFinalArrival = finalUnix;
-                            if (currentDelay > 0) {
-                                estimatedFinalArrival += currentDelay;
-                            }
-
-                            let remainingSecs = estimatedFinalArrival - payload.rawUnix;
-                            if (remainingSecs > 0) {
-                                let gH = Math.floor(remainingSecs / 3600);
-                                let gM = Math.floor((remainingSecs % 3600) / 60);
-                                let gS = remainingSecs % 60;
-                                document.getElementById('globalRotationTimer').innerText = `${gH.toString().padStart(2, '0')}:${gM.toString().padStart(2, '0')}:${gS.toString().padStart(2, '0')}`;
-
-                                // Color logic
-                                if (gH === 0 && gM < 30) document.getElementById('globalRotationTimer').className = "font-mono text-xl md:text-2xl font-black text-rose-500 tracking-wider drop-shadow-[0_0_10px_rgba(244,63,94,0.4)]";
-                                else if (gH === 0) document.getElementById('globalRotationTimer').className = "font-mono text-xl md:text-2xl font-black text-amber-400 tracking-wider drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]";
-                                else document.getElementById('globalRotationTimer').className = "font-mono text-xl md:text-2xl font-black text-sky-400 tracking-wider drop-shadow-[0_0_10px_rgba(56,189,248,0.3)]";
-                            } else {
-                                document.getElementById('globalRotationTimer').innerText = "00:00:00";
-                            }
-                        }
-                    } else if (globalBanner) {
-                        globalBanner.classList.add('hidden');
-                    }
-                break;
-            case 'crisisTriggered':
-                const crisisBanner = document.getElementById('crisisBanner');
-                const crisisTitle = document.getElementById('crisisTitle');
-                const crisisDesc = document.getElementById('crisisDesc');
-                const crisisAudio = document.getElementById('crisisAudio');
-
-                if (crisisBanner) {
-                    if (crisisTitle) crisisTitle.innerText = payload.title || "CRITICAL ALERT";
-                    if (crisisDesc) crisisDesc.innerText = payload.desc || "Immediate crew action required in the cabin.";
-                    crisisBanner.style.transform = 'translateY(0)';
-                }
-                if (crisisAudio) {
-                    crisisAudio.loop = true;
-                    crisisAudio.play().catch(e => console.warn("Audio autoplay blocked:", e));
-                }
-                break;
-            case 'crisisTick':
-                const cTimer = document.getElementById('crisisTimer');
-                if (cTimer && payload.elapsedSeconds !== undefined) {
-                    const elapsed = payload.elapsedSeconds;
-                    const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
-                    const s = (elapsed % 60).toString().padStart(2, '0');
-                    cTimer.innerText = `${m}:${s}`;
-                    cTimer.classList.remove('text-white', 'text-red-400');
-                    if (elapsed > 60) cTimer.classList.add('text-red-400');
-                    else cTimer.classList.add('text-white');
-                }
-                break;
-            case 'crisisResolved':
-                const cBannerRes = document.getElementById('crisisBanner');
-                const cAudioRes = document.getElementById('crisisAudio');
-
-                if (cBannerRes) {
-                    cBannerRes.style.transform = 'translateY(-100%)';
-                }
-                if (cAudioRes) {
-                    cAudioRes.pause();
-                    cAudioRes.currentTime = 0;
-                }
-                break;
-            case 'phaseUpdate':
-                document.getElementById('flightPhase').innerText = `${payload.phase}`;
-                
-                if (payload.hasOwnProperty('aobtUnix')) {
-                    window.finalAobtUnix = payload.aobtUnix;
-                    let el = document.getElementById('bdAobt') || document.getElementById('ttActDep');
-                    if (el) {
-                        if (payload.aobtUnix) el.innerText = getFormattedTime(payload.aobtUnix);
-                        else {
-                            el.innerText = '--:--z';
-                            const ts = document.getElementById('ttDepStatus');
-                            if (ts) { ts.innerText = 'WAITING'; ts.className = 'px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider'; }
-                        }
-                    }
-                } else if (payload.aobt) {
-                    let el = document.getElementById('bdAobt') || document.getElementById('ttActDep');
-                    if (el) el.innerText = payload.aobt;
+                const detailsContainer = document.getElementById('frCategoryDetailsContainer');
+                if (detailsContainer) {
+                    detailsContainer.style.display = 'none'; // hidden by default until a tab is clicked
                 }
 
-                if (payload.hasOwnProperty('aibtUnix')) {
-                    window.finalAibtUnix = payload.aibtUnix;
-                    let el = document.getElementById('bdAibt') || document.getElementById('ttActArr');
-                    if (el) {
-                        if (payload.aibtUnix) el.innerText = getFormattedTime(payload.aibtUnix);
-                        else {
-                            el.innerText = '--:--z';
-                            const ts = document.getElementById('ttArrStatus');
-                            if (ts) { ts.innerText = 'WAITING'; ts.className = 'px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-slate-500 uppercase font-bold tracking-wider'; }
-                        }
+                // Reset tab styles
+                for (let i = 0; i < 6; i++) {
+                    const box = document.getElementById(`frBoxCat${i}`);
+                    if (box) {
+                        box.classList.remove('ring-2', 'ring-sky-400', 'bg-white/10');
+                        box.classList.add('border-white/5');
                     }
-                } else if (payload.aibt) {
-                    let el = document.getElementById('bdAibt') || document.getElementById('ttActArr');
-                    if (el) el.innerText = payload.aibt;
                 }
-                break;
-            case 'logbookData':
-                renderLogbook(payload.history);
-                break;
-            case 'flightReport':
-                {
-                    const rep = payload.report;
-                    const isFinal = payload.isFinal;
-                    const allReps = payload.allReports || [];
 
-                    let isLate = rep.delaySec > 300;
-                    let isEarly = rep.rawDelaySec < -300;
-                    let puncText = isLate ? `${Math.round(rep.delaySec / 60)}m Late` : (isEarly ? `${Math.abs(Math.round(rep.rawDelaySec / 60))}m Early` : 'On Time');
-                    let puncClass = isLate ? 'red' : (isEarly ? 'blue' : 'green');
-                    if (rep.delaySec <= 300 && rep.rawDelaySec > 300) puncClass = 'orange'; // Ops Delay Pardon
+                const achContainer = document.getElementById('frAchievementsContainer');
+                const achList = document.getElementById('frAchievementsList');
+                if (achContainer && achList) {
+                    achList.innerHTML = '';
+                    if (rep.NewAchievements && rep.NewAchievements.length > 0) {
+                        achContainer.style.display = 'block';
+                        rep.NewAchievements.forEach(ach => {
+                            let borderClass = 'border-amber-500/30';
+                            let bgClass = 'bg-amber-500/10';
+                            let textClass = ach.ColorClass || 'text-amber-400';
 
-                    const evtTitle = document.querySelector('[data-i18n="report_title"]');
-                    if (evtTitle) {
-                        if (isFinal) {
-                            evtTitle.innerText = "ROTATION DEBRIEFING";
-                        } else {
-                            evtTitle.innerText = "POST-FLIGHT DEBRIEF";
-                        }
-                    }
+                            // Hacky parsing to derive borders from text colors
+                            if (textClass.includes('sky')) { borderClass = 'border-sky-500/30'; bgClass = 'bg-sky-500/10'; }
+                            if (textClass.includes('emerald')) { borderClass = 'border-emerald-500/30'; bgClass = 'bg-emerald-500/10'; }
+                            if (textClass.includes('purple')) { borderClass = 'border-purple-500/30'; bgClass = 'bg-purple-500/10'; }
+                            if (textClass.includes('red')) { borderClass = 'border-red-500/30'; bgClass = 'bg-red-500/10'; }
 
-                    // Super Averages Display
-                    const rotSummary = document.getElementById('frRotationSummaryContainer');
-                    if (isFinal && allReps && allReps.length > 1 && rotSummary) {
-                        rotSummary.style.display = 'block';
-
-                        let totalBlock = 0;
-                        let totalDelay = 0;
-                        let sumSafety = 0;
-                        let sumComfort = 0;
-                        let sumSuper = 0;
-
-                        allReps.forEach(r => {
-                            totalBlock += parseInt(r.BlockTime) || 0;
-                            totalDelay += parseInt(r.DelaySec) || 0;
-                            sumSafety += parseInt(r.AirmanshipPoints) || 0;
-                            sumComfort += parseInt(r.PassengerExperiencePoints) || 0;
-                            sumSuper += parseInt(r.Score) || 0;
-                        });
-
-                        let numFlights = allReps.length;
-
-                        document.getElementById('frRotBlockTime').innerText = `${Math.floor(totalBlock / 60)}h ${Math.floor(totalBlock % 60)}m`;
-                        let delayMins = Math.round(totalDelay / 60);
-                        document.getElementById('frRotDelay').innerText = delayMins > 0 ? `+${delayMins}m` : `${delayMins}m`;
-                        if (delayMins > 10) document.getElementById('frRotDelay').className = "text-xl font-mono text-rose-400";
-                        else if (delayMins > 0) document.getElementById('frRotDelay').className = "text-xl font-mono text-amber-400";
-                        else document.getElementById('frRotDelay').className = "text-xl font-mono text-emerald-400";
-
-                        document.getElementById('frRotSafety').innerText = Math.round(sumSafety);
-                        document.getElementById('frRotComfort').innerText = Math.round(sumComfort);
-                        document.getElementById('frRotSuper').innerText = Math.round(sumSuper / numFlights);
-                    } else if (rotSummary) {
-                        rotSummary.style.display = 'none';
-                    }
-
-                    document.getElementById('frFlightNo').innerText = `${rep.Airline || rep.airline || ''}${rep.FlightNo || rep.flightNo || ''}`;
-                    document.getElementById('frRoute').innerText = `${rep.Dep || rep.dep || 'UNK'} -> ${rep.Arr || rep.arr || 'UNK'}`;
-
-                    const mainScoreEl = document.getElementById('frScore');
-                    mainScoreEl.innerText = rep.Score;
-                    mainScoreEl.classList.remove('text-emerald-400', 'text-fuchsia-400', 'text-red-400', 'text-amber-400');
-                    if (rep.Score >= 1100) mainScoreEl.classList.add('text-fuchsia-400');
-                    else if (rep.Score >= 1000) mainScoreEl.classList.add('text-emerald-400');
-                    else if (rep.Score >= 800) mainScoreEl.classList.add('text-amber-400');
-                    else mainScoreEl.classList.add('text-red-400');
-                    const setSubScore = (id, pts) => {
-                        const el = document.getElementById(id);
-                        if (!el) return;
-                        el.innerText = (pts > 0 ? '+' : '') + pts;
-                        el.classList.remove('text-emerald-400', 'text-red-400', 'text-white');
-                        if (pts > 0) el.classList.add('text-emerald-400');
-                        else if (pts < 0) el.classList.add('text-red-400');
-                        else el.classList.add('text-white');
-                    };
-
-                    setSubScore('frFlightPhaseFlowsScore', rep.FlightPhaseFlowsPoints ?? rep.flightPhaseFlowsPoints ?? 0);
-                    setSubScore('frCommunicationScore', rep.CommunicationPoints ?? rep.communicationPoints ?? 0);
-                    setSubScore('frAirmanshipScore', rep.AirmanshipPoints ?? rep.airmanshipPoints ?? 0);
-                    setSubScore('frMaintenanceScore', rep.MaintenancePoints ?? rep.maintenancePoints ?? 0);
-                    setSubScore('frAbnormalOperationsScore', rep.AbnormalOperationsPoints ?? rep.abnormalOperationsPoints ?? 0);
-                    setSubScore('frPassengerExperienceScore', rep.PassengerExperiencePoints ?? rep.passengerExperiencePoints ?? 0);
-
-                    let btHours = Math.floor(rep.blockTime ? rep.blockTime / 60 : 0);
-                    let btMins = (rep.blockTime || 0) % 60;
-                    let frBlock = document.getElementById('frBlock');
-                    if (frBlock) frBlock.innerText = `${btHours}h ${btMins}m`;
-
-                    const puncBadge = document.getElementById('frPunc');
-                    if (puncBadge) {
-                        let repDelaySec = rep.DelaySec ?? rep.delaySec ?? 0;
-                        let repRawDelaySec = rep.RawDelaySec ?? rep.rawDelaySec ?? 0;
-                        puncBadge.innerText = puncText;
-                        puncBadge.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'bg-red-500/20', 'text-red-400', 'bg-orange-500/20', 'text-orange-400', 'bg-sky-500/20', 'text-sky-400');
-                        if (isLate) puncBadge.classList.add('bg-red-500/20', 'text-red-400');
-                        else if (isEarly) puncBadge.classList.add('bg-sky-500/20', 'text-sky-400');
-                        else if (repDelaySec <= 300 && repRawDelaySec > 300) puncBadge.classList.add('bg-orange-500/20', 'text-orange-400');
-                        else puncBadge.classList.add('bg-emerald-500/20', 'text-emerald-400');
-                    }
-
-                    let frFuel = document.getElementById('frFuel');
-                    if (frFuel) frFuel.innerText = rep.blockFuel ?? rep.BlockFuel ?? 0;
-
-                    const fpmEl = document.getElementById('frFpm');
-                    if (fpmEl) {
-                        let tzFpm = rep.TouchdownFpm ?? rep.touchdownFpm ?? 0;
-                        fpmEl.innerText = `${tzFpm.toFixed(0)} fpm`;
-                        fpmEl.classList.remove('text-emerald-400', 'text-red-500', 'text-slate-200');
-                        if (tzFpm < -400) fpmEl.classList.add('text-red-500');
-                        else if (tzFpm > -150) fpmEl.classList.add('text-emerald-400');
-                        else fpmEl.classList.add('text-slate-200');
-                    }
-
-                    const effEl = document.getElementById('frTurnaround');
-                    if (effEl) {
-                        let effSec = rep.TurnaroundEfficiencySec ?? rep.turnaroundEfficiencySec ?? 0;
-                        effEl.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'bg-red-500/20', 'text-red-400', 'bg-slate-500/20', 'text-slate-200');
-                        if (effSec > 60) {
-                            effEl.innerText = `-${Math.floor(effSec / 60)}m (Early)`;
-                            effEl.classList.add('bg-emerald-500/20', 'text-emerald-400', 'px-2', 'py-1', 'rounded', 'uppercase', 'tracking-wider');
-                        } else if (effSec < -60) {
-                            effEl.innerText = `+${Math.floor(Math.abs(effSec) / 60)}m (Late)`;
-                            effEl.classList.add('bg-red-500/20', 'text-red-400', 'px-2', 'py-1', 'rounded', 'uppercase', 'tracking-wider');
-                        } else {
-                            effEl.innerText = "Target";
-                            effEl.classList.add('bg-slate-500/20', 'text-slate-200', 'px-2', 'py-1', 'rounded', 'uppercase', 'tracking-wider');
-                        }
-                    }
-
-                    const gEl = document.getElementById('frGForce');
-                    if (gEl) {
-                        let tzG = rep.TouchdownGForce ?? rep.touchdownGForce ?? 1.0;
-                        gEl.innerText = `${tzG.toFixed(2)} G`;
-                        gEl.classList.remove('text-red-500', 'text-slate-200');
-                        if (tzG > 1.4) gEl.classList.add('text-red-500');
-                        else gEl.classList.add('text-slate-200');
-                    }
-
-                    const ecoContainer = document.getElementById('frEcoContainer');
-                    if (ecoContainer) {
-                        let expectedFu = rep.ExpectedBlockBurnKg ?? rep.expectedBlockBurnKg ?? 0;
-                        let actualFu = rep.ActualBlockBurnKg ?? rep.actualBlockBurnKg ?? 0;
-                        
-                        // only show if expectations are > 0 (e.g. simbrief was properly loaded)
-                        if (expectedFu > 0 && actualFu > 0) {
-                            ecoContainer.style.display = 'flex';
-                            let deltaParams = actualFu - expectedFu;
-                            
-                            const ecoBg = document.getElementById('frEcoBg');
-                            const ecoIcon = document.getElementById('frEcoIcon');
-                            const ecoStatus = document.getElementById('frEcoStatus');
-                            const ecoDetails = document.getElementById('frEcoDetails');
-                            const ecoDelta = document.getElementById('frEcoDelta');
-                            
-                            ecoDetails.innerText = `Expected: ${Math.round(expectedFu)} kg | Realized: ${Math.round(actualFu)} kg`;
-                            
-                            let deltaPrefix = deltaParams > 0 ? "+" : "";
-                            ecoDelta.innerText = `${deltaPrefix}${Math.round(deltaParams)} kg`;
-                            
-                            const resetStyles = () => {
-                                ecoBg.className = 'w-16 h-full absolute left-0 top-0 flex items-center justify-center border-r';
-                                ecoIcon.className = 'material-symbols-outlined text-3xl';
-                                ecoStatus.className = 'font-black font-headline text-2xl uppercase tracking-widest leading-none';
-                                ecoDelta.className = 'text-xl font-mono font-bold';
-                            };
-                            
-                            resetStyles();
-                            
-                            if (deltaParams <= 0) {
-                                // Efficient (Saved fuel)
-                                ecoBg.classList.add('bg-emerald-500/10', 'border-emerald-500/20');
-                                ecoIcon.classList.add('text-emerald-400');
-                                ecoIcon.innerText = 'eco';
-                                ecoStatus.classList.add('text-emerald-400');
-                                ecoStatus.innerText = 'EFFICIENT BURN';
-                                ecoDelta.classList.add('text-emerald-400');
-                            } else if (deltaParams <= 200) {
-                                // Mild overburn
-                                ecoBg.classList.add('bg-amber-500/10', 'border-amber-500/20');
-                                ecoIcon.classList.add('text-amber-400');
-                                ecoIcon.innerText = 'local_gas_station';
-                                ecoStatus.classList.add('text-amber-400');
-                                ecoStatus.innerText = 'MARGINAL OVERBURN';
-                                ecoDelta.classList.add('text-amber-400');
-                            } else {
-                                // Wasted fuel
-                                ecoBg.classList.add('bg-rose-500/10', 'border-rose-500/20');
-                                ecoIcon.classList.add('text-rose-500');
-                                ecoIcon.innerText = 'warning';
-                                ecoStatus.classList.add('text-rose-500');
-                                ecoStatus.innerText = 'EXCESSIVE BURN';
-                                ecoDelta.classList.add('text-rose-500');
-                            }
-                        } else {
-                            ecoContainer.style.display = 'none';
-                        }
-                    }
-
-                    // Store flight events for category filtering
-                    window._currentFlightEvents = rep.FlightEvents || [];
-                    
-                    const detailsContainer = document.getElementById('frCategoryDetailsContainer');
-                    if (detailsContainer) {
-                        detailsContainer.style.display = 'none'; // hidden by default until a tab is clicked
-                    }
-                    
-                    // Reset tab styles
-                    for (let i = 0; i < 6; i++) {
-                        const box = document.getElementById(`frBoxCat${i}`);
-                        if (box) {
-                            box.classList.remove('ring-2', 'ring-sky-400', 'bg-white/10');
-                            box.classList.add('border-white/5');
-                        }
-                    }
-
-                    const achContainer = document.getElementById('frAchievementsContainer');
-                    const achList = document.getElementById('frAchievementsList');
-                    if (achContainer && achList) {
-                        achList.innerHTML = '';
-                        if (rep.NewAchievements && rep.NewAchievements.length > 0) {
-                            achContainer.style.display = 'block';
-                            rep.NewAchievements.forEach(ach => {
-                                let borderClass = 'border-amber-500/30';
-                                let bgClass = 'bg-amber-500/10';
-                                let textClass = ach.ColorClass || 'text-amber-400';
-
-                                // Hacky parsing to derive borders from text colors
-                                if (textClass.includes('sky')) { borderClass = 'border-sky-500/30'; bgClass = 'bg-sky-500/10'; }
-                                if (textClass.includes('emerald')) { borderClass = 'border-emerald-500/30'; bgClass = 'bg-emerald-500/10'; }
-                                if (textClass.includes('purple')) { borderClass = 'border-purple-500/30'; bgClass = 'bg-purple-500/10'; }
-                                if (textClass.includes('red')) { borderClass = 'border-red-500/30'; bgClass = 'bg-red-500/10'; }
-
-                                const row = document.createElement('div');
-                                row.className = `flex flex-col items-center p-3 rounded-xl border ${borderClass} ${bgClass} text-center shadow-lg`;
-                                row.innerHTML = `
+                            const row = document.createElement('div');
+                            row.className = `flex flex-col items-center p-3 rounded-xl border ${borderClass} ${bgClass} text-center shadow-lg`;
+                            row.innerHTML = `
                                 <span class="material-symbols-outlined text-3xl mb-2 ${textClass} drop-shadow-[0_0_10px_currentColor]">${ach.Icon || 'workspace_premium'}</span>
                                 <span class="text-[10px] font-bold tracking-widest uppercase text-white mb-2 leading-tight">${ach.Title}</span>
                                 <span class="text-[9px] text-slate-300 leading-tight">${ach.Description}</span>
                             `;
-                                achList.appendChild(row);
-                            });
-                        } else {
-                            achContainer.style.display = 'none';
-                        }
-                    }
-
-
-
-                    if (window.generateChiefPilotDebrief) {
-                        const lang = localStorage.getItem('selLanguage') || 'en';
-                        document.getElementById('frChiefPilotSpeech').innerHTML = window.generateChiefPilotDebrief(rep, lang);
-                    }
-
-                    // Instead of showing the modal automatically, output a system log message
-                    const viewLabel = (localStorage.getItem('selLanguage') || 'en') === 'fr' ? 'Consulter le rapport' : 'View Report';
-                    const msgContent = `[SYSTEM] Flight Report Available. <a href="#" onclick="document.getElementById('flightReportModal').style.display = 'flex'; return false;" class="text-blue-400 hover:text-blue-300 underline">${viewLabel}</a>`;
-                    
-                    const timeString = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-                    const newLog = document.createElement("div");
-                    newLog.className = "mb-1";
-                    newLog.innerHTML = `<span class="text-gray-400 font-mono text-xs">[${timeString}]</span> <span class="text-blue-300">${msgContent}</span>`;
-                    
-                    const logContainer = document.getElementById("pncChat");
-                    if (logContainer) {
-                        logContainer.appendChild(newLog);
-                        logContainer.scrollTop = logContainer.scrollHeight;
+                            achList.appendChild(row);
+                        });
+                    } else {
+                        achContainer.style.display = 'none';
                     }
                 }
-                break;
-            case 'gatekeeperFailed':
-                alert(payload.reason || "Cannot start ground ops! Ensure MSFS is connected, engines are off, parking brake is set, and aircraft is on the ground.");
-                break;
-            case 'switchTab':
-                const targetTab = payload.target;
-                const menuItems = document.querySelectorAll('.menu li, li[data-target="profile"]');
-                const sections = document.querySelectorAll('section');
 
-                menuItems.forEach(m => {
-                    if (m.getAttribute('data-target') === targetTab) {
-                        m.classList.add('active');
-                    } else {
-                        m.classList.remove('active');
-                    }
-                });
-                sections.forEach(sec => {
-                    if (sec.id === targetTab) {
-                        sec.classList.add('active');
-                    } else {
-                        sec.classList.remove('active');
-                    }
-                });
-                break;
-            case 'showGroundEvent':
-                if (payload.eventData) {
-                    const evt = payload.eventData;
 
-                    let existingOverlay = document.getElementById('globalGroundEventOverlay');
-                    if (existingOverlay) existingOverlay.remove();
-                    
-                    const overlayContainer = document.createElement('div');
-                    overlayContainer.id = 'globalGroundEventOverlay';
-                    overlayContainer.className = 'fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-8 transition-opacity duration-300';
-                    
-                    let html = `
+
+                if (window.generateChiefPilotDebrief) {
+                    const lang = localStorage.getItem('selLanguage') || 'en';
+                    document.getElementById('frChiefPilotSpeech').innerHTML = window.generateChiefPilotDebrief(rep, lang);
+                }
+
+                // Instead of showing the modal automatically, output a system log message
+                const viewLabel = (localStorage.getItem('selLanguage') || 'en') === 'fr' ? 'Consulter le rapport' : 'View Report';
+                const msgContent = `[SYSTEM] Flight Report Available. <a href="#" onclick="document.getElementById('flightReportModal').style.display = 'flex'; return false;" class="text-blue-400 hover:text-blue-300 underline">${viewLabel}</a>`;
+
+                const timeString = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                const newLog = document.createElement("div");
+                newLog.className = "mb-1";
+                newLog.innerHTML = `<span class="text-gray-400 font-mono text-xs">[${timeString}]</span> <span class="text-blue-300">${msgContent}</span>`;
+
+                const logContainer = document.getElementById("pncChat");
+                if (logContainer) {
+                    logContainer.appendChild(newLog);
+                    logContainer.scrollTop = logContainer.scrollHeight;
+                }
+            }
+            break;
+        case 'gatekeeperFailed':
+            alert(payload.reason || "Cannot start ground ops! Ensure MSFS is connected, engines are off, parking brake is set, and aircraft is on the ground.");
+            break;
+        case 'switchTab':
+            const targetTab = payload.target;
+            const menuItems = document.querySelectorAll('.menu li, li[data-target="profile"]');
+            const sections = document.querySelectorAll('section');
+
+            menuItems.forEach(m => {
+                if (m.getAttribute('data-target') === targetTab) {
+                    m.classList.add('active');
+                } else {
+                    m.classList.remove('active');
+                }
+            });
+            sections.forEach(sec => {
+                if (sec.id === targetTab) {
+                    sec.classList.add('active');
+                } else {
+                    sec.classList.remove('active');
+                }
+            });
+            break;
+        case 'showGroundEvent':
+            if (payload.eventData) {
+                const evt = payload.eventData;
+
+                let existingOverlay = document.getElementById('globalGroundEventOverlay');
+                if (existingOverlay) existingOverlay.remove();
+
+                const overlayContainer = document.createElement('div');
+                overlayContainer.id = 'globalGroundEventOverlay';
+                overlayContainer.className = 'fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-8 transition-opacity duration-300';
+
+                let html = `
                         <div class="bg-[#1C1F26] border border-orange-500/30 rounded-2xl shadow-[0_0_50px_rgba(249,115,22,0.15)] w-full max-w-2xl overflow-hidden flex flex-col transform scale-100 animate-fade-in relative z-[10000]">
                             <div class="flex items-start gap-4 p-6 bg-orange-900/20 w-full relative overflow-hidden">
                                 <div class="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-bl-[100px] pointer-events-none"></div>
@@ -3845,517 +3852,517 @@ window.renderBriefingTabs = () => {
                         </div>
                     `;
 
-                    overlayContainer.innerHTML = html;
-                    const choicesContainer = overlayContainer.querySelector('.choices-container');
+                overlayContainer.innerHTML = html;
+                const choicesContainer = overlayContainer.querySelector('.choices-container');
 
-                    if (evt.choices) {
-                        evt.choices.forEach(c => {
-                            const btn = document.createElement('button');
-                            btn.className = 'w-full py-3 px-4 rounded-xl font-bold uppercase tracking-widest text-[11px] transition-all flex items-center justify-left gap-2 text-left ';
+                if (evt.choices) {
+                    evt.choices.forEach(c => {
+                        const btn = document.createElement('button');
+                        btn.className = 'w-full py-3 px-4 rounded-xl font-bold uppercase tracking-widest text-[11px] transition-all flex items-center justify-left gap-2 text-left ';
 
-                            if (c.colorClass === 'success') {
-                                btn.className += 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500 hover:text-slate-900 shadow-[0_0_15px_rgba(16,185,129,0.1)]';
-                                btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">check_circle</span> <span>${c.text}</span>`;
-                            } else if (c.colorClass === 'error') {
-                                btn.className += 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500 hover:text-white shadow-[0_0_15px_rgba(239,68,68,0.1)]';
-                                btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">warning</span> <span>${c.text}</span>`;
-                            } else {
-                                btn.className += 'bg-black/40 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white';
-                                btn.innerText = c.text;
-                            }
+                        if (c.colorClass === 'success') {
+                            btn.className += 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500 hover:text-slate-900 shadow-[0_0_15px_rgba(16,185,129,0.1)]';
+                            btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">check_circle</span> <span>${c.text}</span>`;
+                        } else if (c.colorClass === 'error') {
+                            btn.className += 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500 hover:text-white shadow-[0_0_15px_rgba(239,68,68,0.1)]';
+                            btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">warning</span> <span>${c.text}</span>`;
+                        } else {
+                            btn.className += 'bg-black/40 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white';
+                            btn.innerText = c.text;
+                        }
 
-                            btn.addEventListener('click', () => {
-                                window.chrome.webview.postMessage({ action: 'resolveGroundEvent', eventId: evt.id, choiceId: c.id });
-                                overlayContainer.classList.add('opacity-0', 'pointer-events-none');
-                                setTimeout(() => overlayContainer.remove(), 300);
-                            });
-
-                            choicesContainer.appendChild(btn);
+                        btn.addEventListener('click', () => {
+                            window.chrome.webview.postMessage({ action: 'resolveGroundEvent', eventId: evt.id, choiceId: c.id });
+                            overlayContainer.classList.add('opacity-0', 'pointer-events-none');
+                            setTimeout(() => overlayContainer.remove(), 300);
                         });
-                    }
-                    document.body.appendChild(overlayContainer);
+
+                        choicesContainer.appendChild(btn);
+                    });
                 }
-                break;
-            case 'penalty':
-            case 'log':
-                const log1 = document.getElementById('penaltyLogs');
-                const log2 = document.getElementById('liveScoreLog');
+                document.body.appendChild(overlayContainer);
+            }
+            break;
+        case 'penalty':
+        case 'log':
+            const log1 = document.getElementById('penaltyLogs');
+            const log2 = document.getElementById('liveScoreLog');
 
-                let logColor = '#cbd5e1';
-                if (payload.type === 'penalty') {
-                    logColor = (payload.message.includes('(+') || payload.message.includes('Bonus') || payload.message.includes('Parfait')) ? '#34D399' : '#F87171';
+            let logColor = '#cbd5e1';
+            if (payload.type === 'penalty') {
+                logColor = (payload.message.includes('(+') || payload.message.includes('Bonus') || payload.message.includes('Parfait')) ? '#34D399' : '#F87171';
+            }
+
+            if (log1) {
+                const li = document.createElement('li');
+                li.innerText = `[${window.getLocalFormattedTime()}] ${payload.message}`;
+                li.style.color = logColor;
+                li.style.marginBottom = '5px';
+                log1.prepend(li);
+            }
+
+            if (log2) {
+                const placeholder = log2.querySelector('li.text-center');
+                if (placeholder) placeholder.remove();
+                const li2 = document.createElement('li');
+                li2.innerText = `[${window.getLocalFormattedTime()}] ${payload.message}`;
+                li2.style.color = logColor;
+                li2.style.fontSize = '11px';
+                li2.style.borderLeft = `2px solid ${logColor}`;
+                li2.style.paddingLeft = '6px';
+                li2.style.marginBottom = '4px';
+                log2.prepend(li2);
+            }
+            break;
+        case 'cabinLog':
+            const clog = document.getElementById('cabinLogsList');
+            if (clog) {
+                if (clog.children.length === 1 && clog.children[0].innerText.includes('Standing by')) clog.innerHTML = '';
+                const cli = document.createElement('li');
+                let msg = payload.message || '';
+                let prefixMatch = msg.match(/^\[(.*?)\]/);
+                let prefixHtml = "";
+                let colorHash = payload.level === 'red' ? '#EF4444' : (payload.level === 'orange' ? '#F59E0B' : '#38BDF8');
+
+                if (prefixMatch) {
+                    const tag = prefixMatch[1];
+                    msg = msg.substring(prefixMatch[0].length).trim();
+                    let tagColor = '#e2e8f0'; // default
+                    if (tag === 'CPT PA') tagColor = '#10b981'; // emerald-500
+                    else if (tag === 'PNC PA') tagColor = '#38bdf8'; // sky-400
+                    else if (tag === 'CPT INT') tagColor = '#f59e0b'; // amber-500
+                    else if (tag === 'PNC INT') tagColor = '#22d3ee'; // cyan-400
+
+                    prefixHtml = `<span style="color:${tagColor}; font-weight:bold; font-size:10px; margin-right:4px;">[${tag}]</span>`;
+                    if (payload.level !== 'red' && payload.level !== 'orange') colorHash = '#e2e8f0';
+                } else if (msg.startsWith("PA:")) {
+                    msg = msg.substring(3).trim();
+                    prefixHtml = `<span style="color:#10b981; font-weight:bold; font-size:10px; margin-right:4px;">[CPT PA]</span>`;
+                    if (payload.level !== 'red' && payload.level !== 'orange') colorHash = '#e2e8f0';
+                } else if (msg.startsWith("Captain,") || msg.startsWith("Commandant,") || payload.level === 'info') {
+                    prefixHtml = `<span style="color:#22d3ee; font-weight:bold; font-size:10px; margin-right:4px;">[PNC INT]</span>`;
+                    if (payload.level !== 'red' && payload.level !== 'orange') colorHash = '#e2e8f0';
+                } else {
+                    // Uncategorized
+                    prefixHtml = `<span style="color:#slate-500; font-weight:bold; font-size:10px; margin-right:4px;">[SYS]</span>`;
                 }
 
-                if (log1) {
-                    const li = document.createElement('li');
-                    li.innerText = `[${window.getLocalFormattedTime()}] ${payload.message}`;
-                    li.style.color = logColor;
-                    li.style.marginBottom = '5px';
-                    log1.prepend(li);
-                }
+                cli.innerHTML = `<span style="color:#64748b; margin-right:4px; font-size: 9px;">${window.getLocalFormattedTime()}</span>${prefixHtml}<span style="color:${colorHash}">${msg}</span>`;
+                cli.style.marginBottom = '5px';
+                cli.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                cli.style.paddingBottom = '3px';
+                clog.prepend(cli);
+                if (clog.children.length > 5) clog.removeChild(clog.lastChild);
+            }
+            if (payload.audioSequence && payload.audioSequence.length > 0) {
+                if (window.audioEngine) window.audioEngine.playSequence(payload.audioSequence);
+            }
+            break;
+        case 'InitProfile':
+            const profile = payload.payload || payload;
+            if (profile) {
+                // DEBUG: Log the profile object to the terminal/console to see what it contains
+                console.log("[DEBUG] InitProfile received:", JSON.stringify(profile));
 
-                if (log2) {
-                    const placeholder = log2.querySelector('li.text-center');
-                    if (placeholder) placeholder.remove();
-                    const li2 = document.createElement('li');
-                    li2.innerText = `[${window.getLocalFormattedTime()}] ${payload.message}`;
-                    li2.style.color = logColor;
-                    li2.style.fontSize = '11px';
-                    li2.style.borderLeft = `2px solid ${logColor}`;
-                    li2.style.paddingLeft = '6px';
-                    li2.style.marginBottom = '4px';
-                    log2.prepend(li2);
-                }
-                break;
-            case 'cabinLog':
-                const clog = document.getElementById('cabinLogsList');
-                if (clog) {
-                    if (clog.children.length === 1 && clog.children[0].innerText.includes('Standing by')) clog.innerHTML = '';
-                    const cli = document.createElement('li');
-                    let msg = payload.message || '';
-                    let prefixMatch = msg.match(/^\[(.*?)\]/);
-                    let prefixHtml = "";
-                    let colorHash = payload.level === 'red' ? '#EF4444' : (payload.level === 'orange' ? '#F59E0B' : '#38BDF8');
+                // Update Sidebar
+                const sbCallsign = document.getElementById('sbProfileCallsign');
+                if (sbCallsign) sbCallsign.innerText = profile.callSign || profile.CallSign || 'MAVERICK';
+                const sbRank = document.getElementById('sbProfileRank');
+                if (sbRank) sbRank.innerText = profile.calculatedRank || profile.CalculatedRank || 'Trainee';
 
-                    if (prefixMatch) {
-                        const tag = prefixMatch[1];
-                        msg = msg.substring(prefixMatch[0].length).trim();
-                        let tagColor = '#e2e8f0'; // default
-                        if (tag === 'CPT PA') tagColor = '#10b981'; // emerald-500
-                        else if (tag === 'PNC PA') tagColor = '#38bdf8'; // sky-400
-                        else if (tag === 'CPT INT') tagColor = '#f59e0b'; // amber-500
-                        else if (tag === 'PNC INT') tagColor = '#22d3ee'; // cyan-400
-
-                        prefixHtml = `<span style="color:${tagColor}; font-weight:bold; font-size:10px; margin-right:4px;">[${tag}]</span>`;
-                        if (payload.level !== 'red' && payload.level !== 'orange') colorHash = '#e2e8f0';
-                    } else if (msg.startsWith("PA:")) {
-                        msg = msg.substring(3).trim();
-                        prefixHtml = `<span style="color:#10b981; font-weight:bold; font-size:10px; margin-right:4px;">[CPT PA]</span>`;
-                        if (payload.level !== 'red' && payload.level !== 'orange') colorHash = '#e2e8f0';
-                    } else if (msg.startsWith("Captain,") || msg.startsWith("Commandant,") || payload.level === 'info') {
-                        prefixHtml = `<span style="color:#22d3ee; font-weight:bold; font-size:10px; margin-right:4px;">[PNC INT]</span>`;
-                        if (payload.level !== 'red' && payload.level !== 'orange') colorHash = '#e2e8f0';
-                    } else {
-                        // Uncategorized
-                        prefixHtml = `<span style="color:#slate-500; font-weight:bold; font-size:10px; margin-right:4px;">[SYS]</span>`;
-                    }
-
-                    cli.innerHTML = `<span style="color:#64748b; margin-right:4px; font-size: 9px;">${window.getLocalFormattedTime()}</span>${prefixHtml}<span style="color:${colorHash}">${msg}</span>`;
-                    cli.style.marginBottom = '5px';
-                    cli.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-                    cli.style.paddingBottom = '3px';
-                    clog.prepend(cli);
-                    if (clog.children.length > 5) clog.removeChild(clog.lastChild);
-                }
-                if (payload.audioSequence && payload.audioSequence.length > 0) {
-                    if (window.audioEngine) window.audioEngine.playSequence(payload.audioSequence);
-                }
-                break;
-            case 'InitProfile':
-                const profile = payload.payload || payload;
-                if (profile) {
-                    // DEBUG: Log the profile object to the terminal/console to see what it contains
-                    console.log("[DEBUG] InitProfile received:", JSON.stringify(profile));
-
-                    // Update Sidebar
-                    const sbCallsign = document.getElementById('sbProfileCallsign');
-                    if (sbCallsign) sbCallsign.innerText = profile.callSign || profile.CallSign || 'MAVERICK';
-                    const sbRank = document.getElementById('sbProfileRank');
-                    if (sbRank) sbRank.innerText = profile.calculatedRank || profile.CalculatedRank || 'Trainee';
-
-                    // Fetch Avatar from local virtual host to bypass IPC limits
-                    fetch('https://fsv.local/ProfileAvatar.b64', { cache: 'no-store' })
-                        .then(r => r.ok ? r.text() : null)
-                        .then(b64 => {
-                            if (b64 && b64.startsWith('data:image')) {
-                                const pos = profile.avatarPosition || profile.AvatarPosition || "50% 50%";
-                                const sbImg = document.getElementById('sbProfileImg');
-                                if (sbImg) {
-                                    sbImg.src = b64;
-                                    sbImg.style.objectPosition = pos;
-                                    sbImg.classList.remove('hidden');
-                                    document.getElementById('sbProfileIcon').classList.add('hidden');
-                                }
-                                const bigImg = document.getElementById('prfBigAvatar');
-                                if (bigImg) {
-                                    bigImg.src = b64;
-                                    bigImg.style.objectPosition = pos;
-                                    bigImg.classList.remove('hidden');
-                                    document.getElementById('prfBigIcon').classList.add('hidden');
-                                }
+                // Fetch Avatar from local virtual host to bypass IPC limits
+                fetch('https://fsv.local/ProfileAvatar.b64', { cache: 'no-store' })
+                    .then(r => r.ok ? r.text() : null)
+                    .then(b64 => {
+                        if (b64 && b64.startsWith('data:image')) {
+                            const pos = profile.avatarPosition || profile.AvatarPosition || "50% 50%";
+                            const sbImg = document.getElementById('sbProfileImg');
+                            if (sbImg) {
+                                sbImg.src = b64;
+                                sbImg.style.objectPosition = pos;
+                                sbImg.classList.remove('hidden');
+                                document.getElementById('sbProfileIcon').classList.add('hidden');
                             }
-                        })
-                        .catch(err => console.log('Avatar not found or not set', err));
+                            const bigImg = document.getElementById('prfBigAvatar');
+                            if (bigImg) {
+                                bigImg.src = b64;
+                                bigImg.style.objectPosition = pos;
+                                bigImg.classList.remove('hidden');
+                                document.getElementById('prfBigIcon').classList.add('hidden');
+                            }
+                        }
+                    })
+                    .catch(err => console.log('Avatar not found or not set', err));
 
-                    // Update Main Profile Page
-                    const prfCallsign = document.getElementById('prfCallsign');
-                    if (prfCallsign) prfCallsign.innerText = profile.callSign || profile.CallSign || 'MAVERICK';
+                // Update Main Profile Page
+                const prfCallsign = document.getElementById('prfCallsign');
+                if (prfCallsign) prfCallsign.innerText = profile.callSign || profile.CallSign || 'MAVERICK';
 
-                    const fName = profile.firstName || profile.FirstName || 'John';
-                    const lName = profile.lastName || profile.LastName || 'Doe';
-                    const prfFullName = document.getElementById('prfFullName');
-                    if (prfFullName) prfFullName.innerText = `${fName} ${lName}`;
+                const fName = profile.firstName || profile.FirstName || 'John';
+                const lName = profile.lastName || profile.LastName || 'Doe';
+                const prfFullName = document.getElementById('prfFullName');
+                if (prfFullName) prfFullName.innerText = `${fName} ${lName}`;
 
-                    const prfHomeBase = document.getElementById('prfHomeBase');
-                    if (prfHomeBase) prfHomeBase.innerText = profile.homeBaseIcao || profile.HomeBaseIcao || 'LFPG';
+                const prfHomeBase = document.getElementById('prfHomeBase');
+                if (prfHomeBase) prfHomeBase.innerText = profile.homeBaseIcao || profile.HomeBaseIcao || 'LFPG';
 
-                    const prfCountry = document.getElementById('prfCountry');
-                    if (prfCountry) prfCountry.innerText = profile.countryCode || profile.CountryCode || 'FR';
+                const prfCountry = document.getElementById('prfCountry');
+                if (prfCountry) prfCountry.innerText = profile.countryCode || profile.CountryCode || 'FR';
 
-                    const prfRankBadge = document.getElementById('prfRankBadge');
-                    if (prfRankBadge) prfRankBadge.innerText = profile.calculatedRank || profile.CalculatedRank || 'Trainee';
+                const prfRankBadge = document.getElementById('prfRankBadge');
+                if (prfRankBadge) prfRankBadge.innerText = profile.calculatedRank || profile.CalculatedRank || 'Trainee';
 
-                    // Formatting Helper
-                    const formatTime = (totalMins) => {
-                        const h = Math.floor(Math.abs(totalMins) / 60);
-                        const m = Math.floor(Math.abs(totalMins) % 60);
-                        return `${h}h ${m}m`;
-                    };
+                // Formatting Helper
+                const formatTime = (totalMins) => {
+                    const h = Math.floor(Math.abs(totalMins) / 60);
+                    const m = Math.floor(Math.abs(totalMins) % 60);
+                    return `${h}h ${m}m`;
+                };
 
-                    const prfTotalTime = document.getElementById('prfTotalTime');
-                    const totalMins = profile.totalBlockTimeMinutes ?? profile.TotalBlockTimeMinutes ?? 0;
-                    if (prfTotalTime) prfTotalTime.innerText = formatTime(totalMins);
+                const prfTotalTime = document.getElementById('prfTotalTime');
+                const totalMins = profile.totalBlockTimeMinutes ?? profile.TotalBlockTimeMinutes ?? 0;
+                if (prfTotalTime) prfTotalTime.innerText = formatTime(totalMins);
 
-                    const prfTotalFlights = document.getElementById('prfTotalFlights');
-                    if (prfTotalFlights) prfTotalFlights.innerText = profile.totalFlights ?? profile.TotalFlights ?? 0;
+                const prfTotalFlights = document.getElementById('prfTotalFlights');
+                if (prfTotalFlights) prfTotalFlights.innerText = profile.totalFlights ?? profile.TotalFlights ?? 0;
 
-                    const prfSuperScore = document.getElementById('prfAvgScore');
-                    if (prfSuperScore) prfSuperScore.innerText = Math.round(profile.averageSuperScore ?? profile.AverageSuperScore ?? 0);
+                const prfSuperScore = document.getElementById('prfAvgScore');
+                if (prfSuperScore) prfSuperScore.innerText = Math.round(profile.averageSuperScore ?? profile.AverageSuperScore ?? 0);
 
-                    const prfHighestScore = document.getElementById('prfHighestScore');
-                    if (prfHighestScore) prfHighestScore.innerText = Math.round(profile.highestSuperScore ?? profile.HighestSuperScore ?? 0);
+                const prfHighestScore = document.getElementById('prfHighestScore');
+                if (prfHighestScore) prfHighestScore.innerText = Math.round(profile.highestSuperScore ?? profile.HighestSuperScore ?? 0);
 
-                    const prfPunctuality = document.getElementById('prfPunctuality');
-                    if (prfPunctuality) prfPunctuality.innerText = `${Math.round(profile.punctualityRatingPercentage ?? profile.PunctualityRatingPercentage ?? 0)}%`;
+                const prfPunctuality = document.getElementById('prfPunctuality');
+                if (prfPunctuality) prfPunctuality.innerText = `${Math.round(profile.punctualityRatingPercentage ?? profile.PunctualityRatingPercentage ?? 0)}%`;
 
-                    const prfTouchdown = document.getElementById('prfBestFpm');
-                    const tdFpm = profile.smoothestTouchdownFpm ?? profile.SmoothestTouchdownFpm ?? 0;
-                    if (prfTouchdown) prfTouchdown.innerText = tdFpm === 0 ? "--- fpm" : `${Math.round(tdFpm)} fpm`;
+                const prfTouchdown = document.getElementById('prfBestFpm');
+                const tdFpm = profile.smoothestTouchdownFpm ?? profile.SmoothestTouchdownFpm ?? 0;
+                if (prfTouchdown) prfTouchdown.innerText = tdFpm === 0 ? "--- fpm" : `${Math.round(tdFpm)} fpm`;
 
-                    const prfManualTime = document.getElementById('prfManualTime');
-                    if (prfManualTime) prfManualTime.innerText = formatTime(profile.ManualFlyingTimeMinutes || 0);
+                const prfManualTime = document.getElementById('prfManualTime');
+                if (prfManualTime) prfManualTime.innerText = formatTime(profile.ManualFlyingTimeMinutes || 0);
 
-                    const prfGoArounds = document.getElementById('prfGoArounds');
-                    if (prfGoArounds) prfGoArounds.innerText = profile.TotalGoArounds || 0;
+                const prfGoArounds = document.getElementById('prfGoArounds');
+                if (prfGoArounds) prfGoArounds.innerText = profile.TotalGoArounds || 0;
 
-                    const prfDiversions = document.getElementById('prfDiversions');
-                    if (prfDiversions) prfDiversions.innerText = profile.TotalDiversions || 0;
+                const prfDiversions = document.getElementById('prfDiversions');
+                if (prfDiversions) prfDiversions.innerText = profile.TotalDiversions || 0;
 
-                    // GSX Auto Sync init
-                    const gsxSync = profile.gsxAutoSyncEnabled ?? profile.GsxAutoSyncEnabled ?? false;
-                    window.gsxAutoSyncEnabled = gsxSync;
-                    localStorage.setItem('gsxSync', gsxSync);
-                    const chkGsx = document.getElementById('chkGsxSync');
-                    if (chkGsx) chkGsx.checked = gsxSync;
-                    
-                    // Hide Time Skip when GSX is ON
-                    const timeSkipModal = document.getElementById('timeSkipModal');
-                    const btnTimeSkipToolbar = document.getElementById('btnTimeSkip'); // if there is a toolbar button
-                    const dashTimeWarpBar = document.getElementById('dashTimeWarpBar'); // The bar in Ground Ops page
-                    if (gsxSync) {
-                        if (timeSkipModal) timeSkipModal.classList.add('hidden');
-                        if (btnTimeSkipToolbar) btnTimeSkipToolbar.classList.add('hidden');
-                        if (dashTimeWarpBar) dashTimeWarpBar.classList.add('hidden');
-                    } else {
-                        if (btnTimeSkipToolbar) btnTimeSkipToolbar.classList.remove('hidden');
-                        if (dashTimeWarpBar) dashTimeWarpBar.classList.remove('hidden');
-                    }
+                // GSX Auto Sync init
+                const gsxSync = profile.gsxAutoSyncEnabled ?? profile.GsxAutoSyncEnabled ?? false;
+                window.gsxAutoSyncEnabled = gsxSync;
+                localStorage.setItem('gsxSync', gsxSync);
+                const chkGsx = document.getElementById('chkGsxSync');
+                if (chkGsx) chkGsx.checked = gsxSync;
 
-                    // WALL OF FAME RENDERING
-                    const badgeDefs = [
-                        { id: "first_entry", title: "First Entry", icon: "menu_book", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/30" },
-                        { id: "butter_bread", title: "Butter the Bread", icon: "flight_land", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/30" },
-                        { id: "swiss_watch", title: "Swiss Watch", icon: "schedule", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/30" },
-                        { id: "by_the_book", title: "By the Book", icon: "checklist_rtl", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/30" },
-                        { id: "frequent_flyer", title: "Frequent Flyer", icon: "military_tech", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
-                        { id: "hand_of_god", title: "The Hand of God", icon: "front_hand", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
-                        { id: "company_man", title: "Company Man", icon: "work", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
-                        { id: "safe_and_sound", title: "Safe and Sound", icon: "verified_user", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
-                        { id: "go_around_flaps3", title: "Go-Around, Flaps 3", icon: "autorenew", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
-                        { id: "flawless_execution", title: "Flawless Execution", icon: "workspace_premium", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
-                        { id: "through_storm", title: "Through the Storm", icon: "storm", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
-                        { id: "feather_touch", title: "Feather Touch", icon: "airline_seat_flat", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
-                        { id: "iron_bladder", title: "Iron Bladder", icon: "local_cafe", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
-                        { id: "airmanship_master", title: "Airmanship Master", icon: "rocket_launch", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
-                        { id: "spine_crusher", title: "Spine Crusher", icon: "personal_injury", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30" },
-                        { id: "no_coffee", title: "Coffee Machine is Broken", icon: "no_drinks", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30" },
-                        { id: "pitch_black", title: "Pitch Black", icon: "dark_mode", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30" }
-                    ];
+                // Hide Time Skip when GSX is ON
+                const timeSkipModal = document.getElementById('timeSkipModal');
+                const btnTimeSkipToolbar = document.getElementById('btnTimeSkip'); // if there is a toolbar button
+                const dashTimeWarpBar = document.getElementById('dashTimeWarpBar'); // The bar in Ground Ops page
+                if (gsxSync) {
+                    if (timeSkipModal) timeSkipModal.classList.add('hidden');
+                    if (btnTimeSkipToolbar) btnTimeSkipToolbar.classList.add('hidden');
+                    if (dashTimeWarpBar) dashTimeWarpBar.classList.add('hidden');
+                } else {
+                    if (btnTimeSkipToolbar) btnTimeSkipToolbar.classList.remove('hidden');
+                    if (dashTimeWarpBar) dashTimeWarpBar.classList.remove('hidden');
+                }
 
-                    const badgesGrid = document.getElementById('prfBadgesGrid');
-                    if (badgesGrid && profile.UnlockedAchievements) {
-                        badgesGrid.innerHTML = '';
-                        badgeDefs.forEach(b => {
-                            const isUnlocked = profile.UnlockedAchievements.includes(b.id);
-                            const html = `
+                // WALL OF FAME RENDERING
+                const badgeDefs = [
+                    { id: "first_entry", title: "First Entry", icon: "menu_book", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/30" },
+                    { id: "butter_bread", title: "Butter the Bread", icon: "flight_land", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/30" },
+                    { id: "swiss_watch", title: "Swiss Watch", icon: "schedule", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/30" },
+                    { id: "by_the_book", title: "By the Book", icon: "checklist_rtl", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/30" },
+                    { id: "frequent_flyer", title: "Frequent Flyer", icon: "military_tech", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
+                    { id: "hand_of_god", title: "The Hand of God", icon: "front_hand", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
+                    { id: "company_man", title: "Company Man", icon: "work", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
+                    { id: "safe_and_sound", title: "Safe and Sound", icon: "verified_user", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
+                    { id: "go_around_flaps3", title: "Go-Around, Flaps 3", icon: "autorenew", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
+                    { id: "flawless_execution", title: "Flawless Execution", icon: "workspace_premium", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
+                    { id: "through_storm", title: "Through the Storm", icon: "storm", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
+                    { id: "feather_touch", title: "Feather Touch", icon: "airline_seat_flat", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
+                    { id: "iron_bladder", title: "Iron Bladder", icon: "local_cafe", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
+                    { id: "airmanship_master", title: "Airmanship Master", icon: "rocket_launch", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
+                    { id: "spine_crusher", title: "Spine Crusher", icon: "personal_injury", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30" },
+                    { id: "no_coffee", title: "Coffee Machine is Broken", icon: "no_drinks", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30" },
+                    { id: "pitch_black", title: "Pitch Black", icon: "dark_mode", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30" }
+                ];
+
+                const badgesGrid = document.getElementById('prfBadgesGrid');
+                if (badgesGrid && profile.UnlockedAchievements) {
+                    badgesGrid.innerHTML = '';
+                    badgeDefs.forEach(b => {
+                        const isUnlocked = profile.UnlockedAchievements.includes(b.id);
+                        const html = `
                                 <div class="flex flex-col items-center p-3 rounded-xl border ${isUnlocked ? b.border : 'border-white/5'} ${isUnlocked ? b.bg : 'bg-black/20'} transition-all ${isUnlocked ? '' : 'opacity-40 grayscale'} hover:grayscale-0 hover:opacity-100" title="${b.title}">
                                     <span class="material-symbols-outlined text-[32px] mb-2 ${isUnlocked ? b.color : 'text-slate-500'} drop-shadow-lg">${b.icon}</span>
                                     <span class="text-[10px] font-bold tracking-widest uppercase text-center ${isUnlocked ? 'text-white' : 'text-slate-500'}">${b.title}</span>
                                 </div>
                             `;
-                            badgesGrid.innerHTML += html;
-                        });
-                    }
+                        badgesGrid.innerHTML += html;
+                    });
                 }
-                break;
-            case 'scoreUpdate':
-                if (isFlightCancelled) return;
-                let topScore = document.getElementById('topScoreValue');
-                if (topScore) topScore.innerText = payload.score;
+            }
+            break;
+        case 'scoreUpdate':
+            if (isFlightCancelled) return;
+            let topScore = document.getElementById('topScoreValue');
+            if (topScore) topScore.innerText = payload.score;
 
-                // Update Briefing Live Score Display
-                const bScore = document.getElementById('briefingScoreValue');
-                if (bScore) {
-                    bScore.innerText = payload.score;
-                    bScore.classList.remove('text-emerald-400', 'text-fuchsia-400', 'text-amber-400', 'text-red-400');
-                    if (payload.score >= 1100) bScore.classList.add('text-fuchsia-400');
-                    else if (payload.score >= 1000) bScore.classList.add('text-emerald-400');
-                    else if (payload.score >= 800) bScore.classList.add('text-amber-400');
-                    else bScore.classList.add('text-red-400');
-                }
+            // Update Briefing Live Score Display
+            const bScore = document.getElementById('briefingScoreValue');
+            if (bScore) {
+                bScore.innerText = payload.score;
+                bScore.classList.remove('text-emerald-400', 'text-fuchsia-400', 'text-amber-400', 'text-red-400');
+                if (payload.score >= 1100) bScore.classList.add('text-fuchsia-400');
+                else if (payload.score >= 1000) bScore.classList.add('text-emerald-400');
+                else if (payload.score >= 800) bScore.classList.add('text-amber-400');
+                else bScore.classList.add('text-red-400');
+            }
 
-                const updateSubBar = (idPts, idBar, pts) => {
-                    const elPts = document.getElementById(idPts);
-                    const elBar = document.getElementById(idBar);
-                    if (!elPts || !elBar) return;
+            const updateSubBar = (idPts, idBar, pts) => {
+                const elPts = document.getElementById(idPts);
+                const elBar = document.getElementById(idBar);
+                if (!elPts || !elBar) return;
 
-                    elPts.innerText = (pts > 0 ? '+' : '') + pts;
-                    elPts.classList.remove('text-sky-400', 'text-emerald-400', 'text-amber-400', 'text-purple-400', 'text-red-400', 'text-white');
-                    if (pts > 0) elPts.classList.add('text-emerald-400');
-                    else if (pts < 0) elPts.classList.add('text-red-400');
-                    else elPts.classList.add('text-white');
+                elPts.innerText = (pts > 0 ? '+' : '') + pts;
+                elPts.classList.remove('text-sky-400', 'text-emerald-400', 'text-amber-400', 'text-purple-400', 'text-red-400', 'text-white');
+                if (pts > 0) elPts.classList.add('text-emerald-400');
+                else if (pts < 0) elPts.classList.add('text-red-400');
+                else elPts.classList.add('text-white');
 
-                    let pct = 50 + ((pts / 1000) * 50);
-                    if (pct < 5) pct = 5;
-                    if (pct > 100) pct = 100;
-                    elBar.style.width = pct + '%';
-                };
+                let pct = 50 + ((pts / 1000) * 50);
+                if (pct < 5) pct = 5;
+                if (pct > 100) pct = 100;
+                elBar.style.width = pct + '%';
+            };
 
-                const ptsFlightPhaseFlows = payload.flightPhaseFlows || 0;
-                const ptsCommunication = payload.communication || 0;
-                const ptsAirmanship = payload.airmanship || 0;
-                const ptsMaintenance = payload.maintenance || 0;
-                const ptsAbnormalOperations = payload.abnormalOperations || 0;
-                const ptsPassengerExperience = payload.passengerExperience || 0;
+            const ptsFlightPhaseFlows = payload.flightPhaseFlows || 0;
+            const ptsCommunication = payload.communication || 0;
+            const ptsAirmanship = payload.airmanship || 0;
+            const ptsMaintenance = payload.maintenance || 0;
+            const ptsAbnormalOperations = payload.abnormalOperations || 0;
+            const ptsPassengerExperience = payload.passengerExperience || 0;
 
-                updateSubBar('b_flightPhaseFlowsPts', 'b_flightPhaseFlowsBar', ptsFlightPhaseFlows);
-                updateSubBar('b_communicationPts', 'b_communicationBar', ptsCommunication);
-                updateSubBar('b_airmanshipPts', 'b_airmanshipBar', ptsAirmanship);
-                updateSubBar('b_maintenancePts', 'b_maintenanceBar', ptsMaintenance);
-                updateSubBar('b_abnormalOperationsPts', 'b_abnormalOperationsBar', ptsAbnormalOperations);
-                updateSubBar('b_passengerExperiencePts', 'b_passengerExperienceBar', ptsPassengerExperience);
+            updateSubBar('b_flightPhaseFlowsPts', 'b_flightPhaseFlowsBar', ptsFlightPhaseFlows);
+            updateSubBar('b_communicationPts', 'b_communicationBar', ptsCommunication);
+            updateSubBar('b_airmanshipPts', 'b_airmanshipBar', ptsAirmanship);
+            updateSubBar('b_maintenancePts', 'b_maintenanceBar', ptsMaintenance);
+            updateSubBar('b_abnormalOperationsPts', 'b_abnormalOperationsBar', ptsAbnormalOperations);
+            updateSubBar('b_passengerExperiencePts', 'b_passengerExperienceBar', ptsPassengerExperience);
 
-                const finalScore = payload.score !== undefined ? payload.score : (payload.Score !== undefined ? payload.Score : 1000);
-                const finalDelta = payload.delta !== undefined ? payload.delta : (payload.Delta !== undefined ? payload.Delta : 0);
-                const finalMsg = payload.msg || payload.message || payload.Msg || '';
+            const finalScore = payload.score !== undefined ? payload.score : (payload.Score !== undefined ? payload.Score : 1000);
+            const finalDelta = payload.delta !== undefined ? payload.delta : (payload.Delta !== undefined ? payload.Delta : 0);
+            const finalMsg = payload.msg || payload.message || payload.Msg || '';
 
-                const mainScore = document.getElementById('mainScoreValue');
-                if (mainScore) mainScore.innerText = finalScore;
+            const mainScore = document.getElementById('mainScoreValue');
+            if (mainScore) mainScore.innerText = finalScore;
 
-                if (finalDelta !== 0) {
-                    mainScore.classList.remove('text-emerald-400', 'text-red-400');
-                    mainScore.classList.add(finalDelta > 0 ? 'text-emerald-400' : 'text-red-400');
-                    setTimeout(() => {
-                        if (isFlightCancelled) return;
-                        mainScore.classList.remove('text-red-400');
-                        mainScore.classList.add('text-emerald-400');
-                    }, 1000);
+            if (finalDelta !== 0) {
+                mainScore.classList.remove('text-emerald-400', 'text-red-400');
+                mainScore.classList.add(finalDelta > 0 ? 'text-emerald-400' : 'text-red-400');
+                setTimeout(() => {
+                    if (isFlightCancelled) return;
+                    mainScore.classList.remove('text-red-400');
+                    mainScore.classList.add('text-emerald-400');
+                }, 1000);
 
-                    const feed = document.getElementById('scoreFeed');
-                    if (feed) {
-                        if (feed.children.length === 1 && feed.children[0].innerText.includes('standing by')) {
-                            feed.innerHTML = '';
-                        }
-
-                        const fli = document.createElement('li');
-                        let deltaStr = finalDelta > 0 ? `+${finalDelta}` : `${finalDelta}`;
-                        let color = finalDelta > 0 ? '#34D399' : '#F87171';
-                        fli.innerHTML = `<span style="color:${color}; font-weight:bold; width: 45px; display:inline-block;">${deltaStr}</span> <span style="color:#cbd5e1;">${finalMsg}</span>`;
-                        fli.style.marginBottom = '5px';
-                        fli.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-                        fli.style.paddingBottom = '3px';
-                        feed.prepend(fli);
-                        if (feed.children.length > 6) feed.removeChild(feed.lastChild);
+                const feed = document.getElementById('scoreFeed');
+                if (feed) {
+                    if (feed.children.length === 1 && feed.children[0].innerText.includes('standing by')) {
+                        feed.innerHTML = '';
                     }
 
-                    const plog = document.getElementById('penaltyLogs');
-                    if (plog) {
-                        const logLi = document.createElement('li');
-                        logLi.innerText = `[${window.getLocalFormattedTime()}] ${finalMsg} (Total: ${finalScore})`;
-                        if (finalDelta === 0) {
-                            logLi.style.color = '#cbd5e1';
-                        } else {
-                            logLi.style.color = finalDelta > 0 ? '#A7F3D0' : '#FCA5A5';
-                        }
-                        logLi.style.marginBottom = '5px';
-                        plog.prepend(logLi);
-                    }
+                    const fli = document.createElement('li');
+                    let deltaStr = finalDelta > 0 ? `+${finalDelta}` : `${finalDelta}`;
+                    let color = finalDelta > 0 ? '#34D399' : '#F87171';
+                    fli.innerHTML = `<span style="color:${color}; font-weight:bold; width: 45px; display:inline-block;">${deltaStr}</span> <span style="color:#cbd5e1;">${finalMsg}</span>`;
+                    fli.style.marginBottom = '5px';
+                    fli.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                    fli.style.paddingBottom = '3px';
+                    feed.prepend(fli);
+                    if (feed.children.length > 6) feed.removeChild(feed.lastChild);
                 }
-                break;
-            case 'openSimbriefForDummy':
-                if (payload.orig && payload.dest) {
-                    window.chrome.webview.postMessage({ action: 'openSimbriefWindow', orig: payload.orig, dest: payload.dest, airline: payload.airline, fltnum: payload.fltnum });
-                } else {
-                    window.chrome.webview.postMessage({ action: 'openSimbriefWindow' });
-                }
-                break;
-            case 'fetchStatus':
-                if (payload.status === 'success') {
-                    if (document.getElementById('fetchStatus')) document.getElementById('fetchStatus').innerText = '';
-                } else {
-                    if (document.getElementById('fetchStatus')) document.getElementById('fetchStatus').innerText = payload.message || '';
-                    if (window.Swal) Swal.fire({title: 'SIMBRIEF ERROR', text: payload.message || 'Could not parse flight plan.', icon: 'error', background: '#2a2a2b', color: '#fff'});
-                    else alert('SIMBRIEF ERROR: ' + (payload.message || 'Could not parse flight plan.'));
-                    
-                    const btn = document.getElementById('btnGroundOpsFetch');
-                    if (btn) {
-                        btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">download</span> <span class="text-[11px] uppercase font-bold tracking-widest text-emerald-400">2. Import Generated OFP</span>';
-                        btn.classList.remove('opacity-50', 'pointer-events-none');
+
+                const plog = document.getElementById('penaltyLogs');
+                if (plog) {
+                    const logLi = document.createElement('li');
+                    logLi.innerText = `[${window.getLocalFormattedTime()}] ${finalMsg} (Total: ${finalScore})`;
+                    if (finalDelta === 0) {
+                        logLi.style.color = '#cbd5e1';
+                    } else {
+                        logLi.style.color = finalDelta > 0 ? '#A7F3D0' : '#FCA5A5';
                     }
-                    const loaderSt = document.getElementById('simbriefLoadingState');
-                    if (loaderSt) loaderSt.style.display = 'none';
+                    logLi.style.marginBottom = '5px';
+                    plog.prepend(logLi);
                 }
-                if (payload.status === 'success') {
-                    isFlightCancelled = false;
-                    window.isFlightActive = true;
-                    window.isDummyPreflight = false;
+            }
+            break;
+        case 'openSimbriefForDummy':
+            if (payload.orig && payload.dest) {
+                window.chrome.webview.postMessage({ action: 'openSimbriefWindow', orig: payload.orig, dest: payload.dest, airline: payload.airline, fltnum: payload.fltnum });
+            } else {
+                window.chrome.webview.postMessage({ action: 'openSimbriefWindow' });
+            }
+            break;
+        case 'fetchStatus':
+            if (payload.status === 'success') {
+                if (document.getElementById('fetchStatus')) document.getElementById('fetchStatus').innerText = '';
+            } else {
+                if (document.getElementById('fetchStatus')) document.getElementById('fetchStatus').innerText = payload.message || '';
+                if (window.Swal) Swal.fire({ title: 'SIMBRIEF ERROR', text: payload.message || 'Could not parse flight plan.', icon: 'error', background: '#2a2a2b', color: '#fff' });
+                else alert('SIMBRIEF ERROR: ' + (payload.message || 'Could not parse flight plan.'));
 
-                    const mText = document.getElementById('dashMetaText');
-                    const mFill = document.getElementById('dashMetaFill');
-                    if (mText) { mText.innerText = "STANDING BY"; mText.style.color = "#cbd5e1"; }
-                    if (mFill) mFill.style.backgroundColor = "#cbd5e1";
-
-                    const dso = document.getElementById('dashStartOverlay');
-                    if (dso) dso.classList.add('opacity-0', 'pointer-events-none');
-
-                    const langFetch = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
-                    const dictFetch = window.locales ? window.locales[langFetch] : null;
-
-                    const btnFetchLabel = document.getElementById('btnFetchPlanLabel');
-                    if (btnFetchLabel) btnFetchLabel.innerText = dictFetch ? dictFetch.modal_cancel_yes : 'CANCEL FLIGHT';
-                    const btnFetch = document.getElementById('btnFetchPlan');
-                    if (btnFetch) {
-                        btnFetch.querySelector('.material-symbols-outlined').innerText = 'cancel';
-                    }
-                    const phaseEl = document.getElementById('flightPhase');
-                    const mScore = document.getElementById('mainScoreValue');
-                    if (mScore) {
-                        mScore.innerText = "1000";
-                    }
-                    const tScore = document.getElementById('topScoreValue');
-                    if (tScore) tScore.innerText = "1000";
-                    const pLogs = document.getElementById('penaltyLogs');
-                    if (pLogs) pLogs.innerHTML = "";
-                    const sFeed = document.getElementById('scoreFeed');
-                    if (sFeed) sFeed.innerHTML = "<li style=\"color:#64748b; text-align:center;\">Tracking standing by...</li>";
-                    // For Turnaround / AtGate
-                    setTimeout(() => {
-                        if (window.flightPhase === 'Preflight') {
-                            // Do NOTHING for Preflight - ground ops logic requires Fuel Sheet validation!
-                            // The user will click 'Validate Loadsheet' in the 3-button empty state.
-                            if (window.wasDummyBeforeFetch !== false) {
-                                window.chrome.webview.postMessage({ action: 'startShellSession' });
-                            }
-                            return;
-                        } else if (window.flightPhase === 'Turnaround' || window.flightPhase === 'AtGate') {
-                            if (window.wasDummyBeforeFetch !== false) {
-                                window.chrome.webview.postMessage({ action: 'prepareNextLeg' });
-                            }
-                            return;
-                        }
-
-                        let sbPayloadStr = "[]";
-                        try {
-                            let sbPayload = [];
-                            if (window.allRotations && window.allRotations.length > 0) {
-                                sbPayload = window.allRotations.map(r => r.data);
-                                if (window.activeLegIndex) {
-                                    sbPayload = sbPayload.slice(window.activeLegIndex);
-                                }
-                            }
-                            sbPayloadStr = JSON.stringify(sbPayload);
-                            window.chrome.webview.postMessage({ action: 'syncRotationsAndStart', payloadStr: sbPayloadStr });
-
-                            setTimeout(() => {
-                                window.chrome.webview.postMessage({ action: 'finishDispatch' });
-
-                                // Clean up UI state
-                                const dispatchModal = document.getElementById('simbriefDispatchModal');
-                                if (dispatchModal) dispatchModal.style.display = 'none';
-
-                                const btnFinishDispatch = document.getElementById('btnFinishDispatch');
-                                if (btnFinishDispatch) btnFinishDispatch.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
-                                
-                                // BUG FIX: Persist the active leg in Briefing when closing dispatch
-                                if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
-                                if (window.populateBriefingView) window.populateBriefingView(window.dashboardActiveLegIndex || 0);
-                                if (window.renderBriefingTimeline) window.renderBriefingTimeline();
-
-                            }, 800); // Small 800ms delay to let the dashboard prepare visually
-                        } catch (err) {
-                            console.error(err);
-                        }
-                    }, 500);
+                const btn = document.getElementById('btnGroundOpsFetch');
+                if (btn) {
+                    btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">download</span> <span class="text-[11px] uppercase font-bold tracking-widest text-emerald-400">2. Import Generated OFP</span>';
+                    btn.classList.remove('opacity-50', 'pointer-events-none');
                 }
-                break;
-            case 'groundOpsReady':
-                const metaText = document.getElementById('dashMetaText');
-                const metaFill = document.getElementById('dashMetaFill');
-                const metaBar = document.getElementById('dashMetaBar');
-                if (metaText) { metaText.innerText = 'GROUND OPS : STANDBY'; metaText.style.color = '#cbd5e1'; }
-                if (metaFill) { metaFill.style.width = '0%'; metaFill.style.backgroundColor = '#38BDF8'; }
-                if (metaBar) metaBar.style.display = 'none';
-                break;
-            case 'flightReset':
-                location.reload();
-                break;
-            case 'fuelValidationRejected':
-                alert(payload.message);
-                break;
-            case 'flightCancelled':
-                isFlightCancelled = true;
-                window.isFlightActive = false;
+                const loaderSt = document.getElementById('simbriefLoadingState');
+                if (loaderSt) loaderSt.style.display = 'none';
+            }
+            if (payload.status === 'success') {
+                isFlightCancelled = false;
+                window.isFlightActive = true;
+                window.isDummyPreflight = false;
 
-                const dso2 = document.getElementById('dashStartOverlay');
-                if (dso2) dso2.classList.remove('opacity-0', 'pointer-events-none');
+                const mText = document.getElementById('dashMetaText');
+                const mFill = document.getElementById('dashMetaFill');
+                if (mText) { mText.innerText = "STANDING BY"; mText.style.color = "#cbd5e1"; }
+                if (mFill) mFill.style.backgroundColor = "#cbd5e1";
 
-                const langCancel = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
-                const dictCancel = window.locales ? window.locales[langCancel] : null;
+                const dso = document.getElementById('dashStartOverlay');
+                if (dso) dso.classList.add('opacity-0', 'pointer-events-none');
 
-                const btnFetchLabel2 = document.getElementById('btnFetchPlanLabel');
-                if (btnFetchLabel2) btnFetchLabel2.innerText = dictCancel ? dictCancel.btn_fetch_plan : 'FETCH PLAN';
-                const btnFetch2 = document.getElementById('btnFetchPlan');
-                if (btnFetch2) {
-                    btnFetch2.querySelector('.material-symbols-outlined').innerText = 'cloud_download';
+                const langFetch = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
+                const dictFetch = window.locales ? window.locales[langFetch] : null;
+
+                const btnFetchLabel = document.getElementById('btnFetchPlanLabel');
+                if (btnFetchLabel) btnFetchLabel.innerText = dictFetch ? dictFetch.modal_cancel_yes : 'CANCEL FLIGHT';
+                const btnFetch = document.getElementById('btnFetchPlan');
+                if (btnFetch) {
+                    btnFetch.querySelector('.material-symbols-outlined').innerText = 'cancel';
                 }
                 const phaseEl = document.getElementById('flightPhase');
-                if (phaseEl) {
-                    phaseEl.innerText = "Aborted";
-                    phaseEl.style.color = "#DC2626";
-                    phaseEl.style.textShadow = "0 0 20px rgba(220, 38, 38, 0.8)";
-                }
                 const mScore = document.getElementById('mainScoreValue');
                 if (mScore) {
-                    mScore.innerText = "CANCELED";
-                    mScore.classList.add('text-red-500');
+                    mScore.innerText = "1000";
                 }
-                const mBar = document.getElementById('dashMetaBar');
-                if (mBar) {
-                    const mText = document.getElementById('dashMetaText');
-                    const mFill = document.getElementById('dashMetaFill');
-                    if (mText) { mText.innerText = dictCancel ? (dictCancel.gops_meta_aborted || "OPS ABORTED") : "OPS ABORTED"; mText.style.color = "#DC2626"; }
-                    if (mFill) mFill.style.backgroundColor = "#DC2626";
-                }
+                const tScore = document.getElementById('topScoreValue');
+                if (tScore) tScore.innerText = "1000";
+                const pLogs = document.getElementById('penaltyLogs');
+                if (pLogs) pLogs.innerHTML = "";
+                const sFeed = document.getElementById('scoreFeed');
+                if (sFeed) sFeed.innerHTML = "<li style=\"color:#64748b; text-align:center;\">Tracking standing by...</li>";
+                // For Turnaround / AtGate
+                setTimeout(() => {
+                    if (window.flightPhase === 'Preflight') {
+                        // Do NOTHING for Preflight - ground ops logic requires Fuel Sheet validation!
+                        // The user will click 'Validate Loadsheet' in the 3-button empty state.
+                        if (window.wasDummyBeforeFetch !== false) {
+                            window.chrome.webview.postMessage({ action: 'startShellSession' });
+                        }
+                        return;
+                    } else if (window.flightPhase === 'Turnaround' || window.flightPhase === 'AtGate') {
+                        if (window.wasDummyBeforeFetch !== false) {
+                            window.chrome.webview.postMessage({ action: 'prepareNextLeg' });
+                        }
+                        return;
+                    }
 
-                break;
-            case 'flightData':
-                try {
+                    let sbPayloadStr = "[]";
+                    try {
+                        let sbPayload = [];
+                        if (window.allRotations && window.allRotations.length > 0) {
+                            sbPayload = window.allRotations.map(r => r.data);
+                            if (window.activeLegIndex) {
+                                sbPayload = sbPayload.slice(window.activeLegIndex);
+                            }
+                        }
+                        sbPayloadStr = JSON.stringify(sbPayload);
+                        window.chrome.webview.postMessage({ action: 'syncRotationsAndStart', payloadStr: sbPayloadStr });
+
+                        setTimeout(() => {
+                            window.chrome.webview.postMessage({ action: 'finishDispatch' });
+
+                            // Clean up UI state
+                            const dispatchModal = document.getElementById('simbriefDispatchModal');
+                            if (dispatchModal) dispatchModal.style.display = 'none';
+
+                            const btnFinishDispatch = document.getElementById('btnFinishDispatch');
+                            if (btnFinishDispatch) btnFinishDispatch.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+
+                            // BUG FIX: Persist the active leg in Briefing when closing dispatch
+                            if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg(window.dashboardActiveLegIndex || 0);
+                            if (window.populateBriefingView) window.populateBriefingView(window.dashboardActiveLegIndex || 0);
+                            if (window.renderBriefingTimeline) window.renderBriefingTimeline();
+
+                        }, 800); // Small 800ms delay to let the dashboard prepare visually
+                    } catch (err) {
+                        console.error(err);
+                    }
+                }, 500);
+            }
+            break;
+        case 'groundOpsReady':
+            const metaText = document.getElementById('dashMetaText');
+            const metaFill = document.getElementById('dashMetaFill');
+            const metaBar = document.getElementById('dashMetaBar');
+            if (metaText) { metaText.innerText = 'GROUND OPS : STANDBY'; metaText.style.color = '#cbd5e1'; }
+            if (metaFill) { metaFill.style.width = '0%'; metaFill.style.backgroundColor = '#38BDF8'; }
+            if (metaBar) metaBar.style.display = 'none';
+            break;
+        case 'flightReset':
+            location.reload();
+            break;
+        case 'fuelValidationRejected':
+            alert(payload.message);
+            break;
+        case 'flightCancelled':
+            isFlightCancelled = true;
+            window.isFlightActive = false;
+
+            const dso2 = document.getElementById('dashStartOverlay');
+            if (dso2) dso2.classList.remove('opacity-0', 'pointer-events-none');
+
+            const langCancel = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
+            const dictCancel = window.locales ? window.locales[langCancel] : null;
+
+            const btnFetchLabel2 = document.getElementById('btnFetchPlanLabel');
+            if (btnFetchLabel2) btnFetchLabel2.innerText = dictCancel ? dictCancel.btn_fetch_plan : 'FETCH PLAN';
+            const btnFetch2 = document.getElementById('btnFetchPlan');
+            if (btnFetch2) {
+                btnFetch2.querySelector('.material-symbols-outlined').innerText = 'cloud_download';
+            }
+            const phaseEl = document.getElementById('flightPhase');
+            if (phaseEl) {
+                phaseEl.innerText = "Aborted";
+                phaseEl.style.color = "#DC2626";
+                phaseEl.style.textShadow = "0 0 20px rgba(220, 38, 38, 0.8)";
+            }
+            const mScore = document.getElementById('mainScoreValue');
+            if (mScore) {
+                mScore.innerText = "CANCELED";
+                mScore.classList.add('text-red-500');
+            }
+            const mBar = document.getElementById('dashMetaBar');
+            if (mBar) {
+                const mText = document.getElementById('dashMetaText');
+                const mFill = document.getElementById('dashMetaFill');
+                if (mText) { mText.innerText = dictCancel ? (dictCancel.gops_meta_aborted || "OPS ABORTED") : "OPS ABORTED"; mText.style.color = "#DC2626"; }
+                if (mFill) mFill.style.backgroundColor = "#DC2626";
+            }
+
+            break;
+        case 'flightData':
+            try {
                 const d = payload.data;
                 const manifest = payload.manifest;
 
                 const loader = document.getElementById('simbriefLoadingState');
                 if (loader) loader.style.display = 'none';
-                
+
                 const dispatchModal = document.getElementById('simbriefDispatchModal');
                 if (dispatchModal && dispatchModal.style.display !== 'none') {
                     // Do not close the modal automatically anymore, display the "Next Leg" prompt
@@ -4478,7 +4485,7 @@ window.renderBriefingTabs = () => {
                         // We also allow replacement if we are replacing the very first dummy leg
                         // STORY 43: We also allow replacement if we are currently at Turnaround and the origin matches (Pivot)
                         // Relaxed Pivot: If we are at Turnaround or AtGate, and the active leg is a dummy, allow it to be replaced even if origin doesn't match perfectly.
-                        const isTurnaroundPivot = (window.flightPhase === 'Turnaround' || window.flightPhase === 'AtGate') && window.allRotations[i].data?.isDummy === true && i === window.activeLegIndex;
+                        const isTurnaroundPivot = (window.flightPhase === 'Turnaround' || window.flightPhase === 'AtGate') && window.allRotations[i].data?.isDummy === true && i === window.activeLegIndex + 1;
                         if ((rotOrig === dOrig && rotDest === dDest) || isTurnaroundPivot) {
                             window.allRotations[i] = { data: d, briefing: payload.briefing, manifest: payload.manifest, airlineProfile: payload.airlineProfile };
                             replacedDummy = true;
@@ -4575,80 +4582,80 @@ window.renderBriefingTabs = () => {
                     if (window.renderManifest) window.renderManifest(payload.manifest);
                 }
 
-                } catch (flightDataError) {
-                    console.error("Crash processing flightData:", flightDataError);
-                    alert("UI parsing error: " + flightDataError.message);
-                }
-                break;
+            } catch (flightDataError) {
+                console.error("Crash processing flightData:", flightDataError);
+                alert("UI parsing error: " + flightDataError.message);
+            }
+            break;
 
-            case 'manifestUpdate':
-                if (payload.manifest) {
-                    window.manifest = payload.manifest;
-                    if (window.renderManifest) window.renderManifest(payload.manifest);
-                }
-                break;
-            case 'groundOps':
-                window.groundOpsCache = payload.services;
-                if (payload.isDispatchSignedOff !== undefined) {
-                    window.isDispatchSignedOff = payload.isDispatchSignedOff;
-                }
-                if (payload.isFuelValidated !== undefined) {
-                    window.isFuelValidated = payload.isFuelValidated;
-                }
-                if (payload.planRampKg !== undefined) {
-                    window.planRampKg = payload.planRampKg;
-                }
-                renderGroundOps(payload.services);
-                updateMetaBar(payload.services);
-                if (payload.airportTier) {
-                    const topTier = document.getElementById('topAirportTier');
-                    const letterBox = document.getElementById('aptTierLetterBox');
-                    const descBox = document.getElementById('aptTierDesc');
-                    const tierPanel = document.getElementById('airportTierPanel');
+        case 'manifestUpdate':
+            if (payload.manifest) {
+                window.manifest = payload.manifest;
+                if (window.renderManifest) window.renderManifest(payload.manifest);
+            }
+            break;
+        case 'groundOps':
+            window.groundOpsCache = payload.services;
+            if (payload.isDispatchSignedOff !== undefined) {
+                window.isDispatchSignedOff = payload.isDispatchSignedOff;
+            }
+            if (payload.isFuelValidated !== undefined) {
+                window.isFuelValidated = payload.isFuelValidated;
+            }
+            if (payload.planRampKg !== undefined) {
+                window.planRampKg = payload.planRampKg;
+            }
+            renderGroundOps(payload.services);
+            updateMetaBar(payload.services);
+            if (payload.airportTier) {
+                const topTier = document.getElementById('topAirportTier');
+                const letterBox = document.getElementById('aptTierLetterBox');
+                const descBox = document.getElementById('aptTierDesc');
+                const tierPanel = document.getElementById('airportTierPanel');
 
-                    if (topTier) topTier.innerText = payload.airportTier;
-                    if (letterBox && descBox && tierPanel) {
-                        tierPanel.classList.remove('hidden');
-                        let letter = payload.airportTier.replace('Tier ', '');
-                        letterBox.innerText = letter;
-                        descBox.innerText = payload.airportTierDesc || '';
+                if (topTier) topTier.innerText = payload.airportTier;
+                if (letterBox && descBox && tierPanel) {
+                    tierPanel.classList.remove('hidden');
+                    let letter = payload.airportTier.replace('Tier ', '');
+                    letterBox.innerText = letter;
+                    descBox.innerText = payload.airportTierDesc || '';
 
-                        if (letter === 'S') letterBox.className = "w-14 h-14 rounded-lg flex items-center justify-center font-black text-2xl border drop-shadow-[0_0_15px_rgba(250,204,21,0.5)] bg-yellow-500/10 text-yellow-400 border-yellow-500/30";
-                        else if (letter === 'A') letterBox.className = "w-14 h-14 rounded-lg flex items-center justify-center font-black text-2xl border drop-shadow-[0_0_15px_rgba(52,211,153,0.5)] bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
-                        else if (letter === 'B') letterBox.className = "w-14 h-14 rounded-lg flex items-center justify-center font-black text-2xl border drop-shadow-[0_0_15px_rgba(56,189,248,0.5)] bg-sky-500/10 text-sky-400 border-sky-500/30";
-                        else if (letter === 'F') letterBox.className = "w-14 h-14 rounded-lg flex items-center justify-center font-black text-2xl border drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] bg-red-500/10 text-red-500 border-red-500/30";
-                        else letterBox.className = "w-14 h-14 rounded-lg flex items-center justify-center font-black text-2xl border drop-shadow-[0_0_15px_rgba(251,146,60,0.5)] bg-orange-500/10 text-orange-400 border-orange-500/30";
-                    }
+                    if (letter === 'S') letterBox.className = "w-14 h-14 rounded-lg flex items-center justify-center font-black text-2xl border drop-shadow-[0_0_15px_rgba(250,204,21,0.5)] bg-yellow-500/10 text-yellow-400 border-yellow-500/30";
+                    else if (letter === 'A') letterBox.className = "w-14 h-14 rounded-lg flex items-center justify-center font-black text-2xl border drop-shadow-[0_0_15px_rgba(52,211,153,0.5)] bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
+                    else if (letter === 'B') letterBox.className = "w-14 h-14 rounded-lg flex items-center justify-center font-black text-2xl border drop-shadow-[0_0_15px_rgba(56,189,248,0.5)] bg-sky-500/10 text-sky-400 border-sky-500/30";
+                    else if (letter === 'F') letterBox.className = "w-14 h-14 rounded-lg flex items-center justify-center font-black text-2xl border drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] bg-red-500/10 text-red-500 border-red-500/30";
+                    else letterBox.className = "w-14 h-14 rounded-lg flex items-center justify-center font-black text-2xl border drop-shadow-[0_0_15px_rgba(251,146,60,0.5)] bg-orange-500/10 text-orange-400 border-orange-500/30";
                 }
-                break;
-            case 'groundOpsComplete':
-                const gOC = document.getElementById('groundOpsContainer');
-                let existingBanner = document.getElementById('groundOpsCompleteBanner');
-                if (!existingBanner && gOC) {
-                    gOC.insertAdjacentHTML('afterbegin', '<div id="groundOpsCompleteBanner" style="color:#34D399; font-weight:bold; margin-bottom:10px;">All ground operations are complete. Aircraft is secure.</div>');
-                }
-                break;
-            case 'groundOpsProgress':
-                // GLOBAL TOP PROGRESS BAR REMOVED
-                const botC = document.getElementById('groundOpsBottomProgress');
-                const botBar = document.getElementById('groundOpsProgressBar');
-                const statusTxt = document.getElementById('groundOpsStatusText');
-                const timeTxt = document.getElementById('groundOpsTimeText');
+            }
+            break;
+        case 'groundOpsComplete':
+            const gOC = document.getElementById('groundOpsContainer');
+            let existingBanner = document.getElementById('groundOpsCompleteBanner');
+            if (!existingBanner && gOC) {
+                gOC.insertAdjacentHTML('afterbegin', '<div id="groundOpsCompleteBanner" style="color:#34D399; font-weight:bold; margin-bottom:10px;">All ground operations are complete. Aircraft is secure.</div>');
+            }
+            break;
+        case 'groundOpsProgress':
+            // GLOBAL TOP PROGRESS BAR REMOVED
+            const botC = document.getElementById('groundOpsBottomProgress');
+            const botBar = document.getElementById('groundOpsProgressBar');
+            const statusTxt = document.getElementById('groundOpsStatusText');
+            const timeTxt = document.getElementById('groundOpsTimeText');
 
-                if (payload.isActive && payload.pct >= 0 && payload.pct <= 100) {
-                    if (botC) botC.style.display = 'flex';
+            if (payload.isActive && payload.pct >= 0 && payload.pct <= 100) {
+                if (botC) botC.style.display = 'flex';
 
-                    if (botBar) botBar.style.width = payload.pct + '%';
+                if (botBar) botBar.style.width = payload.pct + '%';
 
-                    if (statusTxt) statusTxt.innerText = payload.status || 'IN PROGRESS';
-                    if (timeTxt) timeTxt.innerText = payload.timeString || '';
-                } else {
-                    // Global top progress bar removed
-                    if (botC) botC.style.display = 'none';
-                }
-                break;
-        }
-    });
+                if (statusTxt) statusTxt.innerText = payload.status || 'IN PROGRESS';
+                if (timeTxt) timeTxt.innerText = payload.timeString || '';
+            } else {
+                // Global top progress bar removed
+                if (botC) botC.style.display = 'none';
+            }
+            break;
+    }
+});
 
 window.closedAccordions = window.closedAccordions || new Set();
 
@@ -4738,7 +4745,7 @@ function updateMetaBar(services) {
     if (!metaBar) return;
 
     if (metaFill) metaFill.style.width = percent + '%';
-    
+
     const metaTitle = document.getElementById('dashMetaTitle');
     if (metaTitle) metaTitle.innerHTML = "GROUND OPERATIONS";
 
@@ -4780,7 +4787,7 @@ function renderGroundOps(services) {
     let html = '';
 
     if (!services || services.length === 0 || !window.isDispatchSignedOff) {
-        const pendingLegNum = (window.activeLegIndex || 0) + 1;
+        const pendingLegNum = (window.sessionFlightsCompleted || 0) + (window.activeLegIndex || 0) + 1;
         let titleTxt = `PENDING LEG ${pendingLegNum} INITIALIZATION`;
         if (services && services.length > 0) titleTxt = `PENDING LEG ${pendingLegNum} LOADSHEET VALIDATION`;
 
@@ -4790,7 +4797,10 @@ function renderGroundOps(services) {
         let btn3Text = "text-[#b6b6b6] group-hover:text-white";
         let btn3Label = "3. Validate Loadsheet";
 
-        if (window.flightPhase === 'Turnaround' || window.flightPhase === 'AtGate') {
+        const currentLeg = window.allRotations && window.allRotations[window.activeLegIndex || 0];
+        const isDummy = !currentLeg || !currentLeg.data || currentLeg.data.isDummy === true;
+
+        if ((window.flightPhase === 'Turnaround' || window.flightPhase === 'AtGate') && isDummy) {
             btn3Class += " opacity-50 pointer-events-none";
             btn3Label = "3. Validate Loadsheet (Wait for OFP)";
         }
@@ -4819,207 +4829,207 @@ function renderGroundOps(services) {
         html = `
         <div class="flex flex-col gap-3">`;
 
-    let isDeboardingActive = services.some(s => (s.Name || s.name) === "Deboarding" && (s.State !== undefined ? s.State : s.state) === 1);
-    let isBoardingActive = services.some(s => (s.Name || s.name) === "Boarding" && (s.State !== undefined ? s.State : s.state) === 1);
-    let isCleaningActive = services.some(s => (s.Name || s.name).includes("Clean") && (s.State !== undefined ? s.State : s.state) === 1);
-    let isCateringActive = services.some(s => (s.Name || s.name).includes("Catering") && (s.State !== undefined ? s.State : s.state) === 1);
-    let isPaxMoving = isDeboardingActive || isBoardingActive;
-    let isCrewWorking = isCleaningActive || isCateringActive;
+        let isDeboardingActive = services.some(s => (s.Name || s.name) === "Deboarding" && (s.State !== undefined ? s.State : s.state) === 1);
+        let isBoardingActive = services.some(s => (s.Name || s.name) === "Boarding" && (s.State !== undefined ? s.State : s.state) === 1);
+        let isCleaningActive = services.some(s => (s.Name || s.name).includes("Clean") && (s.State !== undefined ? s.State : s.state) === 1);
+        let isCateringActive = services.some(s => (s.Name || s.name).includes("Catering") && (s.State !== undefined ? s.State : s.state) === 1);
+        let isPaxMoving = isDeboardingActive || isBoardingActive;
+        let isCrewWorking = isCleaningActive || isCateringActive;
 
-    let deboardingSrv = services.find(s => (s.Name || s.name) === "Deboarding");
-    let boardingSrv = services.find(s => (s.Name || s.name) === "Boarding");
-    let combinedServices = services.filter(s => (s.Name || s.name) !== "Deboarding" && (s.Name || s.name) !== "Boarding");
+        let deboardingSrv = services.find(s => (s.Name || s.name) === "Deboarding");
+        let boardingSrv = services.find(s => (s.Name || s.name) === "Boarding");
+        let combinedServices = services.filter(s => (s.Name || s.name) !== "Deboarding" && (s.Name || s.name) !== "Boarding");
 
-    if (deboardingSrv && boardingSrv) {
-        let dState = deboardingSrv.State !== undefined ? deboardingSrv.State : deboardingSrv.state;
-        let dIsCompleted = dState === 3 || dState === 4 || deboardingSrv.IsPreServiced || deboardingSrv.isPreServiced;
-        if (!dIsCompleted) combinedServices.push(deboardingSrv);
-        else combinedServices.push(boardingSrv);
-    } else if (deboardingSrv) {
-        combinedServices.push(deboardingSrv);
-    } else if (boardingSrv) {
-        combinedServices.push(boardingSrv);
-    }
-
-    combinedServices.forEach(s => {
-        const mLang = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
-        const mDict = window.locales && window.locales[mLang] ? window.locales[mLang] : window.locales.en;
-
-        let locName = s.Name !== undefined ? s.Name : s.name;
-        if (locName === "Refueling") locName = mDict.gops_refueling || locName;
-        else if (locName === "Boarding") locName = mDict.gops_boarding || locName;
-        else if (locName === "Deboarding") locName = mDict.gops_deboarding || locName;
-        else if (locName === "Cargo" || locName === "Cargo/Luggage") {
-            locName = mDict.gops_cargo || "Cargo";
-            let nState = s.State !== undefined ? s.State : s.state;
-            if (deboardingSrv) { // Turnaround
-                if (nState === 1 && (s.ProgressPercent || 0) < 50) locName = `CARGO UNLOADING`;
-                else if (nState === 1) locName = `CARGO LOADING`;
-                else if (nState === 0 || nState === 5) locName = `CARGO UNLOAD/LOAD`;
-            } else { // Pristine
-                if (nState === 0 || nState === 1 || nState === 5) locName = `CARGO LOADING`;
-            }
-        }
-        else if (locName === "Catering") locName = mDict.gops_catering || locName;
-        else if (locName === "Cleaning") locName = mDict.gops_cleaning || locName;
-        else if (locName === "Cabin Clean (PNC)" || locName === "PNC Chores") locName = "CLEANING (CREW)";
-        else if (locName === "Water/Waste") locName = mDict.gops_water || locName;
-
-        let stateVal = s.State !== undefined ? s.State : s.state;
-        
-        let iconKey = s.Name !== undefined ? s.Name : s.name;
-        if (iconKey === "Cargo/Luggage") iconKey = "Cargo";
-        if (iconKey === "PNC Chores") iconKey = "Cabin Clean (PNC)";
-        const icon = GO_ICONS[iconKey] || '🔹';
-
-        // No frontend physical blocks - let the backend/logic strictly dictate if it's startable.
-        let isCompleted = stateVal === 3 || stateVal === 4 || s.IsPreServiced || s.isPreServiced;
-        let isClickable = (stateVal === 0 || stateVal === 5) && window.isDispatchSignedOff;
-        let actionName = s.Name === 'Deboarding' ? 'startDeboarding' : 'startService';
-        let clickAction = isClickable ? `onclick="window.chrome.webview.postMessage({action: '${actionName}', service: '${(s.Name || s.name)}'})"` : '';
-
-        // Custom Boarding Lock logic visually explicitly requested by user
-        let boardBlockedText = null;
-        if (s.Name === "Boarding") {
-            let cleaningSrv = combinedServices.find(x => x.Name === "Cleaning" || 
-                                                         x.Name === "Cabin Clean (PNC)" || 
-                                                         x.Name === "PNC Chores" || 
-                                                         x.Name === "CLEANING (CREW)");
-            let cateringSrv = combinedServices.find(x => x.Name === "Catering");
-            let block1 = cleaningSrv && (cleaningSrv.State === 1 || cleaningSrv.state === 1);
-            let block2 = cateringSrv && (cateringSrv.State === 1 || cateringSrv.state === 1);
-            if (block1 || block2) {
-                boardBlockedText = "WAIT FOR OTHER OPERATIONS";
-            }
+        if (deboardingSrv && boardingSrv) {
+            let dState = deboardingSrv.State !== undefined ? deboardingSrv.State : deboardingSrv.state;
+            let dIsCompleted = dState === 3 || dState === 4 || deboardingSrv.IsPreServiced || deboardingSrv.isPreServiced;
+            if (!dIsCompleted) combinedServices.push(deboardingSrv);
+            else combinedServices.push(boardingSrv);
+        } else if (deboardingSrv) {
+            combinedServices.push(deboardingSrv);
+        } else if (boardingSrv) {
+            combinedServices.push(boardingSrv);
         }
 
-        // Center Area Logic
-        let centerAreaHtml = '';
-        let smMsg = s.StatusMessage !== undefined ? s.StatusMessage : s.statusMessage;
+        combinedServices.forEach(s => {
+            const mLang = (localStorage.getItem('selLanguage') || 'EN').toLowerCase();
+            const mDict = window.locales && window.locales[mLang] ? window.locales[mLang] : window.locales.en;
 
-        if (stateVal === 0 || stateVal === 5) {
-            let btnText = actionName === 'startDeboarding' ? 'START DEBOARDING' : `START ${(s.Name || s.name)}`;
-            let srvName = s.Name || s.name;
-            const gsxSync = window.gsxAutoSyncEnabled || localStorage.getItem('gsxSync') === 'true';
-            let isGsxLocked = gsxSync && ['Boarding', 'Deboarding', 'Refueling', 'Cargo', 'Cargo/Luggage', 'Catering'].includes(srvName);
-            
-            if (boardBlockedText) {
-                centerAreaHtml = `<span class="text-orange-400 font-bold uppercase tracking-wide text-[9px] md:text-[10px] flex justify-center items-center gap-1 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 cursor-not-allowed" style="text-shadow: 0 0 10px rgba(249,115,22,0.3);"><span class="material-symbols-outlined text-[14px]">warning</span> WAIT FOR OPS</span>`;
-                isClickable = false;
-            } else if (smMsg && smMsg.toLowerCase().includes("blocked") && srvName !== "Refueling") {
-                centerAreaHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 cursor-not-allowed">${smMsg.toUpperCase()}</span>`;
-                isClickable = false;
-            } else if (isGsxLocked) {
-                isClickable = false;
-                centerAreaHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] flex justify-center items-center gap-1 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 cursor-not-allowed opacity-50" style="text-shadow: 0 0 10px rgba(56,189,248,0.3);"><span class="material-symbols-outlined text-[14px]">sensors</span> GSX CONTROL</span>`;
-            } else if (srvName === "Refueling") {
-                let btnRefuelAction = isClickable ? `onclick="event.stopPropagation(); window.chrome.webview.postMessage({action: 'startService', service: 'Refueling'})"` : '';
-                let btnLoadsheetAction = `onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'openFuelSheetWindow', legIndex: window.dashboardActiveLegIndex || 0 })"`;
-                centerAreaHtml = `
+            let locName = s.Name !== undefined ? s.Name : s.name;
+            if (locName === "Refueling") locName = mDict.gops_refueling || locName;
+            else if (locName === "Boarding") locName = mDict.gops_boarding || locName;
+            else if (locName === "Deboarding") locName = mDict.gops_deboarding || locName;
+            else if (locName === "Cargo" || locName === "Cargo/Luggage") {
+                locName = mDict.gops_cargo || "Cargo";
+                let nState = s.State !== undefined ? s.State : s.state;
+                if (deboardingSrv) { // Turnaround
+                    if (nState === 1 && (s.ProgressPercent || 0) < 50) locName = `CARGO UNLOADING`;
+                    else if (nState === 1) locName = `CARGO LOADING`;
+                    else if (nState === 0 || nState === 5) locName = `CARGO UNLOAD/LOAD`;
+                } else { // Pristine
+                    if (nState === 0 || nState === 1 || nState === 5) locName = `CARGO LOADING`;
+                }
+            }
+            else if (locName === "Catering") locName = mDict.gops_catering || locName;
+            else if (locName === "Cleaning") locName = mDict.gops_cleaning || locName;
+            else if (locName === "Cabin Clean (PNC)" || locName === "PNC Chores") locName = "CLEANING (CREW)";
+            else if (locName === "Water/Waste") locName = mDict.gops_water || locName;
+
+            let stateVal = s.State !== undefined ? s.State : s.state;
+
+            let iconKey = s.Name !== undefined ? s.Name : s.name;
+            if (iconKey === "Cargo/Luggage") iconKey = "Cargo";
+            if (iconKey === "PNC Chores") iconKey = "Cabin Clean (PNC)";
+            const icon = GO_ICONS[iconKey] || '🔹';
+
+            // No frontend physical blocks - let the backend/logic strictly dictate if it's startable.
+            let isCompleted = stateVal === 3 || stateVal === 4 || s.IsPreServiced || s.isPreServiced;
+            let isClickable = (stateVal === 0 || stateVal === 5) && window.isDispatchSignedOff;
+            let actionName = s.Name === 'Deboarding' ? 'startDeboarding' : 'startService';
+            let clickAction = isClickable ? `onclick="window.chrome.webview.postMessage({action: '${actionName}', service: '${(s.Name || s.name)}'})"` : '';
+
+            // Custom Boarding Lock logic visually explicitly requested by user
+            let boardBlockedText = null;
+            if (s.Name === "Boarding") {
+                let cleaningSrv = combinedServices.find(x => x.Name === "Cleaning" ||
+                    x.Name === "Cabin Clean (PNC)" ||
+                    x.Name === "PNC Chores" ||
+                    x.Name === "CLEANING (CREW)");
+                let cateringSrv = combinedServices.find(x => x.Name === "Catering");
+                let block1 = cleaningSrv && (cleaningSrv.State === 1 || cleaningSrv.state === 1);
+                let block2 = cateringSrv && (cateringSrv.State === 1 || cateringSrv.state === 1);
+                if (block1 || block2) {
+                    boardBlockedText = "WAIT FOR OTHER OPERATIONS";
+                }
+            }
+
+            // Center Area Logic
+            let centerAreaHtml = '';
+            let smMsg = s.StatusMessage !== undefined ? s.StatusMessage : s.statusMessage;
+
+            if (stateVal === 0 || stateVal === 5) {
+                let btnText = actionName === 'startDeboarding' ? 'START DEBOARDING' : `START ${(s.Name || s.name)}`;
+                let srvName = s.Name || s.name;
+                const gsxSync = window.gsxAutoSyncEnabled || localStorage.getItem('gsxSync') === 'true';
+                let isGsxLocked = gsxSync && ['Boarding', 'Deboarding', 'Refueling', 'Cargo', 'Cargo/Luggage', 'Catering'].includes(srvName);
+
+                if (boardBlockedText) {
+                    centerAreaHtml = `<span class="text-orange-400 font-bold uppercase tracking-wide text-[9px] md:text-[10px] flex justify-center items-center gap-1 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 cursor-not-allowed" style="text-shadow: 0 0 10px rgba(249,115,22,0.3);"><span class="material-symbols-outlined text-[14px]">warning</span> WAIT FOR OPS</span>`;
+                    isClickable = false;
+                } else if (smMsg && smMsg.toLowerCase().includes("blocked") && srvName !== "Refueling") {
+                    centerAreaHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 cursor-not-allowed">${smMsg.toUpperCase()}</span>`;
+                    isClickable = false;
+                } else if (isGsxLocked) {
+                    isClickable = false;
+                    centerAreaHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] flex justify-center items-center gap-1 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 cursor-not-allowed opacity-50" style="text-shadow: 0 0 10px rgba(56,189,248,0.3);"><span class="material-symbols-outlined text-[14px]">sensors</span> GSX CONTROL</span>`;
+                } else if (srvName === "Refueling") {
+                    let btnRefuelAction = isClickable ? `onclick="event.stopPropagation(); window.chrome.webview.postMessage({action: 'startService', service: 'Refueling'})"` : '';
+                    let btnLoadsheetAction = `onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'openFuelSheetWindow', legIndex: window.dashboardActiveLegIndex || 0 })"`;
+                    centerAreaHtml = `
                     <div class="flex gap-2 justify-center items-center flex-shrink-0 w-[120px] md:w-[140px]">
                         <button ${btnLoadsheetAction} class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1.5 md:py-2 rounded text-[8px] md:text-[9px] font-bold tracking-widest hover:bg-amber-500 hover:text-white transition-all uppercase shadow-[0_0_10px_rgba(245,158,11,0.1)] outline-none whitespace-nowrap" title="Edit Loadsheet">LOADSHEET</button>
                         <button ${btnRefuelAction} class="bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2.5 py-1.5 md:py-2 rounded text-[8px] md:text-[9px] font-bold tracking-widest hover:bg-sky-500 hover:text-white transition-all uppercase shadow-[0_0_10px_rgba(56,189,248,0.1)] outline-none whitespace-nowrap">START REFUEL</button>
                     </div>`;
-            } else {
-                centerAreaHtml = `<button ${clickAction} class="bg-sky-500/10 text-sky-400 border border-sky-500/20 w-[120px] md:w-[140px] py-1.5 md:py-2 rounded text-[9px] md:text-[10px] font-bold tracking-widest hover:bg-sky-500 hover:text-white transition-all uppercase shadow-[0_0_10px_rgba(56,189,248,0.1)] outline-none whitespace-nowrap flex-shrink-0">${btnText}</button>`;
-            }
-        } else if (stateVal === 1 || stateVal === 2) {
-            if (stateVal === 1) {
-                if ((s.Name || s.name) === "Refueling") {
-                    let baseFob = window.initialFobKg || 3000;
-                    let tgtFob = window.planRampKg ? Math.round(window.planRampKg) : baseFob;
-                    let elapsed = s.ElapsedSec ?? s.elapsedSec ?? 0;
-                    let total = s.TotalDurationSec ?? s.totalDurationSec ?? 1;
-                    if (total <= 0) total = 1;
-                    let prog = Math.min(1.0, Math.max(0, elapsed / total));
-                    
-                    let cFob = Math.round(baseFob + (tgtFob - baseFob) * prog);
-                    let tFob = tgtFob;
-                    
-                    centerAreaHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] flex flex-col justify-center items-center whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0">
+                } else {
+                    centerAreaHtml = `<button ${clickAction} class="bg-sky-500/10 text-sky-400 border border-sky-500/20 w-[120px] md:w-[140px] py-1.5 md:py-2 rounded text-[9px] md:text-[10px] font-bold tracking-widest hover:bg-sky-500 hover:text-white transition-all uppercase shadow-[0_0_10px_rgba(56,189,248,0.1)] outline-none whitespace-nowrap flex-shrink-0">${btnText}</button>`;
+                }
+            } else if (stateVal === 1 || stateVal === 2) {
+                if (stateVal === 1) {
+                    if ((s.Name || s.name) === "Refueling") {
+                        let baseFob = window.initialFobKg || 3000;
+                        let tgtFob = window.planRampKg ? Math.round(window.planRampKg) : baseFob;
+                        let elapsed = s.ElapsedSec ?? s.elapsedSec ?? 0;
+                        let total = s.TotalDurationSec ?? s.totalDurationSec ?? 1;
+                        if (total <= 0) total = 1;
+                        let prog = Math.min(1.0, Math.max(0, elapsed / total));
+
+                        let cFob = Math.round(baseFob + (tgtFob - baseFob) * prog);
+                        let tFob = tgtFob;
+
+                        centerAreaHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] flex flex-col justify-center items-center whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0">
                                         <div class="flex items-center gap-1"><span class="animate-pulse shadow-[0_0_10px_rgba(56,189,248,0.5)] bg-sky-400 rounded-full w-2 h-2"></span> IN PROGRESS</div>
                                         <div id="liveFuelTrackerUI" class="text-[8.5px] text-white/50 tracking-widenormal mt-0.5">${cFob} / ${tFob} KG</div>
                                       </span>`;
-                } else {
-                    centerAreaHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0"><span class="animate-pulse shadow-[0_0_10px_rgba(56,189,248,0.5)] bg-sky-400 rounded-full w-2 h-2"></span> ${smMsg ? smMsg.toUpperCase() : 'IN PROGRESS'}</span>`;
+                    } else {
+                        centerAreaHtml = `<span class="text-sky-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0"><span class="animate-pulse shadow-[0_0_10px_rgba(56,189,248,0.5)] bg-sky-400 rounded-full w-2 h-2"></span> ${smMsg ? smMsg.toUpperCase() : 'IN PROGRESS'}</span>`;
+                    }
+                }
+                if (stateVal === 2) centerAreaHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0"><span class="animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.5)] bg-orange-400 rounded-full w-2 h-2"></span> DELAYED</span>`;
+            } else if (isCompleted) {
+                centerAreaHtml = `<span class="text-emerald-500 font-bold uppercase tracking-widest text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0">COMPLETED</span>`;
+                if ((s.Name || s.name) === "Refueling") {
+                    let liveFob = window.currentFobKg ? Math.round(window.currentFobKg) + " KG" : "COMPLETED";
+                    centerAreaHtml = `<span class="text-emerald-400 font-mono tracking-widest text-[11px] font-bold flex flex-col justify-center items-center gap-[1px] whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 drop-shadow-[0_0_10px_rgba(52,211,153,0.4)]">${liveFob} <span class="uppercase tracking-[0.2em] font-sans text-emerald-500/70 text-[7px]">LIVE FOB</span></span>`;
+                }
+            } else if (stateVal === 4) { // Skipped
+                centerAreaHtml = `<span class="text-slate-500 font-bold uppercase tracking-widest text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0">SKIPPED</span>`;
+            }
+
+            let timeDisplay = '';
+            const gsxSyncGlobal = window.gsxAutoSyncEnabled || localStorage.getItem('gsxSync') === 'true';
+            let isManagedByGsx = gsxSyncGlobal && ['Boarding', 'Deboarding', 'Refueling', 'Cargo', 'Cargo/Luggage', 'Catering'].includes(s.Name || s.name);
+
+            if (isManagedByGsx) {
+                timeDisplay = `<span class="font-mono text-[9px] md:text-[10px] font-bold tracking-widest text-slate-600/60 text-right w-[50px] flex-shrink-0 uppercase" title="Duration managed by GSX">GSX</span>`;
+            } else {
+                let remainingSec = s.RemainingSec !== undefined ? s.RemainingSec : s.remainingSec;
+                if (remainingSec > 0 && stateVal !== 3 && stateVal !== 4) {
+                    const m = Math.floor(remainingSec / 60).toString().padStart(2, '0');
+                    const sec = (remainingSec % 60).toString().padStart(2, '0');
+                    let colorClass = stateVal === 2 ? 'text-orange-400 drop-shadow-[0_0_10px_rgba(249,115,22,0.3)]' : 'text-sky-400 drop-shadow-[0_0_10px_rgba(56,189,248,0.3)]';
+                    timeDisplay = `<span class="font-mono text-base md:text-lg font-black tracking-widest ${colorClass} text-right tabular-nums w-[50px] flex-shrink-0">${m}:${sec}</span>`;
+                } else if (stateVal === 3 || stateVal === 4) {
+                    timeDisplay = `<span class="font-mono text-base md:text-lg font-black tracking-widest text-slate-600 text-right tabular-nums w-[50px] flex-shrink-0">--:--</span>`;
                 }
             }
-            if (stateVal === 2) centerAreaHtml = `<span class="text-orange-400 font-bold uppercase tracking-widest text-[9px] md:text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0"><span class="animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.5)] bg-orange-400 rounded-full w-2 h-2"></span> DELAYED</span>`;
-        } else if (isCompleted) {
-            centerAreaHtml = `<span class="text-emerald-500 font-bold uppercase tracking-widest text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0">COMPLETED</span>`;
-            if ((s.Name || s.name) === "Refueling") {
-                let liveFob = window.currentFobKg ? Math.round(window.currentFobKg) + " KG" : "COMPLETED";
-                centerAreaHtml = `<span class="text-emerald-400 font-mono tracking-widest text-[11px] font-bold flex flex-col justify-center items-center gap-[1px] whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0 drop-shadow-[0_0_10px_rgba(52,211,153,0.4)]">${liveFob} <span class="uppercase tracking-[0.2em] font-sans text-emerald-500/70 text-[7px]">LIVE FOB</span></span>`;
+
+            let extraBadgesHtml = '';
+            if (s.Name === "Catering" || s.Name === "Cleanliness" || s.Name === "Cleaning" || s.Name === "Cabin Clean (PNC)" || s.Name === "Water/Waste") {
+                if (!isCompleted) {
+                    // SKIP button
+                    extraBadgesHtml += `<button onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'skipService', service: '${(s.Name || s.name)}' });" class="px-2 py-1 rounded bg-[#1a1c23] hover:bg-red-500/10 text-red-500/50 hover:text-red-500 border border-white/5 hover:border-red-500/20 text-[9px] uppercase font-bold tracking-widest leading-none outline-none transition-colors flex-shrink-0 cursor-pointer mr-0 md:mr-3">SKIP</button>`;
+                }
             }
-        } else if (stateVal === 4) { // Skipped
-            centerAreaHtml = `<span class="text-slate-500 font-bold uppercase tracking-widest text-[10px] flex justify-center items-center gap-2 whitespace-nowrap w-[120px] md:w-[140px] flex-shrink-0">SKIPPED</span>`;
-        }
 
-        let timeDisplay = '';
-        const gsxSyncGlobal = window.gsxAutoSyncEnabled || localStorage.getItem('gsxSync') === 'true';
-        let isManagedByGsx = gsxSyncGlobal && ['Boarding', 'Deboarding', 'Refueling', 'Cargo', 'Cargo/Luggage', 'Catering'].includes(s.Name || s.name);
-        
-        if (isManagedByGsx) {
-            timeDisplay = `<span class="font-mono text-[9px] md:text-[10px] font-bold tracking-widest text-slate-600/60 text-right w-[50px] flex-shrink-0 uppercase" title="Duration managed by GSX">GSX</span>`;
-        } else {
-            let remainingSec = s.RemainingSec !== undefined ? s.RemainingSec : s.remainingSec;
-            if (remainingSec > 0 && stateVal !== 3 && stateVal !== 4) {
-                const m = Math.floor(remainingSec / 60).toString().padStart(2, '0');
-                const sec = (remainingSec % 60).toString().padStart(2, '0');
-                let colorClass = stateVal === 2 ? 'text-orange-400 drop-shadow-[0_0_10px_rgba(249,115,22,0.3)]' : 'text-sky-400 drop-shadow-[0_0_10px_rgba(56,189,248,0.3)]';
-                timeDisplay = `<span class="font-mono text-base md:text-lg font-black tracking-widest ${colorClass} text-right tabular-nums w-[50px] flex-shrink-0">${m}:${sec}</span>`;
-            } else if (stateVal === 3 || stateVal === 4) {
-                timeDisplay = `<span class="font-mono text-base md:text-lg font-black tracking-widest text-slate-600 text-right tabular-nums w-[50px] flex-shrink-0">--:--</span>`;
-            }
-        }
+            let barColor = stateVal === 3 ? '#34D399' : (stateVal === 2 ? '#FB923C' : '#38BDF8');
+            if (isCompleted && !(s.IsPreServiced || s.isPreServiced)) barColor = '#34D399';
+            else if (isCompleted && (s.IsPreServiced || s.isPreServiced)) barColor = '#475569';
 
-        let extraBadgesHtml = '';
-        if (s.Name === "Catering" || s.Name === "Cleanliness" || s.Name === "Cleaning" || s.Name === "Cabin Clean (PNC)" || s.Name === "Water/Waste") {
-            if (!isCompleted) {
-                // SKIP button
-                extraBadgesHtml += `<button onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'skipService', service: '${(s.Name || s.name)}' });" class="px-2 py-1 rounded bg-[#1a1c23] hover:bg-red-500/10 text-red-500/50 hover:text-red-500 border border-white/5 hover:border-red-500/20 text-[9px] uppercase font-bold tracking-widest leading-none outline-none transition-colors flex-shrink-0 cursor-pointer mr-0 md:mr-3">SKIP</button>`;
-            }
-        }
+            let rowClasses = `w-full grid grid-cols-[1fr_auto_80px] md:grid-cols-[1.5fr_160px_130px] items-center p-3 md:p-4 bg-[#1a1d24]/40 border border-white/5 rounded-xl transition-all relative overflow-hidden group`;
+            if (isClickable) rowClasses += ` cursor-pointer hover:bg-[#1a1d24]/80 hover:border-sky-500/30`;
+            if (!window.isDispatchSignedOff) rowClasses += ` opacity-25 grayscale pointer-events-none`;
 
-        let barColor = stateVal === 3 ? '#34D399' : (stateVal === 2 ? '#FB923C' : '#38BDF8');
-        if (isCompleted && !(s.IsPreServiced || s.isPreServiced)) barColor = '#34D399';
-        else if (isCompleted && (s.IsPreServiced || s.isPreServiced)) barColor = '#475569';
-
-        let rowClasses = `w-full grid grid-cols-[1fr_auto_80px] md:grid-cols-[1.5fr_160px_130px] items-center p-3 md:p-4 bg-[#1a1d24]/40 border border-white/5 rounded-xl transition-all relative overflow-hidden group`;
-        if (isClickable) rowClasses += ` cursor-pointer hover:bg-[#1a1d24]/80 hover:border-sky-500/30`;
-        if (!window.isDispatchSignedOff) rowClasses += ` opacity-25 grayscale pointer-events-none`;
-
-        let progressHtml = '';
-        if (s.Name === "Water/Waste") {
-            let waterLvl = s.State === 1 ? s.ProgressPercent : Math.round(window.lastTelemetry?.waterLevel || 100);
-            let wasteLvl = s.State === 1 ? s.ProgressPercent : Math.round(window.lastTelemetry?.wasteLevel || 0);
-            let wColor = waterLvl < 20 ? '#EF4444' : (waterLvl < 50 ? '#F59E0B' : '#60A5FA');
-            let waColor = wasteLvl > 90 ? '#EF4444' : (wasteLvl > 70 ? '#F59E0B' : '#60A5FA');
-            progressHtml = `
+            let progressHtml = '';
+            if (s.Name === "Water/Waste") {
+                let waterLvl = s.State === 1 ? s.ProgressPercent : Math.round(window.lastTelemetry?.waterLevel || 100);
+                let wasteLvl = s.State === 1 ? s.ProgressPercent : Math.round(window.lastTelemetry?.wasteLevel || 0);
+                let wColor = waterLvl < 20 ? '#EF4444' : (waterLvl < 50 ? '#F59E0B' : '#60A5FA');
+                let waColor = wasteLvl > 90 ? '#EF4444' : (wasteLvl > 70 ? '#F59E0B' : '#60A5FA');
+                progressHtml = `
                 <div class="absolute bottom-0 left-0 w-full flex flex-col gap-[1px] bg-black/40 h-1.5">
                     <div class="h-1"><div class="h-full transition-all duration-1000 ease-out" style="width: ${waterLvl}%; background-color: ${wColor}; opacity: 0.8"></div></div>
                     <div class="h-1"><div class="h-full transition-all duration-1000 ease-out" style="width: ${wasteLvl}%; background-color: ${waColor}; opacity: 0.8"></div></div>
                 </div>`;
-        } else {
-            let mappedProgress = s.ProgressPercent;
-            let mappedColor = barColor;
-            if (s.Name === "Deboarding") mappedProgress = 100 - (s.ProgressPercent || 0);
+            } else {
+                let mappedProgress = s.ProgressPercent;
+                let mappedColor = barColor;
+                if (s.Name === "Deboarding") mappedProgress = 100 - (s.ProgressPercent || 0);
 
-            if (s.State !== 1 && window.lastTelemetry && !isCompleted) {
-                if (s.Name === "Catering") {
-                    mappedProgress = window.lastTelemetry.cateringCompletion !== undefined ? window.lastTelemetry.cateringCompletion : 100;
-                    mappedColor = mappedProgress < 20 ? '#EF4444' : (mappedProgress < 50 ? '#F59E0B' : '#34D399');
-                } else if (s.Name === "Cleanliness" || s.Name === "Cleaning") {
-                    mappedProgress = window.lastTelemetry.cabinCleanliness !== undefined ? window.lastTelemetry.cabinCleanliness : 100;
-                    mappedColor = mappedProgress < 50 ? '#EF4444' : (mappedProgress < 75 ? '#F59E0B' : '#34D399');
+                if (s.State !== 1 && window.lastTelemetry && !isCompleted) {
+                    if (s.Name === "Catering") {
+                        mappedProgress = window.lastTelemetry.cateringCompletion !== undefined ? window.lastTelemetry.cateringCompletion : 100;
+                        mappedColor = mappedProgress < 20 ? '#EF4444' : (mappedProgress < 50 ? '#F59E0B' : '#34D399');
+                    } else if (s.Name === "Cleanliness" || s.Name === "Cleaning") {
+                        mappedProgress = window.lastTelemetry.cabinCleanliness !== undefined ? window.lastTelemetry.cabinCleanliness : 100;
+                        mappedColor = mappedProgress < 50 ? '#EF4444' : (mappedProgress < 75 ? '#F59E0B' : '#34D399');
+                    }
                 }
+                progressHtml = `<div class="absolute bottom-0 left-0 w-full h-[2px] bg-black/40"><div class="h-full transition-all duration-1000 ease-out" style="width: ${mappedProgress}%; background-color: ${mappedColor}; opacity: 0.8"></div></div>`;
             }
-            progressHtml = `<div class="absolute bottom-0 left-0 w-full h-[2px] bg-black/40"><div class="h-full transition-all duration-1000 ease-out" style="width: ${mappedProgress}%; background-color: ${mappedColor}; opacity: 0.8"></div></div>`;
-        }
 
-        let rowProps = isClickable ? clickAction : '';
+            let rowProps = isClickable ? clickAction : '';
 
-        html += `
+            html += `
             <div class="${rowClasses}" ${rowProps}>
                 ${progressHtml}
                 
@@ -5046,26 +5056,26 @@ function renderGroundOps(services) {
                 <div id="ge-container-${(s.Name || s.name).replace(/\s|[^\w]/g, '')}" class="hidden col-span-3"></div>
             </div>
         `;
-    });
-
-    html += '</div>';
-
-    if (window.flightPhase === 'Turnaround' || window.flightPhase === 'AtGate') {
-        let isAllCompleted = services.length > 0 && services.every(s => {
-            let st = s.State !== undefined ? s.State : s.state;
-            return st === 3 || st === 4 || s.IsPreServiced || s.isPreServiced;
         });
-        
-        if (isAllCompleted && window.allRotations && window.allRotations.length > (window.activeLegIndex || 0) + 1) {
-            html += `
+
+        html += '</div>';
+
+        if (window.flightPhase === 'Turnaround' || window.flightPhase === 'AtGate') {
+            let isAllCompleted = services.length > 0 && services.every(s => {
+                let st = s.State !== undefined ? s.State : s.state;
+                return st === 3 || st === 4 || s.IsPreServiced || s.isPreServiced;
+            });
+
+            if (isAllCompleted) {
+                html += `
             <div class="mt-4 flex justify-center w-full">
                 <button onclick="window.chrome.webview.postMessage({action: 'prepareNextLeg'});" class="group relative flex items-center justify-center gap-2 px-8 py-3 bg-sky-500/20 border border-sky-500/50 rounded-full hover:bg-sky-500 hover:text-white shadow-[0_0_15px_rgba(14,165,233,0.3)] transition-all duration-300">
                     <span class="material-symbols-outlined text-[20px] text-sky-400 group-hover:text-white group-hover:scale-110 transition-transform">next_plan</span>
                     <span class="text-[12px] uppercase font-bold tracking-widest text-sky-400 group-hover:text-white transition-colors">Prepare Next Leg</span>
                 </button>
             </div>`;
+            }
         }
-    }
     }
 
     if (!window.isDispatchSignedOff) {
@@ -5086,7 +5096,7 @@ window.renderManifest = function (manifest) {
     if (flightCrew) {
         let purser = flightCrew.find(c => c.Role === "Purser" || c.role === "Purser");
         let fas = flightCrew.filter(c => c.Role === "Flight Attendant" || c.role === "Flight Attendant");
-        
+
         let pnc0 = document.getElementById('pncName0');
         if (pnc0) pnc0.innerText = purser ? (purser.Name || purser.name) : '--';
         let pnc1 = document.getElementById('pncName1');
@@ -5142,7 +5152,7 @@ window.renderManifest = function (manifest) {
                 if (p.IsSeatbeltFastened) fastenedCount++;
                 if (p.IsInjured) injuredCount++;
             }
-            
+
             let seatEl = document.getElementById('seat-' + p.Seat);
             if (seatEl) {
                 if (isBoarded) {
@@ -5618,7 +5628,7 @@ function renderLogbook(history) {
 function replayFlightLog(encodedPayload) {
     try {
         const report = JSON.parse(decodeURIComponent(encodedPayload));
-        
+
         window.isViewingHistoricalReport = true;
 
         // Dispatch synthetic message to the webview listeners
@@ -5678,17 +5688,17 @@ window.checkTimeSkipVisibility = function (phase) {
     // Backend can send Integers or Enum Strings depending on the broadcast event
     const isGroundPhase = (
         phase === 0 || phase === 'AtGate' || phase === 'Preflight' ||
-        phase === 1 || phase === 'Turnaround' || 
+        phase === 1 || phase === 'Turnaround' ||
         phase === 12 || phase === 'Arrived'
     );
-    
+
     if (timeSkipModal) {
         if (!isGroundPhase) {
             timeSkipModal.classList.add('hidden');
             timeSkipModal.classList.remove('flex');
         }
     }
-    
+
     // Bug #9: Securiser le bouton Reload OFP (btnRefreshDispatch) pour ne pas recharger par erreur en vol
     const btnRefresh = document.getElementById('btnRefreshDispatch');
     if (btnRefresh) {
@@ -5700,7 +5710,7 @@ window.checkTimeSkipVisibility = function (phase) {
             btnRefresh.classList.add('flex');
         }
     }
-    
+
     // Bug #10: Masquer le panneau Ground Ops (y compris Time Skip) au roulage
     const carouselArrows = document.querySelectorAll('button[onclick*="toggleDashPage"]');
     if (!isGroundPhase) {
@@ -5718,7 +5728,7 @@ window.checkTimeSkipVisibility = function (phase) {
 };
 
 // --- SYSTEM MODAL HELPER ---
-window.showSystemConfirm = function(options) {
+window.showSystemConfirm = function (options) {
     const modal = document.getElementById('systemConfirmModal');
     if (!modal) return;
 
@@ -5732,7 +5742,7 @@ window.showSystemConfirm = function(options) {
     messageEl.innerText = options.message || '';
     iconEl.innerText = options.icon || 'help_outline';
     btnConfirm.innerText = options.confirmText || 'Confirm';
-    
+
     if (options.isAlertOnly) {
         btnCancel.classList.add('hidden');
     } else {
@@ -5799,11 +5809,11 @@ window.toggleDashPage = function (dir) {
     window.currentDashPage += dir;
     if (window.currentDashPage > 2) window.currentDashPage = 1;
     if (window.currentDashPage < 1) window.currentDashPage = 2;
-    
+
     // Page IDs in index.html: 'dashPage1_Timing' and 'dashPage2_GroundOps'
     const page1 = document.getElementById('dashPage1_Timing');
     const page2 = document.getElementById('dashPage2_GroundOps');
-    
+
     if (page1 && page2) {
         if (window.currentDashPage === 1) {
             page1.style.display = 'flex';
@@ -5811,7 +5821,7 @@ window.toggleDashPage = function (dir) {
         } else {
             page1.style.display = 'none';
             page2.style.display = 'flex';
-            
+
             // Clean up old tailwind 'hidden' class just in case to prevent specificity conflicts
             page1.classList.remove('hidden');
             page2.classList.remove('hidden');
@@ -5819,11 +5829,11 @@ window.toggleDashPage = function (dir) {
     }
 };
 
-window.filterFlightEvents = function(categoryIdx) {
+window.filterFlightEvents = function (categoryIdx) {
     const detailsContainer = document.getElementById('frCategoryDetailsContainer');
     const titleElement = document.getElementById('frCategoryDetailsTitle');
     const logContainer = document.getElementById('frEventLog');
-    
+
     // Reset all box styles
     for (let i = 0; i < 6; i++) {
         const box = document.getElementById(`frBoxCat${i}`);
@@ -5832,14 +5842,14 @@ window.filterFlightEvents = function(categoryIdx) {
             box.classList.add('border-white/5');
         }
     }
-    
+
     // Highlight selected box
     const selectedBox = document.getElementById(`frBoxCat${categoryIdx}`);
     if (selectedBox) {
         selectedBox.classList.remove('border-white/5');
         selectedBox.classList.add('ring-2', 'ring-sky-400', 'bg-white/10');
     }
-    
+
     // Set titles
     const categoryNames = [
         "Flight Phase Flows",
@@ -5850,14 +5860,14 @@ window.filterFlightEvents = function(categoryIdx) {
         "Passenger Experience"
     ];
     if (titleElement) titleElement.innerText = categoryNames[categoryIdx] + " Events";
-    
+
     // Filter and render
     if (detailsContainer && logContainer) {
         detailsContainer.style.display = 'block';
         logContainer.innerHTML = '';
-        
+
         const events = (window._currentFlightEvents || []).filter(e => e.Category === categoryIdx);
-        
+
         if (events.length > 0) {
             events.forEach(evt => {
                 const isPenalty = evt.Amount < 0;
