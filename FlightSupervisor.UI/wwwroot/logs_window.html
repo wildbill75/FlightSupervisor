@@ -138,6 +138,34 @@
                 </div>
             </div>
             
+            <!-- Landing Metrics (Hidden until Landing) -->
+            <div id="landingMetricsContainer" class="bg-[#1a1b21] rounded-xl border border-sky-500/20 mb-6 shrink-0 overflow-hidden flex flex-col shadow-lg" style="display: none;">
+                <div class="px-4 py-2 bg-sky-900/20 border-b border-sky-500/20 flex items-center justify-between shrink-0">
+                    <span class="text-[10px] uppercase tracking-widest text-sky-400 font-bold flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[14px]">flight_land</span>
+                        LANDING METRICS
+                    </span>
+                </div>
+                <div class="p-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
+                    <div class="bg-black/40 border border-white/5 rounded p-2 flex flex-col items-center">
+                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider mb-1">TOUCHDOWN FPM</span>
+                        <span id="landFpm" class="text-xs font-mono font-bold text-white">---</span>
+                    </div>
+                    <div class="bg-black/40 border border-white/5 rounded p-2 flex flex-col items-center">
+                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider mb-1">IMPACT G</span>
+                        <span id="landGforce" class="text-xs font-mono font-bold text-white">---</span>
+                    </div>
+                    <div class="bg-black/40 border border-white/5 rounded p-2 flex flex-col items-center">
+                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider mb-1">BOUNCES</span>
+                        <span id="landBounces" class="text-xs font-mono font-bold text-white">0</span>
+                    </div>
+                    <div class="bg-black/40 border border-white/5 rounded p-2 flex flex-col items-center">
+                        <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider mb-1">ZONE</span>
+                        <span id="landZone" class="text-[10px] font-mono font-bold text-white uppercase tracking-widest text-center">---</span>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Score Display -->
             <div class="bg-black/40 rounded-xl p-4 border border-emerald-500/20 text-center mb-6 shrink-0 relative overflow-hidden group">
                 <div class="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -215,6 +243,25 @@
                         document.getElementById('telGforce').innerText = t.gforce.toFixed(2) + ' G';
                         document.getElementById('telFlaps').innerText = t.flaps.toFixed(0);
                         document.getElementById('telGear').innerText = t.gear;
+                    }
+                }
+                else if (payload.type === 'landingUpdate') {
+                    document.getElementById('landingMetricsContainer').style.display = 'flex';
+                    if (payload.fpm !== undefined) document.getElementById('landFpm').innerText = Math.round(payload.fpm) + ' FPM';
+                    if (payload.gforce !== undefined) document.getElementById('landGforce').innerText = payload.gforce.toFixed(2) + ' G';
+                    if (payload.bounces !== undefined) {
+                        const bEl = document.getElementById('landBounces');
+                        bEl.innerText = payload.bounces;
+                        if (payload.bounces > 0) bEl.className = "text-xs font-mono font-bold text-rose-500 animate-pulse";
+                    }
+                    if (payload.zone !== undefined) {
+                        const zEl = document.getElementById('landZone');
+                        zEl.innerText = payload.zone.replace('_OffCenter', ' (Off Center)');
+                        if (payload.zone.includes("Short") || payload.zone.includes("Long") || payload.zone.includes("OffCenter")) {
+                            zEl.className = "text-[10px] font-mono font-bold text-amber-400 uppercase tracking-widest text-center";
+                        } else if (payload.zone.includes("Perfect")) {
+                            zEl.className = "text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest text-center";
+                        }
                     }
                 }
                 else if (payload.type === 'phaseChecklist') {

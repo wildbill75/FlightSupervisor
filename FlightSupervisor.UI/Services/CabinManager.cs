@@ -884,22 +884,22 @@ namespace FlightSupervisor.UI.Services
             }
         }
 
-        public void ProcessLandingImpact(double fpm)
+        public void ProcessLandingImpact(double fpm, double gforce)
         {
-            if (fpm > -150)
+            if (fpm > -150 && gforce < 1.3)
             {
                 // Kiss Landing / Butter
                 IncreaseComfort(15.0);
                 ModifyAnxiety(-30.0);
             }
-            else if (fpm < -600)
+            else if (fpm < -600 || gforce > 1.8)
             {
                 // Severe Hard Landing
                 DecreaseComfort(40.0);
                 IncreaseAnxiety(60.0, FlightPhase.Landing, true);
                 OnCrewMessage?.Invoke("red", UI.Services.LocalizationService.Translate("That was a terrifying impact! Many passengers are screaming in the back!", "C'était un atterrissage extrêmement violent ! Beaucoup de passagers crient à l'arrière !"), null);
             }
-            else if (fpm < -450)
+            else if (fpm < -450 || gforce > 1.5)
             {
                 // Hard Landing
                 DecreaseComfort(20.0);
@@ -911,6 +911,13 @@ namespace FlightSupervisor.UI.Services
                 // Normal
                 ModifyAnxiety(-10.0);
             }
+        }
+
+        public void ProcessBounce(int bounceCount)
+        {
+            DecreaseComfort(30.0);
+            IncreaseAnxiety(50.0, FlightPhase.Landing, true);
+            OnCrewMessage?.Invoke("red", UI.Services.LocalizationService.Translate($"Bounce detected! Passengers are terrified! (Count: {bounceCount})", $"Rebond détecté ! L'avion a rebondi, les passagers sont terrifiés ! (Compte : {bounceCount})"), null);
         }
 
         public void Tick(double gForce, double bankAngle, bool isBoarded, DateTime currentZulu, DateTime? sobt, FlightPhase phase, double groundSpeed, double altitude, double verticalSpeed, bool isCrisisActive, double cabinTemperature = 22.0, double boardingProgress = -1.0)
@@ -1470,7 +1477,7 @@ namespace FlightSupervisor.UI.Services
                     _holdTurnAccumulator = 0; // Instant decay to eliminate false positives in approach S-turns
                 }
 
-                if (_holdTurnAccumulator > 120) // Exactly 2 minutes (360 degrees continuous at standard rate)
+                if (_holdTurnAccumulator > 240) // Allow up to 4 mins of continuous bank to avoid penalizing wide 180° teardrop turns
                 {
                     if ((DateTime.Now - _timeOfLastDelayPA).TotalMinutes > 15 && (DateTime.Now - _lastHoldPenaltyTime).TotalMinutes > 5)
                     {
@@ -1883,6 +1890,14 @@ namespace FlightSupervisor.UI.Services
                 ModifySatisfaction(-50.0);
                 CrewEsteem = Math.Max(0.0, CrewEsteem - 20.0);
                 OnPenaltyTriggered?.Invoke(-100, LocalizationService.Translate("Catering Shortage: Out of meals", "Rupture Catering : Plus de repas disponibles")); 
+
+                if (State == CabinState.ServingMeals)
+                {
+                    InFlightServiceProgress = 100.0;
+                    State = CabinState.Idle;
+                    IsServiceHurried = false;
+                    OnPncStatusChanged?.Invoke("Idle", State);
+                }
             }
 
 

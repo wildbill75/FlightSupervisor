@@ -1,3 +1,48 @@
+window.showConfirmModal = function(title, message, isDanger, onConfirm) {
+    const modal = document.getElementById('confirmModal');
+    if (!modal) return;
+    
+    document.getElementById('confirmModalTitle').innerText = title;
+    document.getElementById('confirmModalMessage').innerText = message;
+    
+    const icon = document.getElementById('confirmModalIcon');
+    const accent = document.getElementById('confirmModalAccent');
+    const btnAction = document.getElementById('btnConfirmAction');
+    
+    if (isDanger) {
+        icon.className = "material-symbols-outlined text-4xl text-red-500";
+        icon.innerText = "warning";
+        accent.className = "h-1.5 w-full shrink-0 bg-gradient-to-r from-red-500 via-orange-400 to-red-500";
+        btnAction.className = "py-2.5 px-6 bg-red-600/20 hover:bg-red-600/40 border border-red-500/30 rounded-lg text-red-400 font-bold text-xs uppercase tracking-widest  shadow-[0_0_15px_rgba(239,68,68,0.2)]";
+        btnAction.innerText = "DELETE";
+    } else {
+        icon.className = "material-symbols-outlined text-4xl text-sky-400";
+        icon.innerText = "help";
+        accent.className = "h-1.5 w-full shrink-0 bg-gradient-to-r from-sky-500 via-emerald-400 to-sky-500";
+        btnAction.className = "py-2.5 px-6 bg-sky-600/20 hover:bg-sky-600/40 border border-sky-500/30 rounded-lg text-sky-400 font-bold text-xs uppercase tracking-widest  shadow-[0_0_15px_rgba(14,165,233,0.2)]";
+        btnAction.innerText = "CONFIRM";
+    }
+    
+    // Clone to remove old event listeners
+    const newBtnAction = btnAction.cloneNode(true);
+    btnAction.parentNode.replaceChild(newBtnAction, btnAction);
+    
+    const btnCancel = document.getElementById('btnConfirmCancel');
+    const newBtnCancel = btnCancel.cloneNode(true);
+    btnCancel.parentNode.replaceChild(newBtnCancel, btnCancel);
+    
+    newBtnAction.onclick = () => {
+        modal.style.display = 'none';
+        if (onConfirm) onConfirm();
+    };
+    
+    newBtnCancel.onclick = () => {
+        modal.style.display = 'none';
+    };
+    
+    modal.style.display = 'flex';
+};
+
 window.formatAirportData = function (cityRaw, nameRaw) {
     let city = (cityRaw || "").split('/')[0].trim();
     let name = (nameRaw || "").replace(/airport/gi, '').replace(/aéroport/gi, '').replace(/international/gi, '').replace(/intl/gi, '').trim();
@@ -112,7 +157,7 @@ window.populateBriefingView = (index = 0) => {
             <div class="grid grid-cols-6 items-center w-full bg-[#1C1F26]/80 p-5 rounded-xl border border-white/5 shadow-md divide-x divide-white/5">
                 <div class="flex flex-col items-center justify-center cursor-pointer group" onclick="if(window.showAirlineIdentityModal) window.showAirlineIdentityModal('${rd.general?.icao_airline || ''}')">
                     <span class="text-[9px] text-[#7b7b7b] font-bold tracking-widest uppercase mb-1">Airline</span>
-                    <span class="text-emerald-400 group-hover:text-white transition-colors text-xl font-black tracking-widest font-headline">${rot.airlineProfile ? rot.airlineProfile.name : (rd.general?.airline_name || rd.general?.icao_airline || '---')}</span>
+                    <span class="text-emerald-400 group-hover:text-white  text-xl font-black tracking-widest font-headline">${rot.airlineProfile ? rot.airlineProfile.name : (rd.general?.airline_name || rd.general?.icao_airline || '---')}</span>
                 </div>
                 <div class="flex flex-col items-center justify-center">
                     <span class="text-[9px] text-[#7b7b7b] font-bold tracking-widest uppercase mb-1">Flight Number</span>
@@ -291,7 +336,7 @@ window.populateBriefingView = (index = 0) => {
                                     <div class="font-bold text-white text-xl tracking-widest drop-shadow-md mb-2">${st.Icao || ''}</div>
                                     <div class="flex flex-wrap gap-2 mb-3">${pillsHtml}</div>
                                 </div>
-                                <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="text-[10px] uppercase font-bold text-sky-400/80 hover:text-sky-300 px-3 py-1.5 rounded-md border border-sky-400/20 bg-sky-900/10 hover:bg-sky-900/30 transition-all font-mono tracking-widest mt-1">RAW DATA</button>
+                                <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="text-[10px] uppercase font-bold text-sky-400/80 hover:text-sky-300 px-3 py-1.5 rounded-md border border-sky-400/20 bg-sky-900/10 hover:bg-sky-900/30  font-mono tracking-widest mt-1">RAW DATA</button>
                                 <div class="hidden absolute top-12 left-0 right-0 z-50 p-4 bg-[#0f1115] rounded-xl border border-white/10 shadow-2xl font-mono text-xs text-emerald-400/90 leading-relaxed max-h-48 overflow-y-auto custom-scrollbar">
                                     <div class="mb-3 break-words text-emerald-300 border-b border-white/5 pb-2">${st.RawMetar || 'No METAR available.'}</div>
                                     <div class="text-emerald-700/80 break-words">${st.RawTaf || 'No TAF available.'}</div>
@@ -565,7 +610,7 @@ window.populateDashboardActiveLeg = (index = 0) => {
                 dhAirline.innerText = rd.general?.airline_name || rd.general?.icao_airline || 'Unknown';
                 const aCode = rd.general?.icao_airline || '';
                 dhAirline.onclick = () => { if (window.showAirlineIdentityModal) window.showAirlineIdentityModal(aCode); };
-                dhAirline.classList.add('cursor-pointer', 'hover:text-emerald-400', 'transition-colors');
+                dhAirline.classList.add('cursor-pointer', 'hover:text-emerald-400', '');
             }
 
             if (rd.weather) {
@@ -659,8 +704,8 @@ window.populateDashboardActiveLeg = (index = 0) => {
                     <div class="flex-1 bg-[#1a1d24]/60 backdrop-blur-md rounded-2xl border border-white/5 flex shadow-[0_8px_30px_rgba(0,0,0,0.5)] overflow-hidden h-[164px] relative">
                         
                         <!-- Left Arrow Button -->
-                        <div role="button" tabindex="0" onclick="window.navigateDashboardLeg(-1)" class="px-6 flex items-center justify-center transition-colors group ${leftOpacity}">
-                           <svg viewBox="0 0 24 24" class="w-10 h-10 fill-white group-hover:scale-110 transition-transform"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg> 
+                        <div role="button" tabindex="0" onclick="window.navigateDashboardLeg(-1)" class="px-6 flex items-center justify-center  group ${leftOpacity}">
+                           <svg viewBox="0 0 24 24" class="w-10 h-10 fill-white group-hover:scale-110 "><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg> 
                         </div>
 
                         <!-- Clickable Leg Content Area -->
@@ -694,9 +739,9 @@ window.populateDashboardActiveLeg = (index = 0) => {
                                             </linearGradient>
                                         </defs>
                                         <line x1="2" y1="5" x2="98" y2="5" stroke="currentColor" stroke-width="2.5" stroke-opacity="0.2" />
-                                        <line id="dashboardProgressLine" x1="2" y1="5" x2="2" y2="5" stroke="url(#flightProgressGradient)" stroke-width="2.5" stroke-linecap="round" class="transition-all duration-1000 ease-in-out" />
+                                        <line id="dashboardProgressLine" x1="2" y1="5" x2="2" y2="5" stroke="url(#flightProgressGradient)" stroke-width="2.5" stroke-linecap="round" class=" transition-all duration-1000 ease-in-out" />
                                     </svg>
-                                    <div id="dashboardAirplaneIcon" class="absolute transition-all duration-1000 ease-in-out" style="left: 2%; top: 50%; transform: translate(-50%, -50%);">
+                                    <div id="dashboardAirplaneIcon" class="absolute  transition-all duration-1000 ease-in-out" style="left: 2%; top: 50%; transform: translate(-50%, -50%);">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" class="w-7 h-7 fill-white drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]"><path d="M482.3 192c34 0 93.7 29 93.7 64c0 36-59.7 64-93.7 64l-116.6 0L265.2 495.9c-5.7 10-16.3 16.1-27.8 16.1l-56.2 0c-10.6 0-18.3-10.2-15.4-20.4l49-171.6L112 320 68.8 377.6c-3 4-7.8 6.4-12.8 6.4l-42 0c-7.8 0-14-6.3-14-14c0-1.3 .2-2.6 .5-3.9L32 256 .5 145.9c-.4-1.3-.5-2.6-.5-3.9c0-7.8 6.3-14 14-14l42 0c5 0 9.8 2.4 12.8 6.4L112 192l102.9 0-49-171.6C162.9 10.2 170.6 0 181.2 0l56.2 0c11.5 0 22.1 6.2 27.8 16.1L365.7 192l116.6 0z"/></svg>
                                     </div>
                                 </div>
@@ -726,8 +771,8 @@ window.populateDashboardActiveLeg = (index = 0) => {
                         </div>
 
                         <!-- Right Arrow Button -->
-                        <div role="button" tabindex="0" onclick="window.navigateDashboardLeg(1)" class="px-6 flex items-center justify-center transition-colors group ${rightOpacity}">
-                            <svg viewBox="0 0 24 24" class="w-10 h-10 fill-white group-hover:scale-110 transition-transform"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+                        <div role="button" tabindex="0" onclick="window.navigateDashboardLeg(1)" class="px-6 flex items-center justify-center  group ${rightOpacity}">
+                            <svg viewBox="0 0 24 24" class="w-10 h-10 fill-white group-hover:scale-110 "><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
                         </div>
                     </div>
 
@@ -880,6 +925,7 @@ window.triggerSimBriefImport = () => {
         action: 'fetch',
         username: user,
         remember: true,
+        weatherSource: localStorage.getItem('weatherSource') || 'noaa',
         syncMsfsTime: true,
         options: {
             groundSpeed: localStorage.getItem('groundSpeed') || 'Realistic',
@@ -976,13 +1022,13 @@ window.renderBriefingTimeline = () => {
         const isActive = (i === currentIndex);
 
         html += `
-            <div id="timelineCard_${i}" class="w-60 md:w-72 h-[130px] bg-[#1C1F26]/80 rounded-xl border ${isActive ? 'border-zinc-500 shadow-[0_0_15px_rgba(255,255,255,0.05)]' : 'border-white/5 shadow-md'} flex flex-col p-4 relative overflow-hidden group cursor-pointer hover:border-white/10 transition-all flex-shrink-0 snap-center"
+            <div id="timelineCard_${i}" class="w-60 md:w-72 h-[130px] bg-[#1C1F26]/80 rounded-xl border ${isActive ? 'border-zinc-500 shadow-[0_0_15px_rgba(255,255,255,0.05)]' : 'border-white/5 shadow-md'} flex flex-col p-4 relative overflow-hidden group cursor-pointer hover:border-white/10  flex-shrink-0 snap-center"
                  onclick="window.dashboardActiveLegIndex = ${i}; window.renderBriefingTimeline(); window.populateDashboardActiveLeg(${i}); window.populateBriefingView(${i});">
                 
                 <!-- Permanent Delete Button -->
                 <div class="absolute top-3 right-3 z-20">
                     <button onclick="event.stopPropagation(); window.clearCurrentLeg(${i});" 
-                            class="text-zinc-600 hover:text-white bg-black/20 hover:bg-red-500 rounded-lg p-1 transition-colors" title="Remove Leg">
+                            class="text-zinc-600 hover:text-white bg-black/20 hover:bg-red-500 rounded-lg p-1 " title="Remove Leg">
                         <span class="material-symbols-outlined text-[16px]">delete</span>
                     </button>
                 </div>
@@ -1011,7 +1057,7 @@ window.renderBriefingTimeline = () => {
                 ${isActive ? '<div class="absolute top-3 left-3 w-2.5 h-2.5 bg-zinc-400 rounded-full shadow-[0_0_10px_rgba(255,255,255,0.2)]"></div>' : ''}
                 
                 <!-- Bottom Hover Bar (Monochrome) -->
-                <div class="absolute inset-x-0 bottom-0 h-1 bg-zinc-600 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-center"></div>
+                <div class="absolute inset-x-0 bottom-0 h-1 bg-zinc-600 transform scale-x-0 group-hover:scale-x-100  origin-center"></div>
             </div>
         `;
 
@@ -1027,10 +1073,10 @@ window.renderBriefingTimeline = () => {
     if (rotations.length < maxSlots) {
         // Updated: Replaced window.openIntegratedSimBrief() with modal logic
         html += `
-            <div class="w-60 md:w-72 h-[130px] bg-[#1C1F26]/40 rounded-xl border-2 border-dashed border-white/10 flex items-center justify-center gap-3 p-3 group hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer shadow-md flex-shrink-0 snap-center"
+            <div class="w-60 md:w-72 h-[130px] bg-[#1C1F26]/40 rounded-xl border-2 border-dashed border-white/10 flex items-center justify-center gap-3 p-3 group hover:bg-white/10 hover:border-white/20  cursor-pointer shadow-md flex-shrink-0 snap-center"
                  onclick="window.openAddLegModal();">
-                <span class="material-symbols-outlined text-3xl md:text-4xl text-zinc-400 group-hover:scale-110 transition-transform">add_circle</span>
-                <span class="text-[10px] font-bold tracking-[0.15em] uppercase text-zinc-500 group-hover:text-zinc-200 transition-colors mt-0.5">Add Leg ${rotations.length + 1}</span>
+                <span class="material-symbols-outlined text-3xl md:text-4xl text-zinc-400 group-hover:scale-110 ">add_circle</span>
+                <span class="text-[10px] font-bold tracking-[0.15em] uppercase text-zinc-500 group-hover:text-zinc-200  mt-0.5">Add Leg ${rotations.length + 1}</span>
             </div>
         `;
 
@@ -1373,7 +1419,8 @@ setTimeout(() => {
             groundSpeed: localStorage.getItem('groundSpeed') || 'Realistic',
             groundProb: localStorage.getItem('groundProb') || '25',
             firstFlightClean: localStorage.getItem('firstFlightClean') === 'true',
-            gsxSync: localStorage.getItem('gsxSync') === 'true'
+            gsxSync: localStorage.getItem('gsxSync') === 'true',
+            weatherSource: localStorage.getItem('weatherSource') || 'noaa'
         }
     });
 }, 500);
@@ -1434,33 +1481,50 @@ window.requestAcarsUpdate = function () {
     document.getElementById('acarsDest').innerText = rotation.destination?.icao_code || '----';
     document.getElementById('acarsAltn').innerText = rotation.alternate?.icao_code || '----';
 
-    document.getElementById('acarsStatus').style.display = 'none';
+    const statusStr = document.getElementById('acarsStatus');
+    if (statusStr) {
+        statusStr.className = 'absolute -top-6 left-0 right-0 text-amber-500 text-xs text-center tracking-[0.2em] font-bold opacity-0 transition-opacity';
+    }
+    
     document.getElementById('acarsScratchpad').innerText = '';
 
-    const btnSend = document.getElementById('btnAcarsSend');
-    if (btnSend) {
-        btnSend.style.display = 'flex';
-        btnSend.innerHTML = 'SEND REQ *';
-        btnSend.disabled = false;
+    const wxSrcMap = {
+        'noaa': 'NOAA',
+        'activesky': 'ACTIVE SKY',
+        'simbrief': 'SIMBRIEF'
+    };
+    const currentSrc = localStorage.getItem('weatherSource') || 'noaa';
+    const textSrcEl = document.getElementById('acarsWxSourceText');
+    if (textSrcEl) {
+        textSrcEl.innerText = (wxSrcMap[currentSrc] || 'NOAA') + ' >';
     }
 
-    const btnClose = document.getElementById('btnAcarsClose');
-    if (btnClose) btnClose.innerHTML = '&lt; CLOSE';
+    const btnSendText = document.getElementById('acarsSendText');
+    if (btnSendText) {
+        btnSendText.style.display = 'block';
+    }
 
-    document.getElementById('acarsModal').style.display = 'flex';
+    const btnSendPhysical = document.getElementById('btnAcarsSendPhysical');
+    if (btnSendPhysical) {
+        btnSendPhysical.disabled = false;
+    }
+
+    document.getElementById('acarsModal').style.display = 'block';
 };
 
 window.sendAcarsReq = function () {
-    const btn = document.getElementById('btnAcarsSend');
-    if (btn) btn.style.display = 'none'; // hide send button
+    const btnSendText = document.getElementById('acarsSendText');
+    if (btnSendText) btnSendText.style.display = 'none';
+
+    const btnSendPhysical = document.getElementById('btnAcarsSendPhysical');
+    if (btnSendPhysical) btnSendPhysical.disabled = true;
 
     const statusStr = document.getElementById('acarsStatus');
     const scratchpad = document.getElementById('acarsScratchpad');
 
     if (statusStr) {
-        statusStr.style.display = 'block';
         statusStr.innerText = 'SENDING...';
-        statusStr.className = 'text-amber-500 text-sm animate-pulse w-full text-center tracking-[0.2em] font-bold h-6';
+        statusStr.className = 'absolute -top-6 left-0 right-0 text-amber-500 text-xs animate-pulse text-center tracking-[0.2em] font-bold opacity-100 transition-opacity';
     }
 
     if (scratchpad) scratchpad.innerText = 'COMM ESTABLISHED...';
@@ -1479,16 +1543,76 @@ window.sendAcarsReq = function () {
 
             if (statusStr) {
                 statusStr.innerText = 'UPLINK COMPLETE';
-                statusStr.className = 'text-emerald-400 text-sm w-full text-center tracking-[0.2em] font-bold h-6';
+                statusStr.className = 'absolute -top-6 left-0 right-0 text-emerald-400 text-xs text-center tracking-[0.2em] font-bold opacity-100 transition-opacity';
             }
             if (scratchpad) scratchpad.innerText = 'WX DATA RECEIVED';
-
-            const btnClose = document.getElementById('btnAcarsClose');
-            if (btnClose) btnClose.innerHTML = '< EXIT';
-
         }, 3000));
     }, 2000));
 };
+
+window.cycleAcarsWxSource = function() {
+    let current = localStorage.getItem('weatherSource') || 'noaa';
+    let next = 'noaa';
+    let text = 'NOAA';
+    
+    if (current === 'noaa') {
+        next = 'activesky';
+        text = 'ACTIVE SKY';
+    } else if (current === 'activesky') {
+        next = 'simbrief';
+        text = 'SIMBRIEF';
+    } else {
+        next = 'noaa';
+        text = 'NOAA';
+    }
+    
+    localStorage.setItem('weatherSource', next);
+    
+    const textEl = document.getElementById('acarsWxSourceText');
+    if (textEl) textEl.innerText = text + ' >';
+    
+    const selSrc = document.getElementById('selWeatherSource');
+    if (selSrc) selSrc.value = next;
+    
+    window.chrome.webview.postMessage({
+        action: 'saveSettings',
+        options: {
+            groundSpeed: localStorage.getItem('groundSpeed') || 'Realistic',
+            groundProb: localStorage.getItem('groundProb') || '25',
+            firstFlightClean: localStorage.getItem('firstFlightClean') === 'true',
+            gsxSync: localStorage.getItem('gsxSync') === 'true',
+            weatherSource: next
+        }
+    });
+};
+
+// ACARS MCDU Dragging logic
+let isAcarsDragging = false;
+let acarsDragOffset = { x: 0, y: 0 };
+
+document.addEventListener('DOMContentLoaded', () => {
+    const handle = document.getElementById('acarsDragHandle');
+    const modal = document.getElementById('acarsModal');
+
+    if (handle && modal) {
+        handle.addEventListener('mousedown', (e) => {
+            isAcarsDragging = true;
+            acarsDragOffset.x = e.clientX - modal.getBoundingClientRect().left;
+            acarsDragOffset.y = e.clientY - modal.getBoundingClientRect().top;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isAcarsDragging) return;
+            modal.style.marginLeft = '0px';
+            modal.style.left = (e.clientX - acarsDragOffset.x) + 'px';
+            modal.style.top = (e.clientY - acarsDragOffset.y) + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            isAcarsDragging = false;
+        });
+    }
+});
 
 // Language processing
 function setLanguage(lang) {
@@ -1577,7 +1701,7 @@ const renderActionButtons = (containerId, sectionId, options, colorClasses, type
 
         let finalClasses = o.customClass ? o.customClass : colorClasses;
         let disabledAttr = o.disabled ? 'disabled' : '';
-        return `<button ${disabledAttr} ${onclickStr ? `onclick="${onclickStr}"` : ''} class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all ${finalClasses}">
+        return `<button ${disabledAttr} ${onclickStr ? `onclick="${onclickStr}"` : ''} class="border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold  ${finalClasses}">
                         ${o.text}
                     </button>`;
     }).join('');
@@ -1593,7 +1717,7 @@ window.showDelayReasons = function () {
     if (!container) return;
     window.isDelayMenuOpen = true;
 
-    const baseBtnStyle = "border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold transition-all";
+    const baseBtnStyle = "border rounded px-2.5 py-1 text-[10px] uppercase tracking-widest font-bold ";
     const html = `
             <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_ATC'}); window.lastIntercomPayload.issuedCommands.push('PA_Delay'); window.backToCommsMenu()" class="${baseBtnStyle} bg-sky-900/30 text-sky-400 border-sky-700/50 hover:bg-sky-500/20">A.T.C.</button>
             <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_Weather'}); window.lastIntercomPayload.issuedCommands.push('PA_Delay'); window.backToCommsMenu()" class="${baseBtnStyle} bg-sky-900/30 text-sky-400 border-sky-700/50 hover:bg-sky-500/20">Weather</button>
@@ -1895,7 +2019,8 @@ if (btnSaveSettings) {
                 firstFlightClean: ffClean,
                 gsxSync: gsxSync,
                 volumePa: volPa,
-                volumePnc: volPnc
+                volumePnc: volPnc,
+                weatherSource: weatherSrc
             }
         });
         localStorage.setItem('weatherSource', weatherSrc);
@@ -2244,7 +2369,7 @@ window.updateRosterUI = () => {
         const extraClasses = isSelected ? 'border-emerald-500 bg-emerald-900/20 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'border-white/5 bg-[#1C1F26] opacity-40';
 
         grid.innerHTML += `
-                <div class="roster-card cursor-pointer p-4 rounded-xl border transition-all hover:opacity-100 hover:border-emerald-500/50 flex flex-col items-start text-left relative overflow-hidden ${extraClasses}"
+                <div class="roster-card cursor-pointer p-4 rounded-xl border  hover:opacity-100 hover:border-emerald-500/50 flex flex-col items-start text-left relative overflow-hidden ${extraClasses}"
                      data-id="${rot.id}" onclick="window.selectRoster('${rot.id}')">
                     <div class="flex items-center justify-between w-full mb-2">
                         <div class="flex items-center gap-1 bg-black/40 px-2 py-0.5 rounded border border-white/5 shadow-inner">
@@ -2396,7 +2521,7 @@ if (btnSmartConnect) {
         if (!isSimConnected) {
             btnSmartConnect.innerHTML = '<span class="material-symbols-outlined text-[18px]">wifi_find</span>';
             btnSmartConnect.title = 'Connecting...';
-            btnSmartConnect.className = 'flex items-center justify-center w-10 h-10 rounded-xl bg-orange-900/20 text-orange-400 border border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.1)] transition-colors cursor-wait';
+            btnSmartConnect.className = 'flex items-center justify-center w-10 h-10 rounded-xl bg-orange-900/20 text-orange-400 border border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.1)]  cursor-wait';
             btnSmartConnect.style.color = '';
         }
     });
@@ -2630,6 +2755,8 @@ window.chrome.webview.addEventListener('message', event => {
             window.dashboardActiveLegIndex = 0;
             window.isBriefingUnlocked = false;
             window.isDispatchSignedOff = false;
+            window.sessionFlightsCompleted = 0;
+            if (window.showDashboard) window.showDashboard(false);
             if (window.populateDashboardActiveLeg) window.populateDashboardActiveLeg();
             if (window.resetDashboardWidgets) window.resetDashboardWidgets();
             if (window.renderBriefingTimeline) window.renderBriefingTimeline();
@@ -2721,14 +2848,14 @@ window.chrome.webview.addEventListener('message', event => {
                 if (smartBtn) {
                     smartBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">wifi</span>';
                     smartBtn.title = payload.status.includes('Linked') ? 'Linked' : 'Connected';
-                    smartBtn.className = 'flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-900/20 text-emerald-400 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)] hover:bg-emerald-900/40 transition-colors cursor-pointer';
+                    smartBtn.className = 'flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-900/20 text-emerald-400 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)] hover:bg-emerald-900/40  cursor-pointer';
                     smartBtn.style.color = '';
                 }
             } else {
                 if (smartBtn) {
                     smartBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">wifi_off</span>';
                     smartBtn.title = dictSim ? dictSim.btn_not_connected : 'Not Connected';
-                    smartBtn.className = 'flex items-center justify-center w-10 h-10 rounded-xl bg-red-900/20 text-red-500 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:bg-red-900/40 transition-colors cursor-pointer';
+                    smartBtn.className = 'flex items-center justify-center w-10 h-10 rounded-xl bg-red-900/20 text-red-500 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:bg-red-900/40  cursor-pointer';
                     smartBtn.style.color = '';
                 }
             }
@@ -3119,7 +3246,7 @@ window.chrome.webview.addEventListener('message', event => {
                     if (dashFlightCo) {
                         dashFlightCo.innerText = GLOBAL_AIRLINES[aCode] || currentFlight.general?.airline_name || aCode || 'AIRLINE';
                         dashFlightCo.onclick = () => { if (window.showAirlineIdentityModal) window.showAirlineIdentityModal(aCode); };
-                        dashFlightCo.classList.add('cursor-pointer', 'hover:text-emerald-400', 'transition-colors');
+                        dashFlightCo.classList.add('cursor-pointer', 'hover:text-emerald-400', '');
                     }
 
                     document.getElementById('dashFlightIdent').innerText = `${currentFlight.general?.icao_airline || ''}${currentFlight.general?.flight_number || ''}`;
@@ -3389,8 +3516,10 @@ window.chrome.webview.addEventListener('message', event => {
                 globalBanner.classList.remove('hidden');
 
                 let currentIdx = window.activeLegIndex || 0;
-                document.getElementById('globalRotationStatus').innerText = `Leg ${currentIdx + 1} of ${window.allRotations.length}`;
-                document.getElementById('currentLegStatus').innerText = `Leg ${currentIdx + 1}`;
+                let absoluteLegNum = (window.sessionFlightsCompleted || 0) + currentIdx + 1;
+                let absoluteTotalLegs = (window.sessionFlightsCompleted || 0) + window.allRotations.length;
+                document.getElementById('globalRotationStatus').innerText = `Leg ${absoluteLegNum} of ${absoluteTotalLegs}`;
+                document.getElementById('currentLegStatus').innerText = `Leg ${absoluteLegNum}`;
 
                 let curLegData = window.allRotations[currentIdx]?.data;
                 let lastLeg = window.allRotations[window.allRotations.length - 1]?.data;
@@ -3420,9 +3549,7 @@ window.chrome.webview.addEventListener('message', event => {
                         let cH = Math.floor(rem / 3600);
                         document.getElementById('currentLegTimer').innerText = `${cH.toString().padStart(2, '0')}:${cM.toString().padStart(2, '0')}:${cS.toString().padStart(2, '0')}`;
 
-                        if (cH === 0 && cM < 30) document.getElementById('currentLegTimer').className = "font-mono text-xl md:text-2xl font-black text-rose-500 tracking-wider drop-shadow-[0_0_10px_rgba(244,63,94,0.4)]";
-                        else if (cH === 0) document.getElementById('currentLegTimer').className = "font-mono text-xl md:text-2xl font-black text-amber-400 tracking-wider drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]";
-                        else document.getElementById('currentLegTimer').className = "font-mono text-xl md:text-2xl font-black text-emerald-400 tracking-wider drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]";
+                        document.getElementById('currentLegTimer').className = "font-mono text-xl md:text-2xl font-black text-emerald-400 tracking-wider drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]";
                     } else {
                         document.getElementById('currentLegTimer').innerText = "00:00:00";
                     }
@@ -3442,10 +3569,7 @@ window.chrome.webview.addEventListener('message', event => {
                         let gS = remainingSecs % 60;
                         document.getElementById('globalRotationTimer').innerText = `${gH.toString().padStart(2, '0')}:${gM.toString().padStart(2, '0')}:${gS.toString().padStart(2, '0')}`;
 
-                        // Color logic
-                        if (gH === 0 && gM < 30) document.getElementById('globalRotationTimer').className = "font-mono text-xl md:text-2xl font-black text-rose-500 tracking-wider drop-shadow-[0_0_10px_rgba(244,63,94,0.4)]";
-                        else if (gH === 0) document.getElementById('globalRotationTimer').className = "font-mono text-xl md:text-2xl font-black text-amber-400 tracking-wider drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]";
-                        else document.getElementById('globalRotationTimer').className = "font-mono text-xl md:text-2xl font-black text-sky-400 tracking-wider drop-shadow-[0_0_10px_rgba(56,189,248,0.3)]";
+                        document.getElementById('globalRotationTimer').className = "font-mono text-xl md:text-2xl font-black text-sky-400 tracking-wider drop-shadow-[0_0_10px_rgba(56,189,248,0.3)]";
                     } else {
                         document.getElementById('globalRotationTimer').innerText = "00:00:00";
                     }
@@ -3530,6 +3654,7 @@ window.chrome.webview.addEventListener('message', event => {
             }
             break;
         case 'logbookData':
+            updateCareerStats(payload.history);
             renderLogbook(payload.history);
             break;
         case 'flightReport':
@@ -3668,6 +3793,41 @@ window.chrome.webview.addEventListener('message', event => {
                     gEl.classList.remove('text-red-500', 'text-slate-200');
                     if (tzG > 1.4) gEl.classList.add('text-red-500');
                     else gEl.classList.add('text-slate-200');
+                }
+
+                const bEl = document.getElementById('frBounces');
+                if (bEl) {
+                    let b = rep.BounceCount ?? rep.bounceCount ?? 0;
+                    bEl.innerText = b;
+                    bEl.classList.remove('text-red-500', 'text-slate-200');
+                    if (b > 0) bEl.classList.add('text-red-500');
+                    else bEl.classList.add('text-slate-200');
+                }
+
+                const zEl = document.getElementById('frZone');
+                if (zEl) {
+                    let z = rep.TouchdownZoneStatus ?? rep.touchdownZoneStatus ?? "UNKNOWN";
+                    z = z.replace('_OffCenter', '');
+                    zEl.innerText = z;
+                    zEl.classList.remove('text-amber-400', 'text-emerald-400', 'text-slate-200');
+                    if (z.includes("Short") || z.includes("Long")) zEl.classList.add('text-amber-400');
+                    else if (z.includes("Perfect")) zEl.classList.add('text-emerald-400');
+                    else zEl.classList.add('text-slate-200');
+                }
+
+                const axEl = document.getElementById('frAxis');
+                if (axEl) {
+                    let ax = rep.CenterlineDeviation ?? rep.centerlineDeviation ?? 0.0;
+                    let z = rep.TouchdownZoneStatus ?? rep.touchdownZoneStatus ?? "UNKNOWN";
+                    if (z.includes("OffCenter")) {
+                        axEl.innerText = `OFF CENTER`;
+                        axEl.classList.add('text-amber-400');
+                        axEl.classList.remove('text-emerald-400', 'text-slate-200');
+                    } else {
+                        axEl.innerText = `CENTERED`;
+                        axEl.classList.add('text-emerald-400');
+                        axEl.classList.remove('text-amber-400', 'text-slate-200');
+                    }
                 }
 
                 const ecoContainer = document.getElementById('frEcoContainer');
@@ -3833,7 +3993,7 @@ window.chrome.webview.addEventListener('message', event => {
 
                 const overlayContainer = document.createElement('div');
                 overlayContainer.id = 'globalGroundEventOverlay';
-                overlayContainer.className = 'fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-8 transition-opacity duration-300';
+                overlayContainer.className = 'fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-8 transition-opacity ';
 
                 let html = `
                         <div class="bg-[#1C1F26] border border-orange-500/30 rounded-2xl shadow-[0_0_50px_rgba(249,115,22,0.15)] w-full max-w-2xl overflow-hidden flex flex-col transform scale-100 animate-fade-in relative z-[10000]">
@@ -3858,7 +4018,7 @@ window.chrome.webview.addEventListener('message', event => {
                 if (evt.choices) {
                     evt.choices.forEach(c => {
                         const btn = document.createElement('button');
-                        btn.className = 'w-full py-3 px-4 rounded-xl font-bold uppercase tracking-widest text-[11px] transition-all flex items-center justify-left gap-2 text-left ';
+                        btn.className = 'w-full py-3 px-4 rounded-xl font-bold uppercase tracking-widest text-[11px]  flex items-center justify-left gap-2 text-left ';
 
                         if (c.colorClass === 'success') {
                             btn.className += 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500 hover:text-slate-900 shadow-[0_0_15px_rgba(16,185,129,0.1)]';
@@ -4070,38 +4230,82 @@ window.chrome.webview.addEventListener('message', event => {
 
                 // WALL OF FAME RENDERING
                 const badgeDefs = [
-                    { id: "first_entry", title: "First Entry", icon: "menu_book", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/30" },
-                    { id: "butter_bread", title: "Butter the Bread", icon: "flight_land", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/30" },
-                    { id: "swiss_watch", title: "Swiss Watch", icon: "schedule", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/30" },
-                    { id: "by_the_book", title: "By the Book", icon: "checklist_rtl", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/30" },
-                    { id: "frequent_flyer", title: "Frequent Flyer", icon: "military_tech", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
-                    { id: "hand_of_god", title: "The Hand of God", icon: "front_hand", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
-                    { id: "company_man", title: "Company Man", icon: "work", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
-                    { id: "safe_and_sound", title: "Safe and Sound", icon: "verified_user", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
-                    { id: "go_around_flaps3", title: "Go-Around, Flaps 3", icon: "autorenew", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
-                    { id: "flawless_execution", title: "Flawless Execution", icon: "workspace_premium", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
-                    { id: "through_storm", title: "Through the Storm", icon: "storm", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
-                    { id: "feather_touch", title: "Feather Touch", icon: "airline_seat_flat", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
-                    { id: "iron_bladder", title: "Iron Bladder", icon: "local_cafe", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
-                    { id: "airmanship_master", title: "Airmanship Master", icon: "rocket_launch", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
-                    { id: "spine_crusher", title: "Spine Crusher", icon: "personal_injury", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30" },
-                    { id: "no_coffee", title: "Coffee Machine is Broken", icon: "no_drinks", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30" },
-                    { id: "pitch_black", title: "Pitch Black", icon: "dark_mode", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30" }
+                    { id: "first_entry", category: "Career Milestones", title: "First Entry", desc: "Completed your first flight log.", icon: "menu_book", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/30" },
+                    { id: "frequent_flyer", category: "Career Milestones", title: "Frequent Flyer", desc: "Logged 50 successful flights.", icon: "military_tech", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
+                    { id: "centurion", category: "Career Milestones", title: "Centurion", desc: "Completed 100 flights.", icon: "workspace_premium", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
+                    { id: "globe_trotter", category: "Career Milestones", title: "Globe Trotter", desc: "Accumulated over 100 hours of total flight time.", icon: "public", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
+                    { id: "iron_bladder", category: "Career Milestones", title: "Iron Bladder", desc: "Logged over 10 hours of block time in a single flight.", icon: "local_cafe", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
+
+                    { id: "butter_bread", category: "Airmanship & Precision", title: "Butter the Bread", desc: "Landed smoother than -150 fpm.", icon: "flight_land", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/30" },
+                    { id: "feather_touch", category: "Airmanship & Precision", title: "Feather Touch", desc: "Landed between -10 fpm and -50 fpm. Absolute precision.", icon: "airline_seat_flat", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
+                    { id: "hand_of_god", category: "Airmanship & Precision", title: "The Hand of God", desc: "Over 10 minutes of manual flying in a single flight.", icon: "front_hand", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
+                    { id: "go_around_flaps3", category: "Airmanship & Precision", title: "Go-Around, Flaps 3", desc: "Successfully executed a Go-Around.", icon: "autorenew", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
+                    { id: "company_man", category: "Airmanship & Precision", title: "Company Man", desc: "Earned a SuperScore over 1000 on a single sector.", icon: "work", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
+                    { id: "airmanship_master", category: "Airmanship & Precision", title: "Airmanship Master", desc: "Achieved a legendary SuperScore of 1200+.", icon: "rocket_launch", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
+
+                    { id: "swiss_watch", category: "Safety & Compliance", title: "Swiss Watch", desc: "Arrived on or before scheduled time.", icon: "schedule", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/30" },
+                    { id: "by_the_book", category: "Safety & Compliance", title: "By the Book", desc: "Completed all ground operations without rushing.", icon: "checklist_rtl", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/30" },
+                    { id: "safe_and_sound", category: "Safety & Compliance", title: "Safe and Sound", desc: "Completed 10 flights in a row with zero safety infractions.", icon: "verified_user", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
+                    { id: "flawless_execution", category: "Safety & Compliance", title: "Flawless Execution", desc: "Zero delay, zero penalties, perfect touchdown, objectives met.", icon: "stars", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
+                    { id: "passengers_favorite", category: "Safety & Compliance", title: "Passenger's Favorite", desc: "Maintained a positive comfort rating with zero infractions.", icon: "favorite", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
+
+                    { id: "through_storm", category: "Adverse Conditions", title: "Through the Storm", desc: "Landed with crosswind > 20 knots without passenger complaints.", icon: "storm", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
+                    { id: "night_owl", category: "Adverse Conditions", title: "Night Owl", desc: "Completed a safe landing at night.", icon: "bedtime", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
+
+                    { id: "spine_crusher", category: "Hall of Shame", title: "Spine Crusher", desc: "Slammed the aircraft down at -600 fpm or worse.", icon: "personal_injury", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30" },
+                    { id: "no_coffee", category: "Hall of Shame", title: "Coffee Machine is Broken", desc: "Skipped catering resulting in high passenger dissatisfaction.", icon: "no_drinks", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30" },
+                    { id: "pitch_black", category: "Hall of Shame", title: "Pitch Black", desc: "Landed at night without Landing Lights.", icon: "dark_mode", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30" },
+                    { id: "schedule_buster", category: "Hall of Shame", title: "Schedule Buster", desc: "Landed with more than 60 minutes of delay.", icon: "alarm_off", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30" }
                 ];
 
                 const badgesGrid = document.getElementById('prfBadgesGrid');
                 if (badgesGrid && profile.UnlockedAchievements) {
                     badgesGrid.innerHTML = '';
+                    
+                    // Group badges by category
+                    const grouped = {};
                     badgeDefs.forEach(b => {
-                        const isUnlocked = profile.UnlockedAchievements.includes(b.id);
-                        const html = `
-                                <div class="flex flex-col items-center p-3 rounded-xl border ${isUnlocked ? b.border : 'border-white/5'} ${isUnlocked ? b.bg : 'bg-black/20'} transition-all ${isUnlocked ? '' : 'opacity-40 grayscale'} hover:grayscale-0 hover:opacity-100" title="${b.title}">
-                                    <span class="material-symbols-outlined text-[32px] mb-2 ${isUnlocked ? b.color : 'text-slate-500'} drop-shadow-lg">${b.icon}</span>
-                                    <span class="text-[10px] font-bold tracking-widest uppercase text-center ${isUnlocked ? 'text-white' : 'text-slate-500'}">${b.title}</span>
+                        if (!grouped[b.category]) grouped[b.category] = [];
+                        grouped[b.category].push(b);
+                    });
+                    
+                    let isFirst = true;
+                    Object.keys(grouped).forEach((categoryName, index) => {
+                        const badgesHtml = grouped[categoryName].map(b => {
+                            const isUnlocked = profile.UnlockedAchievements.includes(b.id);
+                            const displayTitle = isUnlocked ? b.title : "Locked Badge";
+                            const displayIcon = isUnlocked ? b.icon : "lock";
+                            const displayDesc = isUnlocked ? b.desc : "Locked. Keep flying to uncover this achievement.";
+                            return `
+                                <div class="flex flex-col items-center p-3 rounded-xl border ${isUnlocked ? b.border : 'border-white/5'} ${isUnlocked ? b.bg : 'bg-black/20'}  ${isUnlocked ? '' : 'opacity-40 grayscale'} hover:grayscale-0 hover:opacity-100 cursor-default" title="${displayDesc}">
+                                    <span class="material-symbols-outlined text-[32px] mb-2 ${isUnlocked ? b.color : 'text-slate-500'} drop-shadow-lg">${displayIcon}</span>
+                                    <span class="text-[10px] font-bold tracking-widest uppercase text-center ${isUnlocked ? 'text-white' : 'text-slate-500'}">${displayTitle}</span>
                                 </div>
                             `;
-                        badgesGrid.innerHTML += html;
+                        }).join('');
+
+                        const accordionId = `badge-acc-${index}`;
+                        const html = `
+                            <div class="bg-[#1a1a1b] rounded-xl border border-white/5 overflow-hidden">
+                                <button class="w-full flex items-center justify-between p-4 bg-[#2a2a2b] hover:bg-white/5  focus:outline-none" onclick="document.getElementById('${accordionId}').classList.toggle('hidden'); const icon = this.querySelector('.acc-icon'); icon.textContent = icon.textContent === 'expand_more' ? 'expand_less' : 'expand_more';">
+                                    <span class="text-xs font-bold tracking-widest uppercase text-white">${categoryName}</span>
+                                    <span class="material-symbols-outlined text-[#7b7b7b] acc-icon">${isFirst ? 'expand_less' : 'expand_more'}</span>
+                                </button>
+                                <div id="${accordionId}" class="p-4 bg-black/20 ${isFirst ? '' : 'hidden'}">
+                                    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+                                        ${badgesHtml}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        badgesGrid.insertAdjacentHTML('beforeend', html);
+                        isFirst = false;
                     });
+
+                    // Update total unlocked badges count
+                    const unlockedCount = profile.UnlockedAchievements.filter(id => badgeDefs.some(b => b.id === id)).length;
+                    const elCount = document.getElementById('prfBadgesCount');
+                    if (elCount) elCount.innerText = `${unlockedCount} / ${badgeDefs.length} Unlocked`;
                 }
             }
             break;
@@ -4168,6 +4372,8 @@ window.chrome.webview.addEventListener('message', event => {
                     mainScore.classList.add('text-emerald-400');
                 }, 1000);
 
+                let deltaStr = finalDelta > 0 ? `+${finalDelta}` : `${finalDelta}`;
+
                 const feed = document.getElementById('scoreFeed');
                 if (feed) {
                     if (feed.children.length === 1 && feed.children[0].innerText.includes('standing by')) {
@@ -4175,7 +4381,6 @@ window.chrome.webview.addEventListener('message', event => {
                     }
 
                     const fli = document.createElement('li');
-                    let deltaStr = finalDelta > 0 ? `+${finalDelta}` : `${finalDelta}`;
                     let color = finalDelta > 0 ? '#34D399' : '#F87171';
                     fli.innerHTML = `<span style="color:${color}; font-weight:bold; width: 45px; display:inline-block;">${deltaStr}</span> <span style="color:#cbd5e1;">${finalMsg}</span>`;
                     fli.style.marginBottom = '5px';
@@ -4188,7 +4393,7 @@ window.chrome.webview.addEventListener('message', event => {
                 const plog = document.getElementById('penaltyLogs');
                 if (plog) {
                     const logLi = document.createElement('li');
-                    logLi.innerText = `[${window.getLocalFormattedTime()}] ${finalMsg} (Total: ${finalScore})`;
+                    logLi.innerText = `[${window.getLocalFormattedTime()}] ${finalMsg} (${deltaStr} | Total: ${finalScore})`;
                     if (finalDelta === 0) {
                         logLi.style.color = '#cbd5e1';
                     } else {
@@ -4394,9 +4599,9 @@ window.chrome.webview.addEventListener('message', event => {
                                 window.chrome.webview.postMessage({ action: 'cancelLastLeg' });
 
                                 const prevLegHTML = `
-                                    <button onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' })" class="bg-[#1C1F26] border border-red-500/30 text-white px-8 py-6 rounded-xl hover:bg-red-500/10 hover:border-red-500 shadow-xl transition-all font-bold tracking-widest flex items-center justify-between group w-full mt-2">
+                                    <button onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' })" class="bg-[#1C1F26] border border-red-500/30 text-white px-8 py-6 rounded-xl hover:bg-red-500/10 hover:border-red-500 shadow-xl  font-bold tracking-widest flex items-center justify-between group w-full mt-2">
                                         <div class="flex items-center gap-4">
-                                            <span class="material-symbols-outlined text-3xl group-hover:scale-110 transition-transform text-red-400">warning</span>
+                                            <span class="material-symbols-outlined text-3xl group-hover:scale-110  text-red-400">warning</span>
                                             <div class="text-left">
                                                 <div class="text-lg">RE-GENERATE LEG ${window.currentLegCounter}</div>
                                                 <div class="text-slate-500 text-[10px] uppercase mt-1 font-manrope font-normal text-red-400/80">Previous plan rejected. Open SimBrief to fix.</div>
@@ -4438,10 +4643,10 @@ window.chrome.webview.addEventListener('message', event => {
                         let nextButtonHtml = '';
                         if (nextLeg <= 4) {
                             nextButtonHtml = `
-                                <button onclick="window.currentLegCounter = ${nextLeg};" class="bg-[#1C1F26] border border-sky-500/30 text-white px-8 py-6 rounded-xl hover:bg-sky-500/10 hover:border-sky-500 shadow-xl transition-all font-bold tracking-widest flex items-center justify-between group w-full mt-4 relative overflow-hidden">
-                                    <div class="absolute top-0 right-0 h-full w-32 bg-gradient-to-l from-sky-500/20 to-transparent pointer-events-none group-hover:from-sky-500/40 transition-colors"></div>
+                                <button onclick="window.currentLegCounter = ${nextLeg};" class="bg-[#1C1F26] border border-sky-500/30 text-white px-8 py-6 rounded-xl hover:bg-sky-500/10 hover:border-sky-500 shadow-xl  font-bold tracking-widest flex items-center justify-between group w-full mt-4 relative overflow-hidden">
+                                    <div class="absolute top-0 right-0 h-full w-32 bg-gradient-to-l from-sky-500/20 to-transparent pointer-events-none group-hover:from-sky-500/40 "></div>
                                     <div class="flex items-center gap-4 relative z-10">
-                                        <span class="material-symbols-outlined text-4xl group-hover:scale-110 transition-transform text-sky-400 drop-shadow-[0_0_15px_rgba(56,189,248,0.5)]">add_circle</span>
+                                        <span class="material-symbols-outlined text-4xl group-hover:scale-110  text-sky-400 drop-shadow-[0_0_15px_rgba(56,189,248,0.5)]">add_circle</span>
                                         <div class="text-left">
                                             <div class="text-lg tracking-widest">PREPARE LEG ${nextLeg}</div>
                                             <div class="text-slate-400 text-[10px] uppercase mt-1 font-manrope font-bold">Generate OFP in your opened browser, then click <span class="text-sky-400">FETCH PLAN</span></div>
@@ -4450,7 +4655,7 @@ window.chrome.webview.addEventListener('message', event => {
                                     <span class="material-symbols-outlined text-slate-600 group-hover:text-sky-400 relative z-10">touch_app</span>
                                 </button>
                                 <div class="text-center mt-3">
-                                    <a href="#" onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' }); return false;" class="text-[9px] text-slate-500 hover:text-sky-400 uppercase tracking-widest underline decoration-white/20 transition-colors font-bold">Simbrief closed? Click here to re-open it.</a>
+                                    <a href="#" onclick="window.chrome.webview.postMessage({ action: 'openSimbriefWindow' }); return false;" class="text-[9px] text-slate-500 hover:text-sky-400 uppercase tracking-widest underline decoration-white/20  font-bold">Simbrief closed? Click here to re-open it.</a>
                                 </div>
                             `;
                         }
@@ -4810,19 +5015,19 @@ function renderGroundOps(services) {
             <span class="material-symbols-outlined text-slate-700 text-[36px] mb-2 font-light">flight_takeoff</span>
             <p class="text-[11px] text-white uppercase tracking-[0.2em] font-bold text-center mb-4" data-i18n="ground_pending">${titleTxt}</p>
             
-            <button onclick="window.chrome.webview.postMessage({action: 'openSimbriefForCurrentLeg'});" class="group relative flex items-center justify-center gap-2 px-6 py-2 bg-transparent border border-white/10 rounded-full hover:bg-white/5 hover:border-white/20 transition-all duration-300">
-                <span class="material-symbols-outlined text-[16px] text-sky-400 font-light group-hover:scale-110 transition-transform">open_in_new</span>
-                <span class="text-[10px] uppercase font-bold tracking-widest text-[#b6b6b6] group-hover:text-white transition-colors">1. Open SimBrief</span>
+            <button onclick="window.chrome.webview.postMessage({action: 'openSimbriefForCurrentLeg'});" class="group relative flex items-center justify-center gap-2 px-6 py-2 bg-transparent border border-white/10 rounded-full hover:bg-white/5 hover:border-white/20 ">
+                <span class="material-symbols-outlined text-[16px] text-sky-400 font-light group-hover:scale-110 ">open_in_new</span>
+                <span class="text-[10px] uppercase font-bold tracking-widest text-[#b6b6b6] group-hover:text-white ">1. Open SimBrief</span>
             </button>
             
-            <button id="btnGroundOpsFetch" onclick="this.innerHTML = '<span class=\\'material-symbols-outlined text-[16px] animate-spin\\'>sync</span> <span class=\\'text-[10px] uppercase font-bold tracking-widest text-[#emerald-400]\\'>FETCHING...</span>'; this.classList.add('opacity-50', 'pointer-events-none'); window.triggerSimBriefImport();" class="group relative flex items-center justify-center gap-2 px-6 py-2 bg-transparent border border-white/10 rounded-full hover:bg-white/5 hover:border-white/20 transition-all duration-300">
-                <span class="material-symbols-outlined text-[16px] text-emerald-400 font-light group-hover:scale-110 transition-transform">download</span>
-                <span class="text-[10px] uppercase font-bold tracking-widest text-[#b6b6b6] group-hover:text-white transition-colors">2. Import Generated OFP</span>
+            <button id="btnGroundOpsFetch" onclick="this.innerHTML = '<span class=\\'material-symbols-outlined text-[16px] animate-spin\\'>sync</span> <span class=\\'text-[10px] uppercase font-bold tracking-widest text-[#emerald-400]\\'>FETCHING...</span>'; this.classList.add('opacity-50', 'pointer-events-none'); window.triggerSimBriefImport();" class="group relative flex items-center justify-center gap-2 px-6 py-2 bg-transparent border border-white/10 rounded-full hover:bg-white/5 hover:border-white/20 ">
+                <span class="material-symbols-outlined text-[16px] text-emerald-400 font-light group-hover:scale-110 ">download</span>
+                <span class="text-[10px] uppercase font-bold tracking-widest text-[#b6b6b6] group-hover:text-white ">2. Import Generated OFP</span>
             </button>
 
-            <button onclick="${btn3Action}" class="group relative flex items-center justify-center gap-2 px-6 py-2 ${btn3Class} rounded-full transition-all duration-300">
-                <span class="material-symbols-outlined text-[16px] group-hover:scale-110 transition-transform">${btn3Icon}</span>
-                <span class="text-[10px] uppercase font-bold tracking-widest ${btn3Text} transition-colors">${btn3Label}</span>
+            <button onclick="${btn3Action}" class="group relative flex items-center justify-center gap-2 px-6 py-2 ${btn3Class} rounded-full ">
+                <span class="material-symbols-outlined text-[16px] group-hover:scale-110 ">${btn3Icon}</span>
+                <span class="text-[10px] uppercase font-bold tracking-widest ${btn3Text} ">${btn3Label}</span>
             </button>
         </div>`;
     } else {
@@ -4927,11 +5132,11 @@ function renderGroundOps(services) {
                     let btnLoadsheetAction = `onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'openFuelSheetWindow', legIndex: window.dashboardActiveLegIndex || 0 })"`;
                     centerAreaHtml = `
                     <div class="flex gap-2 justify-center items-center flex-shrink-0 w-[120px] md:w-[140px]">
-                        <button ${btnLoadsheetAction} class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1.5 md:py-2 rounded text-[8px] md:text-[9px] font-bold tracking-widest hover:bg-amber-500 hover:text-white transition-all uppercase shadow-[0_0_10px_rgba(245,158,11,0.1)] outline-none whitespace-nowrap" title="Edit Loadsheet">LOADSHEET</button>
-                        <button ${btnRefuelAction} class="bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2.5 py-1.5 md:py-2 rounded text-[8px] md:text-[9px] font-bold tracking-widest hover:bg-sky-500 hover:text-white transition-all uppercase shadow-[0_0_10px_rgba(56,189,248,0.1)] outline-none whitespace-nowrap">START REFUEL</button>
+                        <button ${btnLoadsheetAction} class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1.5 md:py-2 rounded text-[8px] md:text-[9px] font-bold tracking-widest hover:bg-amber-500 hover:text-white uppercase shadow-[0_0_10px_rgba(245,158,11,0.1)] outline-none whitespace-nowrap" title="Edit Loadsheet">LOADSHEET</button>
+                        <button ${btnRefuelAction} class="bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2.5 py-1.5 md:py-2 rounded text-[8px] md:text-[9px] font-bold tracking-widest hover:bg-sky-500 hover:text-white uppercase shadow-[0_0_10px_rgba(56,189,248,0.1)] outline-none whitespace-nowrap">START REFUEL</button>
                     </div>`;
                 } else {
-                    centerAreaHtml = `<button ${clickAction} class="bg-sky-500/10 text-sky-400 border border-sky-500/20 w-[120px] md:w-[140px] py-1.5 md:py-2 rounded text-[9px] md:text-[10px] font-bold tracking-widest hover:bg-sky-500 hover:text-white transition-all uppercase shadow-[0_0_10px_rgba(56,189,248,0.1)] outline-none whitespace-nowrap flex-shrink-0">${btnText}</button>`;
+                    centerAreaHtml = `<button ${clickAction} class="bg-sky-500/10 text-sky-400 border border-sky-500/20 w-[120px] md:w-[140px] py-1.5 md:py-2 rounded text-[9px] md:text-[10px] font-bold tracking-widest hover:bg-sky-500 hover:text-white uppercase shadow-[0_0_10px_rgba(56,189,248,0.1)] outline-none whitespace-nowrap flex-shrink-0">${btnText}</button>`;
                 }
             } else if (stateVal === 1 || stateVal === 2) {
                 if (stateVal === 1) {
@@ -4987,7 +5192,7 @@ function renderGroundOps(services) {
             if (s.Name === "Catering" || s.Name === "Cleanliness" || s.Name === "Cleaning" || s.Name === "Cabin Clean (PNC)" || s.Name === "Water/Waste") {
                 if (!isCompleted) {
                     // SKIP button
-                    extraBadgesHtml += `<button onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'skipService', service: '${(s.Name || s.name)}' });" class="px-2 py-1 rounded bg-[#1a1c23] hover:bg-red-500/10 text-red-500/50 hover:text-red-500 border border-white/5 hover:border-red-500/20 text-[9px] uppercase font-bold tracking-widest leading-none outline-none transition-colors flex-shrink-0 cursor-pointer mr-0 md:mr-3">SKIP</button>`;
+                    extraBadgesHtml += `<button onclick="event.stopPropagation(); window.chrome.webview.postMessage({ action: 'skipService', service: '${(s.Name || s.name)}' });" class="px-2 py-1 rounded bg-[#1a1c23] hover:bg-red-500/10 text-red-500/50 hover:text-red-500 border border-white/5 hover:border-red-500/20 text-[9px] uppercase font-bold tracking-widest leading-none outline-none flex-shrink-0 cursor-pointer mr-0 md:mr-3">SKIP</button>`;
                 }
             }
 
@@ -4995,7 +5200,7 @@ function renderGroundOps(services) {
             if (isCompleted && !(s.IsPreServiced || s.isPreServiced)) barColor = '#34D399';
             else if (isCompleted && (s.IsPreServiced || s.isPreServiced)) barColor = '#475569';
 
-            let rowClasses = `w-full grid grid-cols-[1fr_auto_80px] md:grid-cols-[1.5fr_160px_130px] items-center p-3 md:p-4 bg-[#1a1d24]/40 border border-white/5 rounded-xl transition-all relative overflow-hidden group`;
+            let rowClasses = `w-full grid grid-cols-[1fr_auto_80px] md:grid-cols-[1.5fr_160px_130px] items-center p-3 md:p-4 bg-[#1a1d24]/40 border border-white/5 rounded-xl relative overflow-hidden group`;
             if (isClickable) rowClasses += ` cursor-pointer hover:bg-[#1a1d24]/80 hover:border-sky-500/30`;
             if (!window.isDispatchSignedOff) rowClasses += ` opacity-25 grayscale pointer-events-none`;
 
@@ -5007,8 +5212,8 @@ function renderGroundOps(services) {
                 let waColor = wasteLvl > 90 ? '#EF4444' : (wasteLvl > 70 ? '#F59E0B' : '#60A5FA');
                 progressHtml = `
                 <div class="absolute bottom-0 left-0 w-full flex flex-col gap-[1px] bg-black/40 h-1.5">
-                    <div class="h-1"><div class="h-full transition-all duration-1000 ease-out" style="width: ${waterLvl}%; background-color: ${wColor}; opacity: 0.8"></div></div>
-                    <div class="h-1"><div class="h-full transition-all duration-1000 ease-out" style="width: ${wasteLvl}%; background-color: ${waColor}; opacity: 0.8"></div></div>
+                    <div class="h-1"><div class="h-full  transition-all duration-1000 ease-out" style="width: ${waterLvl}%; background-color: ${wColor}; opacity: 0.8"></div></div>
+                    <div class="h-1"><div class="h-full  transition-all duration-1000 ease-out" style="width: ${wasteLvl}%; background-color: ${waColor}; opacity: 0.8"></div></div>
                 </div>`;
             } else {
                 let mappedProgress = s.ProgressPercent;
@@ -5024,7 +5229,7 @@ function renderGroundOps(services) {
                         mappedColor = mappedProgress < 50 ? '#EF4444' : (mappedProgress < 75 ? '#F59E0B' : '#34D399');
                     }
                 }
-                progressHtml = `<div class="absolute bottom-0 left-0 w-full h-[2px] bg-black/40"><div class="h-full transition-all duration-1000 ease-out" style="width: ${mappedProgress}%; background-color: ${mappedColor}; opacity: 0.8"></div></div>`;
+                progressHtml = `<div class="absolute bottom-0 left-0 w-full h-[2px] bg-black/40"><div class="h-full  transition-all duration-1000 ease-out" style="width: ${mappedProgress}%; background-color: ${mappedColor}; opacity: 0.8"></div></div>`;
             }
 
             let rowProps = isClickable ? clickAction : '';
@@ -5065,15 +5270,28 @@ function renderGroundOps(services) {
                 let st = s.State !== undefined ? s.State : s.state;
                 return st === 3 || st === 4 || s.IsPreServiced || s.isPreServiced;
             });
+            let isPostFlight = services.some(s => (s.name && s.name === 'Deboarding') || (s.Name && s.Name === 'Deboarding'));
 
-            if (isAllCompleted) {
-                html += `
-            <div class="mt-4 flex justify-center w-full">
-                <button onclick="window.chrome.webview.postMessage({action: 'prepareNextLeg'});" class="group relative flex items-center justify-center gap-2 px-8 py-3 bg-sky-500/20 border border-sky-500/50 rounded-full hover:bg-sky-500 hover:text-white shadow-[0_0_15px_rgba(14,165,233,0.3)] transition-all duration-300">
-                    <span class="material-symbols-outlined text-[20px] text-sky-400 group-hover:text-white group-hover:scale-110 transition-transform">next_plan</span>
-                    <span class="text-[12px] uppercase font-bold tracking-widest text-sky-400 group-hover:text-white transition-colors">Prepare Next Leg</span>
-                </button>
-            </div>`;
+            if (isAllCompleted && isPostFlight) {
+                let isLastLeg = (window.sessionFlightsCompleted || 0) >= (window.allRotations ? window.allRotations.length : 0);
+
+                if (isLastLeg) {
+                    html += `
+                <div class="mt-4 flex justify-center w-full" id="finishRotationContainer">
+                    <button onclick="document.getElementById('finishRotationContainer').style.display='none'; window.chrome.webview.postMessage({action: 'finishRotation'});" class="group relative flex items-center justify-center gap-2 px-8 py-3 bg-emerald-500/20 border border-emerald-500/50 rounded-full hover:bg-emerald-500 hover:text-white shadow-[0_0_15px_rgba(16,185,129,0.3)] ">
+                        <span class="material-symbols-outlined text-[20px] text-emerald-400 group-hover:text-white group-hover:scale-110 ">task_alt</span>
+                        <span class="text-[12px] uppercase font-bold tracking-widest text-emerald-400 group-hover:text-white ">Finish Rotation</span>
+                    </button>
+                </div>`;
+                } else {
+                    html += `
+                <div class="mt-4 flex justify-center w-full">
+                    <button onclick="window.chrome.webview.postMessage({action: 'prepareNextLeg'});" class="group relative flex items-center justify-center gap-2 px-8 py-3 bg-sky-500/20 border border-sky-500/50 rounded-full hover:bg-sky-500 hover:text-white shadow-[0_0_15px_rgba(14,165,233,0.3)] ">
+                        <span class="material-symbols-outlined text-[20px] text-sky-400 group-hover:text-white group-hover:scale-110 ">next_plan</span>
+                        <span class="text-[12px] uppercase font-bold tracking-widest text-sky-400 group-hover:text-white ">Prepare Next Leg</span>
+                    </button>
+                </div>`;
+                }
             }
         }
     }
@@ -5082,8 +5300,18 @@ function renderGroundOps(services) {
         // Overlay disabled per user request
     }
 
-    if (containerDash) containerDash.innerHTML = html;
-    if (containerBriefing) containerBriefing.innerHTML = html;
+    if (containerDash) {
+        if (containerDash.dataset.lastHtml !== html) {
+            containerDash.innerHTML = html;
+            containerDash.dataset.lastHtml = html;
+        }
+    }
+    if (containerBriefing) {
+        if (containerBriefing.dataset.lastHtml !== html) {
+            containerBriefing.innerHTML = html;
+            containerBriefing.dataset.lastHtml = html;
+        }
+    }
 }
 
 window.renderManifest = function (manifest) {
@@ -5570,6 +5798,73 @@ window.renderManifest = function (manifest) {
     }
 };
 
+function updateCareerStats(history) {
+    if (!history || history.length === 0) {
+        if(document.getElementById('prfTotalTime')) document.getElementById('prfTotalTime').innerText = "0h 0m";
+        if(document.getElementById('prfTotalFlights')) document.getElementById('prfTotalFlights').innerText = "0";
+        if(document.getElementById('prfAvgScore')) document.getElementById('prfAvgScore').innerText = "0";
+        if(document.getElementById('prfHighestScore')) document.getElementById('prfHighestScore').innerText = "0";
+        if(document.getElementById('prfPunctuality')) document.getElementById('prfPunctuality').innerText = "100%";
+        if(document.getElementById('prfBestFpm')) document.getElementById('prfBestFpm').innerText = "--- fpm";
+        if(document.getElementById('prfGoArounds')) document.getElementById('prfGoArounds').innerText = "0";
+        if(document.getElementById('prfDiversions')) document.getElementById('prfDiversions').innerText = "0";
+        if(document.getElementById('prfManualTime')) document.getElementById('prfManualTime').innerText = "N/A";
+        return;
+    }
+
+    let totalBlockTimeMin = 0;
+    let totalScore = 0;
+    let highestScore = 0;
+    let onTimeCount = 0;
+    let bestFpm = -99999;
+    let goArounds = 0;
+
+    history.forEach(f => {
+        totalBlockTimeMin += f.BlockTime || 0;
+        totalScore += f.Score || 0;
+        if (f.Score > highestScore) highestScore = f.Score;
+        
+        // Punctuality: Consider delay <= 15 mins (900 seconds) as on-time.
+        if ((f.DelaySec || 0) <= 900) {
+            onTimeCount++;
+        }
+
+        if (f.TouchdownFpm && f.TouchdownFpm < 0) {
+            if (bestFpm === -99999 || f.TouchdownFpm > bestFpm) {
+                bestFpm = f.TouchdownFpm;
+            }
+        }
+
+        // Check for Go-Around events (fallback to simple JSON string match if structure is complex)
+        if (f.FlightEvents && Array.isArray(f.FlightEvents)) {
+            const eventsStr = JSON.stringify(f.FlightEvents).toLowerCase();
+            if (eventsStr.includes("go-around") || eventsStr.includes("go around")) {
+                goArounds++;
+            }
+        }
+    });
+
+    const totalHours = Math.floor(totalBlockTimeMin / 60);
+    const totalMins = totalBlockTimeMin % 60;
+    if(document.getElementById('prfTotalTime')) document.getElementById('prfTotalTime').innerText = `${totalHours}h ${totalMins}m`;
+    
+    if(document.getElementById('prfTotalFlights')) document.getElementById('prfTotalFlights').innerText = history.length;
+    
+    const avgScore = Math.round(totalScore / history.length);
+    if(document.getElementById('prfAvgScore')) document.getElementById('prfAvgScore').innerText = avgScore;
+    
+    if(document.getElementById('prfHighestScore')) document.getElementById('prfHighestScore').innerText = highestScore;
+    
+    const punctuality = Math.round((onTimeCount / history.length) * 100);
+    if(document.getElementById('prfPunctuality')) document.getElementById('prfPunctuality').innerText = `${punctuality}%`;
+    
+    if(document.getElementById('prfBestFpm')) document.getElementById('prfBestFpm').innerText = bestFpm !== -99999 ? `${Math.round(bestFpm)} fpm` : "--- fpm";
+    
+    if(document.getElementById('prfGoArounds')) document.getElementById('prfGoArounds').innerText = goArounds;
+    if(document.getElementById('prfManualTime')) document.getElementById('prfManualTime').innerText = "N/A";
+    if(document.getElementById('prfDiversions')) document.getElementById('prfDiversions').innerText = "0"; // Not tracked yet
+}
+
 function renderLogbook(history) {
     const grid = document.getElementById('logbookGrid');
     if (!grid) return;
@@ -5588,7 +5883,7 @@ function renderLogbook(history) {
         const payloadStr = encodeURIComponent(JSON.stringify(f)).replace(/'/g, "%27");
 
         return `
-        <div class="bg-black/20 hover:bg-[#1C1F26] p-4 rounded-xl border border-white/5 relative hover:border-sky-500/30 transition-colors cursor-pointer group flex items-center justify-between" onclick="replayFlightLog('${payloadStr}')">
+        <div class="bg-black/20 hover:bg-[#1C1F26] p-4 rounded-xl border border-white/5 relative hover:border-sky-500/30  cursor-pointer group flex items-center justify-between" onclick="replayFlightLog('${payloadStr}')">
             
             <!-- Date & Flight -->
             <div class="flex items-center gap-6 w-[30%] shrink-0">
@@ -5602,7 +5897,7 @@ function renderLogbook(history) {
             <!-- Route -->
             <div class="flex items-center gap-3 w-[20%] justify-center shrink-0">
                 <span class="text-lg font-headline font-black text-white tracking-widest">${f.Dep}</span>
-                <span class="material-symbols-outlined text-slate-600 text-[16px] group-hover:text-sky-500/50 transition-colors">flight_takeoff</span>
+                <span class="material-symbols-outlined text-slate-600 text-[16px] group-hover:text-sky-500/50 ">flight_takeoff</span>
                 <span class="text-lg font-headline font-black text-white tracking-widest">${f.Arr}</span>
             </div>
 
@@ -5620,6 +5915,9 @@ function renderLogbook(history) {
                     <span class="text-slate-500 uppercase tracking-widest text-[9px] font-manrope font-bold mb-1">Score</span>
                     <span class="text-${isSuper ? 'emerald' : 'red'}-400 font-bold text-sm">${f.Score} <span class="text-[9px] text-slate-500">pts</span></span>
                 </div>
+                <button class="w-8 h-8 rounded-full hover:bg-red-500/20 text-red-500 hover:text-red-400 flex items-center justify-center  shrink-0 opacity-50 hover:opacity-100" title="Delete Log" onclick="event.stopPropagation(); window.showConfirmModal('DELETE LOG', 'Are you sure you want to permanently delete this flight log?', true, () => { window.chrome.webview.postMessage({action: 'deleteLog', id: '${f.Id}'}); });">
+                    <span class="material-symbols-outlined text-[16px]">delete</span>
+                </button>
             </div>
         </div>`;
     }).join('');
@@ -5883,7 +6181,7 @@ window.filterFlightEvents = function (categoryIdx) {
                 else if (evt.Category === 5) icon = 'sentiment_satisfied';
 
                 const row = document.createElement('div');
-                row.className = 'flex items-center justify-between p-3 rounded bg-black/20 border border-white/5 hover:bg-white/5 transition-colors';
+                row.className = 'flex items-center justify-between p-3 rounded bg-black/20 border border-white/5 hover:bg-white/5 ';
                 row.innerHTML = `
                 <div class="flex items-center gap-3">
                     <span class="material-symbols-outlined text-[16px] text-slate-500">${icon}</span>

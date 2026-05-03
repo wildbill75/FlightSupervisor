@@ -422,13 +422,6 @@
                                             </tr>
                                         </tbody>
                                     </table>
-                                    
-                                    <div class="mt-4 border-t border-white/5 pt-6 flex justify-end">
-                                        <button onclick="window.requestAcarsUpdate()" class="bg-[#1C1C1C] hover:bg-[#2A2A2A] border-[3px] border-[#2A2A2A] text-[#7b7b7b] hover:text-white font-black px-6 py-3 rounded-lg text-xs uppercase tracking-[0.2em] transition-all flex items-center gap-2 group font-mono shadow-[0_0_15px_rgba(0,0,0,0.5)]">
-                                            <span class="material-symbols-outlined text-[18px]">satellite_alt</span>
-                                            AOC WX REQ
-                                        </button>
-                                    </div>
                                 </div>
                             </div>
                             
@@ -680,6 +673,13 @@
                         <!-- Populated by JS -->
                     </div>
 
+                    <div class="flex justify-end w-full">
+                        <button onclick="window.requestAcarsUpdate()" class="bg-[#1C1C1C] hover:bg-[#2A2A2A] border-[3px] border-[#2A2A2A] text-[#7b7b7b] hover:text-white font-black px-6 py-3 rounded-lg text-xs uppercase tracking-[0.2em] transition-all flex items-center gap-2 group font-mono shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                            <span class="material-symbols-outlined text-[18px]">satellite_alt</span>
+                            AOC WX REQ
+                        </button>
+                    </div>
+
                     <div class="flex gap-6 w-full">
                         <!-- COLONNE GAUCHE: M+�t+�o / Op+�rationnel -->
                         <div class="flex-grow flex flex-col gap-6 w-full">
@@ -874,7 +874,7 @@
                     </div>
 
                     <!-- Badges Grid will be populated by JS -->
-                    <div id="prfBadgesGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+                    <div id="prfBadgesGrid" class="flex flex-col gap-4">
                         <!-- Scaffolding format for JS generation -->
                         <div class="bg-black/30 border border-white/5 rounded-xl p-4 flex flex-col items-center text-center opacity-40 grayscale">
                             <div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mb-3 shadow-inner">
@@ -994,6 +994,15 @@
                                 <p class="text-[9px] text-[#7b7b7b] mt-2 font-mono">Fenix OFP Dropfolder. Usually found in <span class="text-sky-500">C:\ProgramData\Fenix\FenixSim A320</span></p>
                             </div>
 
+                        </div>
+                        
+                        <!-- Danger Zone -->
+                        <div class="bg-[#2a2a2b] p-8 rounded-xl border border-red-500/20">
+                            <h3 class="text-xs font-label tracking-[0.4em] text-red-400 uppercase opacity-80 mb-2">Danger Zone</h3>
+                            <p class="text-xs text-[#b6b6b6] mb-6">Irreversible actions for your career data.</p>
+                            <button class="w-full py-3 px-6 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg text-red-500 font-bold uppercase tracking-widest text-[10px] transition-colors flex items-center justify-center gap-2" onclick="showConfirmModal('WIPE CAREER', 'WARNING: This will permanently delete ALL your flight logs, statistics, and badges. Your basic profile identity will remain. This action cannot be undone. Are you absolutely sure?', true, () => { window.chrome.webview.postMessage({action: 'wipeCareer'}); });">
+                                <span class="material-symbols-outlined text-[16px]">warning</span> WIPE CAREER DATA
+                            </button>
                         </div>
                         
                     </div>
@@ -1293,14 +1302,14 @@
 
                 <div class="bg-[#2a2a2b] rounded-xl border border-white/5 p-6 shadow-lg mb-4">
                     <h3 class="text-[10px] font-label tracking-[0.2em] text-[#7b7b7b] uppercase mb-4 border-b border-white/5 pb-3">Performance Metrics</h3>
-                    <div class="grid grid-cols-6 gap-6">
+                    <div class="grid grid-cols-4 gap-6">
                         <div>
                             <div class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mb-1">Block Time</div>
                             <div id="frBlock" class="text-xl font-mono text-slate-200">--:--</div>
                         </div>
                         <div>
                             <div class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mb-1">Punctuality</div>
-                            <div id="frPunc" class="text-xs mt-1 font-bold bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded inline-block uppercase tracking-wider">On Time</div>
+                            <div id="frPunc" class="text-xl font-mono text-slate-200">---</div>
                         </div>
                         <div>
                             <div class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mb-1">Block Fuel</div>
@@ -1310,13 +1319,38 @@
                             <div class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mb-1">Turnaround</div>
                             <div id="frTurnaround" class="text-xs mt-1 font-bold text-slate-400">---</div>
                         </div>
-                        <div>
-                            <div class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mb-1">Touchdown</div>
-                            <div id="frFpm" class="text-xl font-mono font-bold text-slate-200">---</div>
-                        </div>
-                        <div>
-                            <div class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mb-1">Impact Force</div>
-                            <div id="frGForce" class="text-xl font-mono font-bold text-slate-200">-.- G</div>
+                    </div>
+                </div>
+
+                <!-- LANDING PERFORMANCE -->
+                <div class="bg-[#2a2a2b] rounded-xl border border-sky-500/10 shadow-lg mb-4 flex items-stretch overflow-hidden relative">
+                    <div class="w-16 flex-shrink-0 bg-sky-500/10 flex items-center justify-center border-r border-sky-500/20">
+                        <span class="material-symbols-outlined text-sky-400 text-3xl">flight_land</span>
+                    </div>
+                    
+                    <div class="p-6 flex-1">
+                        <h3 class="text-[10px] font-label tracking-[0.2em] text-sky-400 uppercase mb-4 font-bold border-b border-sky-500/20 pb-2">Landing Performance</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                            <div class="flex flex-col bg-black/30 p-2 rounded border border-white/5 items-center">
+                                <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mb-1">Rate</span>
+                                <span id="frFpm" class="text-lg font-mono font-bold text-white text-center">---</span>
+                            </div>
+                            <div class="flex flex-col bg-black/30 p-2 rounded border border-white/5 items-center">
+                                <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mb-1">Impact</span>
+                                <span id="frGForce" class="text-lg font-mono font-bold text-white text-center">---</span>
+                            </div>
+                            <div class="flex flex-col bg-black/30 p-2 rounded border border-white/5 items-center">
+                                <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mb-1">Bounces</span>
+                                <span id="frBounces" class="text-lg font-mono font-bold text-white text-center">0</span>
+                            </div>
+                            <div class="flex flex-col bg-black/30 p-2 rounded border border-white/5 items-center justify-center">
+                                <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mb-1">Zone</span>
+                                <span id="frZone" class="text-[11px] font-mono font-bold text-white uppercase tracking-widest text-center mt-auto mb-auto">---</span>
+                            </div>
+                            <div class="flex flex-col bg-black/30 p-2 rounded border border-white/5 items-center justify-center">
+                                <span class="text-[9px] text-[#7b7b7b] uppercase tracking-widest mb-1">Axis (ILS/GPS)</span>
+                                <span id="frAxis" class="text-lg font-mono font-bold text-white text-center mt-auto mb-auto">---</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1376,76 +1410,158 @@
     </div>
 
     <!-- ACARS MCDU Request Modal -->
-    <div id="acarsModal" class="fixed inset-0 bg-black/80 z-[60] p-4 flex items-center justify-center animate-fade-in" style="display: none;">
-        <div class="bg-[#1C1C1C] w-[450px] border-[12px] border-[#2A2A2A] rounded-[40px] shadow-[0_0_80px_rgba(0,0,0,0.8)] flex flex-col font-mono text-white tracking-widest relative overflow-hidden ring-1 ring-white/10">
+    <div id="acarsModal" class="fixed top-[100px] left-1/2 -ml-[250px] z-[60] animate-fade-in" style="display: none;">
+        <div class="bg-[#1a1a1a] w-[500px] border-[8px] border-[#252525] rounded-[24px] shadow-[0_30px_60px_rgba(0,0,0,0.9)] flex flex-col relative ring-1 ring-black">
             
-            <!-- Screen Area -->
-            <div class="bg-[#0A1A0A] m-4 p-6 rounded-lg border-2 border-[#151515] flex flex-col min-h-[400px] shadow-inner relative">
-                
-                <!-- Status Bar Top -->
-                <div class="flex justify-between items-center mb-6 text-sm">
-                    <span class="text-emerald-500 font-bold">AOC WX REQ</span>
-                    <span class="text-emerald-500/60">1/1</span>
-                </div>
-
-                <!-- MCDU Content Rows -->
-                <div class="flex-1 flex flex-col gap-8">
-                    <!-- Origin Row -->
-                    <div class="flex flex-col">
-                        <span class="text-[#38BDF8] text-[10px] uppercase font-bold mb-1">Origin</span>
-                        <div class="flex justify-between items-end border-b border-emerald-500/10 pb-1">
-                            <span class="text-[#7b7b7b] text-base">< LSK 1L</span>
-                            <span id="acarsOrigin" class="text-emerald-400 text-2xl font-black tracking-[4px]">----</span>
-                        </div>
-                    </div>
-
-                    <!-- Destination Row -->
-                    <div class="flex flex-col">
-                        <span class="text-[#38BDF8] text-[10px] uppercase font-bold mb-1">Destination</span>
-                        <div class="flex justify-between items-end border-b border-emerald-500/10 pb-1">
-                            <span class="text-[#7b7b7b] text-base">< LSK 2L</span>
-                            <span id="acarsDest" class="text-emerald-400 text-2xl font-black tracking-[4px]">----</span>
-                        </div>
-                    </div>
-
-                    <!-- Alternate Row -->
-                    <div class="flex flex-col">
-                        <span class="text-[#38BDF8] text-[10px] uppercase font-bold mb-1">Alternate</span>
-                        <div class="flex justify-between items-end border-b border-emerald-500/10 pb-1">
-                            <span class="text-[#7b7b7b] text-base">< LSK 3L</span>
-                            <span id="acarsAltn" class="text-emerald-400 text-2xl font-black tracking-[4px]">----</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Status / Message Area -->
-                <div class="mt-auto pt-6">
-                    <div id="acarsStatus" class="text-amber-500 text-sm animate-pulse w-full text-center tracking-[0.2em] font-bold h-6" style="display:none;">SENDING...</div>
-                    
-                    <!-- Prompt / Action Buttons Row -->
-                    <div class="flex justify-between items-center mt-4">
-                        <button id="btnAcarsClose" onclick="document.getElementById('acarsModal').style.display='none'" class="text-[#7b7b7b] hover:text-white transition-colors text-lg font-bold flex items-center gap-2">
-                            < RETURN
-                        </button>
-                        <button id="btnAcarsSend" onclick="window.sendAcarsReq()" class="text-emerald-400 hover:text-emerald-300 transition-all text-xl font-black tracking-widest flex items-center gap-2 group">
-                            SEND REQ *
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Scratchpad -->
-                <div class="absolute bottom-4 left-6 right-6 flex items-center gap-2 text-sky-400 text-sm font-bold border-t border-emerald-500/5 pt-2 mt-4">
-                    <span id="acarsScratchpad" class="flex-1"></span>
-                    <span class="w-3 h-5 bg-sky-400/80 animate-pulse"></span>
-                </div>
+            <!-- Draggable Header -->
+            <div id="acarsDragHandle" class="h-10 bg-[#111] w-full rounded-t-[16px] cursor-move flex items-center justify-between border-b border-black px-4">
+                <!-- Empty spacer for flex-between balance -->
+                <div class="w-6"></div>
+                <!-- Drag Handle Bar -->
+                <div class="w-32 h-1.5 bg-[#333] rounded-full pointer-events-none"></div>
+                <!-- Close Button -->
+                <button onclick="document.getElementById('acarsModal').style.display='none'" class="text-[#7b7b7b] hover:text-white transition-colors flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[18px]">close</span>
+                </button>
             </div>
 
-            <!-- Hardware Bezel Accents -->
-            <div class="absolute top-8 left-1/2 -translate-x-1/2 w-20 h-1.5 bg-[#1a1a1a] rounded-full opacity-50"></div>
+            <!-- MCDU Body -->
+            <div class="p-4 flex gap-3 h-[450px]">
+                
+                <!-- Left LSKs -->
+                <div class="flex flex-col justify-around py-12 w-10">
+                    <button class="w-full h-5 bg-[#333] border-b-4 border-[#111] rounded shadow-[0_2px_4px_rgba(0,0,0,0.5)] active:border-b-0 active:translate-y-1 transition-all pointer-events-none"></button>
+                    <button class="w-full h-5 bg-[#333] border-b-4 border-[#111] rounded shadow-[0_2px_4px_rgba(0,0,0,0.5)] active:border-b-0 active:translate-y-1 transition-all pointer-events-none"></button>
+                    <button class="w-full h-5 bg-[#333] border-b-4 border-[#111] rounded shadow-[0_2px_4px_rgba(0,0,0,0.5)] active:border-b-0 active:translate-y-1 transition-all pointer-events-none"></button>
+                    <button class="w-full h-5 bg-[#333] border-b-4 border-[#111] rounded shadow-[0_2px_4px_rgba(0,0,0,0.5)] active:border-b-0 active:translate-y-1 transition-all pointer-events-none"></button>
+                    <button class="w-full h-5 bg-[#333] border-b-4 border-[#111] rounded shadow-[0_2px_4px_rgba(0,0,0,0.5)] active:border-b-0 active:translate-y-1 transition-all pointer-events-none"></button>
+                    <button class="w-full h-5 bg-[#333] border-b-4 border-[#111] rounded shadow-[0_2px_4px_rgba(0,0,0,0.5)] active:border-b-0 active:translate-y-1 transition-all pointer-events-none"></button>
+                </div>
+
+                <!-- Screen Area -->
+                <div class="flex-1 bg-[#0A1A0A] rounded border-[4px] border-[#000] shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] relative flex flex-col font-mono text-white tracking-widest p-4">
+                    
+                    <!-- Status Bar Top -->
+                    <div class="flex justify-between items-center text-sm mb-4">
+                        <span class="text-emerald-500 font-bold">AOC WX REQ</span>
+                        <span class="text-emerald-500/60">1/1</span>
+                    </div>
+
+                    <!-- Rows Container -->
+                    <div class="flex-1 flex flex-col justify-around py-1">
+                        <!-- Origin Row -->
+                        <div class="flex flex-col">
+                            <span class="text-[#38BDF8] text-[10px] uppercase font-bold mb-0.5">Origin</span>
+                            <div class="flex justify-between items-end">
+                                <span class="text-[#7b7b7b] text-sm">&lt;</span>
+                                <span id="acarsOrigin" class="text-emerald-400 text-xl font-black tracking-[4px]">----</span>
+                            </div>
+                        </div>
+
+                        <!-- Destination Row -->
+                        <div class="flex flex-col mt-2">
+                            <span class="text-[#38BDF8] text-[10px] uppercase font-bold mb-0.5">Destination</span>
+                            <div class="flex justify-between items-end">
+                                <span class="text-[#7b7b7b] text-sm">&lt;</span>
+                                <span id="acarsDest" class="text-emerald-400 text-xl font-black tracking-[4px]">----</span>
+                            </div>
+                        </div>
+
+                        <!-- Alternate Row -->
+                        <div class="flex flex-col mt-2">
+                            <span class="text-[#38BDF8] text-[10px] uppercase font-bold mb-0.5">Alternate</span>
+                            <div class="flex justify-between items-end">
+                                <span class="text-[#7b7b7b] text-sm">&lt;</span>
+                                <span id="acarsAltn" class="text-emerald-400 text-xl font-black tracking-[4px]">----</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Empty Rows -->
+                        <div class="flex flex-col mt-2 h-8"></div>
+                        <div class="flex justify-between items-end mt-2 h-8">
+                            <div></div>
+                            <div class="flex flex-col items-end">
+                                <span class="text-[#38BDF8] text-[10px] uppercase font-bold mb-0.5">WX Source</span>
+                                <span id="acarsWxSourceText" class="text-emerald-400 text-sm font-bold">NOAA &gt;</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Actions Row -->
+                        <div class="flex justify-between items-end mt-4">
+                            <div class="flex flex-col items-start">
+                                <span class="text-[#38BDF8] text-[10px] uppercase font-bold mb-0.5">&nbsp;</span>
+                                <span class="text-white text-sm font-bold">&lt; RETURN</span>
+                            </div>
+                            <div class="flex flex-col items-end">
+                                <span class="text-[#38BDF8] text-[10px] uppercase font-bold mb-0.5">&nbsp;</span>
+                                <span id="acarsSendText" class="text-emerald-400 text-sm font-bold">SEND REQ *&gt;</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scratchpad Area -->
+                    <div class="mt-4 pt-2 border-t border-emerald-500/20 relative">
+                        <div id="acarsStatus" class="absolute -top-6 left-0 right-0 text-amber-500 text-xs animate-pulse text-center tracking-[0.2em] font-bold opacity-0 transition-opacity">SENDING...</div>
+                        
+                        <div class="flex items-center gap-2 text-sky-400 text-sm font-bold h-6">
+                            <span class="text-emerald-500/30">[</span>
+                            <span id="acarsScratchpad" class="flex-1"></span>
+                            <span class="w-2.5 h-4 bg-sky-400/80 animate-pulse ml-1"></span>
+                            <span class="text-emerald-500/30">]</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right LSKs -->
+                <div class="flex flex-col justify-around py-12 w-10">
+                    <button class="w-full h-5 bg-[#333] border-b-4 border-[#111] rounded shadow-[0_2px_4px_rgba(0,0,0,0.5)] active:border-b-0 active:translate-y-1 transition-all pointer-events-none"></button>
+                    <button class="w-full h-5 bg-[#333] border-b-4 border-[#111] rounded shadow-[0_2px_4px_rgba(0,0,0,0.5)] active:border-b-0 active:translate-y-1 transition-all pointer-events-none"></button>
+                    <button class="w-full h-5 bg-[#333] border-b-4 border-[#111] rounded shadow-[0_2px_4px_rgba(0,0,0,0.5)] active:border-b-0 active:translate-y-1 transition-all pointer-events-none"></button>
+                    <button class="w-full h-5 bg-[#333] border-b-4 border-[#111] rounded shadow-[0_2px_4px_rgba(0,0,0,0.5)] active:border-b-0 active:translate-y-1 transition-all pointer-events-none"></button>
+                    <button onclick="window.cycleAcarsWxSource()" class="w-full h-5 bg-[#333] border-b-4 border-[#111] rounded shadow-[0_2px_4px_rgba(0,0,0,0.5)] active:border-b-0 active:translate-y-[4px] transition-all relative overflow-hidden group">
+                        <div class="absolute inset-0 opacity-0 group-active:opacity-20 bg-white"></div>
+                    </button>
+                    <button id="btnAcarsSendPhysical" onclick="if(!this.disabled) window.sendAcarsReq()" class="w-full h-5 bg-[#333] border-b-4 border-[#111] rounded shadow-[0_2px_4px_rgba(0,0,0,0.5)] active:border-b-0 active:translate-y-[4px] transition-all relative overflow-hidden group">
+                        <div class="absolute inset-0 opacity-0 group-active:opacity-20 bg-white"></div>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Keyboard Area Placeholder -->
+            <div class="h-16 bg-[#151515] rounded-b-[16px] border-t border-[#111] flex items-center justify-center">
+                 <div class="grid grid-cols-5 gap-2 w-[80%] opacity-20">
+                     <div class="h-3 bg-[#333] rounded-sm"></div>
+                     <div class="h-3 bg-[#333] rounded-sm"></div>
+                     <div class="h-3 bg-[#333] rounded-sm"></div>
+                     <div class="h-3 bg-[#333] rounded-sm"></div>
+                     <div class="h-3 bg-[#333] rounded-sm"></div>
+                 </div>
+            </div>
         </div>
     </div>
 
-
+    <!-- Generic Confirmation Modal -->
+    <div id="confirmModal" class="fixed inset-0 z-[300] flex items-center justify-center bg-[#0B0C10]/90 backdrop-blur-md p-4" style="display: none;">
+        <div class="bg-[#141414] w-full max-w-md rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden relative">
+            <div class="h-1.5 w-full shrink-0 bg-gradient-to-r from-red-500 via-orange-400 to-red-500" id="confirmModalAccent"></div>
+            <div class="p-8 flex flex-col gap-6">
+                <div class="flex items-center gap-4">
+                    <span class="material-symbols-outlined text-4xl text-red-500" id="confirmModalIcon">warning</span>
+                    <h2 class="text-xl font-black font-headline text-white tracking-tight uppercase" id="confirmModalTitle">CONFIRMATION</h2>
+                </div>
+                <p class="text-sm text-[#b6b6b6] leading-relaxed" id="confirmModalMessage">Are you sure you want to proceed?</p>
+                
+                <div class="flex justify-end gap-4 mt-4">
+                    <button id="btnConfirmCancel" class="py-2.5 px-6 bg-transparent hover:bg-white/5 border border-white/10 rounded-lg text-[#b6b6b6] font-bold text-xs uppercase tracking-widest transition-colors">
+                        Cancel
+                    </button>
+                    <button id="btnConfirmAction" class="py-2.5 px-6 bg-red-600/20 hover:bg-red-600/40 border border-red-500/30 rounded-lg text-red-400 font-bold text-xs uppercase tracking-widest transition-colors shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Hidden audio element -->
     <audio id="chimeEmergency" src="assets/sounds/chime_emergency.wav" preload="auto"></audio>

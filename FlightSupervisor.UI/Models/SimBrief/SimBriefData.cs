@@ -44,6 +44,9 @@ namespace FlightSupervisor.UI.Models.SimBrief
         [JsonPropertyName("weather")]
         public WeatherInfo? Weather { get; set; }
 
+        [JsonIgnore]
+        public WeatherInfo? OriginalWeather { get; set; }
+
         [JsonPropertyName("text")]
         public TextInfo? Text { get; set; }
 

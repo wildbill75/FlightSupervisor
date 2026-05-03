@@ -37,7 +37,25 @@ namespace FlightSupervisor.UI.Services
                     PropertyNameCaseInsensitive = true
                 };
 
-                return JsonSerializer.Deserialize<SimBriefResponse>(jsonContent, options);
+                var result = JsonSerializer.Deserialize<SimBriefResponse>(jsonContent, options);
+                
+                // Tighten SIBT by 10 minutes (600 seconds) to remove excessive SimBrief padding and increase difficulty
+                if (result?.Times?.SchedIn != null && long.TryParse(result.Times.SchedIn, out long schedInUnix))
+                {
+                    result.Times.SchedIn = (schedInUnix - 600).ToString();
+                }
+                
+                if (result?.Times?.SchedBlock != null && long.TryParse(result.Times.SchedBlock, out long schedBlockSec))
+                {
+                    result.Times.SchedBlock = Math.Max(0, schedBlockSec - 600).ToString();
+                }
+                
+                if (result?.Weights?.EstBlock != null && long.TryParse(result.Weights.EstBlock, out long estBlockSec))
+                {
+                    result.Weights.EstBlock = Math.Max(0, estBlockSec - 600).ToString();
+                }
+
+                return result;
             }
             catch (Exception ex)
             {

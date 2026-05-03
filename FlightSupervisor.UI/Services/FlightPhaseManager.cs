@@ -71,6 +71,8 @@ namespace FlightSupervisor.UI.Services
         public event Action? OnGoAroundFinished;
         
         public event Action<double>? OnTouchdown;
+        public event Action<int>? OnBounce;
+        public event Action<string, double>? OnLandingQualityEvaluated;
         public event Action<string, string>? OnFoMessage;
         
         private bool _hasTriggeredOverspeedPenalty = false;
@@ -119,7 +121,24 @@ namespace FlightSupervisor.UI.Services
         public bool IsLandingLightOn { get; set; } = false;
         public bool IsTaxiLightOn { get; set; } = false;
         public bool IsStrobeLightOn { get; set; } = false;
-        public bool IsOnGround { get; set; } = true;
+        private bool _isOnGround = true;
+        public bool IsOnGround 
+        { 
+            get => _isOnGround; 
+            set 
+            {
+                if (_isOnGround != value)
+                {
+                    _isOnGround = value;
+                    if (!_isOnGround && _hasLanded && CurrentPhase == FlightPhase.Landing)
+                    {
+                        BounceCount++;
+                        OnBounce?.Invoke(BounceCount);
+                    }
+                }
+            } 
+        }
+        public int BounceCount { get; private set; } = 0;
         public double VerticalSpeed { get; set; } = 0.0;
         private double _gForce = 1.0;
         public double GForce 
@@ -136,13 +155,17 @@ namespace FlightSupervisor.UI.Services
         private bool _hasLanded = false;
         public double TouchdownFpm { get; private set; } = 0.0;
         public double TouchdownGForce { get; private set; } = 1.0;
+        public string TouchdownZoneStatus { get; private set; } = "Unknown";
+        public double CenterlineDeviation { get; private set; } = 0.0;
 
         public TurbulenceSeverityLevel TurbulenceSeverity { get; private set; } = TurbulenceSeverityLevel.None;
         private System.Collections.Generic.Queue<double> _gForceHistory = new System.Collections.Generic.Queue<double>();
         private System.Collections.Generic.Queue<double> _touchdownGForceHistory = new System.Collections.Generic.Queue<double>();
         private System.Collections.Generic.Queue<double> _touchdownVsHistory = new System.Collections.Generic.Queue<double>();
         private const int JitterWindowSize = 300; // ~5 seconds at Visual Frame rate (60Hz)
-
+        private DateTime? _touchdownTime = null;
+        private double _maxPostTouchdownGForce = 1.0;
+        
         // Fenix specific states
         public int FenixNoseLight { get; set; } = 0; // 0=OFF, 1=TAXI, 2=TO
         public bool IsRunwayTurnoffLightOn { get; set; } = false;
@@ -334,6 +357,26 @@ namespace FlightSupervisor.UI.Services
 
             Altitude = altitude;
             GroundSpeed = groundSpeed;
+
+            // Post-touchdown G-Force tracking
+            if (_hasLanded && _touchdownTime.HasValue)
+            {
+                if ((DateTime.Now - _touchdownTime.Value).TotalSeconds < 1.0)
+                {
+                    if (GForce > _maxPostTouchdownGForce)
+                    {
+                        _maxPostTouchdownGForce = GForce;
+                        TouchdownGForce = Math.Max(TouchdownGForce, _maxPostTouchdownGForce);
+                    }
+                }
+                else if (_touchdownTime.Value.Year > 2000)
+                {
+                    // Tracking finished, we broadcast the finalized G-force and FPM once
+                    _touchdownTime = DateTime.MinValue; // marker to stop broadcasting
+                    OnTouchdown?.Invoke(TouchdownFpm);
+                    OnLandingQualityEvaluated?.Invoke(TouchdownZoneStatus, _timeAt50Ft.HasValue ? (DateTime.Now - _timeAt50Ft.Value).TotalSeconds : 0.0);
+                }
+            }
 
             // Calculate Turn Rate (degrees per second)
             double turnRate = 0;
@@ -770,9 +813,8 @@ namespace FlightSupervisor.UI.Services
                         _goAroundStartTime = null;
                         if (_vsHistory.Count > 0)
                         {
-                            // On prend la valeur la plus ancienne (Peek) enregistrée juste avant le posé (environ -0.5s)
-                            // pour éviter les pics de compression physiques absurdes de MSFS au moment du contact sol.
-                            TouchdownFpm = _vsHistory.Peek(); 
+                            // Use Last() instead of Peek() to get the most recent Vertical Speed just before the struts compressed
+                            TouchdownFpm = _vsHistory.Last(); 
                         }
                         else
                         {
@@ -798,53 +840,51 @@ namespace FlightSupervisor.UI.Services
                     if (IsOnGround && !_hasLanded)
                     {
                         _hasLanded = true;
+                        // TouchdownZoneStatus, TouchdownGForce, etc. are finalized during the 1-second post-touchdown window
                         
                         if (_gForceHistory.Count > 0)
                             TouchdownGForce = Math.Max(GForce, _gForceHistory.Max());
                         else
                             TouchdownGForce = GForce;
 
-                        // string landingQualityEn = "Normal Landing";
-                        // string landingQualityFr = "Atterrissage Normal";
-                        // if (TouchdownFpm > -150) { landingQualityEn = "Butter Landing"; landingQualityFr = "Kiss Landing"; }
-                        // else if (TouchdownFpm < -600) { landingQualityEn = "Severe Hard Landing"; landingQualityFr = "Atterrissage Très Dur"; }
-                        // else if (TouchdownFpm < -450) { landingQualityEn = "Hard Landing"; landingQualityFr = "Atterrissage Dur"; }
-                        
-                        
-
-                        OnTouchdown?.Invoke(TouchdownFpm);
-
                         // Touchdown Zone Time Evaluation
+                        string touchdownZoneStatus = "Perfect";
                         if (_timeAt50Ft.HasValue)
                         {
                             double flareSeconds = (DateTime.Now - _timeAt50Ft.Value).TotalSeconds;
                             double minFlare = 4.0;
-                            double maxFlare = 7.0;
+                            double maxFlare = 12.0; // Increased to 12.0 to avoid false LONG (140kts = ~236 fps. 12s = 2800ft)
                             
-                            if (AircraftCategory == "Heavy") { minFlare = 5.0; maxFlare = 9.0; }
-                            else if (AircraftCategory == "Light") { minFlare = 3.0; maxFlare = 6.0; }
+                            if (AircraftCategory == "Heavy") { minFlare = 5.0; maxFlare = 14.0; }
+                            else if (AircraftCategory == "Light") { minFlare = 3.0; maxFlare = 10.0; }
 
-                            if (flareSeconds < minFlare) { } 
-                            else if (flareSeconds > maxFlare) { }
-                            else { }
+                            if (flareSeconds < minFlare) { touchdownZoneStatus = "Short"; } 
+                            else if (flareSeconds > maxFlare) { touchdownZoneStatus = "Long"; }
                         }
 
-                        // Centerline logic
+                        // Centerline logicterline logic
                         double dev = 0.0;
-                        // string devSource = "";
+                        string devSource = "";
                         if (HasLocalizer)
                         {
                             dev = Math.Abs(NavLocalizerError); // in degrees
-                            // devSource = "ILS Localizer";
+                            devSource = "ILS Localizer";
                         }
                         else 
                         {
                             dev = Math.Abs(GpsCrossTrackError); // in meters
-                            // devSource = "GPS Track";
+                            devSource = "GPS Track";
                         }
                         
                         // Override Crosswind Bonus if dev is bad
                         bool goodCenterline = (HasLocalizer && dev <= 1.0) || (!HasLocalizer && dev <= 25.0);
+                        if (!goodCenterline && HasLocalizer)
+                        {
+                            touchdownZoneStatus += "_OffCenter";
+                        }
+                        
+                        TouchdownZoneStatus = touchdownZoneStatus;
+                        CenterlineDeviation = dev;
 
                         // Crosswind Bonus Calculation
                         double angleRad = (WindDirection - Heading) * Math.PI / 180.0;
@@ -1035,6 +1075,7 @@ namespace FlightSupervisor.UI.Services
             TouchdownFpm = 0.0;
             TouchdownGForce = 1.0;
             _hasLanded = false;
+            BounceCount = 0;
             IsOnGround = true;
             _timeAt50Ft = null;
             _vsHistory.Clear();

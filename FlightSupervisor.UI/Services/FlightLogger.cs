@@ -60,5 +60,43 @@ namespace FlightSupervisor.UI.Services
             }
             return archives.OrderByDescending(f => f.FlightDate).ToList();
         }
+
+        public static void DeleteFlight(string id)
+        {
+            try
+            {
+                var files = Directory.GetFiles(_logsDirectory, "Flight_*.json");
+                foreach (var file in files)
+                {
+                    var json = File.ReadAllText(file);
+                    var record = JsonSerializer.Deserialize<FlightArchive>(json);
+                    if (record != null && record.Id == id)
+                    {
+                        File.Delete(file);
+                        break;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to delete flight: {ex.Message}");
+            }
+        }
+
+        public static void WipeCareerData()
+        {
+            try
+            {
+                var files = Directory.GetFiles(_logsDirectory, "Flight_*.json");
+                foreach (var file in files)
+                {
+                    File.Delete(file);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to wipe career data: {ex.Message}");
+            }
+        }
     }
 }

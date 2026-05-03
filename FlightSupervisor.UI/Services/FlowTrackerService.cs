@@ -45,6 +45,9 @@ namespace FlightSupervisor.UI.Services
         private bool _isOnGround = true;
         private double _throttleLever1 = 0;
         private double _throttleLever2 = 0;
+        private DateTime? _invalidTaxiLightsStart = null;
+        private double _currentAltitude = 0;
+        private DateTime? _invalidAltitudeLightsStart = null;
         
         // --- Flow State Cache ---
         public bool IsParkingBrakeOn { get; private set; }
@@ -129,6 +132,10 @@ namespace FlightSupervisor.UI.Services
             _simConnect.OnRadioHeightReceived += rh => {
                 _currentRadioHeight = rh;
             };
+            _simConnect.OnAltitudeReceived += alt => {
+                _currentAltitude = alt;
+                EvaluateContinuousRules();
+            };
             _simConnect.OnSimOnGroundReceived += gnd => { 
                 _isOnGround = gnd; 
             };
@@ -211,6 +218,24 @@ namespace FlightSupervisor.UI.Services
                         AccumulatedTaxiSpeedViolationSeconds += (DateTime.UtcNow - _taxiSpeedViolationStartTime).TotalSeconds;
                     }
                 }
+
+                // Taxiing with Landing Lights or Strobes ON (allow 20s for runway line-up)
+                if (_currentGs > 5.0 && (AreLandingLightsOn || StrobeLightState == 2))
+                {
+                    if (_invalidTaxiLightsStart == null) _invalidTaxiLightsStart = DateTime.UtcNow;
+                    else if ((DateTime.UtcNow - _invalidTaxiLightsStart.Value).TotalSeconds > 20)
+                    {
+                        if ((DateTime.UtcNow - _lastAirmanshipPenaltyTime).TotalSeconds > 30)
+                        {
+                            _scoreManager.AddScore(-50, "SOP Violation: Taxiing with Landing/Strobe lights ON", ScoreCategory.Airmanship);
+                            _lastAirmanshipPenaltyTime = DateTime.UtcNow;
+                        }
+                    }
+                }
+                else
+                {
+                    _invalidTaxiLightsStart = null;
+                }
             }
 
             // 2. Unstable Approach Check
@@ -245,13 +270,46 @@ namespace FlightSupervisor.UI.Services
                     }
                 }
 
-                if (_currentIas > 260 && _currentRadioHeight < 10000 && phase != FlightPhase.Cruise)
+                // Overspeed 250kts < 10000ft (Tolerance: 9500ft, 260kts)
+                if (_currentIas > 260 && _currentAltitude < 9500 && phase != FlightPhase.Cruise)
                 {
                     if ((DateTime.UtcNow - _lastAirmanshipPenaltyTime).TotalSeconds > 10)
                     {
                         _scoreManager.AddScore(-150, "Overspeed: Aircraft exceeded 250kts below 10,000ft", ScoreCategory.Airmanship);
                         _lastAirmanshipPenaltyTime = DateTime.UtcNow;
                     }
+                }
+
+                // Landing Lights 10000ft Rule (Tolerance +/- 500ft -> 9500 to 10500)
+                bool isLandingLightsViolation = false;
+                string llViolationMsg = "";
+
+                if (_currentAltitude > 10500 && AreLandingLightsOn)
+                {
+                    isLandingLightsViolation = true;
+                    llViolationMsg = "SOP Violation: Landing lights left ON above 10,000ft";
+                }
+                else if (_currentAltitude < 9500 && !AreLandingLightsOn)
+                {
+                    isLandingLightsViolation = true;
+                    llViolationMsg = "SOP Violation: Landing lights OFF below 10,000ft";
+                }
+
+                if (isLandingLightsViolation)
+                {
+                    if (_invalidAltitudeLightsStart == null) _invalidAltitudeLightsStart = DateTime.UtcNow;
+                    else if ((DateTime.UtcNow - _invalidAltitudeLightsStart.Value).TotalSeconds > 20)
+                    {
+                        if ((DateTime.UtcNow - _lastAirmanshipPenaltyTime).TotalSeconds > 30)
+                        {
+                            _scoreManager.AddScore(-50, llViolationMsg, ScoreCategory.Airmanship);
+                            _lastAirmanshipPenaltyTime = DateTime.UtcNow;
+                        }
+                    }
+                }
+                else
+                {
+                    _invalidAltitudeLightsStart = null;
                 }
 
                 // Passenger Comfort Limits
@@ -302,10 +360,10 @@ namespace FlightSupervisor.UI.Services
         {
             var phase = _phaseManager.CurrentPhase;
 
-            // Tail Strike Check (On ground, Takeoff/Landing, Pitch > 11)
+            // Tail Strike Check (On ground, Takeoff/Landing, Pitch > 14.5)
             if (_isOnGround && (phase == FlightPhase.Takeoff || phase == FlightPhase.Landing))
             {
-                if (_currentPitch > 11.0)
+                if (_currentPitch > 14.5)
                 {
                     if (!HasTailStrikeInPhase)
                     {

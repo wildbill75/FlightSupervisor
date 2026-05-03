@@ -16,6 +16,28 @@ namespace FlightSupervisor.UI.Services
         private WasmLVarClient? _wasmClient = null;
         public bool IsWasmOverriding { get; set; } = true;
 
+        private string _lastLoggedThrust = "";
+        private string _lastLoggedSplr = "";
+        private string _lastLoggedGear = "";
+
+        private string GetFenixThrustName(double rawValue)
+        {
+            if (Math.Abs(rawValue - 0.0) < 0.15) return "FULL REVERSE";
+            if (Math.Abs(rawValue - 1.0) < 0.15) return "REV IDLE";
+            if (Math.Abs(rawValue - 2.0) < 0.15) return "IDLE";
+            if (Math.Abs(rawValue - 3.0) < 0.15) return "CL";
+            if (Math.Abs(rawValue - 4.0) < 0.15) return "FLX/MCT";
+            if (Math.Abs(rawValue - 5.0) < 0.15) return "TO/GA";
+            return "MANUAL";
+        }
+
+        private string GetFenixSplrName(double posRaw)
+        {
+            if (posRaw < 0.5) return "ARMED";
+            if (posRaw <= 1.05) return "RETRACTED";
+            return "DEPLOYED";
+        }
+
         public bool IsConnected => _isNativelyConnected;
         public DateTime CurrentSimZuluTime { get; private set; } = DateTime.UtcNow;
 
@@ -417,7 +439,29 @@ namespace FlightSupervisor.UI.Services
                 // Robust Fenix Thrust Lever normalization (Custom Bertrand Calibration)
                 // IDLE = ~2.000, FULL REVERSE = 0.000, TOGA = ~3.828 (Left) / 3.243 (Right)
                 double maxThrust = Math.Max(data.ThrottleLeft, data.ThrottleRight);
-                OnDebugMessageReceived?.Invoke($"FENIX THRUST L:{data.ThrottleLeft:F3} R:{data.ThrottleRight:F3} | SPLR POS:{data.SpeedbrakePos:F3} LOCK:{data.SpeedbrakeLock:F3} | GEAR:{data.GearLever:F3}");
+
+                string leftThrustName = GetFenixThrustName(data.ThrottleLeft);
+                string rightThrustName = GetFenixThrustName(data.ThrottleRight);
+                string currentThrustLog = leftThrustName == rightThrustName ? $"FENIX THRUST: {leftThrustName}" : $"FENIX THRUST L:{leftThrustName} R:{rightThrustName}";
+                if (currentThrustLog != _lastLoggedThrust)
+                {
+                    OnDebugMessageReceived?.Invoke(currentThrustLog);
+                    _lastLoggedThrust = currentThrustLog;
+                }
+
+                string currentSplrLog = $"FENIX SPLR: {GetFenixSplrName(data.SpeedbrakePos)}";
+                if (currentSplrLog != _lastLoggedSplr)
+                {
+                    OnDebugMessageReceived?.Invoke(currentSplrLog);
+                    _lastLoggedSplr = currentSplrLog;
+                }
+
+                string currentGearLog = $"FENIX GEAR: {(data.GearLever > 0.5 ? "DOWN" : "UP")}";
+                if (currentGearLog != _lastLoggedGear)
+                {
+                    OnDebugMessageReceived?.Invoke(currentGearLog);
+                    _lastLoggedGear = currentGearLog;
+                }
                 
                 double normalizedThrust = 0.0;
                 

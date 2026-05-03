@@ -33,6 +33,9 @@ namespace FlightSupervisor.UI.Models
         public long SchedBlockTime { get; set; }
         public double TouchdownFpm { get; set; }
         public double TouchdownGForce { get; set; }
+        public int BounceCount { get; set; }
+        public string TouchdownZoneStatus { get; set; }
+        public double CenterlineDeviation { get; set; }
         
         public string Zfw { get; set; }
         public string Tow { get; set; }
