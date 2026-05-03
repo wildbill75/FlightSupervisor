@@ -168,6 +168,53 @@
                 </div>
             </div>
 
+            <div class="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col gap-3">
+                <div class="text-xs font-bold tracking-widest text-slate-500 uppercase mb-1 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[14px]">monitor_heart</span>
+                    Systems Health
+                </div>
+                
+                <div class="flex flex-col gap-1">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-400">Engines</span>
+                        <span class="text-xs font-semibold text-slate-300 font-mono" id="lblHealthEngine">--%</span>
+                    </div>
+                    <div class="w-full bg-black/50 rounded-full h-1.5 overflow-hidden">
+                        <div id="barHealthEngine" class="h-full bg-emerald-400 transition-all duration-1000" style="width: 100%"></div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-400">Airframe Structure</span>
+                        <span class="text-xs font-semibold text-slate-300 font-mono" id="lblHealthStructure">--%</span>
+                    </div>
+                    <div class="w-full bg-black/50 rounded-full h-1.5 overflow-hidden">
+                        <div id="barHealthStructure" class="h-full bg-emerald-400 transition-all duration-1000" style="width: 100%"></div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-400">Landing Gear & Brakes</span>
+                        <span class="text-xs font-semibold text-slate-300 font-mono" id="lblHealthGear">--%</span>
+                    </div>
+                    <div class="w-full bg-black/50 rounded-full h-1.5 overflow-hidden">
+                        <div id="barHealthGear" class="h-full bg-emerald-400 transition-all duration-1000" style="width: 100%"></div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-400">Flight Controls</span>
+                        <span class="text-xs font-semibold text-slate-300 font-mono" id="lblHealthFlaps">--%</span>
+                    </div>
+                    <div class="w-full bg-black/50 rounded-full h-1.5 overflow-hidden">
+                        <div id="barHealthFlaps" class="h-full bg-emerald-400 transition-all duration-1000" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+
         </aside>
 
         <section class="w-2/3 flex flex-col h-full bg-black/20 border border-white/5 rounded-xl overflow-hidden relative">
@@ -235,7 +282,7 @@
             let dDate = data.deliveryDate ? new Date(data.deliveryDate).toLocaleDateString() : "---";
             document.getElementById('valDelivered').textContent = dDate;
             document.getElementById('valAge').textContent = data.ageInYears + " Years";
-            document.getElementById('valGrade').textContent = data.maintenanceGrade || "---";
+            document.getElementById('valAge').textContent = data.ageInYears + " Years";
 
             document.getElementById('valEngine').textContent = data.engineType || "Unknown";
             document.getElementById('valMaxPax').textContent = (data.maxPassengers && data.maxPassengers > 0) ? data.maxPassengers : "---";
@@ -244,6 +291,38 @@
             document.getElementById('valMtow').textContent = (data.maxTakeoffWeight && data.maxTakeoffWeight > 0) ? data.maxTakeoffWeight.toLocaleString() : "---";
             document.getElementById('valMlw').textContent = (data.maxLandingWeight && data.maxLandingWeight > 0) ? data.maxLandingWeight.toLocaleString() : "---";
             document.getElementById('valMaxFuel').textContent = (data.maxFuelCapacity && data.maxFuelCapacity > 0) ? data.maxFuelCapacity.toLocaleString() : "---";
+            
+            function updateHealthBar(id, wearValue) {
+                let wear = Math.min(100, Math.max(0, wearValue || 0));
+                let health = 100 - wear;
+                let colorClass = "bg-emerald-400";
+                if (health < 40) colorClass = "bg-rose-500";
+                else if (health < 75) colorClass = "bg-amber-400";
+                
+                let bar = document.getElementById('bar' + id);
+                let lbl = document.getElementById('lbl' + id);
+                if (bar && lbl) {
+                    bar.style.width = health + "%";
+                    bar.className = "h-full transition-all duration-1000 " + colorClass;
+                    lbl.textContent = Math.round(health) + "%";
+                }
+            }
+
+            updateHealthBar("HealthEngine", data.engineWear);
+            updateHealthBar("HealthStructure", data.structureWear);
+            updateHealthBar("HealthGear", data.gearAndBrakeWear);
+            updateHealthBar("HealthFlaps", data.flapsWear);
+
+            let gradeSpan = document.getElementById('valGrade');
+            let grade = data.maintenanceGrade || "---";
+            gradeSpan.textContent = grade;
+            gradeSpan.className = "text-lg font-bold ";
+            if (grade === "A") gradeSpan.className += "text-emerald-400";
+            else if (grade === "B") gradeSpan.className += "text-emerald-300";
+            else if (grade === "C") gradeSpan.className += "text-amber-400";
+            else if (grade === "D") gradeSpan.className += "text-orange-500";
+            else if (grade === "F") gradeSpan.className += "text-rose-500";
+            else gradeSpan.className += "text-white";
             
             if (data.events && Array.isArray(data.events)) {
                 cachedEvents = data.events;

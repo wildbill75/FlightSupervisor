@@ -1007,7 +1007,7 @@ namespace FlightSupervisor.UI
 
             _scoreManager = new SuperScoreManager(_phaseManager, _simConnectService);
             _flowTrackerService = new FlowTrackerService(_simConnectService, _phaseManager, _scoreManager);
-            _scoreFlowEvaluator = new ScoreFlowEvaluator(_flowTrackerService, _phaseManager, _scoreManager, _cabinManager);
+            _scoreFlowEvaluator = new ScoreFlowEvaluator(_flowTrackerService, _phaseManager, _scoreManager, _cabinManager, _wearAndTearManager);
             _scoreManager.OnScoreChanged += (score, delta, reason) => {
                 Dispatcher.Invoke(() => SendToWeb(new { 
                     type = "scoreUpdate", 
@@ -1046,6 +1046,9 @@ namespace FlightSupervisor.UI
                 if (_lastLogGearDown != null && _lastLogGearDown != gd) 
                     _scoreManager?.AddScore(0, gd ? "Landing Gear DOWN" : "Landing Gear UP", ScoreCategory.FlightPhaseFlows);
                 _lastLogGearDown = gd;
+            };
+            _simConnectService.OnAutobrakeMaxReceived += am => {
+                _phaseManager.UpdateAutobrakeMax(am);
             };
             _simConnectService.OnRadioHeightReceived += rh => { _lastKnownRadioHeight = rh; };
             _simConnectService.OnGroundSpeedReceived += gs => { _lastKnownGroundSpeed = gs; };

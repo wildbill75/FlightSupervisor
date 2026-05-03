@@ -82,6 +82,7 @@ namespace FlightSupervisor.UI.Services
             public float SpeedbrakePos;      // Offset 144
             public float SpeedbrakeLock;     // Offset 148
             public float GearLever;          // Offset 152
+            public float AutobrakeMax;       // Offset 156
         }
 
         public WasmLVarClient(SimConnect simConnect)
@@ -212,6 +213,7 @@ namespace FlightSupervisor.UI.Services
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:A_FC_SPEEDBRAKE,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:B_FC_SPEEDBRAKE,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_MIP_GEAR,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.SimVars.Add.(L:S_MIP_AUTOBRAKE_MAX,Number)");
 
                 // Map variables to our client area in the exact struct order
                 SendCommand(CLIENT_DATA_ID.FS_Command, $"MF.SimVars.SetTarget.FlightSupervisor"); // Tell WASM which client area we are building
@@ -256,6 +258,7 @@ namespace FlightSupervisor.UI.Services
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:A_FC_SPEEDBRAKE,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:B_FC_SPEEDBRAKE,Number)");
                 SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_MIP_GEAR,Number)");
+                SendCommand(CLIENT_DATA_ID.FS_Command, "MF.Clients.Add.LVar.(L:S_MIP_AUTOBRAKE_MAX,Number)");
             }
             catch (Exception ex)
             {

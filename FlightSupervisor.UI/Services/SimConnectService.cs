@@ -62,6 +62,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<bool>? OnLightNavReceived;
         public event Action<bool>? OnLightTaxiReceived;
         public event Action<bool>? OnLightLandingReceived;
+        public event Action<bool>? OnAutobrakeMaxReceived;
         public event Action<double>? OnPitchReceived;
         public event Action<double>? OnBankReceived;
         public event Action<bool>? OnSimOnGroundReceived;
@@ -528,7 +529,7 @@ namespace FlightSupervisor.UI.Services
 
                 // Fenix Gear Lever mapping
                 OnGearDownReceived?.Invoke(data.GearLever > 0.5);
-                
+                OnAutobrakeMaxReceived?.Invoke(data.AutobrakeMax > 0.5);
 
 
                 if (data.FenixEcamFob > 0)

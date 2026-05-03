@@ -9,13 +9,25 @@ namespace FlightSupervisor.UI.Services
         private readonly AirframeManager _airframeManager;
 
         private bool _wasAirborne = false;
+        private bool _simOnGround = true;
         private DateTime? _touchdownTime = null;
         private DateTime? _airborneStartTime = null;
         private bool _enginesRunning = false;
         private double _verticalSpeed = 0;
         private System.Collections.Generic.Queue<double> _vsHistory = new System.Collections.Generic.Queue<double>();
         private double _flapsHandleIndex = 0;
-        private bool _simOnGround = true;
+        // Airmanship Events
+        public event Action<double>? OnHardLandingDetected;
+        public event Action<double>? OnTailStrikeDetected;
+        public event Action<double>? OnEngineCooldownBreached;
+        public event Action? OnFlapsOverspeedDetected;
+        public event Action? OnHotBrakesTakeoff;
+
+        // Virtual Brake Temperature (Degrees Celsius)
+        public double VirtualBrakeTemp { get; private set; } = 15.0; // Ambient default
+        private DateTime _lastBrakeTempUpdate = DateTime.Now;
+        private double _currentAirspeed = 0.0;
+        private bool _isFlapsOverspeeding = false;
 
         public WearAndTearManager(SimConnectService simConnectService, AirframeManager airframeManager)
         {
@@ -29,6 +41,54 @@ namespace FlightSupervisor.UI.Services
             _simConnectService.OnAmbientTemperatureReceived += HandleAmbientTemperature;
             _simConnectService.OnVerticalSpeedReceived += HandleVerticalSpeed;
             _simConnectService.OnFlapsReceived += f => _flapsHandleIndex = f;
+
+            // Timer for continuous virtual calculations
+            var timer = new System.Timers.Timer(1000);
+            timer.Elapsed += UpdateVirtualSystems;
+            timer.Start();
+        }
+
+        private void UpdateVirtualSystems(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            double elapsedSeconds = (DateTime.Now - _lastBrakeTempUpdate).TotalSeconds;
+            _lastBrakeTempUpdate = DateTime.Now;
+
+            // Update Virtual Brake Temp
+            if (_simOnGround)
+            {
+                if (_currentAirspeed > 60 && !_wasAirborne)
+                {
+                    // High-speed rollout / hard braking after landing or RTO
+                    VirtualBrakeTemp += 8.0 * elapsedSeconds; // Fast heat up
+                }
+                else if (_currentAirspeed > 5)
+                {
+                    // Normal taxiing
+                    VirtualBrakeTemp += 0.5 * elapsedSeconds; // Slow heat up
+                }
+                else
+                {
+                    // Stopped or parked
+                    VirtualBrakeTemp -= 0.5 * elapsedSeconds; // Slow cooling
+                }
+            }
+            else
+            {
+                // Airborne (gear up, cold air)
+                VirtualBrakeTemp -= 5.0 * elapsedSeconds; // Fast cooling
+            }
+
+            // Clamp temperature to ambient minimum (approx 15C)
+            if (VirtualBrakeTemp < 15.0) VirtualBrakeTemp = 15.0;
+
+            // Hot Brakes Takeoff Detection
+            if (!_simOnGround && _wasAirborne == false && VirtualBrakeTemp > 300.0)
+            {
+                // Just took off with hot brakes
+                OnHotBrakesTakeoff?.Invoke();
+                // Prevent spamming
+                VirtualBrakeTemp = 290.0; 
+            }
         }
 
         private void HandleVerticalSpeed(double vs)
@@ -53,7 +113,6 @@ namespace FlightSupervisor.UI.Services
                 if (af == null) return;
 
                 // Analyze Hard Landing
-                // We ensure the aircraft has been airborne for at least 30 seconds to prevent takeoff bounces from registering as landings.
                 bool wasAirborneLongEnough = _airborneStartTime.HasValue && (DateTime.Now - _airborneStartTime.Value).TotalSeconds > 30;
 
                 if (wasAirborneLongEnough)
@@ -72,6 +131,8 @@ namespace FlightSupervisor.UI.Services
                             Description = $"Hard landing detected: {touchdownVs:F0} fpm"
                         });
                         _airframeManager.SaveAirframe(af);
+
+                        OnHardLandingDetected?.Invoke(touchdownVs);
                     }
                 }
             }
@@ -112,28 +173,30 @@ namespace FlightSupervisor.UI.Services
                     Description = $"Tail strike detected! Pitch reached {pitch:F1} degrees on ground."
                 });
                 _airframeManager.SaveAirframe(af);
+
+                OnTailStrikeDetected?.Invoke(pitch);
             }
         }
 
         private void HandleAirspeed(double airspeed)
         {
+            _currentAirspeed = airspeed;
             var af = _airframeManager.CurrentAirframe;
             if (af == null) return;
 
             // Flaps Overspeed calculation
-            // Assuming FlapsIndex > 0 means deployed. Thresholds depend on aircraft.
-            // For generic A320, say Flaps 1 limit is ~230 kts. If flaps deployed and > 230 kts -> wear.
             if (_flapsHandleIndex > 0 && airspeed > 230)
             {
                 af.FlapsWear += 0.01; // Continuous wear while overspeeding
+                if (!_isFlapsOverspeeding)
+                {
+                    _isFlapsOverspeeding = true;
+                    OnFlapsOverspeedDetected?.Invoke();
+                }
             }
-
-            // Virtual Hot Brakes
-            if (_simOnGround && airspeed > 80 && _wasAirborne == false)
+            else
             {
-                // If rolling fast on runway and braking (implied by decelerating rapidly)
-                // A more complex heuristic would track deceleration.
-                af.GearAndBrakeWear += 0.005;
+                _isFlapsOverspeeding = false;
             }
         }
 
@@ -160,6 +223,8 @@ namespace FlightSupervisor.UI.Services
                             Description = $"Engines shut down too early ({cooldownDuration:F1} mins post-landing). Minimum 3 mins required."
                         });
                         _airframeManager.SaveAirframe(af);
+
+                        OnEngineCooldownBreached?.Invoke(cooldownDuration);
                     }
                 }
             }
@@ -174,9 +239,7 @@ namespace FlightSupervisor.UI.Services
             var af = _airframeManager.CurrentAirframe;
             if (af == null || _simOnGround) return;
 
-            // Simple icing heuristic: flying in < 10 degrees generates very slight engine/structure wear if anti-ice isn't modeled well,
-            // but ideally we'd check if specific LVars for AntiIce are active.
-            // We'll leave the framework here for when WasmLVarClient exposes AntiIce state.
+            // Simple icing heuristic
             if (temp < 10.0)
             {
                 // e.g. af.EngineWear += 0.001;

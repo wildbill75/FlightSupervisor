@@ -51,6 +51,9 @@ namespace FlightSupervisor.UI.Services
         public bool IsServiceHurried { get; set; } = false;
         public string CaptainName { get; set; } = "the Captain";
         
+        public bool HasActiveSoftFailure { get; private set; } = false;
+        public string ActiveSoftFailureReason { get; private set; } = "";
+        
         private bool _hasTriggered5MinDelay = false;
         private bool _hasTriggered15MinDelay = false;
         private bool _hasTriggered30MinDelay = false;
@@ -993,6 +996,17 @@ namespace FlightSupervisor.UI.Services
             // Progressive Boarding Logic (Phase 3)
             if ((phase == FlightPhase.AtGate || phase == FlightPhase.Turnaround) && HasBoardingStarted && !isBoarded)
             {
+                if (!HasActiveSoftFailure && (DateTime.Now - _lastRandomEvent).TotalMinutes >= 4.0)
+                {
+                    _lastRandomEvent = DateTime.Now;
+                    if (_rnd.NextDouble() < 0.25) // 25% chance every 4 mins of boarding/turnaround
+                    {
+                        HasActiveSoftFailure = true;
+                        ActiveSoftFailureReason = "Technical";
+                        OnCrewMessage?.Invoke("orange", LocalizationService.Translate("[PNC] Captain, we have a technical issue in the cabin (clogged toilet). Please make a PA to inform the passengers of a technical delay.", "[PNC] Commandant, nous avons un souci technique en cabine (toilettes bouchées). Pouvez-vous faire une annonce de retard technique ?"), null);
+                    }
+                }
+
                 if (_lastBoardingTick == DateTime.MaxValue) 
                 {
                     _lastBoardingTick = DateTime.Now;
@@ -1966,6 +1980,14 @@ namespace FlightSupervisor.UI.Services
             if (!_issuedCommands.Contains("PA_Delay"))
             {
                 _issuedCommands.Add("PA_Delay");
+            }
+            
+            if (HasActiveSoftFailure && reason == ActiveSoftFailureReason)
+            {
+                HasActiveSoftFailure = false;
+                ActiveSoftFailureReason = "";
+                OnCrewMessage?.Invoke("green", LocalizationService.Translate("[PNC] Thanks Captain. Maintenance is on it, the issue will be resolved soon.", "[PNC] Merci Commandant. La maintenance s'en occupe, ce sera vite réglé."), null);
+                ModifySatisfaction(15.0);
             }
             
             _manualApologyCount++;

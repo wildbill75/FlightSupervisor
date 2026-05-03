@@ -11,6 +11,7 @@ namespace FlightSupervisor.UI.Services
         Pushback,
         TaxiOut,
         Takeoff,
+        RejectedTakeoff,
         InitialClimb,
         Climb,
         Cruise,
@@ -54,6 +55,7 @@ namespace FlightSupervisor.UI.Services
                 case FlightPhase.Pushback: return LocalizationService.Translate("Pushback", "Repoussage");
                 case FlightPhase.TaxiOut: return LocalizationService.Translate("Taxi Out", "Roulage (Départ)");
                 case FlightPhase.Takeoff: return LocalizationService.Translate("Takeoff", "Décollage");
+                case FlightPhase.RejectedTakeoff: return LocalizationService.Translate("Rejected Takeoff", "Décollage Interrompu (RTO)");
                 case FlightPhase.InitialClimb: return LocalizationService.Translate("Initial Climb", "Montée Initiale");
                 case FlightPhase.Climb: return LocalizationService.Translate("Climb", "Montée");
                 case FlightPhase.Cruise: return LocalizationService.Translate("Cruise", "Croisière");
@@ -74,6 +76,7 @@ namespace FlightSupervisor.UI.Services
         public event Action<int>? OnBounce;
         public event Action<string, double>? OnLandingQualityEvaluated;
         public event Action<string, string>? OnFoMessage;
+        public event Action<bool>? OnAutobrakeMaxMissing;
         
         private bool _hasTriggeredOverspeedPenalty = false;
         private bool _hasTriggeredTaxiPenalty = false;
@@ -152,6 +155,7 @@ namespace FlightSupervisor.UI.Services
             }
         }
         public double GroundSpeed { get; private set; } = 0.0;
+        public bool IsAutobrakeMaxActive { get; private set; }
         private bool _hasLanded = false;
         public double TouchdownFpm { get; private set; } = 0.0;
         public double TouchdownGForce { get; private set; } = 1.0;
@@ -253,6 +257,11 @@ namespace FlightSupervisor.UI.Services
         {
             if (IsSimulationMode) return;
             _isAutothrustActive = isActive;
+        }
+
+        public void UpdateAutobrakeMax(bool isActive)
+        {
+            IsAutobrakeMaxActive = isActive;
         }
 
         public bool IsSimulationMode { get; set; } = false;
@@ -730,12 +739,28 @@ namespace FlightSupervisor.UI.Services
                         {
                             
                         }
+                        if (!IsAutobrakeMaxActive)
+                        {
+                            OnAutobrakeMaxMissing?.Invoke(true);
+                        }
                         ChangePhase(FlightPhase.Takeoff);
                     }
                     break;
                 
                 case FlightPhase.Takeoff:
-                    if (radioHeight >= 400) ChangePhase(FlightPhase.InitialClimb);
+                    if (IsOnGround && throttle < 10.0 && groundSpeed > 40.0)
+                    {
+                        ChangePhase(FlightPhase.RejectedTakeoff);
+                    }
+                    else if (radioHeight >= 400) 
+                    {
+                        ChangePhase(FlightPhase.InitialClimb);
+                    }
+                    break;
+
+                case FlightPhase.RejectedTakeoff:
+                    if (groundSpeed < 30.0) ChangePhase(FlightPhase.TaxiIn);
+                    else if (throttle >= 60.0 && groundSpeed >= 40.0) ChangePhase(FlightPhase.Takeoff);
                     break;
 
                 case FlightPhase.InitialClimb:

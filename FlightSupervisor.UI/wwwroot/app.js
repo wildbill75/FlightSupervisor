@@ -1721,7 +1721,10 @@ window.showDelayReasons = function () {
     const html = `
             <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_ATC'}); window.lastIntercomPayload.issuedCommands.push('PA_Delay'); window.backToCommsMenu()" class="${baseBtnStyle} bg-sky-900/30 text-sky-400 border-sky-700/50 hover:bg-sky-500/20">A.T.C.</button>
             <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_Weather'}); window.lastIntercomPayload.issuedCommands.push('PA_Delay'); window.backToCommsMenu()" class="${baseBtnStyle} bg-sky-900/30 text-sky-400 border-sky-700/50 hover:bg-sky-500/20">Weather</button>
-            <button onclick="window.backToCommsMenu()" class="${baseBtnStyle} text-slate-400 border-white/20 hover:text-white hover:bg-white/10">×</button>
+            <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_Technical'}); window.lastIntercomPayload.issuedCommands.push('PA_Delay'); window.backToCommsMenu()" class="${baseBtnStyle} bg-sky-900/30 text-sky-400 border-sky-700/50 hover:bg-sky-500/20">Technical</button>
+            <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_GroundOps'}); window.lastIntercomPayload.issuedCommands.push('PA_Delay'); window.backToCommsMenu()" class="${baseBtnStyle} bg-sky-900/30 text-sky-400 border-sky-700/50 hover:bg-sky-500/20">Ground Ops</button>
+            <button onclick="this.disabled=true; window.chrome.webview.postMessage({action: 'announceCabin', annType: 'Delay_Boarding'}); window.lastIntercomPayload.issuedCommands.push('PA_Delay'); window.backToCommsMenu()" class="${baseBtnStyle} bg-sky-900/30 text-sky-400 border-sky-700/50 hover:bg-sky-500/20">Boarding</button>
+            <button onclick="window.backToCommsMenu()" class="${baseBtnStyle} text-slate-400 border-white/20 hover:text-white hover:bg-white/10">x</button>
         `;
     container.innerHTML = html;
     container.dataset.lastHtml = ''; // force redraw on next update

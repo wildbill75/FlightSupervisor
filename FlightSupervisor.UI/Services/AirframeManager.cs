@@ -39,6 +39,10 @@ namespace FlightSupervisor.UI.Services
                 {
                     string json = File.ReadAllText(filePath);
                     CurrentAirframe = JsonSerializer.Deserialize<AirframeState>(json) ?? GenerateSeededAirframe(registration, baseType, airline, currentIcao);
+                    
+                    AirframeHistoryGenerator.CatchUpHistory(CurrentAirframe, currentIcao);
+                    SaveAirframe(CurrentAirframe);
+
                     return CurrentAirframe;
                 }
                 catch
@@ -58,6 +62,14 @@ namespace FlightSupervisor.UI.Services
         public void SaveAirframe(AirframeState state)
         {
             if (state == null || string.IsNullOrEmpty(state.Registration)) return;
+
+            // Dynamically calculate Condition Grade based on the highest wear (weakest link)
+            double maxWear = Math.Max(Math.Max(state.EngineWear, state.StructureWear), Math.Max(state.FlapsWear, state.GearAndBrakeWear));
+            if (maxWear >= 75) state.MaintenanceGrade = "F";
+            else if (maxWear >= 50) state.MaintenanceGrade = "D";
+            else if (maxWear >= 25) state.MaintenanceGrade = "C";
+            else if (maxWear >= 10) state.MaintenanceGrade = "B";
+            else state.MaintenanceGrade = "A";
 
             try
             {

@@ -219,11 +219,12 @@ namespace FlightSupervisor.UI.Services
                     }
                 }
 
-                // Taxiing with Landing Lights or Strobes ON (allow 20s for runway line-up)
+                // Taxiing with Landing Lights or Strobes ON (allow 20s for runway line-up, allow 90s for runway vacation after landing)
                 if (_currentGs > 5.0 && (AreLandingLightsOn || StrobeLightState == 2))
                 {
+                    double gracePeriod = (phase == FlightPhase.TaxiIn) ? 90.0 : 20.0;
                     if (_invalidTaxiLightsStart == null) _invalidTaxiLightsStart = DateTime.UtcNow;
-                    else if ((DateTime.UtcNow - _invalidTaxiLightsStart.Value).TotalSeconds > 20)
+                    else if ((DateTime.UtcNow - _invalidTaxiLightsStart.Value).TotalSeconds > gracePeriod)
                     {
                         if ((DateTime.UtcNow - _lastAirmanshipPenaltyTime).TotalSeconds > 30)
                         {

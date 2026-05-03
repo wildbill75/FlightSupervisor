@@ -19,16 +19,45 @@ namespace FlightSupervisor.UI.Services
         private readonly FlightPhaseManager _phaseManager;
         private readonly SuperScoreManager _scoreManager;
         private readonly CabinManager _cabinManager;
+        private readonly WearAndTearManager _wearAndTearManager;
 
-        public ScoreFlowEvaluator(FlowTrackerService flowTracker, FlightPhaseManager phaseManager, SuperScoreManager scoreManager, CabinManager cabinManager)
+        public ScoreFlowEvaluator(FlowTrackerService flowTracker, FlightPhaseManager phaseManager, SuperScoreManager scoreManager, CabinManager cabinManager, WearAndTearManager wearAndTearManager)
         {
             _flowTracker = flowTracker;
             _phaseManager = phaseManager;
             _scoreManager = scoreManager;
             _cabinManager = cabinManager;
-            // Re-subscribe here or let MainWindow inject? We hook up event.
+            _wearAndTearManager = wearAndTearManager;
+
             _phaseManager.OnPhaseEnding += PhaseManager_OnPhaseEnding;
             _phaseManager.OnGoAroundFinished += PhaseManager_OnGoAroundFinished;
+            _phaseManager.OnAutobrakeMaxMissing += PhaseManager_OnAutobrakeMaxMissing;
+
+            // Subscribe to Airmanship violations
+            _wearAndTearManager.OnHardLandingDetected += WearAndTearManager_OnHardLandingDetected;
+            _wearAndTearManager.OnTailStrikeDetected += WearAndTearManager_OnTailStrikeDetected;
+            _wearAndTearManager.OnEngineCooldownBreached += WearAndTearManager_OnEngineCooldownBreached;
+            _wearAndTearManager.OnHotBrakesTakeoff += WearAndTearManager_OnHotBrakesTakeoff;
+        }
+
+        private void WearAndTearManager_OnHardLandingDetected(double fpm)
+        {
+            _scoreManager.AddScore(-2000, $"HARD LANDING DETECTED ({fpm:F0} fpm, >2.5G)", ScoreCategory.Maintenance);
+        }
+
+        private void WearAndTearManager_OnTailStrikeDetected(double pitch)
+        {
+            _scoreManager.AddScore(-5000, $"TAIL STRIKE DETECTED (Pitch: {pitch:F1}°)", ScoreCategory.Maintenance);
+        }
+
+        private void WearAndTearManager_OnEngineCooldownBreached(double minutes)
+        {
+            _scoreManager.AddScore(-1500, $"ENGINE COOLDOWN BREACHED ({minutes:F1} mins < 3 mins)", ScoreCategory.Maintenance);
+        }
+
+        private void WearAndTearManager_OnHotBrakesTakeoff()
+        {
+            _scoreManager.AddScore(-1500, $"HOT BRAKES TAKEOFF (> 300°C)", ScoreCategory.Maintenance);
         }
 
         private void PhaseManager_OnGoAroundFinished()
@@ -37,6 +66,11 @@ namespace FlightSupervisor.UI.Services
             {
                 _scoreManager.AddScore(-200, "Missed PA: Failed to brief passengers during Go-Around", ScoreCategory.Communication);
             }
+        }
+
+        private void PhaseManager_OnAutobrakeMaxMissing(bool dummy)
+        {
+            _scoreManager.AddScore(-30, "Airmanship: Autobrake MAX missing for Takeoff", ScoreCategory.Airmanship);
         }
 
         private void PhaseManager_OnPhaseEnding(FlightPhase endingPhase)
@@ -50,17 +84,6 @@ namespace FlightSupervisor.UI.Services
             // Evaluate communications
             EvaluateCommunications(endingPhase);
             
-            // Check Critical Errors
-            if (_flowTracker.HasTailStrikeInPhase)
-            {
-                _scoreManager.AddScore(-5000, $"TAIL STRIKE DURING {endingPhase.ToString().ToUpper()}", ScoreCategory.Maintenance);
-            }
-
-            if (_flowTracker.HasHardLandingInPhase)
-            {
-                _scoreManager.AddScore(-2000, $"HARD LANDING DETECTED (>2.5G)", ScoreCategory.Maintenance);
-            }
-
             // Once evaluated, reset the trackers for the new phase.
             _flowTracker.ResetPhaseTrackers();
         }
