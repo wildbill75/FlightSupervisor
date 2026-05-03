@@ -1007,6 +1007,7 @@ namespace FlightSupervisor.UI
 
             _scoreManager = new SuperScoreManager(_phaseManager, _simConnectService);
             _flowTrackerService = new FlowTrackerService(_simConnectService, _phaseManager, _scoreManager);
+            _wearAndTearManager = new WearAndTearManager(_simConnectService, _airframeManager);
             _scoreFlowEvaluator = new ScoreFlowEvaluator(_flowTrackerService, _phaseManager, _scoreManager, _cabinManager, _wearAndTearManager);
             _scoreManager.OnScoreChanged += (score, delta, reason) => {
                 Dispatcher.Invoke(() => SendToWeb(new { 
@@ -1022,8 +1023,6 @@ namespace FlightSupervisor.UI
                     passengerExperience = _scoreManager.PassengerExperiencePoints
                 }));
             };
-
-            _wearAndTearManager = new WearAndTearManager(_simConnectService, _airframeManager);
 
             // _cabinManager.OnOperationBonusTriggered logic consolidated above
 
