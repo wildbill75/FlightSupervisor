@@ -79,6 +79,7 @@ namespace FlightSupervisor.UI
         private FlowTrackerService _flowTrackerService;
         private ScoreFlowEvaluator _scoreFlowEvaluator;
         private List<FlightSupervisor.UI.Models.FlightArchive> _sessionArchives = new List<FlightSupervisor.UI.Models.FlightArchive>();
+        private string _currentRotationId = Guid.NewGuid().ToString();
         
         private double _currentFobKg = 3000;
         private double _fobWhenValidated = 0;
@@ -717,6 +718,8 @@ namespace FlightSupervisor.UI
                                 FlightEvents = _scoreManager.FlightEvents.Cast<object>().ToList(),
                                 Objectives = new List<object>(), // Retired Legacy Contract System
                                 NewAchievements = newBadges,
+                                RotationId = _currentRotationId,
+                                LegIndex = _sessionArchives.Count + 1,
                                 Dep = _currentResponse?.Origin?.IcaoCode ?? "N/A",
                                 Arr = _currentResponse?.Destination?.IcaoCode ?? "N/A",
                                 FlightNo = _currentResponse?.General?.FlightNumber ?? "UNK",
@@ -738,11 +741,26 @@ namespace FlightSupervisor.UI
                                 TurnaroundEfficiencySec = _turnaroundEfficiencySec
                             };
 
+                            if (_airframeManager?.CurrentAirframe != null)
+                            {
+                                var af = _airframeManager.CurrentAirframe;
+                                af.TotalHours += blockMins / 60.0;
+                                af.TotalCycles += 1;
+                                af.Events.Insert(0, new FlightSupervisor.UI.Models.AirframeLogEvent
+                                {
+                                    Timestamp = DateTime.UtcNow,
+                                    Type = "flight",
+                                    Location = report.Arr,
+                                    Description = $"Flight from {report.Dep} to {report.Arr}. Block Time: {blockMins / 60}h{blockMins % 60:00}m",
+                                    Severity = "info"
+                                });
+                                _airframeManager.SaveAirframe(af);
+                            }
+
                             FlightSupervisor.UI.Services.FlightLogger.ArchiveFlight(report);
                             _sessionArchives.Add(report);
                             bool isFinal = _rotationQueue.Count == 0;
-                            SendToWeb(new { type = "flightReport", report, isFinal, allReports = _sessionArchives });
-                            
+                            SendToWeb(new { type = "flightReport", report, isFinal, allReports = _sessionArchives });                            
                             // Send updated profile to UI immediately to reflect new stats
                             SendToWeb(new { type = "InitProfile", payload = p });
                         }
@@ -773,6 +791,8 @@ namespace FlightSupervisor.UI
                                 FlightEvents = _scoreManager.FlightEvents.Cast<object>().ToList(),
                                 Objectives = new List<object>(),
                                 NewAchievements = new List<FlightSupervisor.UI.Services.BadgeDefinition>(),
+                                RotationId = _currentRotationId,
+                                LegIndex = _sessionArchives.Count + 1,
                                 Dep = _currentResponse?.Origin?.IcaoCode ?? "N/A",
                                 Arr = _currentResponse?.Destination?.IcaoCode ?? "N/A",
                                 FlightNo = _currentResponse?.General?.FlightNumber ?? "UNK",
@@ -803,7 +823,7 @@ namespace FlightSupervisor.UI
                         // Persist multi-leg session state
                         string arrIcao = _currentResponse?.Destination?.IcaoCode ?? "UNK";
                         string arrAirline = _currentResponse?.General?.Airline ?? "UNK";
-                        ShiftStateManager.SaveState(_cabinManager, arrIcao, arrAirline);
+                        ShiftStateManager.SaveState(_cabinManager, arrIcao, arrAirline, _currentRotationId);
                     }
                     else if (phase == FlightPhase.Turnaround)
                     {
@@ -1098,6 +1118,7 @@ namespace FlightSupervisor.UI
             };
             _simConnectService.OnSimOnGroundReceived += g => { _phaseManager.IsOnGround = g; };
             _simConnectService.OnVerticalSpeedReceived += vs => { _phaseManager.VerticalSpeed = vs; };
+            _simConnectService.OnFastVerticalSpeedReceived += vs => { _phaseManager.FastVerticalSpeed = vs; };
             _simConnectService.OnGForceReceived += gf => { _phaseManager.GForce = gf; };
             _simConnectService.OnAircraftTitleReceived += t => { _phaseManager.AircraftTitle = t; };
             _simConnectService.OnHeadingReceived += h => { _phaseManager.UpdateHeading(h); };
@@ -1241,6 +1262,10 @@ namespace FlightSupervisor.UI
 
             _simConnectService.OnAmbientTemperatureReceived += temp => {
                 _cabinManager.CurrentAmbientTemperature = temp;
+            };
+
+            _simConnectService.OnAmbientInCloudReceived += inCloud => {
+                _cabinManager.IsInCloud = inCloud;
             };
 
             _simConnectService.OnFuelTotalReceived += fuel => {
@@ -2702,6 +2727,10 @@ namespace FlightSupervisor.UI
                     if (state != null)
                     {
                         _cabinManager.LoadShiftState(state);
+                        if (!string.IsNullOrEmpty(state.RotationId))
+                        {
+                            _currentRotationId = state.RotationId;
+                        }
                         SendToWeb(new { type = "shiftResumed" });
                     }
                 }
@@ -3446,6 +3475,7 @@ namespace FlightSupervisor.UI
                     _aibt = null;
                     _isAtWrongAirport = false;
                     _sessionArchives.Clear();
+                    _currentRotationId = Guid.NewGuid().ToString();
                     SendToWeb(new { type = "flightReset" });
                     SendToWeb(new { type = "rotationCleared" }); 
                 }
@@ -3555,7 +3585,14 @@ namespace FlightSupervisor.UI
 
         private void SendTelemetryToWeb()
         {
-            _isAtWrongAirport = _currentResponse != null && !IsAircraftAtOrigin();
+            if (_phaseManager.CurrentPhase == FlightPhase.Turnaround || _phaseManager.CurrentPhase == FlightPhase.AtGate)
+            {
+                _isAtWrongAirport = _currentResponse != null && !IsAircraftAtOrigin();
+            }
+            else
+            {
+                _isAtWrongAirport = false;
+            }
             
             // disabled to prevent UI spam when addon traffic/navdata pushes aircraft off the ideal origin coords
             bool uiMismatch = false;
@@ -3607,9 +3644,64 @@ namespace FlightSupervisor.UI
                 bool hasPreviousPassengersStillBoarded = _cabinManager.PreviousLegManifest.Any(p => p.IsBoarded);
                 var activeManifest = hasPreviousPassengersStillBoarded ? _cabinManager.PreviousLegManifest : _cabinManager.PassengerManifest;
 
+                long? estimatedAibtUnix = null;
+                bool dynamicIsDelayed = false;
+
+                if (_currentResponse?.Times != null)
+                {
+                    if (long.TryParse(_currentResponse.Times.SchedIn, out long schedInUnix) && 
+                        long.TryParse(_currentResponse.Times.EstTimeEnroute, out long estTimeEnrouteSec) &&
+                        long.TryParse(_currentResponse.Times.SchedBlock, out long schedBlockSec))
+                    {
+                        long currentTimeUnix = new DateTimeOffset(_currentSimTime).ToUnixTimeSeconds();
+                        long targetSibtUnix = schedInUnix;
+
+                        if (_aobt == null)
+                        {
+                            estimatedAibtUnix = currentTimeUnix + schedBlockSec;
+                        }
+                        else
+                        {
+                            long elapsedSinceAobt = currentTimeUnix - new DateTimeOffset(_aobt.Value).ToUnixTimeSeconds();
+                            long remainingSec = 0;
+                            var currentPhase = _phaseManager.CurrentPhase;
+                            
+                            if (currentPhase == FlightPhase.Turnaround || currentPhase == FlightPhase.AtGate || currentPhase == FlightPhase.TaxiOut || currentPhase == FlightPhase.Takeoff || currentPhase == FlightPhase.RejectedTakeoff)
+                            {
+                                remainingSec = estTimeEnrouteSec + 600; // 10 minutes default taxi in
+                            }
+                            else if (currentPhase == FlightPhase.Landing || currentPhase == FlightPhase.TaxiIn || currentPhase == FlightPhase.Arrived)
+                            {
+                                remainingSec = 600;
+                            }
+                            else
+                            {
+                                if (destDist > 0 && _phaseManager.GroundSpeed > 50)
+                                {
+                                    double hoursRemaining = destDist / _phaseManager.GroundSpeed;
+                                    remainingSec = (long)(hoursRemaining * 3600) + 600; 
+                                }
+                                else
+                                {
+                                    long expectedRemaining = schedBlockSec - elapsedSinceAobt;
+                                    remainingSec = Math.Max(expectedRemaining, estTimeEnrouteSec / 4); 
+                                }
+                            }
+                            estimatedAibtUnix = currentTimeUnix + remainingSec;
+                        }
+                        dynamicIsDelayed = estimatedAibtUnix.Value > (targetSibtUnix + 300);
+                    }
+                }
+                
+                if (estimatedAibtUnix == null)
+                {
+                    dynamicIsDelayed = _groundOpsManager.TargetSobt != null && (_aobt != null ? _aobt.Value > _groundOpsManager.TargetSobt.Value.AddMinutes(5) : _currentSimTime > _groundOpsManager.TargetSobt.Value.AddMinutes(5));
+                }
+
                 SendToWeb(new 
                 {
                     type = "telemetry",
+                    estimatedAibtUnix = estimatedAibtUnix,
                     phase = _phaseManager.GetLocalizedPhaseName(),
                     phaseEnum = _phaseManager.CurrentPhase.ToString(),
                     altitude = _phaseManager.IsSimulationMode ? _phaseManager.Altitude : _lastKnownAltitude,
@@ -3619,7 +3711,7 @@ namespace FlightSupervisor.UI
                     isGearDown = _isGearDown,
                     seatbeltsOn = _cabinManager.IsSeatbeltsOn,
                     isCabinCallIncoming = _cabinManager.IsCabinCallIncoming,
-                    isDelayed = _groundOpsManager.TargetSobt != null && (_aobt != null ? _aobt.Value > _groundOpsManager.TargetSobt.Value.AddMinutes(5) : _currentSimTime > _groundOpsManager.TargetSobt.Value.AddMinutes(5)),
+                    isDelayed = dynamicIsDelayed,
                     isBoardingComplete = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Boarding")?.State == GroundServiceState.Completed,
                     isDeboardingAvailable = _groundOpsManager.Services.Any(s => s.Name == "Deboarding"),
                     isDeboardingCompleted = _groundOpsManager.Services.FirstOrDefault(s => s.Name == "Deboarding")?.State == GroundServiceState.Completed,
@@ -3630,8 +3722,11 @@ namespace FlightSupervisor.UI
                     isMaintenanceRequired = _airframeManager?.CurrentAirframe?.ActiveDefects?.Count > 0,
                 plannedOriginIcao = originForDist?.IcaoCode ?? "",
                 anxiety = Math.Round(_cabinManager.PassengerAnxiety, 1),
+                anxietyReason = _cabinManager.AnxietyReason,
                 comfort = Math.Round(_cabinManager.ComfortLevel, 1),
+                comfortReason = _cabinManager.ComfortReason,
                 satisfaction = Math.Round(_cabinManager.Satisfaction, 1),
+                satisfactionReason = _cabinManager.SatisfactionReason,
                 crewEsteem = Math.Round(_cabinManager.CrewEsteem / 10.0, 1),
                 crewProactivity = Math.Round(_cabinManager.CrewProactivity, 1),
                 crewEfficiency = Math.Round(_cabinManager.CrewEfficiency, 1),
@@ -3641,6 +3736,7 @@ namespace FlightSupervisor.UI
                 isSecuringHalted = _cabinManager.IsSecuringHalted,
                 isSecuringHurried = _cabinManager.IsSecuringHurried,
                 satietyActive = _cabinManager.IsSatietyActive,
+                isDelayCooldownActive = _cabinManager.IsDelayCooldownActive,
                 cabinState = _cabinManager.State.ToString(),
                 isServiceHalted = _cabinManager.IsServiceHalted,
                 cabinReportCooldownElapsed = _cabinManager.SecondsSinceLastReport,
@@ -3706,6 +3802,7 @@ namespace FlightSupervisor.UI
             if (_cabinManager.SessionFlightsCompleted == 0)
             {
                 _sessionArchives.Clear();
+                _currentRotationId = Guid.NewGuid().ToString();
             }
 
             _cabinManager.CurrentFlight = _currentResponse;

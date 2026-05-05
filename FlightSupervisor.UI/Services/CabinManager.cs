@@ -54,9 +54,9 @@ namespace FlightSupervisor.UI.Services
         public bool HasActiveSoftFailure { get; private set; } = false;
         public string ActiveSoftFailureReason { get; private set; } = "";
         
-        private bool _hasTriggered5MinDelay = false;
-        private bool _hasTriggered15MinDelay = false;
-        private bool _hasTriggered30MinDelay = false;
+        private int _delayPaCount = 0;
+        private DateTime? _delayCooldownEndTime = null;
+        public bool IsDelayCooldownActive => _delayCooldownEndTime.HasValue && DateTime.Now < _delayCooldownEndTime.Value;
         
         private bool _isTempInitialized = false;
         private double _currentAmbientTemperature = 15.0;
@@ -80,32 +80,37 @@ namespace FlightSupervisor.UI.Services
 
         private Random _renderRnd = new Random();
 
+        public string AnxietyReason { get; set; } = "Normal flight conditions.";
+        public string ComfortReason { get; set; } = "Cabin conditions are nominal.";
+        public string SatisfactionReason { get; set; } = "Passengers are satisfied with the service.";
+
         public double PassengerAnxiety 
         {
             get {
-                if (_lastBoardingTick != DateTime.MaxValue || !PassengerManifest.Where(p => p != null && p.IsBoarded).Any()) return 0.0;
+                if (_lastBoardingTick != DateTime.MaxValue || !PassengerManifest.Where(p => p != null && p.IsBoarded).Any()) return 5.0;
                 double avg = PassengerManifest.Where(p => p != null && p.IsBoarded).Average(p => p.IndividualAnxiety);
-                return Math.Max(0.0, Math.Round(avg + (_renderRnd.NextDouble() * 1.2 - 0.6), 1));
+                return Math.Max(5.0, Math.Min(95.0, Math.Round(avg + (_renderRnd.NextDouble() * 10.0 - 5.0), 1)));
             }
         }
         
         public double ComfortLevel 
         {
             get {
-                double maxCap = IsLowCost ? 65.0 : 100.0;
+                double maxCap = IsLowCost ? 65.0 : 95.0;
                 if (_lastBoardingTick != DateTime.MaxValue || !PassengerManifest.Where(p => p != null && p.IsBoarded).Any()) return maxCap;
                 double avg = PassengerManifest.Where(p => p != null && p.IsBoarded).Average(p => p.IndividualComfort);
-                double renderCap = IsLowCost ? 65.0 : 98.0;
-                return Math.Min(Math.Round(renderCap - 3.0 + (_renderRnd.NextDouble() * 3.0), 1), Math.Round(avg - (_renderRnd.NextDouble() * 1.5), 1));
+                return Math.Max(5.0, Math.Min(maxCap, Math.Round(avg + (_renderRnd.NextDouble() * 10.0 - 5.0), 1)));
             }
         }
         
+        public bool IsInCloud { get; set; } = false;
+
         public double Satisfaction 
         {
             get {
-                if (_lastBoardingTick != DateTime.MaxValue || !PassengerManifest.Where(p => p != null && p.IsBoarded).Any()) return 100.0;
+                if (_lastBoardingTick != DateTime.MaxValue || !PassengerManifest.Where(p => p != null && p.IsBoarded).Any()) return 95.0;
                 double avg = PassengerManifest.Where(p => p != null && p.IsBoarded).Average(p => p.IndividualSatisfaction);
-                return Math.Min(Math.Round(95.0 + (_renderRnd.NextDouble() * 3.0), 1), Math.Round(avg - (_renderRnd.NextDouble() * 1.8), 1));
+                return Math.Max(5.0, Math.Min(95.0, Math.Round(avg + (_renderRnd.NextDouble() * 10.0 - 5.0), 1)));
             }
         }
 
@@ -146,24 +151,39 @@ namespace FlightSupervisor.UI.Services
             {
                 double multiplier = p.Demographic == PassengerDemographic.Grumpy ? 1.5 : (p.Demographic == PassengerDemographic.Relaxed ? 0.8 : 1.0);
                 p.IndividualSatisfaction += amount * (amount < 0 ? multiplier : (1 / multiplier));
-                if (p.IndividualSatisfaction < 0.0) p.IndividualSatisfaction = 0.0;
-                if (p.IndividualSatisfaction > p.MaxSatisfactionCap) p.IndividualSatisfaction = p.MaxSatisfactionCap;
+                if (p.IndividualSatisfaction < 5.0) p.IndividualSatisfaction = 5.0;
+                if (p.IndividualSatisfaction > Math.Min(95.0, p.MaxSatisfactionCap)) p.IndividualSatisfaction = Math.Min(95.0, p.MaxSatisfactionCap);
             }
         }
         
         private void SetSatisfaction(double target)
         {
-            foreach (var p in PassengerManifest) p.IndividualSatisfaction = Math.Min(target, p.MaxSatisfactionCap);
+            foreach (var p in PassengerManifest) p.IndividualSatisfaction = Math.Min(Math.Min(target, p.MaxSatisfactionCap), 95.0);
         }
 
         private void ModifyAnxiety(double amount)
         {
             foreach (var p in PassengerManifest.Where(x => x != null && x.IsBoarded))
             {
-                double multiplier = p.Demographic == PassengerDemographic.Anxious ? 1.5 : (p.Demographic == PassengerDemographic.Relaxed ? 0.5 : 1.0);
-                p.IndividualAnxiety += amount * (amount > 0 ? multiplier : (1 / multiplier));
-                if (p.IndividualAnxiety < p.MinAnxietyFloor) p.IndividualAnxiety = p.MinAnxietyFloor;
-                if (p.IndividualAnxiety > 100.0) p.IndividualAnxiety = 100.0;
+                double multiplier = 1.0;
+                if (amount > 0)
+                {
+                    if (p.Demographic == PassengerDemographic.Anxious) multiplier = 1.5;       // Flippés paniquent vite
+                    else if (p.Demographic == PassengerDemographic.Relaxed) multiplier = 0.2;  // Gens détendus s'en fichent
+                    else if (p.Demographic == PassengerDemographic.Grumpy) multiplier = 0.5;   // Les chieurs s'agacent (confort) plus qu'ils n'ont peur
+                    else multiplier = 0.5;                                                     // Les passagers normaux sont modérés
+                }
+                else
+                {
+                    // For recovery (negative amount), Relaxed recover quickly, Anxious recover slowly
+                    if (p.Demographic == PassengerDemographic.Anxious) multiplier = 0.5;
+                    else if (p.Demographic == PassengerDemographic.Relaxed) multiplier = 2.0;
+                    else multiplier = 1.0;
+                }
+
+                p.IndividualAnxiety += amount * multiplier;
+                if (p.IndividualAnxiety < Math.Max(5.0, p.MinAnxietyFloor)) p.IndividualAnxiety = Math.Max(5.0, p.MinAnxietyFloor);
+                if (p.IndividualAnxiety > 95.0) p.IndividualAnxiety = 95.0;
             }
         }
 
@@ -171,22 +191,23 @@ namespace FlightSupervisor.UI.Services
         {
             foreach (var p in PassengerManifest.Where(x => x != null && x.IsBoarded))
             {
-                p.IndividualAnxiety = Math.Max(Math.Max(minRatio, p.MinAnxietyFloor), p.IndividualAnxiety);
+                p.IndividualAnxiety = Math.Max(Math.Max(Math.Max(5.0, minRatio), p.MinAnxietyFloor), p.IndividualAnxiety);
+                if (p.IndividualAnxiety > 95.0) p.IndividualAnxiety = 95.0;
             }
         }
 
-        private void ClearAnxiety() { foreach (var p in PassengerManifest) p.IndividualAnxiety = p.MinAnxietyFloor; }
+        private void ClearAnxiety() { foreach (var p in PassengerManifest) p.IndividualAnxiety = Math.Max(5.0, p.MinAnxietyFloor); }
 
         private void ModifyComfort(double amount)
         {
-            double maxCap = IsLowCost ? 65.0 : 100.0;
+            double maxCap = IsLowCost ? 65.0 : 95.0;
             foreach (var p in PassengerManifest.Where(x => x != null && x.IsBoarded))
             {
                 double multiplier = p.Demographic == PassengerDemographic.Grumpy ? 1.5 : 1.0;
                 p.IndividualComfort += amount * (amount < 0 ? multiplier : (1 / multiplier));
                 
                 double actualCap = Math.Min(maxCap, p.MaxComfortCap);
-                if (p.IndividualComfort < 0.0) p.IndividualComfort = 0.0;
+                if (p.IndividualComfort < 5.0) p.IndividualComfort = 5.0;
                 if (p.IndividualComfort > actualCap) p.IndividualComfort = actualCap;
             }
         }
@@ -747,7 +768,7 @@ namespace FlightSupervisor.UI.Services
                 case "SEATS_TAKEOFF":
                     if (_isSecuring && SecuringProgress < 100.0) {
                         OnPenaltyTriggered?.Invoke(-30, LocalizationService.Translate("Force Seats: Crew forced to sit before cabin was secure", "Force Seats: PNC forcés de s'asseoir avant sécurisation"));
-                        IncreaseAnxiety(15.0, FlightPhase.AtGate, false);
+                        IncreaseAnxiety(15.0, FlightPhase.AtGate, false, "Passengers are stressed by the rushed departure preparations.", 40.0);
                         CrewEsteem = Math.Max(0.0, CrewEsteem - 5.0);
                         _isSecuring = false; // Interrupted
                     }
@@ -796,7 +817,7 @@ namespace FlightSupervisor.UI.Services
                 case "SEATS_LANDING":
                     if (_isSecuring && SecuringProgress < 100.0) {
                         OnPenaltyTriggered?.Invoke(-30, LocalizationService.Translate("Force Seats: Crew forced to sit before cabin was secure", "Force Seats: PNC forcés de s'asseoir avant sécurisation"));
-                        IncreaseAnxiety(15.0, FlightPhase.Cruise, false);
+                        IncreaseAnxiety(15.0, FlightPhase.Cruise, false, "Passengers are stressed by the rushed landing preparations.", 40.0);
                         CrewEsteem = Math.Max(0.0, CrewEsteem - 5.0);
                         _isSecuring = false; // Interrupted
                     }
@@ -899,14 +920,14 @@ namespace FlightSupervisor.UI.Services
             {
                 // Severe Hard Landing
                 DecreaseComfort(40.0);
-                IncreaseAnxiety(60.0, FlightPhase.Landing, true);
+                IncreaseAnxiety(60.0, FlightPhase.Landing, true, "Passengers are screaming due to the terrifying impact!", 95.0);
                 OnCrewMessage?.Invoke("red", UI.Services.LocalizationService.Translate("That was a terrifying impact! Many passengers are screaming in the back!", "C'était un atterrissage extrêmement violent ! Beaucoup de passagers crient à l'arrière !"), null);
             }
             else if (fpm < -450 || gforce > 1.5)
             {
                 // Hard Landing
                 DecreaseComfort(20.0);
-                IncreaseAnxiety(30.0, FlightPhase.Landing, false);
+                IncreaseAnxiety(30.0, FlightPhase.Landing, false, "Passengers were scared by the hard landing.", 95.0);
                 OnCrewMessage?.Invoke("orange", UI.Services.LocalizationService.Translate("That was a very hard landing! The cabin shook violently.", "C'était un atterrissage très dur ! La cabine a secoué violemment."), null);
             }
             else 
@@ -919,7 +940,7 @@ namespace FlightSupervisor.UI.Services
         public void ProcessBounce(int bounceCount)
         {
             DecreaseComfort(30.0);
-            IncreaseAnxiety(50.0, FlightPhase.Landing, true);
+            IncreaseAnxiety(50.0, FlightPhase.Landing, true, "Passengers are terrified by the aircraft bouncing!", 90.0);
             OnCrewMessage?.Invoke("red", UI.Services.LocalizationService.Translate($"Bounce detected! Passengers are terrified! (Count: {bounceCount})", $"Rebond détecté ! L'avion a rebondi, les passagers sont terrifiés ! (Compte : {bounceCount})"), null);
         }
 
@@ -1083,7 +1104,7 @@ namespace FlightSupervisor.UI.Services
                 {
                     _hasWarnedPushbackNoSeatbelts = true;
                     ModifySatisfaction(-25.0);
-                    IncreaseAnxiety(30.0, phase, isCrisisActive);
+                    IncreaseAnxiety(30.0, phase, isCrisisActive, "Passengers are nervous because the aircraft is moving without seatbelts.", 40.0);
                     
                     string msgEn = "Safety Breach: Aircraft in motion with Seatbelts OFF!";
                     string msgFr = "Violation Sécurité: Avion en mouvement sans ceintures !";
@@ -1134,8 +1155,9 @@ namespace FlightSupervisor.UI.Services
                         if (_seatbeltsOnDurationInCruise > 2700 && !_hasComplainedAboutSeatbelts) // 45 mins
                         {
                             _hasComplainedAboutSeatbelts = true;
-                            OnPncStatusChanged?.Invoke("Captain, passengers are asking to use the restrooms. It's been a long time with seatbelts on.", State);
-                            OnPenaltyTriggered?.Invoke(-30, LocalizationService.Translate("Passenger Impatience: Seatbelts left on excessively during cruise.", "Impatience des passagers : Ceintures laissées allumées trop longtemps."));
+                            OnPncStatusChanged?.Invoke(LocalizationService.Translate("Captain, passengers are asking to use the restrooms. It's been a long time with seatbelts on.", "Commandant, les passagers demandent à utiliser les toilettes. Cela fait longtemps que les ceintures sont attachées."), State);
+                            IncreaseAnxiety(15.0, phase, isCrisisActive, "Anxiety rising due to prolonged seatbelt sign and inability to use restrooms.", 40.0);
+                            ModifySatisfaction(-15.0);
                         }
                     }
                     else
@@ -1199,6 +1221,18 @@ namespace FlightSupervisor.UI.Services
                     DecreaseAnxiety(0.02); // Gradual peace recovery
                     double maxRecov = IsLowCost ? 65.0 : 95.0;
                     if (ComfortLevel < maxRecov) IncreaseComfort(0.03); // Gradual comfort recovery
+                }
+            }
+
+            // Cloud penetration anxiety
+            if (IsInCloud && phase != FlightPhase.AtGate && phase != FlightPhase.Turnaround && phase != FlightPhase.TaxiOut && phase != FlightPhase.TaxiIn)
+            {
+                // Passengers get slightly anxious when flying through clouds, especially if seatbelts are off
+                // User requested: weather alone should not push anxiety past 20%
+                if (PassengerAnxiety < 20.0)
+                {
+                    double cloudStressMultiplier = _seatbeltsOn ? 0.01 : 0.03;
+                    IncreaseAnxiety(cloudStressMultiplier * deltaTimeSeconds, phase, isCrisisActive, "Anxiety elevated due to flying through clouds.", 20.0);
                 }
             }
 
@@ -1370,13 +1404,13 @@ namespace FlightSupervisor.UI.Services
                 {
                     if (_actualTakeoffTime == null) _actualTakeoffTime = DateTime.Now;
                     
-                    IncreaseAnxiety(10.0, phase, isCrisisActive);
+                    IncreaseAnxiety(10.0, phase, isCrisisActive, "Passengers feel the pressure of takeoff acceleration.", 30.0);
                     OnCrewMessage?.Invoke("orange", LocalizationService.Translate("Passengers feel the pressure of takeoff acceleration.", "Les passagers ressentent la pression et le bruit de l'accélération."), null);
                 }
                 else if (phase == FlightPhase.Climb && _lastPhase == FlightPhase.InitialClimb && !_hasTriggeredThrustReductionAnxiety)
                 {
                     _hasTriggeredThrustReductionAnxiety = true;
-                    IncreaseAnxiety(20.0, phase, isCrisisActive);
+                    IncreaseAnxiety(20.0, phase, isCrisisActive, "Thrust reduction felt in cabin. Passengers experienced a brief moment of anxiety.", 40.0);
                     OnCrewMessage?.Invoke("orange", LocalizationService.Translate("Thrust reduction felt in cabin. Passengers experienced a brief moment of anxiety.", "Réduction de poussée ressentie. Les passagers ont eu un bref moment d'anxiété (sensation de chute)."), null);
                 }
                 else if (phase == FlightPhase.Cruise)
@@ -1473,7 +1507,7 @@ namespace FlightSupervisor.UI.Services
                             // Surpassed ETE ! Comfort drops significantly over time
                             DecreaseComfort(0.005 * deltaTimeSeconds);
                             // Also slight anxiety increase because they feel it takes too long
-                            IncreaseAnxiety(0.001 * deltaTimeSeconds, phase, isCrisisActive);
+                            IncreaseAnxiety(0.001 * deltaTimeSeconds, phase, isCrisisActive, "Passengers are getting anxious because the flight is taking longer than expected.", 40.0);
                         }
                     }
                 }
@@ -1499,7 +1533,7 @@ namespace FlightSupervisor.UI.Services
                         _holdTurnAccumulator = 0; // Clear it out to require another full 360
                         
                         ModifySatisfaction(-15.0);
-                        IncreaseAnxiety(15.0, phase, false);
+                        IncreaseAnxiety(15.0, phase, false, "Passengers are anxious because the aircraft is flying in circles.", 40.0);
 
                         OnCrewMessage?.Invoke("orange", LocalizationService.Translate(
                             "Captain, passengers are noticing we're flying in circles and getting anxious. An announcement would help.",
@@ -1623,7 +1657,7 @@ namespace FlightSupervisor.UI.Services
                     {
                         _hasPenalizedTurbulenceReaction = true;
                         OnPenaltyTriggered?.Invoke(-100, LocalizationService.Translate("Pilot Inaction: No PA during severe turbulence/crisis", "Inaction Pilote : Pas d'annonce PA pendant la crise/turbulence"));
-                        IncreaseAnxiety(20.0, phase, isCrisisActive);
+                        IncreaseAnxiety(20.0, phase, isCrisisActive, "Passengers are terrified by severe turbulence and lack of communication from the cockpit.", 95.0);
                     }
                 }
             }
@@ -1681,7 +1715,7 @@ namespace FlightSupervisor.UI.Services
             
             if (phase != FlightPhase.AtGate && phase != FlightPhase.Turnaround && (gMax - gMin > 0.6))
             {
-                IncreaseAnxiety(0.5, phase, isCrisisActive); 
+                IncreaseAnxiety(0.5, phase, isCrisisActive, "Anxiety elevated due to noticeable turbulence.", 85.0); 
                 DecreaseComfort(0.5); // B.1 task: Turbulence vibrates cabin, dropping comfort
                 
                 // Spillages cause cleanliness drop
@@ -1735,40 +1769,77 @@ namespace FlightSupervisor.UI.Services
                 if ((DateTime.Now - _lastCabinBankPenalty).TotalSeconds > 5)
                 {
                     _lastCabinBankPenalty = DateTime.Now;
-                    IncreaseAnxiety(0.5, phase, isCrisisActive);
+                    IncreaseAnxiety(0.5, phase, isCrisisActive, "Passengers are anxious due to steep banking maneuvers.", 80.0);
                     if (ComfortLevel > 40.0) DecreaseComfort(0.2);
                 }
             }
             
-            if (sobt.HasValue && currentZulu > sobt.Value && phase == FlightPhase.AtGate)
+            if (sobt.HasValue && phase == FlightPhase.AtGate)
             {
-                var delaySpan = currentZulu - sobt.Value;
-                _currentDelayMinutes = delaySpan.TotalMinutes;
-                bool hasRecentPA = (DateTime.Now - _timeOfLastDelayPA).TotalMinutes < 15;
-                double multiplier = hasRecentPA ? 0.4 : 1.0;
-
-                if (_currentDelayMinutes > 5 && !_hasTriggered5MinDelay)
+                if (currentZulu > sobt.Value)
                 {
-                    _hasTriggered5MinDelay = true;
-                    ApplyEventPenalty(10 * multiplier, 2, "Satisfaction");
-                    ApplyEventPenalty(5 * multiplier, 2, "Anxiety");
+                    var delaySpan = currentZulu - sobt.Value;
+                    _currentDelayMinutes = delaySpan.TotalMinutes;
                 }
-                if (_currentDelayMinutes > 15 && !_hasTriggered15MinDelay)
+                else
                 {
-                    _hasTriggered15MinDelay = true;
-                    ApplyEventPenalty(20 * multiplier, 5, "Satisfaction");
-                    ApplyEventPenalty(15 * multiplier, 5, "Anxiety");
+                    _currentDelayMinutes = 0;
                 }
-                if (_currentDelayMinutes > 30 && !_hasTriggered30MinDelay)
+                
+                bool inCooldown = IsDelayCooldownActive;
+                
+                if (!inCooldown)
                 {
-                    _hasTriggered30MinDelay = true;
-                    ApplyEventPenalty(35 * multiplier, 15, "Satisfaction");
-                    ApplyEventPenalty(30 * multiplier, 15, "Anxiety");
-                }
+                    // Continuous degradation based on how late we are
+                    double satDropRate = 0; // per minute
+                    double anxRiseRate = 0; // per minute
+                    double comfDropRate = 0.2; // per minute
                     
-                    // Layered Delay Warnings from PNC
-                    if (_currentDelayMinutes > 10 && (DateTime.Now - _lastDelayNotice).TotalMinutes > 10)
+                    if (_currentDelayMinutes > 45)
                     {
+                        satDropRate = 3.0;
+                        anxRiseRate = 1.0;
+                    }
+                    else if (_currentDelayMinutes > 30)
+                    {
+                        satDropRate = 2.0;
+                        anxRiseRate = 0.5;
+                    }
+                    else if (_currentDelayMinutes > 15)
+                    {
+                        satDropRate = 1.0;
+                        anxRiseRate = 0.3;
+                    }
+                    else if (_currentDelayMinutes > 5)
+                    {
+                        satDropRate = 0.5;
+                        anxRiseRate = 0.1;
+                    }
+
+                    if (satDropRate > 0)
+                    {
+                        if (Satisfaction > 5.0) ModifySatisfaction(-(satDropRate / 60.0) * deltaTimeSeconds);
+                        SatisfactionReason = $"Satisfaction decreasing due to prolonged departure delay ({Math.Round(_currentDelayMinutes)} mins).";
+                    }
+                    if (anxRiseRate > 0)
+                    {
+                        IncreaseAnxiety((anxRiseRate / 60.0) * deltaTimeSeconds, phase, isCrisisActive, $"Anxiety rising due to departure delay ({Math.Round(_currentDelayMinutes)} mins).", 90.0);
+                    }
+                    if (comfDropRate > 0)
+                    {
+                        if (ComfortLevel > 5.0) DecreaseComfort((comfDropRate / 60.0) * deltaTimeSeconds);
+                        ComfortReason = "Comfort dropping slightly due to waiting at the gate.";
+                    }
+                }
+                else
+                {
+                    SatisfactionReason = "Satisfaction stable: Delay was explained by the crew.";
+                    AnxietyReason = "Anxiety stable: Passengers are reassured by crew announcements.";
+                }
+
+                // Layered Delay Warnings from PNC
+                if (_currentDelayMinutes > 10 && (DateTime.Now - _lastDelayNotice).TotalMinutes > 10 && !inCooldown)
+                {
                         var mins = Math.Round(_currentDelayMinutes);
                         string severityEng = "asking questions about the delay";
                         string severityFre = "commencent à poser des questions sur le retard";
@@ -1806,11 +1877,11 @@ namespace FlightSupervisor.UI.Services
             {
                 if (CurrentSimLocalTime.Hour <= 5 || CurrentSimLocalTime.Hour >= 20)
                 {
-                    IncreaseAnxiety(0.002 * deltaTimeSeconds * (IsLowCost ? 1.5 : 1.0), phase, isCrisisActive);
+                    IncreaseAnxiety(0.002 * deltaTimeSeconds * (IsLowCost ? 1.5 : 1.0), phase, isCrisisActive, "Slight unease due to flying late at night.", 15.0);
                 }
                 if (altitude < 1000 && phase == FlightPhase.Approach)
                 {
-                    IncreaseAnxiety(0.02 * deltaTimeSeconds * (IsLowCost ? 1.5 : 1.0), phase, isCrisisActive);
+                    IncreaseAnxiety(0.02 * deltaTimeSeconds * (IsLowCost ? 1.5 : 1.0), phase, isCrisisActive, "Anxiety rising during low altitude approach.", 25.0);
                 }
             }
 
@@ -1821,7 +1892,7 @@ namespace FlightSupervisor.UI.Services
                 {
                     _lastHoldPenaltyTime = DateTime.Now;
                     ModifySatisfaction(-10.0);
-                    IncreaseAnxiety(10.0, phase, false);
+                    IncreaseAnxiety(10.0, phase, false, "Passengers are getting impatient and anxious sitting motionless on the taxiway.", 90.0);
                     OnPenaltyTriggered?.Invoke(-30, LocalizationService.Translate("Ground Delay: Aircraft immobilized > 10 min", "Retard au sol : Avion immobilisé > 10 min"));
                     OnCrewMessage?.Invoke("orange", LocalizationService.Translate("Captain, we've been sitting here without moving for over 10 minutes. Passengers are getting impatient.", "Commandant, on est immobiles depuis plus de 10 minutes. L'impatience monte."), null);
                 }
@@ -1900,7 +1971,7 @@ namespace FlightSupervisor.UI.Services
                 _hasTriggeredCateringComplaint = true;
                 string msg = "Captain, we have totally run out of meals for the remaining passengers. They are very unhappy.";
                 TriggerIncomingCabinCall("CateringMissing", "TO_FD/Incoming_Calls/CateringMissing", msg);
-                IncreaseAnxiety(30.0, phase, isCrisisActive);
+                IncreaseAnxiety(30.0, phase, isCrisisActive, "Passengers are upset and anxious due to food and water shortages.", 60.0);
                 ModifySatisfaction(-50.0);
                 CrewEsteem = Math.Max(0.0, CrewEsteem - 20.0);
                 OnPenaltyTriggered?.Invoke(-100, LocalizationService.Translate("Catering Shortage: Out of meals", "Rupture Catering : Plus de repas disponibles")); 
@@ -1990,13 +2061,20 @@ namespace FlightSupervisor.UI.Services
                 ModifySatisfaction(15.0);
             }
             
-            _manualApologyCount++;
+            _delayPaCount++;
             _timeOfLastDelayPA = DateTime.Now;
             
-            if (_manualApologyCount <= 2)
+            int cooldownMinutes = 0;
+            if (_delayPaCount == 1) cooldownMinutes = 15;
+            else if (_delayPaCount == 2) cooldownMinutes = 10;
+            else if (_delayPaCount == 3) cooldownMinutes = 5;
+
+            if (cooldownMinutes > 0)
             {
-                DecreaseAnxiety(40.0);
-                ModifySatisfaction(10.0);
+                _delayCooldownEndTime = DateTime.Now.AddMinutes(cooldownMinutes);
+                DecreaseAnxiety(5.0);
+                ModifySatisfaction(5.0);
+                
                 string spokenReason = reason.ToLower() switch {
                     "atc" => "ATC clearance",
                     "traffic" => "ATC clearance",
@@ -2028,12 +2106,12 @@ namespace FlightSupervisor.UI.Services
                 string spokenText = $"Ladies and gentlemen from the flight deck, I'd like to apologize for the delay. We are currently waiting for {spokenReason} and expect to be moving in about {Math.Max(10, Math.Round(_currentDelayMinutes))} minutes. Thank you for your patience.";
                 _audio?.PlayVariantWithPrefixAsCaptain($"TO_PA/Delay/{subfolder}", $"EN_Rowan_Delay_{subfolder}", spokenText);
 
-                OnCrewMessage?.Invoke("orange", LocalizationService.Translate($"PA: Apologies for the delay ({spokenReason}), we will be departing shortly.", $"PA: Toutes nos excuses pour ce retard ({spokenReason}), nous partons bientôt."), null);
+                OnCrewMessage?.Invoke("orange", LocalizationService.Translate($"PA: Apologies for the delay ({spokenReason}), we will be departing shortly. (Passengers pacified for {cooldownMinutes} min)", $"PA: Toutes nos excuses pour ce retard ({spokenReason}), nous partons bientôt. (Passagers calmés pour {cooldownMinutes} min)"), null);
             }
             else
             {
                 ModifySatisfaction(-15.0);
-                IncreaseAnxiety(10.0, FlightPhase.AtGate, false);
+                IncreaseAnxiety(10.0, FlightPhase.AtGate, false, "Passengers are losing patience with the repeated delay excuses.", 90.0);
                 OnCrewMessage?.Invoke("red", LocalizationService.Translate("PA: Apologies for the delay... (Passengers are groaning, the excuses are no longer working!)", "PA: Toutes nos excuses... (Les passagers râlent, vos excuses ne marchent plus !)"), null);
             }
         }
@@ -2106,7 +2184,7 @@ namespace FlightSupervisor.UI.Services
             if (!badWeather) {
                 DecreaseAnxiety(20.0);
             } else {
-                IncreaseAnxiety(15.0, FlightPhase.AtGate, false);
+                IncreaseAnxiety(15.0, FlightPhase.AtGate, false, "Passengers anxious due to poor weather at destination.", 25.0);
             }
 
             string wxcText = !badWeather ? "looking great" : "quite poor today";
@@ -2253,7 +2331,7 @@ namespace FlightSupervisor.UI.Services
             if (!badWeather) {
                 DecreaseAnxiety(20.0);
             } else {
-                IncreaseAnxiety(10.0, FlightPhase.Approach, false);
+                IncreaseAnxiety(10.0, FlightPhase.Approach, false, "Passengers anxious due to poor weather at destination.", 35.0);
             }
 
             string notifText = $"PA: We are descending towards {destName}. Cabin crew is preparing for landing.";
@@ -2345,7 +2423,7 @@ namespace FlightSupervisor.UI.Services
             OnCrewMessage?.Invoke("green", LocalizationService.Translate("PA: Cruise Update (Altitude & Enroute Weather)", "PA: Informations de Croisière (Altitude et météo)"), null);
         }
         
-        private void IncreaseAnxiety(double amount, FlightPhase phase, bool isCrisisActive)
+        private void IncreaseAnxiety(double amount, FlightPhase phase, bool isCrisisActive, string reason = null, double? maxAverageCap = null)
         {
             double previousAnxiety = PassengerAnxiety;
             double multiplier = BaseAnxietySpikeMultiplier;
@@ -2362,11 +2440,23 @@ namespace FlightSupervisor.UI.Services
             {
                 inc = Math.Max(0, 90.0 - PassengerAnxiety);
             }
+            
+            if (maxAverageCap.HasValue && (PassengerAnxiety + inc) > maxAverageCap.Value)
+            {
+                inc = Math.Max(0, maxAverageCap.Value - PassengerAnxiety);
+            }
 
             if (IsSatietyActive && phase == FlightPhase.Cruise) inc *= 0.5; 
             
-            ModifyAnxiety(inc);
-            DecreaseComfort((inc * BaseComfortLossMultiplier) * 0.5); 
+            if (inc > 0)
+            {
+                ModifyAnxiety(inc);
+                DecreaseComfort((inc * BaseComfortLossMultiplier) * 0.5); 
+                if (!string.IsNullOrEmpty(reason))
+                {
+                    AnxietyReason = reason;
+                }
+            }
         }
         private void DecreaseAnxiety(double amount) { ModifyAnxiety(-amount); }
 
@@ -2547,9 +2637,6 @@ namespace FlightSupervisor.UI.Services
                     }
                 }
                 */
-
-                if (isSevere && !p.IsSeatbeltFastened) p.IndividualAnxiety += 2.0;
-                if (p.IndividualAnxiety > 100) p.IndividualAnxiety = 100;
             }
 
             /* [URGENCES SCOPE - TEMPORARILY DISABLED]
@@ -2829,32 +2916,14 @@ namespace FlightSupervisor.UI.Services
 
                     if (addAnx > 0)
                     {
-                        IncreaseAnxiety(addAnx, phase, false);
+                        IncreaseAnxiety(addAnx, phase, false, "Passengers anxious due to poor weather at departure.", 30.0);
                         _hasAppliedDepartureWeatherAnxiety = true;
                     }
                 }
             }
 
-            // Arrival
-            if (!_hasAppliedArrivalWeatherAnxiety && (phase == FlightPhase.Descent || phase == FlightPhase.Approach || phase == FlightPhase.Landing))
-            {
-                var arr = weatherData.Stations.FirstOrDefault(s => s.Id.Equals("destination", StringComparison.OrdinalIgnoreCase));
-                if (arr != null)
-                {
-                    double addAnx = 0;
-                    if (arr.WindSeverity == FlightSupervisor.UI.Models.WeatherSeverity.Danger) addAnx += 12.0;
-                    else if (arr.WindSeverity == FlightSupervisor.UI.Models.WeatherSeverity.Warning) addAnx += 6.0;
-
-                    if (arr.VisibilitySeverity == FlightSupervisor.UI.Models.WeatherSeverity.Danger) addAnx += 10.0;
-                    else if (arr.VisibilitySeverity == FlightSupervisor.UI.Models.WeatherSeverity.Warning) addAnx += 5.0;
-
-                    if (addAnx > 0)
-                    {
-                        IncreaseAnxiety(addAnx, phase, false);
-                        _hasAppliedArrivalWeatherAnxiety = true;
-                    }
-                }
-            }
+            // Arrival anxiety is now exclusively handled during the PA announcements (AnnounceWelcome / AnnounceApproach)
+            // to ensure passengers do not magically react to destination weather before the captain informs them.
         }
 
         public void BoardPassenger(int count)

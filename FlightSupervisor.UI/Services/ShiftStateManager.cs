@@ -6,6 +6,7 @@ namespace FlightSupervisor.UI.Services
 {
     public class ShiftState
     {
+        public string RotationId { get; set; } = string.Empty;
         public int SessionFlightsCompleted { get; set; }
         public double CabinCleanliness { get; set; }
         public double WaterLevel { get; set; }
@@ -33,12 +34,13 @@ namespace FlightSupervisor.UI.Services
             }
         }
 
-        public static void SaveState(CabinManager cabinManager, string arrivalIcao, string airlineName)
+        public static void SaveState(CabinManager cabinManager, string arrivalIcao, string airlineName, string rotationId)
         {
             try
             {
                 var state = new ShiftState
                 {
+                    RotationId = rotationId,
                     SessionFlightsCompleted = cabinManager.SessionFlightsCompleted,
                     CabinCleanliness = cabinManager.CabinCleanliness,
                     WaterLevel = cabinManager.WaterLevel,
