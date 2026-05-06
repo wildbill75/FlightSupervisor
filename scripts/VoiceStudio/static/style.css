@@ -1,0 +1,74 @@
+/* Custom CSS to supplement Tailwind */
+
+/* Custom Scrollbar for a premium feel */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0f172a; 
+}
+
+::-webkit-scrollbar-thumb {
+    background: #334155; 
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #475569; 
+}
+
+.glass-panel {
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+/* Input styling for the dynamic table */
+.dynamic-input {
+    width: 100%;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #f8fafc;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    transition: all 0.2s;
+    outline: none;
+}
+
+.dynamic-input:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.dynamic-input:focus {
+    background: rgba(15, 23, 42, 0.8);
+    border-color: #06b6d4; /* Cyan 500 */
+    box-shadow: 0 0 0 1px #06b6d4;
+}
+
+select.dynamic-input {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.25rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2rem;
+}
+
+select.dynamic-input option {
+    background-color: #0f172a;
+    color: #f8fafc;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+}

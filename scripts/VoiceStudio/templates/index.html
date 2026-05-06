@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Studio - Flight Supervisor</title>
+    <!-- Use Tailwind via CDN for rapid premium UI styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-[#0f172a] text-slate-300 font-sans min-h-screen">
+    
+    <!-- Navbar -->
+    <nav class="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20">
+                        <i class="fa-solid fa-microphone-lines text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-white tracking-tight">Voice Studio</h1>
+                        <p class="text-xs text-cyan-400 font-medium">Flight Supervisor Generator</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div id="apiStatus" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-sm">
+                        <div class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" id="apiDot"></div>
+                        <span id="apiText">Checking API...</span>
+                    </div>
+                    <button id="btnSave" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 text-white">
+                        <i class="fa-solid fa-floppy-disk"></i> Sauvegarder CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Controls & Add Row -->
+        <div class="flex justify-between items-end mb-6">
+            <div>
+                <h2 class="text-2xl font-bold text-white mb-1">Scripts Audio</h2>
+                <p class="text-slate-400 text-sm">Gérez les annonces, les acteurs vocaux et les langues.</p>
+            </div>
+        </div>
+
+        <!-- Voice Studio Main Interface (Smart Generator) -->
+        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full mb-8 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-800 bg-slate-800/50">
+                <h3 class="text-lg font-bold text-white"><i class="fa-solid fa-magic text-indigo-400 mr-2"></i> Voice Studio - Générateur de Macros</h3>
+            </div>
+            
+            <div id="macroAppContainer" class="p-6 space-y-6">
+                <!-- Mode Selection -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Mode de Génération</label>
+                    <div class="flex gap-4">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="macroMode" value="packs" checked class="text-indigo-500 focus:ring-indigo-500">
+                            <span class="text-sm text-white">Packs Standards</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="macroMode" value="smart" class="text-indigo-500 focus:ring-indigo-500">
+                            <span class="text-sm text-white">Macro Multi-Phrases</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="macroMode" value="builder" class="text-indigo-500 focus:ring-indigo-500">
+                            <span class="text-sm text-white">Phrase Sur-Mesure (Unitaire)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="packsContainer">
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Pack à générer</label>
+                    <select id="macroPack" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white font-medium">
+                        <option value="hours">Heures (0-23)</option>
+                        <option value="minutes">Minutes / Nombres (0-59)</option>
+                        <option value="flight_times">Temps de Vol complets (0h30 à 5h00)</option>
+                        <option value="temp_c">Températures Celsius (-40 à +50)</option>
+                        <option value="temp_f">Températures Fahrenheit (0 à 120)</option>
+                        <option value="altitudes">Altitudes (1000 à 45000)</option>
+                        <option value="destinations">Destinations (ICAO)</option>
+                        <option value="departures">Départs (ICAO)</option>
+                        <option value="airlines_names">Noms des Compagnies</option>
+                    </select>
+                </div>
+
+                <div id="smartContainer" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Préfixe du fichier généré</label>
+                        <input type="text" id="smartPrefix" list="prefixList" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-sm" placeholder="Ex: pa_welcome_intro">
+                        <datalist id="prefixList">
+                            <option value="pa_welcome_intro">
+                            <option value="pnc_welcome">
+                            <option value="pa_descent_intro">
+                            <option value="pa_arrival_welcome">
+                            <option value="pa_turbulence_warning">
+                        </datalist>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Texte avec Variables</label>
+                        <textarea id="smartText" rows="4" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-sm" placeholder="Ex: Good {greeting}, welcome on board this {airline} flight to {dest}."></textarea>
+                    </div>
+                    
+                    <div class="bg-slate-800/50 p-3 rounded border border-slate-700">
+                        <p class="text-xs font-bold text-slate-300 mb-2">Variables Magiques (à taper avec les accolades) :</p>
+                        <p class="text-xs text-slate-400 mb-2">Le système remplacera automatiquement ces mots par toutes les combinaisons possibles (Air France, EasyJet, Morning, Afternoon...) :</p>
+                        <ul class="text-xs text-slate-400 space-y-1">
+                            <li><button class="text-indigo-400 font-mono hover:text-indigo-300 bg-slate-900 px-1 rounded border border-indigo-900/50" onclick="document.getElementById('smartText').value += '{airline}'">{airline}</button> : Toutes les compagnies connues</li>
+                            <li><button class="text-indigo-400 font-mono hover:text-indigo-300 bg-slate-900 px-1 rounded border border-indigo-900/50" onclick="document.getElementById('smartText').value += '{dest}'">{dest}</button> : Tous les aéroports de destination</li>
+                            <li><button class="text-indigo-400 font-mono hover:text-indigo-300 bg-slate-900 px-1 rounded border border-indigo-900/50" onclick="document.getElementById('smartText').value += '{dep}'">{dep}</button> : Tous les aéroports de départ</li>
+                            <li><button class="text-indigo-400 font-mono hover:text-indigo-300 bg-slate-900 px-1 rounded border border-indigo-900/50" onclick="document.getElementById('smartText').value += '{greeting}'">{greeting}</button> : Morning, Afternoon, Evening</li>
+                            <li><button class="text-indigo-400 font-mono hover:text-indigo-300 bg-slate-900 px-1 rounded border border-indigo-900/50" onclick="document.getElementById('smartText').value += '{aircraft}'">{aircraft}</button> : A320, Boeing 737, aircraft</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="builderContainer" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Template de base</label>
+                        <select id="builderTemplateSelect" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-sm font-bold text-indigo-400">
+                            <option value="custom">-- Phrase Personnalisée --</option>
+                            <optgroup label="Welcome & Intro">
+                                <option value="pa_welcome_intro_01">PA Welcome Intro 01</option>
+                                <option value="pa_welcome_flight_time">PA Welcome Flight Time</option>
+                            </optgroup>
+                            <optgroup label="Arrival Weather">
+                                <option value="pa_welcome_arrival_weather_01">Arrival Weather - Idéal (CAVOK)</option>
+                                <option value="pa_welcome_arrival_weather_02">Arrival Weather - Nuageux mais correct</option>
+                                <option value="pa_welcome_arrival_weather_03">Arrival Weather - Pluie / Dégradé</option>
+                                <option value="pa_welcome_arrival_weather_04">Arrival Weather - Orageux</option>
+                                <option value="pa_welcome_arrival_weather_05">Arrival Weather - Brouillard (LVP)</option>
+                                <option value="pa_welcome_arrival_weather_06">Arrival Weather - Neige / Hivernal</option>
+                            </optgroup>
+                            <optgroup label="Enroute Weather">
+                                <option value="pa_welcome_enroute_weather_01">Enroute Weather - Très Calme</option>
+                                <option value="pa_welcome_enroute_weather_02">Enroute Weather - Standard / Légères secousses</option>
+                                <option value="pa_welcome_enroute_weather_03">Enroute Weather - Mouvementé / Modéré</option>
+                                <option value="pa_welcome_enroute_weather_04">Enroute Weather - Orages à contourner</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">Airline</label>
+                            <select id="builderAirline" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-sm"></select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">Destination</label>
+                            <select id="builderDest" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-sm"></select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">Greeting</label>
+                            <select id="builderGreeting" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-sm">
+                                <option value="morning">Morning</option>
+                                <option value="afternoon">Afternoon</option>
+                                <option value="evening">Evening</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">Aircraft</label>
+                            <select id="builderAircraft" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-sm">
+                                <option value="A320">A320</option>
+                                <option value="Boeing 737">Boeing 737</option>
+                                <option value="aircraft">aircraft</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Texte de la phrase (Template)</label>
+                        <textarea id="builderText" rows="4" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-sm">Ladies and gentlemen, good {greeting} from the flightdeck. This is your Captain speaking. On behalf of {airlineName} I would like to welcome you all on board this {aircraftType} on our flight to {destName}.</textarea>
+                        <p class="text-xs text-slate-500 mt-1">Vous pouvez modifier ce template. Les mots entre {accolades} seront remplacés par vos choix ci-dessus.</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">Préfixe du fichier</label>
+                            <input type="text" id="builderPrefix" list="prefixList" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-sm" placeholder="Ex: pa_welcome">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">Aperçu du fichier final</label>
+                            <input type="text" id="builderFilename" readonly class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-400 text-sm font-mono cursor-not-allowed">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Voix</label>
+                        <select id="macroVoice" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white"></select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Rôle</label>
+                        <select id="macroRole" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white">
+                            <option value="CAPTAIN">CAPTAIN</option>
+                            <option value="PNC">PNC</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Compagnie</label>
+                        <select id="macroAirline" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white">
+                            <option value="GENERIC">GENERIC</option>
+                            <option value="AIR_FRANCE">AIR_FRANCE</option>
+                            <option value="EASYJET">EASYJET</option>
+                            <option value="RYANAIR">RYANAIR</option>
+                            <option value="LUFTHANSA">LUFTHANSA</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Langue</label>
+                        <select id="macroLang" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white">
+                            <option value="FR">FR</option>
+                            <option value="US">US</option>
+                            <option value="GB">GB</option>
+                            <option value="AU">AU</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Effet Audio</label>
+                        <select id="macroEffect" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white">
+                            <option value="PA">PA (Haut-parleurs cabine)</option>
+                            <option value="VHF">VHF (Radio cockpit)</option>
+                            <option value="INTERCOM">INTERCOM (Téléphone interne)</option>
+                            <option value="DIRECT">DIRECT (Voix naturelle)</option>
+                        </select>
+                    </div>
+            </div>
+            <div class="px-6 py-4 bg-slate-900/50 border-t border-slate-800 flex justify-between items-center">
+                <button id="btnPreviewMacro" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-slate-300 transition-colors flex items-center gap-2 text-sm">
+                    <i class="fa-solid fa-headphones"></i> Tester l'audio
+                </button>
+                <button id="btnStartMacro" class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 rounded-lg text-white font-bold transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2 transform hover:scale-105 active:scale-95">
+                    <i class="fa-solid fa-play"></i> Lancer la génération
+                </button>
+            </div>
+        </div>
+
+        <!-- Generation Console -->
+        <div class="mb-8 bg-black/40 border border-slate-800 rounded-xl overflow-hidden glass-panel">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900/50">
+                <h3 class="text-sm font-medium text-white flex items-center gap-2">
+                    <i class="fa-solid fa-terminal text-cyan-500"></i> Console de Génération
+                </h3>
+                <button id="btnClearConsole" class="text-slate-500 hover:text-slate-300 transition-colors">
+                    <i class="fa-solid fa-eraser"></i>
+                </button>
+            </div>
+            <div id="consoleOutput" class="p-4 h-48 overflow-y-auto font-mono text-xs leading-relaxed text-slate-300">
+                <div class="text-slate-500">Prêt à générer...</div>
+            </div>
+        </div>
+
+        <!-- Table Container (Génération Libre) -->
+        <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl overflow-hidden glass-panel">
+            <div class="flex justify-between items-center px-6 py-4 border-b border-slate-800">
+                <h3 class="text-md font-bold text-slate-300"><i class="fa-solid fa-pen text-slate-500 mr-2"></i> Génération Libre (Manuel)</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-slate-400 uppercase bg-slate-900/80 border-b border-slate-800 whitespace-nowrap">
+                        <tr>
+                            <th class="px-4 py-3 font-medium">FileName</th>
+                            <th class="px-4 py-3 font-medium">Role</th>
+                            <th class="px-4 py-3 font-medium">Voice</th>
+                            <th class="px-4 py-3 font-medium">Airline</th>
+                            <th class="px-4 py-3 font-medium">Lang</th>
+                            <th class="px-4 py-3 font-medium">Effect</th>
+                            <th class="px-4 py-3 font-medium w-full">Text</th>
+                            <th class="px-4 py-3 font-medium text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-800/50">
+                        <!-- Rows injected via JS -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Empty State -->
+            <div id="emptyState" class="hidden py-8 text-center">
+                <p class="text-slate-500 text-sm">Tableau vide. Cliquez sur "Ajouter une ligne" pour ajouter une phrase libre.</p>
+            </div>
+            
+            <div class="p-4 border-t border-slate-800 flex justify-center">
+                <button id="btnAddRow" class="px-4 py-2 bg-slate-800/50 hover:bg-slate-700 border border-slate-700 border-dashed rounded-lg text-sm font-medium transition-colors flex items-center gap-2 text-slate-300">
+                    <i class="fa-solid fa-plus"></i> Ajouter une ligne
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Hidden audio player for preview -->
+    <audio id="audioPlayer" class="hidden" controls></audio>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
