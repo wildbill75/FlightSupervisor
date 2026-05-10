@@ -114,13 +114,28 @@ namespace FlightSupervisor.UI.Services
             }
         }
 
-        public void ApplyEventPenalty(double immediateDamage, double capDamage, string statType)
+        public void ApplyEventPenalty(double immediateDamage, double capDamage, string statType, bool isDelayRelated = false)
         {
+            double reputationMultiplier = 1.0;
+            if (IsLowCost)
+            {
+                // Low cost: High tolerance for bad comfort, low tolerance for delays
+                if (statType == "Comfort") reputationMultiplier = 0.5;
+                if (isDelayRelated) reputationMultiplier = 2.0;
+            }
+            else
+            {
+                // Legacy: Low tolerance for bad comfort, higher tolerance for delays
+                if (statType == "Comfort") reputationMultiplier = 1.5;
+                if (isDelayRelated) reputationMultiplier = 0.5;
+            }
+
             foreach (var p in PassengerManifest.Where(x => x != null && x.IsBoarded))
             {
                 if (statType == "Satisfaction")
                 {
                     double multiplier = p.Demographic == PassengerDemographic.Grumpy ? 1.5 : (p.Demographic == PassengerDemographic.Relaxed ? 0.8 : 1.0);
+                    multiplier *= reputationMultiplier;
                     p.IndividualSatisfaction -= immediateDamage * multiplier;
                     p.MaxSatisfactionCap -= capDamage * multiplier;
                     if (p.MaxSatisfactionCap < 1.0) p.MaxSatisfactionCap = 1.0;
@@ -129,6 +144,7 @@ namespace FlightSupervisor.UI.Services
                 else if (statType == "Anxiety")
                 {
                     double multiplier = p.Demographic == PassengerDemographic.Anxious ? 1.5 : (p.Demographic == PassengerDemographic.Relaxed ? 0.5 : 1.0);
+                    multiplier *= reputationMultiplier;
                     p.IndividualAnxiety += immediateDamage * multiplier;
                     p.MinAnxietyFloor += capDamage * multiplier;
                     if (p.MinAnxietyFloor > 99.0) p.MinAnxietyFloor = 99.0;
@@ -137,6 +153,7 @@ namespace FlightSupervisor.UI.Services
                 else if (statType == "Comfort")
                 {
                     double multiplier = p.Demographic == PassengerDemographic.Grumpy ? 1.5 : 1.0;
+                    multiplier *= reputationMultiplier;
                     p.IndividualComfort -= immediateDamage * multiplier;
                     p.MaxComfortCap -= capDamage * multiplier;
                     if (p.MaxComfortCap < 1.0) p.MaxComfortCap = 1.0;
@@ -147,22 +164,42 @@ namespace FlightSupervisor.UI.Services
 
         private void ModifySatisfaction(double amount)
         {
+            if (amount < 0) 
+            {
+                SatisfactionFatigue = Math.Min(100.0, SatisfactionFatigue + Math.Abs(amount) * 0.5); // Accrue fatigue
+            }
+            else 
+            {
+                double fatiguePenalty = Math.Max(0.1, 1.0 - (SatisfactionFatigue / 100.0));
+                amount *= fatiguePenalty; // Slow down recovery if fatigued
+            }
+
             foreach (var p in PassengerManifest.Where(x => x != null && x.IsBoarded))
             {
                 double multiplier = p.Demographic == PassengerDemographic.Grumpy ? 1.5 : (p.Demographic == PassengerDemographic.Relaxed ? 0.8 : 1.0);
                 p.IndividualSatisfaction += amount * (amount < 0 ? multiplier : (1 / multiplier));
                 if (p.IndividualSatisfaction < 5.0) p.IndividualSatisfaction = 5.0;
-                if (p.IndividualSatisfaction > Math.Min(95.0, p.MaxSatisfactionCap)) p.IndividualSatisfaction = Math.Min(95.0, p.MaxSatisfactionCap);
+                if (p.IndividualSatisfaction > Math.Min(MaxSatisfaction, p.MaxSatisfactionCap)) p.IndividualSatisfaction = Math.Min(MaxSatisfaction, p.MaxSatisfactionCap);
             }
         }
         
         private void SetSatisfaction(double target)
         {
-            foreach (var p in PassengerManifest) p.IndividualSatisfaction = Math.Min(Math.Min(target, p.MaxSatisfactionCap), 95.0);
+            foreach (var p in PassengerManifest) p.IndividualSatisfaction = Math.Min(Math.Min(target, p.MaxSatisfactionCap), MaxSatisfaction);
         }
 
         private void ModifyAnxiety(double amount)
         {
+            if (amount > 0) 
+            {
+                AnxietyFatigue = Math.Min(100.0, AnxietyFatigue + amount * 0.5); // Accrue fatigue
+            }
+            else 
+            {
+                double fatiguePenalty = Math.Max(0.1, 1.0 - (AnxietyFatigue / 100.0));
+                amount *= fatiguePenalty; // Slow down recovery if fatigued
+            }
+
             foreach (var p in PassengerManifest.Where(x => x != null && x.IsBoarded))
             {
                 double multiplier = 1.0;
@@ -200,13 +237,22 @@ namespace FlightSupervisor.UI.Services
 
         private void ModifyComfort(double amount)
         {
-            double maxCap = IsLowCost ? 65.0 : 95.0;
+            if (amount < 0) 
+            {
+                ComfortFatigue = Math.Min(100.0, ComfortFatigue + Math.Abs(amount) * 0.5); // Accrue fatigue
+            }
+            else 
+            {
+                double fatiguePenalty = Math.Max(0.1, 1.0 - (ComfortFatigue / 100.0));
+                amount *= fatiguePenalty; // Slow down recovery if fatigued
+            }
+
             foreach (var p in PassengerManifest.Where(x => x != null && x.IsBoarded))
             {
                 double multiplier = p.Demographic == PassengerDemographic.Grumpy ? 1.5 : 1.0;
                 p.IndividualComfort += amount * (amount < 0 ? multiplier : (1 / multiplier));
                 
-                double actualCap = Math.Min(maxCap, p.MaxComfortCap);
+                double actualCap = Math.Min(MaxComfort, p.MaxComfortCap);
                 if (p.IndividualComfort < 5.0) p.IndividualComfort = 5.0;
                 if (p.IndividualComfort > actualCap) p.IndividualComfort = actualCap;
             }
@@ -214,8 +260,7 @@ namespace FlightSupervisor.UI.Services
 
         private void ClearComfort() 
         { 
-            double maxCap = IsLowCost ? 65.0 : 100.0;
-            foreach (var p in PassengerManifest) p.IndividualComfort = Math.Min(maxCap, p.MaxComfortCap); 
+            foreach (var p in PassengerManifest) p.IndividualComfort = Math.Min(MaxComfort, p.MaxComfortCap); 
         }
 
         // Virtual Crew Stats
@@ -272,7 +317,8 @@ namespace FlightSupervisor.UI.Services
             {
                 FlightSupervisor.UI.Services.DebugLogger.Log("INTERCOM", $"[Answer] CallType: {call.CallType}, WaitTime: {(DateTime.Now - call.TriggerTime).TotalSeconds:F1}s");
                 // Unanswered calls might pile up, we process the oldest
-                _audio?.PlayVariantAsPurser(call.AudioFolder, call.FallbackMessage);
+                string macroName = call.AudioFolder.Contains('/') ? "pnc_" + System.Text.RegularExpressions.Regex.Replace(call.AudioFolder.Split('/').Last(), "([a-z])([A-Z])", "$1_$2").ToLower() : call.AudioFolder;
+                PlayDynamicAsPurser(macroName, call.FallbackMessage, false, "to_fd", false);
                 OnCrewMessage?.Invoke("orange", LocalizationService.Translate(call.FallbackMessage, call.FallbackMessage), null);
 
                 if (call.CallType == "DelayPax")
@@ -316,7 +362,7 @@ namespace FlightSupervisor.UI.Services
         {
             // Will be implemented in task 4
             string msg = "Captain, everything is fine in the cabin.";
-            _audio?.PlayVariantAsPurser("TO_FD/Status_Reports/Calm", msg);
+            PlayDynamicAsPurser("pnc_calm", msg, false, "to_fd", false);
             OnCrewMessage?.Invoke("info", LocalizationService.Translate(msg, msg), null);
             CrewEsteem = Math.Min(100.0, CrewEsteem + 2.0); // Simple interaction boost
         }
@@ -376,11 +422,21 @@ namespace FlightSupervisor.UI.Services
         private const double SeatingDuration = 12.0;
 
         private bool _isPlayingSafetyDemo = false;
+        // ---- Passenger Fatigue and Dynamic Limits ----
+        public double ComfortFatigue { get; private set; } = 0.0;
+        public double AnxietyFatigue { get; private set; } = 0.0;
+        public double SatisfactionFatigue { get; private set; } = 0.0;
+        
+        public double MaxComfort { get; private set; } = 100.0;
+        public double MaxSatisfaction { get; private set; } = 100.0;
+        // ----------------------------------------------
+
         private DateTime? _safetyDemoTimerStart = null;
         private const double SafetyDemoDuration = 45.0;
         public bool IsPlayingSafetyDemo => _isPlayingSafetyDemo;
 
         private double _currentDelayMinutes = 0;
+        public double CurrentDelayMinutes => _currentDelayMinutes;
         private double _currentSecuringRate = 0;
         private double _pncActionDelaySeconds = 0.0;
         private bool _isSecuring = false;
@@ -486,8 +542,10 @@ namespace FlightSupervisor.UI.Services
         public double InFlightServiceProgress { get; private set; } = 0.0;
         public bool IsSatietyActive { get; private set; } = false;
 
-        // Audio Properties
-        public string ActivePncVoiceId { get; set; } = "female_1";
+        public string ActiveCaptainLanguage { get; set; } = "gb";
+        public string ActiveCaptainVoiceId { get; set; } = "rowan_(gb)";
+        public string ActivePncLanguage { get; set; } = "gb";
+        public string ActivePncVoiceId { get; set; } = "beth_(gb)";
         public string ActiveAirlineId { get; set; } = "air_france";
         private Dictionary<string, string> _audioExtensions = new Dictionary<string, string>();
         
@@ -558,6 +616,60 @@ namespace FlightSupervisor.UI.Services
             return formatted;
         }
 
+        public void AutoSelectVoicesForAirline(string nationality)
+        {
+            string targetLang = "gb"; // Default
+            if (!string.IsNullOrEmpty(nationality))
+            {
+                string norm = nationality.ToLowerInvariant();
+                if (norm == "fr" || norm == "france") targetLang = "fr";
+                else if (norm == "de" || norm == "germany") targetLang = "de";
+                else if (norm == "es" || norm == "spain") targetLang = "es";
+                else if (norm == "it" || norm == "italy") targetLang = "it";
+                else if (norm == "us" || norm == "usa") targetLang = "us";
+            }
+
+            // Find first available captain voice for targetLang
+            string wwwroot = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "assets", "sounds", "airlines");
+            string captLangDir = System.IO.Path.Combine(wwwroot, "captain", targetLang);
+            if (!System.IO.Directory.Exists(captLangDir))
+            {
+                targetLang = "gb"; // Fallback if no specific language pack exists
+                captLangDir = System.IO.Path.Combine(wwwroot, "captain", targetLang);
+            }
+
+            if (System.IO.Directory.Exists(captLangDir))
+            {
+                var dirs = System.IO.Directory.GetDirectories(captLangDir);
+                if (dirs.Length > 0)
+                {
+                    ActiveCaptainLanguage = targetLang;
+                    var defaultDir = dirs.FirstOrDefault(d => new System.IO.DirectoryInfo(d).Name.StartsWith("rowan", StringComparison.OrdinalIgnoreCase));
+                    ActiveCaptainVoiceId = defaultDir != null ? new System.IO.DirectoryInfo(defaultDir).Name : new System.IO.DirectoryInfo(dirs[0]).Name;
+                }
+            }
+
+            string pncLangDir = System.IO.Path.Combine(wwwroot, "pnc", targetLang);
+            if (System.IO.Directory.Exists(pncLangDir))
+            {
+                var dirs = System.IO.Directory.GetDirectories(pncLangDir);
+                if (dirs.Length > 0)
+                {
+                    ActivePncLanguage = targetLang;
+                    var defaultDir = dirs.FirstOrDefault(d => new System.IO.DirectoryInfo(d).Name.StartsWith("beth", StringComparison.OrdinalIgnoreCase));
+                    ActivePncVoiceId = defaultDir != null ? new System.IO.DirectoryInfo(defaultDir).Name : new System.IO.DirectoryInfo(dirs[0]).Name;
+                }
+            }
+        }
+
+        public string GetActivePncGender()
+        {
+            if (string.IsNullOrEmpty(ActivePncVoiceId)) return "Female";
+            string lowerId = ActivePncVoiceId.ToLowerInvariant();
+            if (lowerId.Contains("rudy") || lowerId.Contains("rowan") || lowerId.Contains("jean") || lowerId.Contains("pierre") || lowerId.Contains("henri") || lowerId.Contains("guy") || lowerId.Contains("brian")) return "Male";
+            return "Female"; // Default to Female for all other voices
+        }
+
         public void InitializeFlightDemographics(FlightSupervisor.UI.Services.AirlineProfile profile, FlightSupervisor.UI.Services.ManifestData manifestData = null)
         {
             _hasAnnouncedBoardingComplete = false;
@@ -566,7 +678,26 @@ namespace FlightSupervisor.UI.Services
             HasPenalizedRefuelingSeatbelts = false;
             HasBoardingStarted = false;
             _lastBoardingTick = DateTime.MaxValue;
-            State = CabinState.Idle;
+            
+            if (SessionFlightsCompleted == 0)
+            {
+                State = CabinState.Idle;
+                ComfortFatigue = 0.0;
+                AnxietyFatigue = 0.0;
+                SatisfactionFatigue = 0.0;
+            }
+            
+            if (profile != null)
+            {
+                // Convert 1-10 scores to percentages. Minimum 50% for commercial baseline.
+                MaxComfort = Math.Max(50.0, profile.HardProductScore * 10.0);
+                MaxSatisfaction = Math.Max(50.0, profile.SoftProductScore * 10.0);
+            }
+            else
+            {
+                MaxComfort = 100.0;
+                MaxSatisfaction = 100.0;
+            }
             
             // System scoring resets
             HasPlayedWelcomePA = false;
@@ -711,12 +842,13 @@ namespace FlightSupervisor.UI.Services
 
         public void HandleCommand(string command)
         {
+            if (_issuedCommands.Contains(command)) return; // Prevent duplicates
             _issuedCommands.Add(command);
 
             switch (command)
             {
                 case "TOP_DESCENT":
-                    _audio?.PlayExactAsCaptain("TO_PNC/EN_Rowan_Nearing_TOP_Descent.mp3", null);
+                    PlayDynamicAsCaptain("pa_nearing_top_descent", "Cabin crew, we are nearing the top of descent.");
                     OnCrewMessage?.Invoke("info", LocalizationService.Translate("PA: Cabin crew, nearing top of descent.", "PA: PNC, début de descente imminent."), null);
                     if (State == CabinState.ServingMeals)
                     {
@@ -725,7 +857,7 @@ namespace FlightSupervisor.UI.Services
                     }
                     break;
                 case "ARM_DOORS":
-                    _audio?.PlayExactAsCaptain("TO_PNC/EN_Rowan_Arm_Doors.mp3", null);
+                    PlayDynamicAsCaptain("pa_arm_doors", "Cabin crew, prepare doors for departure and cross-check.");
                     OnCrewMessage?.Invoke("info", LocalizationService.Translate("PA: Cabin Crew, arm doors and cross check.", "PA: PNC aux portes, armement des toboggans, vérification de la porte opposée."), null);
                     break;
                 case "SEATBELT_ON":
@@ -761,8 +893,8 @@ namespace FlightSupervisor.UI.Services
                     IsCrewSeated = false;
                     HasPlayedPrepareTakeoffPA = true; // SCORING
                     SetPncActionDelay();
-                    _audio?.PlayExactAsCaptain("TO_PNC/EN_Rowan_Prepare_TakeOff.mp3", null);
-                    OnCrewMessage?.Invoke("info", LocalizationService.Translate("PA: Cabin Crew, prepare for takeoff.", "PA: PNC, préparez la cabine pour le décollage."), null);
+                    PlayDynamicAsCaptain("pa_prepare_takeoff", "Cabin Crew, prepare for takeoff.", true);
+                    OnCrewMessage?.Invoke("info", LocalizationService.Translate("INTERCOM: Cabin Crew, prepare for takeoff.", "INTERCOM: PNC, préparez la cabine pour le décollage."), null);
                     OnPncStatusChanged?.Invoke("Securing Cabin...", State);
                     break;
                 case "SEATS_TAKEOFF":
@@ -772,8 +904,8 @@ namespace FlightSupervisor.UI.Services
                         CrewEsteem = Math.Max(0.0, CrewEsteem - 5.0);
                         _isSecuring = false; // Interrupted
                     }
-                    _audio?.PlayExactAsCaptain("TO_PNC/EN_Rowan_Seats_TakeOff.mp3", null);
-                    OnCrewMessage?.Invoke("info", LocalizationService.Translate("PA: Cabin Crew, please be seated for takeoff.", "PA: PNC, aux postes pour le décollage."), null);
+                    PlayDynamicAsCaptain("pa_seats_takeoff", "Cabin Crew, seats for takeoff.", true);
+                    OnCrewMessage?.Invoke("info", LocalizationService.Translate("INTERCOM: Cabin Crew, please be seated for takeoff.", "INTERCOM: PNC, aux postes pour le décollage."), null);
                     
                     _isSeatingForTakeoffOrLanding = true;
                     _seatingTimerStart = DateTime.Now;
@@ -790,8 +922,8 @@ namespace FlightSupervisor.UI.Services
                     IsCrewSeated = false;
                     HasPlayedPrepareLandingPA = true; // SCORING
                     SetPncActionDelay();
-                    _audio?.PlayExactAsCaptain("TO_PNC/EN_Rowan_Prepare_Landing.mp3", null);
-                    OnCrewMessage?.Invoke("info", LocalizationService.Translate("PA: Cabin Crew, prepare for landing.", "PA: PNC, préparez la cabine pour l'atterrissage."), null);
+                    PlayDynamicAsCaptain("pa_prepare_landing", "Cabin Crew, prepare for landing.", true);
+                    OnCrewMessage?.Invoke("info", LocalizationService.Translate("INTERCOM: Cabin Crew, prepare for landing.", "INTERCOM: PNC, préparez la cabine pour l'atterrissage."), null);
                     OnPncStatusChanged?.Invoke("Securing Cabin...", State);
                     break;
                 case "START_SERVICE":
@@ -821,8 +953,8 @@ namespace FlightSupervisor.UI.Services
                         CrewEsteem = Math.Max(0.0, CrewEsteem - 5.0);
                         _isSecuring = false; // Interrupted
                     }
-                    _audio?.PlayExactAsCaptain("TO_PNC/EN_Rowan_Seats_Landing.mp3", null);
-                    OnCrewMessage?.Invoke("info", LocalizationService.Translate("PA: Cabin Crew, please be seated for landing.", "PA: PNC, aux postes pour l'atterrissage."), null);
+                    PlayDynamicAsCaptain("pa_seats_landing", "Cabin Crew, seats for landing.", true);
+                    OnCrewMessage?.Invoke("info", LocalizationService.Translate("INTERCOM: Cabin Crew, please be seated for landing.", "INTERCOM: PNC, aux postes pour l'atterrissage."), null);
                     
                     _isSeatingForTakeoffOrLanding = true;
                     _seatingTimerStart = DateTime.Now;
@@ -873,9 +1005,7 @@ namespace FlightSupervisor.UI.Services
             CabinCleanliness -= 5.0;
             if (CabinCleanliness < 0) CabinCleanliness = 0.0;
             
-            // French: PNC aux portes, désarmement des toboggans et vérification de la porte opposée
-            // English: Cabin Crew, disarm doors and cross check
-            _audio?.PlayExactAsCaptain("TO_PNC/EN_Rowan_Disarm_Doors.mp3", null);
+            PlayDynamicAsCaptain("pa_disarm_doors", "Cabin crew, disarm doors and cross-check.");
             OnCrewMessage?.Invoke("cyan", LocalizationService.Translate("Cabin Crew, disarm doors and cross check.", "PNC aux portes, désarmement des toboggans et vérification de la porte opposée."), new List<string> { "intercom_ding", "pa_chime" });
             OnPncStatusChanged?.Invoke("Deboarding...", State);
         }
@@ -940,7 +1070,7 @@ namespace FlightSupervisor.UI.Services
         public void ProcessBounce(int bounceCount)
         {
             DecreaseComfort(30.0);
-            IncreaseAnxiety(50.0, FlightPhase.Landing, true, "Passengers are terrified by the aircraft bouncing!", 90.0);
+            IncreaseAnxiety(50.0, FlightPhase.Landing, true, GetDynamicFeedback("LandingBounce", FlightPhase.Landing), 90.0);
             OnCrewMessage?.Invoke("red", UI.Services.LocalizationService.Translate($"Bounce detected! Passengers are terrified! (Count: {bounceCount})", $"Rebond détecté ! L'avion a rebondi, les passagers sont terrifiés ! (Compte : {bounceCount})"), null);
         }
 
@@ -1007,6 +1137,11 @@ namespace FlightSupervisor.UI.Services
                     State = CabinState.Idle;
                     HasBoardingStarted = false;
                     OnCrewMessage?.Invoke("cyan", LocalizationService.Translate("Cabin makes are complete. All passengers have disembarked.", "La cabine est débarrassée. Tous les passagers ont débarqué."), null);
+                    
+                    PlayDynamicAsPurser("pnc_deboarding_complete", 
+                        LocalizationService.Translate("Captain, deboarding is complete. We'll start preparing the cabin for the next leg.", "Commandant, le débarquement est terminé. Nous allons préparer la cabine pour la suite."), 
+                        false, "to_fd", false);
+
                     OnDeboardingComplete?.Invoke();
                     OnPncStatusChanged?.Invoke("Standing By", State);
                 }
@@ -1024,7 +1159,7 @@ namespace FlightSupervisor.UI.Services
                     {
                         HasActiveSoftFailure = true;
                         ActiveSoftFailureReason = "Technical";
-                        OnCrewMessage?.Invoke("orange", LocalizationService.Translate("[PNC] Captain, we have a technical issue in the cabin (clogged toilet). Please make a PA to inform the passengers of a technical delay.", "[PNC] Commandant, nous avons un souci technique en cabine (toilettes bouchées). Pouvez-vous faire une annonce de retard technique ?"), null);
+                        OnCrewMessage?.Invoke("orange", LocalizationService.Translate("[PNC] Captain, we have a technical issue in the cabin (defective passenger seat). Please make a PA to inform the passengers of a technical delay.", "[PNC] Commandant, nous avons un souci technique en cabine (siège passager défectueux). Pouvez-vous faire une annonce de retard technique ?"), null);
                     }
                 }
 
@@ -1067,7 +1202,7 @@ namespace FlightSupervisor.UI.Services
                 _lastBoardingTick = DateTime.MaxValue; // Set to MaxValue to stop progressive logic
                 State = CabinState.Idle;
                 _hasAnnouncedBoardingComplete = true;
-                TriggerIncomingCabinCall("BoardingComplete", "TO_FD/Checklist_Reports/BoardingComplete", "Boarding is complete Captain.");
+                TriggerIncomingCabinCall("BoardingComplete", "pnc_boarding_complete_fd", "Boarding is complete Captain.");
                 OnPncStatusChanged?.Invoke("Standing By", State);
             }
 
@@ -1075,7 +1210,7 @@ namespace FlightSupervisor.UI.Services
             if (!_hasAnnouncedGalleySecured && _hasAnnouncedBoardingComplete && phase == FlightPhase.AtGate)
             {
                 _hasAnnouncedGalleySecured = true;
-                TriggerIncomingCabinCall("GalleySecured", "TO_FD/Incoming_Calls/GalleySecured", "Galleys secured and we're starting the final cabin checks.");
+                TriggerIncomingCabinCall("GalleySecured", "pnc_galley_secured_fd", "Galleys secured and we're starting the final cabin checks.");
             }
 
             // --- THERMAL COMFORT (Physical Simulation) ---
@@ -1104,7 +1239,7 @@ namespace FlightSupervisor.UI.Services
                 {
                     _hasWarnedPushbackNoSeatbelts = true;
                     ModifySatisfaction(-25.0);
-                    IncreaseAnxiety(30.0, phase, isCrisisActive, "Passengers are nervous because the aircraft is moving without seatbelts.", 40.0);
+                    IncreaseAnxiety(30.0, phase, isCrisisActive, GetDynamicFeedback("MovementNoSeatbelts", phase), 40.0);
                     
                     string msgEn = "Safety Breach: Aircraft in motion with Seatbelts OFF!";
                     string msgFr = "Violation Sécurité: Avion en mouvement sans ceintures !";
@@ -1156,7 +1291,7 @@ namespace FlightSupervisor.UI.Services
                         {
                             _hasComplainedAboutSeatbelts = true;
                             OnPncStatusChanged?.Invoke(LocalizationService.Translate("Captain, passengers are asking to use the restrooms. It's been a long time with seatbelts on.", "Commandant, les passagers demandent à utiliser les toilettes. Cela fait longtemps que les ceintures sont attachées."), State);
-                            IncreaseAnxiety(15.0, phase, isCrisisActive, "Anxiety rising due to prolonged seatbelt sign and inability to use restrooms.", 40.0);
+                            IncreaseAnxiety(15.0, phase, isCrisisActive, GetDynamicFeedback("ProlongedSeatbelt", phase), 40.0);
                             ModifySatisfaction(-15.0);
                         }
                     }
@@ -1196,7 +1331,7 @@ namespace FlightSupervisor.UI.Services
                     {
                         _hasWarnedToiletsFull = true;
                         string msg = "Captain, the waste tanks are full. All lavatories are now condemned! Passengers are furious.";
-                        _audio?.PlayVariantAsPurser("TO_FD/Status_Reports/UncomfortablePax", msg);
+                        PlayDynamicAsPurser("pnc_uncomfortable_pax", msg, false, "to_fd", false);
                         OnCrewMessage?.Invoke("red", LocalizationService.Translate(msg, "Commandant, les cuves à déchets sont pleines. Les toilettes sont condamnées ! Les passagers sont furieux."), null);
                         OnPenaltyTriggered?.Invoke(-100, LocalizationService.Translate("Cabin Resource Failure: Lavatories Full", "Échec Ressource Cabine : Toilettes Pleines"));
                     }
@@ -1212,27 +1347,32 @@ namespace FlightSupervisor.UI.Services
             // Idle Noise Generator & Continuous Decay
             if (PassengerAnxiety < 2.0 && ComfortLevel >= 95.0)
             {
+                ComfortReason = "Cabin conditions are nominal.";
                 if (_rnd.NextDouble() < 0.05) ModifyAnxiety(_rnd.NextDouble() * 0.2);
             }
             else if (phase != FlightPhase.AtGate && phase != FlightPhase.Turnaround && phase != FlightPhase.TaxiOut && phase != FlightPhase.TaxiIn)
             {
                 if ((DateTime.Now - _lastTurbulenceNotice).TotalSeconds > 120 && !isCrisisActive) 
                 {
-                    DecreaseAnxiety(0.02); // Gradual peace recovery
+                    DecreaseAnxiety(0.05 * deltaTimeSeconds); // Gradual peace recovery
                     double maxRecov = IsLowCost ? 65.0 : 95.0;
-                    if (ComfortLevel < maxRecov) IncreaseComfort(0.03); // Gradual comfort recovery
+                    if (ComfortLevel < maxRecov) 
+                    {
+                        IncreaseComfort(0.1 * deltaTimeSeconds); // Gradual comfort recovery
+                        if (ComfortLevel > 80.0) ComfortReason = "Cabin conditions are stabilizing.";
+                    }
                 }
             }
 
             // Cloud penetration anxiety
-            if (IsInCloud && phase != FlightPhase.AtGate && phase != FlightPhase.Turnaround && phase != FlightPhase.TaxiOut && phase != FlightPhase.TaxiIn)
+            if (IsInCloud && (phase == FlightPhase.InitialClimb || phase == FlightPhase.Climb || phase == FlightPhase.Cruise || phase == FlightPhase.Descent || phase == FlightPhase.Approach))
             {
                 // Passengers get slightly anxious when flying through clouds, especially if seatbelts are off
                 // User requested: weather alone should not push anxiety past 20%
                 if (PassengerAnxiety < 20.0)
                 {
                     double cloudStressMultiplier = _seatbeltsOn ? 0.01 : 0.03;
-                    IncreaseAnxiety(cloudStressMultiplier * deltaTimeSeconds, phase, isCrisisActive, "Anxiety elevated due to flying through clouds.", 20.0);
+                    IncreaseAnxiety(cloudStressMultiplier * deltaTimeSeconds, phase, isCrisisActive, GetDynamicFeedback("CloudAnxiety", phase), 20.0);
                 }
             }
 
@@ -1332,6 +1472,7 @@ namespace FlightSupervisor.UI.Services
                     {
                         double penaltyFactor = (_thermalDissatisfactionGauge / 100.0);
                         DecreaseComfort(penaltyFactor * 0.05 * deltaTimeSeconds);
+                        ComfortReason = $"Cabin temperature is uncomfortable ({LastKnownCabinTemp:F1}°C).";
                     }
                 }
 
@@ -1347,7 +1488,7 @@ namespace FlightSupervisor.UI.Services
                     {
                         _lastPncCleanlinessComplaint = DateTime.Now;
                         string msg = "Captain, passengers are complaining about the disgusting state of the cabin...";
-                        _audio?.PlayVariantAsPurser("TO_FD/Incoming_Calls/CabinDirty", msg);
+                        PlayDynamicAsPurser("pnc_cabin_dirty", msg, false, "to_fd", false);
                         OnCrewMessage?.Invoke("orange", LocalizationService.Translate(msg, "Commandant, les passagers se plaignent de l'état absolument dégoûtant de la cabine..."), null);
                         ModifySatisfaction(-2.0);
                     }
@@ -1393,7 +1534,7 @@ namespace FlightSupervisor.UI.Services
                         "Ladies and gentlemen, Federal Aviation regulations require your compliance with all crew instructions and lighted signs. Please fasten your seatbelt and keep it fastened whenever the sign is illuminated. There are marked emergency exits along the cabin; identify your closest one now. Smoking and vaping are federal offenses in the lavatories and the cabin. Thank you for your full cooperation as we prepare for takeoff."
                     };
                     string safetyDemo = safetyVariations[_rnd.Next(safetyVariations.Length)];
-                    _audio?.PlayVariantAsPurser("TO_PA/SafetyDemo", safetyDemo);
+                    PlayDynamicAsPurser("safety_briefing", safetyDemo, true, "to_pa", true);
                     OnCrewMessage?.Invoke("sky", LocalizationService.Translate("PA: Safety Demonstration in progress.", "PA: Démonstration de sécurité en cours."), null);
                     
                     _isPlayingSafetyDemo = true;
@@ -1404,13 +1545,13 @@ namespace FlightSupervisor.UI.Services
                 {
                     if (_actualTakeoffTime == null) _actualTakeoffTime = DateTime.Now;
                     
-                    IncreaseAnxiety(10.0, phase, isCrisisActive, "Passengers feel the pressure of takeoff acceleration.", 30.0);
+                    IncreaseAnxiety(10.0, phase, isCrisisActive, GetDynamicFeedback("TakeoffAccel", phase), 30.0);
                     OnCrewMessage?.Invoke("orange", LocalizationService.Translate("Passengers feel the pressure of takeoff acceleration.", "Les passagers ressentent la pression et le bruit de l'accélération."), null);
                 }
                 else if (phase == FlightPhase.Climb && _lastPhase == FlightPhase.InitialClimb && !_hasTriggeredThrustReductionAnxiety)
                 {
                     _hasTriggeredThrustReductionAnxiety = true;
-                    IncreaseAnxiety(20.0, phase, isCrisisActive, "Thrust reduction felt in cabin. Passengers experienced a brief moment of anxiety.", 40.0);
+                    IncreaseAnxiety(20.0, phase, isCrisisActive, GetDynamicFeedback("ThrustReduct", phase), 40.0);
                     OnCrewMessage?.Invoke("orange", LocalizationService.Translate("Thrust reduction felt in cabin. Passengers experienced a brief moment of anxiety.", "Réduction de poussée ressentie. Les passagers ont eu un bref moment d'anxiété (sensation de chute)."), null);
                 }
                 else if (phase == FlightPhase.Cruise)
@@ -1418,7 +1559,7 @@ namespace FlightSupervisor.UI.Services
                     DecreaseAnxiety(20.0);
                     OnCrewMessage?.Invoke("green", LocalizationService.Translate("Passengers are relieved to reach cruise altitude.", "Les passagers sont soulagés d'avoir atteint l'altitude de croisière."), null);
                 }
-                else if (phase == FlightPhase.Approach && (_lastPhase == FlightPhase.Descent || _lastPhase == FlightPhase.Cruise))
+                else if (phase == FlightPhase.Approach && altitude <= 10000)
                 {
                     if (!_hasPlayedApproachPncPA)
                     {
@@ -1426,7 +1567,7 @@ namespace FlightSupervisor.UI.Services
                         DecreaseAnxiety(15.0);
                         string destName = CurrentFlight?.Destination?.Name ?? CurrentFlight?.Destination?.IcaoCode ?? "our destination";
                         string spokenText = $"Ladies and gentlemen, we are now approaching {destName}. Please return to your seats, fasten your seatbelts, and make sure your large electronic devices are stowed away.";
-                        _audio?.PlayVariantAsPurser("TO_PA/Approach", spokenText);
+                        PlayDynamicAsPurser("arrival", spokenText, true, "to_pa", true);
 
                         OnCrewMessage?.Invoke("sky", LocalizationService.Translate(
                             $"PA: We are approaching {destName}. Please return to your seats and fasten your seatbelts.", 
@@ -1444,45 +1585,57 @@ namespace FlightSupervisor.UI.Services
                     string destName = CurrentFlight?.Destination?.Name ?? CurrentFlight?.Destination?.IcaoCode ?? "your destination";
                     string arrTime = CurrentSimLocalTime != DateTime.MinValue ? CurrentSimLocalTime.ToString("HH:mm") : DateTime.Now.ToString("HH:mm");
                     
-                    // 1. Start PA
-                    _audio?.PlayExactAsPurser("TO_PA/ArrivalGate/EN_PNC_Beth_ArrivalGate_Start.mp3", null);
+                    // 1. Start PA & City (ICAO)
+                    string destIcao = CurrentFlight?.Destination?.IcaoCode ?? "eddf";
+                    PlayDynamicAsPurser($"pnc_arr_dest_{destIcao.ToLower()}", null, playChime: false);
 
-                    // 2. City (ICAO)
-                    string destIcao = CurrentFlight?.Destination?.IcaoCode ?? "";
-                    if (!string.IsNullOrEmpty(destIcao))
-                        _audio?.PlayExactAsPurser($"TO_PA/ICAO/EN_PNC_Beth_{destIcao}.mp3", null, playChime: false);
-
-                    // 3. Local Time
+                    // 2. Local Time
                     DateTime destLocalTime = CurrentSimLocalTime != DateTime.MinValue ? CurrentSimLocalTime : DateTime.Now;
-                    int destHour12 = destLocalTime.Hour % 12;
-                    if (destHour12 == 0) destHour12 = 12;
-                    string ampm = destLocalTime.Hour < 12 ? "AM" : "PM";
-
-                    _audio?.PlayExactAsPurser("TO_PA/ArrivalGate/EN_PNC_Beth_ArrivalGate_LocalTime.mp3", null, playChime: false);
-                    _audio?.PlayExactAsPurser($"TO_PA/Time_Minutes/EN_PNC_Beth_{NumberToExactWord(destHour12)}.mp3", null, playChime: false);
                     
-                    if (destLocalTime.Minute == 0) {
-                        _audio?.PlayExactAsPurser("TO_PA/Time_Modifiers/EN_PNC_Beth_O_Clock.mp3", null, playChime: false);
-                    } else {
-                        _audio?.PlayExactAsPurser($"TO_PA/Time_Minutes/EN_PNC_Beth_{NumberToExactWord(destLocalTime.Minute)}.mp3", null, playChime: false);
-                    }
-                    _audio?.PlayExactAsPurser($"TO_PA/Time_Modifiers/EN_PNC_Beth_{ampm}.mp3", null, playChime: false);
+                    PlayDynamicAsPurser("pnc_block_local_time", null, playChime: false);
 
-                    // 4. Middle PA
-                    _audio?.PlayExactAsPurser("TO_PA/ArrivalGate/EN_PNC_Beth_ArrivalGate_End.mp3", null, playChime: false);
+                    // Determine if we should use 24h format (French) or 12h format (English)
+                    bool isFrench = ActiveAirlineId.ToLower().Contains("afr") || 
+                                    ActiveAirlineId.ToLower().Contains("air_france") || 
+                                    ActiveAirlineId.ToLower().Contains("easyjet") || 
+                                    (CurrentFlight?.Origin?.IcaoCode?.StartsWith("LF") == true);
 
-                    // 5. Airline
-                    string normAirline = ActiveAirlineId.ToUpper();
-                    if (normAirline.StartsWith("EJU") || normAirline.StartsWith("EZS") || normAirline.StartsWith("EZY") || normAirline.Contains("EASYJET")) 
+                    if (isFrench)
                     {
-                        normAirline = "EZY";
+                        PlayDynamicAsPurser($"hour_{destLocalTime.Hour}", $"{destLocalTime.Hour}", playChime: false);
+                        if (destLocalTime.Minute > 0)
+                        {
+                            PlayDynamicAsPurser($"num_{destLocalTime.Minute}", $"{destLocalTime.Minute}", playChime: false);
+                        }
                     }
-                    else if (normAirline.StartsWith("AFR") || normAirline.Contains("AIR_FRANCE") || normAirline.Contains("AIRFRANCE"))
+                    else
                     {
-                        normAirline = "AFR";
+                        int destHour12 = destLocalTime.Hour % 12;
+                        if (destHour12 == 0) destHour12 = 12;
+                        PlayDynamicAsPurser($"hour_{destHour12}", $"{destHour12}", playChime: false);
+                        
+                        if (destLocalTime.Minute > 0)
+                        {
+                            PlayDynamicAsPurser($"num_{destLocalTime.Minute}", $"{destLocalTime.Minute}", playChime: false);
+                        }
+                        
+                        string ampm = destLocalTime.Hour < 12 ? "am" : "pm";
+                        PlayDynamicAsPurser($"pnc_block_time_{ampm}", null, playChime: false);
                     }
-                    if (!string.IsNullOrEmpty(normAirline))
-                        _audio?.PlayExactAsPurser($"TO_PA/Airlines/EN_PNC_Beth_{normAirline}.mp3", null, playChime: false);
+                    
+                    PlayDynamicAsPurser("pnc_block_time_outro", null, playChime: false);
+
+                    // 3. Airline / Outro
+                    string normAirline = ActiveAirlineId.ToLower();
+                    if (normAirline.Contains("eju") || normAirline.Contains("ezs") || normAirline.Contains("ezy") || normAirline.Contains("easyjet")) 
+                    {
+                        normAirline = "easyjet";
+                    }
+                    else if (normAirline.Contains("afr") || normAirline.Contains("air_france") || normAirline.Contains("airfrance"))
+                    {
+                        normAirline = "airfrance";
+                    }
+                    PlayDynamicAsPurser($"pnc_arrival_outro_{normAirline}", null, playChime: false);
 
                     OnCrewMessage?.Invoke("sky", LocalizationService.Translate($"PA: Welcome to {destName}. Local time is {arrTime}.", $"PA: Bienvenue à {destName}. Heure locale : {arrTime}."), null);
                 }
@@ -1507,7 +1660,7 @@ namespace FlightSupervisor.UI.Services
                             // Surpassed ETE ! Comfort drops significantly over time
                             DecreaseComfort(0.005 * deltaTimeSeconds);
                             // Also slight anxiety increase because they feel it takes too long
-                            IncreaseAnxiety(0.001 * deltaTimeSeconds, phase, isCrisisActive, "Passengers are getting anxious because the flight is taking longer than expected.", 40.0);
+                            IncreaseAnxiety(0.001 * deltaTimeSeconds, phase, isCrisisActive, GetDynamicFeedback("FlightDelay", phase), 40.0);
                         }
                     }
                 }
@@ -1533,7 +1686,7 @@ namespace FlightSupervisor.UI.Services
                         _holdTurnAccumulator = 0; // Clear it out to require another full 360
                         
                         ModifySatisfaction(-15.0);
-                        IncreaseAnxiety(15.0, phase, false, "Passengers are anxious because the aircraft is flying in circles.", 40.0);
+                        IncreaseAnxiety(15.0, phase, false, GetDynamicFeedback("HoldingPattern", phase), 40.0);
 
                         OnCrewMessage?.Invoke("orange", LocalizationService.Translate(
                             "Captain, passengers are noticing we're flying in circles and getting anxious. An announcement would help.",
@@ -1549,7 +1702,7 @@ namespace FlightSupervisor.UI.Services
             if ((phase == FlightPhase.Climb || phase == FlightPhase.Cruise) && altitude > 10000 && !_seatbeltsOn && !_hasPlayedSeatbeltOffPA)
             {
                 _hasPlayedSeatbeltOffPA = true;
-                _audio?.PlayVariantAsPurser("TO_PA/SeatbeltOff", "Ladies and gentlemen, the captain has turned off the fasten seatbelt sign. You are now free to move about the cabin. However, we do recommend keeping your seatbelt fastened while seated, in case we experience any unexpected turbulence.");
+                PlayDynamicAsPurser("seatbelts_off", "Ladies and gentlemen, the captain has turned off the fasten seatbelt sign. You are now free to move about the cabin. However, we do recommend keeping your seatbelt fastened while seated, in case we experience any unexpected turbulence.", true, "to_pa", true);
                 OnCrewMessage?.Invoke("sky", LocalizationService.Translate("PA: Seatbelts off announcement.", "PA: Annonce de libération des ceintures."), null);
             }
 
@@ -1579,7 +1732,7 @@ namespace FlightSupervisor.UI.Services
                     if (!IsServiceHalted)
                     {
                         string servicePA = "Ladies and gentlemen, we are pleased to inform you that our in-flight service is about to begin. We will be passing through the cabin shortly with complimentary beverages and snacks. Keep your seatbelts fastened even when the sign is off. Thank you.";
-                        _audio?.PlayVariantAsPurser("TO_PA/ServiceStart", servicePA);
+                        PlayDynamicAsPurser("service_start", servicePA, true, "to_pa", true);
                         OnCrewMessage?.Invoke("sky", LocalizationService.Translate("PA: In-flight service is starting.", "PA: Le service en vol commence."), null);
                         State = CabinState.ServingMeals;
                         InFlightServiceProgress = 0.0;
@@ -1657,7 +1810,7 @@ namespace FlightSupervisor.UI.Services
                     {
                         _hasPenalizedTurbulenceReaction = true;
                         OnPenaltyTriggered?.Invoke(-100, LocalizationService.Translate("Pilot Inaction: No PA during severe turbulence/crisis", "Inaction Pilote : Pas d'annonce PA pendant la crise/turbulence"));
-                        IncreaseAnxiety(20.0, phase, isCrisisActive, "Passengers are terrified by severe turbulence and lack of communication from the cockpit.", 95.0);
+                        IncreaseAnxiety(20.0, phase, isCrisisActive, GetDynamicFeedback("SevereTurbulenceNoComm", phase), 95.0);
                     }
                 }
             }
@@ -1715,8 +1868,9 @@ namespace FlightSupervisor.UI.Services
             
             if (phase != FlightPhase.AtGate && phase != FlightPhase.Turnaround && (gMax - gMin > 0.6))
             {
-                IncreaseAnxiety(0.5, phase, isCrisisActive, "Anxiety elevated due to noticeable turbulence.", 85.0); 
+                IncreaseAnxiety(0.5, phase, isCrisisActive, GetDynamicFeedback("NoticeableTurbulence", phase), 85.0); 
                 DecreaseComfort(0.5); // B.1 task: Turbulence vibrates cabin, dropping comfort
+                ComfortReason = "Comfort degraded due to turbulence.";
                 
                 // Spillages cause cleanliness drop
                 CabinCleanliness -= 0.1 * deltaTimeSeconds;
@@ -1745,7 +1899,7 @@ namespace FlightSupervisor.UI.Services
                             "Commandant, ça secoue vraiment. J'annonce de suite aux passagers de s'asseoir."
                         ), null);
                         
-                        _audio?.PlayVariantAsPurser("TO_PA/SeatbeltOn", "Ladies and gentlemen, the fasten seatbelt sign has been illuminated due to turbulence. Please return to your seats immediately and ensure your seatbelts are securely fastened.");
+                        // SeatbeltOn PA removed per user request
                         OnCrewMessage?.Invoke("orange", LocalizationService.Translate("PA: Please return to your seats and fasten your seatbelts.", "PA: Veuillez regagner vos sièges et attacher vos ceintures."), null);
 
                         CrewEsteem = Math.Min(100.0, CrewEsteem + 5.0); // Valorisation de la prise d'initiative
@@ -1769,7 +1923,7 @@ namespace FlightSupervisor.UI.Services
                 if ((DateTime.Now - _lastCabinBankPenalty).TotalSeconds > 5)
                 {
                     _lastCabinBankPenalty = DateTime.Now;
-                    IncreaseAnxiety(0.5, phase, isCrisisActive, "Passengers are anxious due to steep banking maneuvers.", 80.0);
+                    IncreaseAnxiety(0.5, phase, isCrisisActive, GetDynamicFeedback("SteepBank", phase), 80.0);
                     if (ComfortLevel > 40.0) DecreaseComfort(0.2);
                 }
             }
@@ -1788,47 +1942,72 @@ namespace FlightSupervisor.UI.Services
                 
                 bool inCooldown = IsDelayCooldownActive;
                 
+                // Point 5: Pénalité de Retard Extrême (Fatigue d'Attente)
+                // If delay is extreme, the apology cooldown "shield" breaks.
+                if (inCooldown && _currentDelayMinutes > 45)
+                {
+                    inCooldown = false;
+                    SatisfactionReason = "Passengers are exasperated. Apologies are no longer effective.";
+                }
+                
+                // Point 6: Dégradation du Moral de l'Équipage (PNC Fatigue)
+                // Prolonged delays drain the crew's esteem as they deal with angry passengers.
+                if (_currentDelayMinutes > 45)
+                {
+                    CrewEsteem = Math.Max(0.0, CrewEsteem - (0.5 * (deltaTimeSeconds / 60.0)));
+                }
+
                 if (!inCooldown)
                 {
                     // Continuous degradation based on how late we are
                     double satDropRate = 0; // per minute
                     double anxRiseRate = 0; // per minute
-                    double comfDropRate = 0.2; // per minute
+                    double comfDropRate = 0; // per minute
                     
-                    if (_currentDelayMinutes > 45)
+                    if (_currentDelayMinutes > 60)
+                    {
+                        satDropRate = 4.0;
+                        anxRiseRate = 2.0;
+                        comfDropRate = 1.0;
+                    }
+                    else if (_currentDelayMinutes > 45)
                     {
                         satDropRate = 3.0;
                         anxRiseRate = 1.0;
+                        comfDropRate = 0.8;
                     }
                     else if (_currentDelayMinutes > 30)
                     {
                         satDropRate = 2.0;
                         anxRiseRate = 0.5;
+                        comfDropRate = 0.5;
                     }
                     else if (_currentDelayMinutes > 15)
                     {
                         satDropRate = 1.0;
                         anxRiseRate = 0.3;
+                        comfDropRate = 0.3;
                     }
                     else if (_currentDelayMinutes > 5)
                     {
                         satDropRate = 0.5;
                         anxRiseRate = 0.1;
+                        comfDropRate = 0.1;
                     }
 
                     if (satDropRate > 0)
                     {
                         if (Satisfaction > 5.0) ModifySatisfaction(-(satDropRate / 60.0) * deltaTimeSeconds);
-                        SatisfactionReason = $"Satisfaction decreasing due to prolonged departure delay ({Math.Round(_currentDelayMinutes)} mins).";
+                        if (_currentDelayMinutes <= 45) SatisfactionReason = $"Satisfaction decreasing due to prolonged departure delay ({Math.Round(_currentDelayMinutes)} mins).";
                     }
                     if (anxRiseRate > 0)
                     {
-                        IncreaseAnxiety((anxRiseRate / 60.0) * deltaTimeSeconds, phase, isCrisisActive, $"Anxiety rising due to departure delay ({Math.Round(_currentDelayMinutes)} mins).", 90.0);
+                        IncreaseAnxiety((anxRiseRate / 60.0) * deltaTimeSeconds, phase, isCrisisActive, GetDynamicFeedback("DepartureDelay", phase), 90.0);
                     }
                     if (comfDropRate > 0)
                     {
                         if (ComfortLevel > 5.0) DecreaseComfort((comfDropRate / 60.0) * deltaTimeSeconds);
-                        ComfortReason = "Comfort dropping slightly due to waiting at the gate.";
+                        ComfortReason = $"Comfort dropping due to departure delay ({Math.Round(_currentDelayMinutes)} mins).";
                     }
                 }
                 else
@@ -1837,39 +2016,69 @@ namespace FlightSupervisor.UI.Services
                     AnxietyReason = "Anxiety stable: Passengers are reassured by crew announcements.";
                 }
 
-                // Layered Delay Warnings from PNC
-                if (_currentDelayMinutes > 10 && (DateTime.Now - _lastDelayNotice).TotalMinutes > 10 && !inCooldown)
+                // Point 7: Escalade des Messages d'Alerte PNC (Retards)
+                if (_currentDelayMinutes > 15 && (DateTime.Now - _lastDelayNotice).TotalMinutes > 10 && !inCooldown)
                 {
-                        var mins = Math.Round(_currentDelayMinutes);
-                        string severityEng = "asking questions about the delay";
-                        string severityFre = "commencent à poser des questions sur le retard";
+                    var mins = Math.Round(_currentDelayMinutes);
+                    
+                    if (_currentDelayMinutes > 90) 
+                    {
+                        // Phase 4: Extreme Delay
+                        string alarmEn = $"Captain, this is unacceptable. It's been {mins} minutes, passengers are furious and we are exhausted.";
+                        string alarmFr = $"Commandant, la situation est ingérable. Ça fait {mins} minutes, les passagers sont furieux et on est épuisés.";
                         
-                        if (_currentDelayMinutes > 60) {
-                            severityEng = "getting genuinely angry and complaining loudly";
-                            severityFre = "sont vraiment en colère et se plaignent bruyamment";
-                        } else if (_currentDelayMinutes > 30) {
-                            severityEng = "getting very restless and impatient";
-                            severityFre = "s'impatientent sérieusement et s'agitent";
-                        }
-
-                        if (CrewEsteem >= 80)
+                        OnCrewMessage?.Invoke("red", LocalizationService.Translate(alarmEn, alarmFr), null);
+                        TriggerIncomingCabinCall("Delay90m", "intercom_delay_warning_90m", alarmEn);
+                        CrewEsteem = Math.Max(0.0, CrewEsteem - 10.0); // Huge hit to crew morale when getting yelled at for 90 mins
+                    }
+                    else if (_currentDelayMinutes > 60) 
+                    {
+                        // Phase 3: Alarme Critique
+                        string alarmEn = $"Captain, we are {mins} minutes delayed. People are getting very upset in the back. We need an update NOW.";
+                        string alarmFr = $"Commandant, nous avons {mins} minutes de retard. Les gens s'énervent vraiment à l'arrière. Il nous faut une info MAINTENANT.";
+                        
+                        OnCrewMessage?.Invoke("red", LocalizationService.Translate(alarmEn, alarmFr), null);
+                        TriggerIncomingCabinCall("Delay60m", "intercom_delay_warning_60m", alarmEn);
+                        CrewEsteem = Math.Max(0.0, CrewEsteem - 5.0); 
+                    } 
+                    else if (_currentDelayMinutes > 45) 
+                    {
+                        // Phase 2: Avertissement
+                        string warnEn = $"Captain, it's been {mins} minutes. Passengers are starting to complain. Can we offer water?";
+                        string warnFr = $"Commandant, ça fait {mins} minutes. Les passagers commencent à se plaindre. On peut leur proposer de l'eau ?";
+                        
+                        OnCrewMessage?.Invoke("orange", LocalizationService.Translate(warnEn, warnFr), null);
+                        if (CrewEsteem >= 60)
                         {
-                            OnCrewMessage?.Invoke("info", LocalizationService.Translate(
-                                $"Captain, we are {mins} minutes delayed. Passengers are {severityEng}. I am making an announcement to reassure them.",
-                                $"Commandant, nous avons {mins} minutes de retard. Les passagers {severityFre}. Je fais une annonce pour les rassurer."
-                            ), null);
                             AnnounceToCabin("Delay");
-                            CrewEsteem = Math.Min(100.0, CrewEsteem + 5.0);
-                            OnOperationBonusTriggered?.Invoke(50, LocalizationService.Translate("Proactive Crew Initiative (Delay PA)", "Initiative PNC Proactif (PA Retard)"));
-                            _lastDelayNotice = DateTime.Now;
+                            OnOperationBonusTriggered?.Invoke(20, LocalizationService.Translate("Proactive Crew Initiative (Delay PA)", "Initiative PNC Proactif (PA Retard)"));
                         }
                         else
                         {
-                            string fallbackEn = $"Captain, we are {mins} minutes delayed past SOBT and people are getting very impatient. Could we get an update?";
-                            TriggerIncomingCabinCall("DelayPax", "TO_FD/Status_Reports/AnxiousPax", fallbackEn);
+                            TriggerIncomingCabinCall("Delay45m", "intercom_delay_warning_45m", warnEn);
                         }
-                        _lastDelayNotice = DateTime.Now;
                     }
+                    else
+                    {
+                        // Phase 1: Standard (25-45 mins)
+                        string stdEn = $"Captain, passengers are getting quite anxious with this delay. Any updates we can give them?";
+                        string stdFr = $"Commandant, les passagers commencent à s'impatienter avec ce retard. Avez-vous des informations à leur communiquer ?";
+                        
+                        if (CrewEsteem >= 80)
+                        {
+                            OnCrewMessage?.Invoke("info", LocalizationService.Translate(stdEn, stdFr), null);
+                            AnnounceToCabin("Delay");
+                            CrewEsteem = Math.Min(100.0, CrewEsteem + 2.0);
+                            OnOperationBonusTriggered?.Invoke(50, LocalizationService.Translate("Proactive Crew Initiative (Delay PA)", "Initiative PNC Proactif (PA Retard)"));
+                        }
+                        else
+                        {
+                            TriggerIncomingCabinCall("AnxiousPax", "pnc_anxious_pax", stdEn);
+                        }
+                    }
+                    
+                    _lastDelayNotice = DateTime.Now;
+                }
             }
 
             // Environmental Anxiety (Night & Low Altitude Approach)
@@ -1877,11 +2086,11 @@ namespace FlightSupervisor.UI.Services
             {
                 if (CurrentSimLocalTime.Hour <= 5 || CurrentSimLocalTime.Hour >= 20)
                 {
-                    IncreaseAnxiety(0.002 * deltaTimeSeconds * (IsLowCost ? 1.5 : 1.0), phase, isCrisisActive, "Slight unease due to flying late at night.", 15.0);
+                    IncreaseAnxiety(0.002 * deltaTimeSeconds * (IsLowCost ? 1.5 : 1.0), phase, isCrisisActive, GetDynamicFeedback("NightFlight", phase), 15.0);
                 }
                 if (altitude < 1000 && phase == FlightPhase.Approach)
                 {
-                    IncreaseAnxiety(0.02 * deltaTimeSeconds * (IsLowCost ? 1.5 : 1.0), phase, isCrisisActive, "Anxiety rising during low altitude approach.", 25.0);
+                    IncreaseAnxiety(0.02 * deltaTimeSeconds * (IsLowCost ? 1.5 : 1.0), phase, isCrisisActive, GetDynamicFeedback("LowAltitudeApproach", phase), 25.0);
                 }
             }
 
@@ -1892,7 +2101,7 @@ namespace FlightSupervisor.UI.Services
                 {
                     _lastHoldPenaltyTime = DateTime.Now;
                     ModifySatisfaction(-10.0);
-                    IncreaseAnxiety(10.0, phase, false, "Passengers are getting impatient and anxious sitting motionless on the taxiway.", 90.0);
+                    IncreaseAnxiety(10.0, phase, false, GetDynamicFeedback("TaxiPause", phase), 90.0);
                     OnPenaltyTriggered?.Invoke(-30, LocalizationService.Translate("Ground Delay: Aircraft immobilized > 10 min", "Retard au sol : Avion immobilisé > 10 min"));
                     OnCrewMessage?.Invoke("orange", LocalizationService.Translate("Captain, we've been sitting here without moving for over 10 minutes. Passengers are getting impatient.", "Commandant, on est immobiles depuis plus de 10 minutes. L'impatience monte."), null);
                 }
@@ -1971,7 +2180,7 @@ namespace FlightSupervisor.UI.Services
                 _hasTriggeredCateringComplaint = true;
                 string msg = "Captain, we have totally run out of meals for the remaining passengers. They are very unhappy.";
                 TriggerIncomingCabinCall("CateringMissing", "TO_FD/Incoming_Calls/CateringMissing", msg);
-                IncreaseAnxiety(30.0, phase, isCrisisActive, "Passengers are upset and anxious due to food and water shortages.", 60.0);
+                IncreaseAnxiety(30.0, phase, isCrisisActive, GetDynamicFeedback("CateringShortage", phase), 60.0);
                 ModifySatisfaction(-50.0);
                 CrewEsteem = Math.Max(0.0, CrewEsteem - 20.0);
                 OnPenaltyTriggered?.Invoke(-100, LocalizationService.Translate("Catering Shortage: Out of meals", "Rupture Catering : Plus de repas disponibles")); 
@@ -2016,14 +2225,14 @@ namespace FlightSupervisor.UI.Services
             if (announcementType == "Turbulence")
             {
                 DecreaseAnxiety(25.0);
-                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/EnRoute", "EN_Rowan_Turbulence", null);
+                PlayDynamicAsCaptain("pa_turbulence", null);
                 OnCrewMessage?.Invoke("orange", LocalizationService.Translate("PA: Please return to your seats and fasten your seatbelts.", "PA: Veuillez regagner vos sièges et attacher vos ceintures."), null);
             }
             else if (announcementType == "TurbulenceApology")
             {
                 DecreaseAnxiety(20.0);
                 ModifySatisfaction(5.0);
-                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/EnRoute", "EN_Rowan_TurbulenceApology", null);
+                PlayDynamicAsCaptain("pa_turbulence_apology", null);
                 OnCrewMessage?.Invoke("info", LocalizationService.Translate("PA: Apologies for the rough ride.", "PA: Excuses suite aux turbulences."), null);
             }
             else if (announcementType == "CruiseStatus")
@@ -2032,7 +2241,7 @@ namespace FlightSupervisor.UI.Services
                 DecreaseAnxiety(5.0);
                 ModifySatisfaction(10.0);
                 string destName = CurrentFlight?.Destination?.Name ?? CurrentFlight?.Destination?.IcaoCode ?? "our destination";
-                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/EnRoute", "EN_Rowan_Update", null);
+                PlayDynamicAsCaptain("pa_update", null);
                 OnCrewMessage?.Invoke("info", LocalizationService.Translate($"PA: Cruising smoothly towards {destName}.", $"PA: Nous croisons paisiblement vers {destName}."), null);
             }
             else if (announcementType == "DelayApology")
@@ -2040,7 +2249,7 @@ namespace FlightSupervisor.UI.Services
                 _timeOfLastDelayPA = DateTime.Now;
                 DecreaseAnxiety(15.0);
                 ModifySatisfaction(5.0);
-                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/EnRoute", "EN_Rowan_Delay_Apology", null);
+                PlayDynamicAsCaptain("pa_delay_apology", null);
                 OnCrewMessage?.Invoke("info", LocalizationService.Translate("PA: Apology for the earlier delay.", "PA: Nouvelles excuses pour le retard passé."), null);
             }
 
@@ -2104,14 +2313,14 @@ namespace FlightSupervisor.UI.Services
                 };
 
                 string spokenText = $"Ladies and gentlemen from the flight deck, I'd like to apologize for the delay. We are currently waiting for {spokenReason} and expect to be moving in about {Math.Max(10, Math.Round(_currentDelayMinutes))} minutes. Thank you for your patience.";
-                _audio?.PlayVariantWithPrefixAsCaptain($"TO_PA/Delay/{subfolder}", $"EN_Rowan_Delay_{subfolder}", spokenText);
+                PlayDynamicAsCaptain($"pa_delay_{subfolder.ToLower()}", spokenText);
 
                 OnCrewMessage?.Invoke("orange", LocalizationService.Translate($"PA: Apologies for the delay ({spokenReason}), we will be departing shortly. (Passengers pacified for {cooldownMinutes} min)", $"PA: Toutes nos excuses pour ce retard ({spokenReason}), nous partons bientôt. (Passagers calmés pour {cooldownMinutes} min)"), null);
             }
             else
             {
                 ModifySatisfaction(-15.0);
-                IncreaseAnxiety(10.0, FlightPhase.AtGate, false, "Passengers are losing patience with the repeated delay excuses.", 90.0);
+                IncreaseAnxiety(10.0, FlightPhase.AtGate, false, GetDynamicFeedback("RepeatedDelayExcuses", FlightPhase.AtGate), 90.0);
                 OnCrewMessage?.Invoke("red", LocalizationService.Translate("PA: Apologies for the delay... (Passengers are groaning, the excuses are no longer working!)", "PA: Toutes nos excuses... (Les passagers râlent, vos excuses ne marchent plus !)"), null);
             }
         }
@@ -2125,55 +2334,15 @@ namespace FlightSupervisor.UI.Services
             return tens[number / 10] + ones[number % 10];
         }
 
-        private void SequenceWeatherPA(string metar, int destTempC, bool isApproach, bool playChime = true)
+
+
+        private string GetTempMacro(int tempC)
         {
-            metar = metar.ToUpper();
-            
-            if (isApproach) {
-                _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Weather_Intro_Approach_01.mp3", null, playChime);
-            } else {
-                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Weather", "EN_Rowan_Weather_Intro_0", null, playChime);
-            }
-
-            // 1. Sky cover
-            if (metar.Contains(" OVC")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Sky_Overcast.mp3", null, false);
-            else if (metar.Contains(" BKN") || metar.Contains(" SCT")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Sky_Scattered.mp3", null, false);
-            else if (metar.Contains(" FEW")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Sky_Few.mp3", null, false);
-            else _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Sky_Clear.mp3", null, false);
-
-            // 2. Precipitation
-            if (metar.Contains(" TS") || metar.Contains(" CB")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_SevereStorm.mp3", null, false);
-            else if (metar.Contains(" SN") || metar.Contains(" SG"))
-            {
-                if (metar.Contains("+SN")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_Snow.mp3", null, false);
-                else _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_LightSnow.mp3", null, false);
-            }
-            else if (metar.Contains(" FZ") || metar.Contains(" IC") || metar.Contains(" GR")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_Ice.mp3", null, false);
-            else if (metar.Contains(" RA") || metar.Contains(" DZ") || metar.Contains(" SH"))
-            {
-                if (metar.Contains("+RA")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_HeavyRain.mp3", null, false);
-                else if (metar.Contains("-RA") || metar.Contains("-DZ")) _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_LightRain.mp3", null, false);
-                else _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Precip_Rain.mp3", null, false);
-            }
-
-            // 3. Visibility and Wind
-            if (metar.Contains(" FG") || metar.Contains(" BR") || metar.Contains(" HZ")) {
-                _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Vis_Fog.mp3", null, false);
-            }
-            
-            var windMatch = System.Text.RegularExpressions.Regex.Match(metar, @"\d{3}(\d{2})G");
-            if (windMatch.Success && int.TryParse(windMatch.Groups[1].Value, out int windSpd) && windSpd > 25) {
-                _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Wind_Strong.mp3", null, false);
-            }
-
-            // 4. Temp
-            _audio?.PlayExactAsCaptain("TO_PA/Weather/EN_Rowan_Temp_Intro.mp3", null, false);
-            string tempSign = destTempC < 0 ? "M" : "P";
-            string tempVal = Math.Abs(destTempC).ToString("D2");
-            _audio?.PlayExactAsCaptain($"TO_PA/Temperatures/EN_Rowan_{tempSign}{tempVal}.mp3", null, false);
+            if (tempC < 0) return $"m{Math.Abs(tempC)}";
+            return tempC.ToString();
         }
 
-        public void AnnounceWelcome(string destIcao, string destName, int flightTimeMinutes, bool badWeather, int destTempC, DateTime destLocalTime, DateTime departureLocalTime, string metar)
+        public void AnnounceWelcome(string destIcao, string destName, int flightTimeMinutes, FlightSupervisor.UI.Models.BriefingData briefingData, int destTempC, DateTime destLocalTime, DateTime departureLocalTime, string maxTurbStr)
         {
             if (!_issuedCommands.Contains("PA_Welcome"))
             {
@@ -2181,93 +2350,69 @@ namespace FlightSupervisor.UI.Services
                 OnOperationBonusTriggered?.Invoke(25, "Passenger Announcement: Welcome");
             }
 
+            var destStation = briefingData?.Stations?.FirstOrDefault(s => s.Id == "destination");
+            bool badWeather = destStation != null && (destStation.WindSeverity == FlightSupervisor.UI.Models.WeatherSeverity.Danger || destStation.VisibilitySeverity == FlightSupervisor.UI.Models.WeatherSeverity.Danger || destStation.CloudSeverity == FlightSupervisor.UI.Models.WeatherSeverity.Danger || destStation.RawMetar.Contains(" TS") || destStation.RawMetar.Contains(" SN"));
+
             if (!badWeather) {
                 DecreaseAnxiety(20.0);
             } else {
-                IncreaseAnxiety(15.0, FlightPhase.AtGate, false, "Passengers anxious due to poor weather at destination.", 25.0);
+                IncreaseAnxiety(15.0, FlightPhase.AtGate, false, GetDynamicFeedback("WeatherArr", FlightPhase.AtGate), 25.0);
             }
 
             string wxcText = !badWeather ? "looking great" : "quite poor today";
             string wxcFr = !badWeather ? "très bonne" : "assez mauvaise aujourd'hui";
-            string airlineName = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(ActiveAirlineId.Replace("_", " "));
-            string aircraftType = "A320"; // Safe default
+            string aircraftType = "a320"; // Safe default
             if (CurrentFlight?.Aircraft != null)
             {
-                if (!string.IsNullOrWhiteSpace(CurrentFlight.Aircraft.BaseType)) aircraftType = CurrentFlight.Aircraft.BaseType;
-                else if (!string.IsNullOrWhiteSpace(CurrentFlight.Aircraft.IcaoCode)) aircraftType = CurrentFlight.Aircraft.IcaoCode;
-                else if (!string.IsNullOrWhiteSpace(CurrentFlight.Aircraft.Name)) aircraftType = CurrentFlight.Aircraft.Name;
-            }
-            
-            int hr = departureLocalTime.Hour;
-            string greeting = hr < 12 ? "Morning" : (hr < 18 ? "Afternoon" : "Evening");
-            string wxcConditions = !badWeather ? "smooth flight" : "few bumps along the way";
-
-            string timeStr = flightTimeMinutes >= 60 ? $"{flightTimeMinutes / 60} hour(s) and {flightTimeMinutes % 60} minutes" : $"{flightTimeMinutes} minutes";
-            string spokenText = $"Ladies and gentlemen, good {greeting} from the flightdeck. My name is {CaptainName} and I am your captain today. On behalf of {airlineName} I would like to welcome you all on board this {aircraftType} on our flight to {destName}. Today flight time will be approximately {timeStr} and we're expecting a {wxcConditions}. We're just finishing the last paper work and once completed we will start our pushback. The weather at our destination is currently {destTempC} degrees Celsius. Thank you very much for being our guests. Sit back, relax, and enjoy this flight with us.";
-            
-            // --- NORMALISE AIRLINE & AIRCRAFT TYPE ---
-            string rawAirline = ActiveAirlineId.ToUpper();
-            string normAirline = rawAirline;
-            if (rawAirline.StartsWith("EJU") || rawAirline.StartsWith("EZS") || rawAirline.StartsWith("EZY") || rawAirline.Contains("EASYJET")) 
-            {
-                normAirline = "EZY";
-            }
-            else if (rawAirline.StartsWith("AFR") || rawAirline.Contains("AIR_FRANCE") || rawAirline.Contains("AIRFRANCE"))
-            {
-                normAirline = "AFR";
+                if (!string.IsNullOrWhiteSpace(CurrentFlight.Aircraft.BaseType)) aircraftType = CurrentFlight.Aircraft.BaseType.ToLower();
             }
 
-            string normAircraft = aircraftType.ToUpper();
-            if (normAircraft == "A20N" || normAircraft == "A32N") normAircraft = "A320";
-            if (normAircraft == "A21N") normAircraft = "A321";
-            if (normAircraft == "A19N") normAircraft = "A319";
+            string greeting = "morning";
+            if (departureLocalTime.Hour >= 12 && departureLocalTime.Hour < 18) greeting = "afternoon";
+            else if (departureLocalTime.Hour >= 18) greeting = "evening";
 
-            // --- DYNAMIC AUDIO SEQUENCE ---
-            // 1. Greeting
-            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/FlightDeck to PA", $"EN_Rowan_Welcome_Onboard_This_{greeting}", spokenText, playChime: true);
-            
-            // 2. Airline
-            if (!string.IsNullOrEmpty(normAirline)) {
-                _audio?.PlayExactAsCaptain($"TO_PA/Airlines/EN_Rowan_{normAirline}_{normAircraft}.mp3", null, playChime: false);
-            }
+            string normAirline = ActiveAirlineId?.ToLower() ?? "generic";
+            if (normAirline.Contains("eju") || normAirline.Contains("ezs") || normAirline.Contains("ezy") || normAirline.Contains("easyjet")) normAirline = "easyjet";
+            else if (normAirline.Contains("afr") || normAirline.Contains("air_france") || normAirline.Contains("airfrance")) normAirline = "airfrance";
 
-            // 3. Destination (ICAO)
-            _audio?.PlayExactAsCaptain($"TO_PA/ICAO/EN_Rowan_{destIcao}_01.mp3", null, playChime: false);
+            string destIcaoStr = destIcao?.ToLower() ?? "generic";
 
-            // 4. Flight Time
-            _audio?.PlayExactAsCaptain("TO_PA/FlightDeck to PA/EN_Rowan_Welcome_Onboard_Flight_Time.mp3", null, playChime: false);
+            PlayDynamicAsCaptain($"pa_welcome_intro_01_{greeting}_{aircraftType}_{normAirline}_{destIcaoStr}", null, playChime: true);
+
             int eH = flightTimeMinutes / 60;
-            int eM = flightTimeMinutes % 60;
-            if (eH > 0 && eH <= 12) _audio?.PlayExactAsCaptain($"TO_PA/Hours/EN_Rowan_{eH}hour.mp3", null, playChime: false);
-            if (eM > 0 && eM <= 59) _audio?.PlayExactAsCaptain($"TO_PA/Minutes/EN_Rowan_{eM}min.mp3", null, playChime: false);
+            int eM = (flightTimeMinutes % 60);
+            eM = (int)(Math.Round(eM / 5.0) * 5);
+            if (eM == 60) { eM = 0; eH++; }
+            PlayDynamicAsCaptain($"pa_welcome_flight_time_{eH}h{eM:D2}", null, playChime: false);
 
-            // 5. Weather
-            SequenceWeatherPA(metar, destTempC, isApproach: false, playChime: false);
+            int turb = 0;
+            int.TryParse(maxTurbStr, out turb);
+            int wIdxEnroute = 1;
+            if (turb >= 4) wIdxEnroute = 4;
+            else if (turb >= 3) wIdxEnroute = 3;
+            else if (turb >= 2) wIdxEnroute = 2;
 
-            // 6. Local Time
-            _audio?.PlayExactAsCaptain("TO_PA/FlightDeck to PA/EN_Rowan_Welcome_Onboard_Local_Time.mp3", null, playChime: false);
-            
-            int localHour12 = departureLocalTime.Hour % 12;
-            if (localHour12 == 0) localHour12 = 12; // 12 AM / 12 PM format
-            
-            _audio?.PlayExactAsCaptain($"TO_PA/Time_Minutes/EN_Rowan_{NumberToExactWord(localHour12)}.mp3", null, playChime: false);
-            
-            if (departureLocalTime.Minute == 0) {
-                _audio?.PlayExactAsCaptain("TO_PA/Time_Modifiers/EN_Rowan_O_Clock.mp3", null, playChime: false);
-            } else {
-                _audio?.PlayExactAsCaptain($"TO_PA/Time_Minutes/EN_Rowan_{NumberToExactWord(departureLocalTime.Minute)}.mp3", null, playChime: false);
+            int wIdxArrival = 1;
+            if (destStation != null)
+            {
+                string metar = destStation.RawMetar.ToUpper();
+                if (metar.Contains(" TS") || metar.Contains(" CB")) wIdxArrival = 5;
+                else if (metar.Contains(" SN") || metar.Contains(" SG") || metar.Contains(" FZ") || metar.Contains(" IC") || metar.Contains(" GR")) wIdxArrival = 6;
+                else if (metar.Contains(" RA") || metar.Contains(" DZ") || metar.Contains(" SH")) wIdxArrival = 4;
+                else if (destStation.CloudSeverity >= FlightSupervisor.UI.Models.WeatherSeverity.Warning || destStation.VisibilitySeverity >= FlightSupervisor.UI.Models.WeatherSeverity.Warning || metar.Contains(" OVC") || metar.Contains(" BKN") || metar.Contains(" FG")) wIdxArrival = 3;
+                else if (metar.Contains(" SCT") || metar.Contains(" FEW")) wIdxArrival = 2;
             }
 
-            string ampm = departureLocalTime.Hour < 12 ? "AM" : "PM";
-            _audio?.PlayExactAsCaptain($"TO_PA/Time_Modifiers/EN_Rowan_{ampm}.mp3", null, playChime: false);
+            PlayDynamicAsCaptain($"pa_welcome_enroute_weather_{wIdxEnroute:D2}", null, playChime: false);
+            PlayDynamicAsCaptain($"pa_welcome_arrival_weather_{wIdxArrival:D2}", null, playChime: false);
+            
+            PlayDynamicAsCaptain("pa_welcome_outro_01", null, playChime: false);
 
-            // 7. Outro (Paperwork)
-            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/FlightDeck to PA", "EN_Rowan_Welcome_Onboard_Paper_Work_", null, playChime: false);
-
-            // UI Dispatch
+            string timeStr = $"{eH}h {eM:D2}m";
             string notifText = $"PA: Welcome aboard our flight to {destName}. Our flight time will be approx {timeStr}. The weather at our destination is currently {wxcText}.";
-            string notifFr = $"PA: Bienvenue à bord de ce vol à destination de {destName}. Notre temps de vol sera d'environ {timeStr}. La météo à l'arrivée s'annonce {wxcFr}.";
-            OnCrewMessage?.Invoke("green", LocalizationService.Translate(notifText, notifFr), null);
+            string notifTextFr = $"PA: Bienvenue à bord de notre vol vers {destName}. Notre temps de vol sera d'environ {timeStr}. La météo à notre destination est {wxcFr}.";
+            
+            OnCrewMessage?.Invoke("info", LocalizationService.Translate(notifText, notifTextFr), null);
         }
 
         public void AnnounceDescent(string destIcao, string destName, string metar, int destTempC)
@@ -2281,63 +2426,14 @@ namespace FlightSupervisor.UI.Services
 
             DecreaseAnxiety(10.0);
             
-            // 1. Initial Greeting with dynamic fallback
-            string introFallback = $"Ladies and gentlemen, we have begun our descent into {destName}.";
-            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/FlightDeck to PA", "EN_Rowan_Descent", introFallback, playChime: true);
-
-            // 2. Destination
-            if (!string.IsNullOrEmpty(destIcao))
-            {
-                _audio?.PlayExactAsCaptain($"TO_PA/ICAO/EN_Rowan_{destIcao}_01.mp3", null, playChime: false);
-            }
-
-            // 3. Weather sequence
-            SequenceWeatherPA(metar, destTempC, isApproach: false, playChime: false);
+            PlayDynamicAsCaptain("pa_descent_intro_01", null, playChime: true);
+            PlayDynamicAsCaptain($"pa_descent_temp_{GetTempMacro(destTempC)}", null, playChime: false);
+            PlayDynamicAsCaptain("pa_descent_outro_01", null, playChime: false);
 
             OnCrewMessage?.Invoke("info", LocalizationService.Translate($"PA: Descent update for {destName}.", $"PA: Point sur la descente vers {destName}."), null);
         }
 
-        public void AnnounceApproach(string destName, string metar, int destTempC, DateTime destLocalTime)
-        {
-            if (!_issuedCommands.Contains("PA_Approach"))
-            {
-                _issuedCommands.Add("PA_Approach");
-                OnOperationBonusTriggered?.Invoke(25, "Passenger Announcement: Approach");
-            }
 
-            // 1. Initial Greeting
-            string introFallback = $"Ladies and gentlemen, we've just been cleared for our approach to {destName} and we will be landing shortly.";
-            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/FlightDeck to PA", "EN_Rowan_Approach_ClearedToLand", introFallback, playChime: true);
-
-            // 2. Local Time at Dest
-            _audio?.PlayExactAsCaptain("TO_PA/FlightDeck to PA/EN_Rowan_Welcome_Onboard_Local_Time.mp3", null, playChime: false);
-            int destHour12 = destLocalTime.Hour % 12;
-            if (destHour12 == 0) destHour12 = 12;
-            _audio?.PlayExactAsCaptain($"TO_PA/Time_Minutes/EN_Rowan_{NumberToExactWord(destHour12)}.mp3", null, playChime: false);
-            if (destLocalTime.Minute == 0) {
-                _audio?.PlayExactAsCaptain("TO_PA/Time_Modifiers/EN_Rowan_O_Clock.mp3", null, playChime: false);
-            } else {
-                _audio?.PlayExactAsCaptain($"TO_PA/Time_Minutes/EN_Rowan_{NumberToExactWord(destLocalTime.Minute)}.mp3", null, playChime: false);
-            }
-            string ampm = destLocalTime.Hour < 12 ? "AM" : "PM";
-            _audio?.PlayExactAsCaptain($"TO_PA/Time_Modifiers/EN_Rowan_{ampm}.mp3", null, playChime: false);
-
-            // 3. Weather
-            SequenceWeatherPA(metar, destTempC, isApproach: true, playChime: false);
-
-
-            bool badWeather = metar.Contains(" TS") || metar.Contains(" CB") || metar.Contains(" FG") || metar.Contains(" SN") || metar.Contains(" GR");
-
-            if (!badWeather) {
-                DecreaseAnxiety(20.0);
-            } else {
-                IncreaseAnxiety(10.0, FlightPhase.Approach, false, "Passengers anxious due to poor weather at destination.", 35.0);
-            }
-
-            string notifText = $"PA: We are descending towards {destName}. Cabin crew is preparing for landing.";
-            string notifFr = $"PA: Nous descendons vers {destName}. L'équipage prépare la cabine.";
-            OnCrewMessage?.Invoke("green", LocalizationService.Translate(notifText, notifFr), null);
-        }
 
         public void AnnounceCruise(int altitude, string avgWindComp, string destIcao, string destName, string destMetar, string enrtMetar, int destTempC, DateTime currentLocalTime)
         {
@@ -2347,82 +2443,198 @@ namespace FlightSupervisor.UI.Services
                 OnOperationBonusTriggered?.Invoke(15, "Passenger Announcement: Cruise Update");
             }
 
-            // 1. Initial Greeting (Time of day)
-            string greetingPrefix = "Morn";
-            if (currentLocalTime.Hour >= 12 && currentLocalTime.Hour < 18) greetingPrefix = "Aftn";
-            else if (currentLocalTime.Hour >= 18) greetingPrefix = "Eve";
-
-            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Cruise_Intro", $"EN_Rowan_{greetingPrefix}_", null, playChime: true);
-
-            // 2. Altitude (nearest thousand)
             int roundedAlt = (int)(Math.Round(altitude / 1000.0) * 1000);
-            if (roundedAlt < 30000) roundedAlt = 30000;
+            if (roundedAlt < 20000) roundedAlt = 20000;
             if (roundedAlt > 43000) roundedAlt = 43000;
             
-            // Bug #5 Fix: Resolving TTS fallback by formatting string exactly like actual files (e.g., "EN_Rowan_FL300.mp3")
-            _audio?.PlayExactAsCaptain($"TO_PA/Altitude/EN_Rowan_FL{roundedAlt / 100}.mp3", null, playChime: false);
-
-            // 3. Winds
-            int windSpeed = 0;
-            bool isTailwind = false;
-            bool hasWind = false;
-
-            if (!string.IsNullOrEmpty(avgWindComp) && avgWindComp.Length >= 4)
-            {
-                string type = avgWindComp.Substring(0, 1); // P or M
-                if (int.TryParse(avgWindComp.Substring(1), out windSpeed))
-                {
-                    if (windSpeed >= 20)
-                    {
-                        hasWind = true;
-                        isTailwind = (type == "P");
-                    }
-                }
-            }
-
-            if (hasWind)
-            {
-                string windDirPrefix = isTailwind ? "Tailwind" : "Headwind";
-                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Winds", $"EN_Rowan_{windDirPrefix}_", null, playChime: false);
-
-                // Round speed to nearest 20 
-                int roundedWspd = (int)(Math.Round(windSpeed / 20.0) * 20);
-                if (roundedWspd < 20) roundedWspd = 20;
-                if (roundedWspd > 140) roundedWspd = 140;
-
-                _audio?.PlayExactAsCaptain($"TO_PA/Winds/EN_Rowan_Spd_{roundedWspd}.mp3", null, playChime: false);
-            }
-            else
-            {
-                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Winds", "EN_Rowan_Calm_", null, playChime: false);
-            }
-
-            // 4. Enroute Weather
-            bool hasStorms = enrtMetar.Contains(" TS") || enrtMetar.Contains(" CB");
-            if (hasStorms) {
-                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/EnRoute", "EN_Rowan_Stormy_", null, playChime: false);
-            } else if (enrtMetar.Contains(" RA") || enrtMetar.Contains(" SN") || destMetar.Contains(" TS")) {
-                 _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/EnRoute", "EN_Rowan_Bumpy_", null, playChime: false);
-            } else {
-                _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/EnRoute", "EN_Rowan_Smooth_", null, playChime: false);
-            }
-
-            // 5. Arrival Transition
-            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Arrival", "EN_Rowan_ArrTrans_", null, playChime: false);
-
-            if (!string.IsNullOrEmpty(destIcao)) {
-                _audio?.PlayExactAsCaptain($"TO_PA/ICAO/EN_Rowan_{destIcao}_01.mp3", null, playChime: false);
-            }
-
-            // 6. Destination Weather (reuse weather sequencer)
-            SequenceWeatherPA(destMetar, destTempC, isApproach: true, playChime: false);
-
-            // 7. Outro
-            _audio?.PlayVariantWithPrefixAsCaptain("TO_PA/Cruise_Outro", "EN_Rowan_Outro_", null, playChime: false);
+            PlayDynamicAsCaptain($"pa_cruise_altitude_{roundedAlt}", null, playChime: true);
 
             OnCrewMessage?.Invoke("green", LocalizationService.Translate("PA: Cruise Update (Altitude & Enroute Weather)", "PA: Informations de Croisière (Altitude et météo)"), null);
         }
         
+        private string GetDynamicFeedback(string category, FlightPhase phase)
+        {
+            Random r = new Random();
+            string[] variations;
+            switch (category)
+            {
+                case "LandingBounce":
+                    variations = new[] { 
+                        "Passengers are terrified by the aircraft bouncing!", 
+                        "The harsh bounce upon landing has terrified the cabin.", 
+                        "Passengers let out gasps of fear after the violent bounce.",
+                        "The heavy impact and bounce sent shockwaves through the cabin.",
+                        "A brutal touchdown causing the plane to bounce has sparked panic.",
+                        "People are screaming as the plane bounces violently off the runway!"
+                    };
+                    break;
+                case "MovementNoSeatbelts":
+                    variations = new[] { 
+                        "Passengers are nervous because the aircraft is moving without seatbelts.", 
+                        "Moving the aircraft while the seatbelt sign is off is causing severe confusion.", 
+                        "Some standing passengers nearly fell! Anxiety is spiking.",
+                        "Cabin crew are shouting at passengers to sit down as the aircraft lurches.",
+                        "The unannounced movement caught everyone off guard, causing a brief panic."
+                    };
+                    break;
+                case "ProlongedSeatbelt":
+                    variations = new[] { 
+                        "Anxiety rising due to prolonged seatbelt sign and inability to use restrooms.", 
+                        "Passengers are very uncomfortable and anxious about the endless seatbelt restriction.", 
+                        "The cabin is restless; people desperately need to stretch and use the lavatories.",
+                        "Children are crying as the seatbelt sign remains on indefinitely.",
+                        "Growing frustration as the endless seatbelt restriction causes discomfort."
+                    };
+                    break;
+                case "CloudAnxiety":
+                    if (phase == FlightPhase.Climb || phase == FlightPhase.InitialClimb)
+                        variations = new[] { "Passengers feel uneasy climbing through the thick cloud layer.", "The bumpy ascent through the clouds is raising anxiety.", "Disorientation as the aircraft climbs blindly through thick clouds.", "A grey soup outside the window is making flyers very nervous." };
+                    else if (phase == FlightPhase.Cruise)
+                        variations = new[] { "Flying through persistent clouds is making some passengers nervous.", "Lack of ground visibility in the clouds is causing slight unease.", "The endless expanse of grey clouds outside is causing claustrophobia.", "A long stretch inside the clouds has quieted the cabin nervously." };
+                    else
+                        variations = new[] { "The low visibility and thick clouds during approach are raising anxiety.", "Descending through heavy clouds makes passengers grip their armrests.", "A blind descent into the clouds is terrifying some passengers.", "You can't even see the wings! Approach anxiety is spiking." };
+                    break;
+                case "TakeoffAccel":
+                    variations = new[] { 
+                        "Passengers feel the pressure of takeoff acceleration.", 
+                        "The immense acceleration of takeoff is overwhelming some passengers.", 
+                        "The roar of the engines and sudden speed is causing tension in the cabin.",
+                        "Being pinned to their seats by the raw takeoff power has caused some gasps.",
+                        "The sheer force of the takeoff roll is making nervous flyers shake."
+                    };
+                    break;
+                case "ThrustReduct":
+                    variations = new[] { 
+                        "Thrust reduction felt in cabin. Passengers experienced a brief moment of anxiety.", 
+                        "The sudden engine thrust reduction caused a brief sensation of falling.", 
+                        "A sudden quietness from the engines made some passengers hold their breath.",
+                        "The noticeable drop in engine noise led to panicked whispers.",
+                        "Some passengers gasped as they felt the aircraft temporarily level off."
+                    };
+                    break;
+                case "FlightDelay":
+                    variations = new[] { 
+                        "Passengers are getting anxious because the flight is taking longer than expected.", 
+                        "The prolonged flight time is wearing down passenger patience and comfort.", 
+                        "People are checking their watches; the delay in the air is raising tension.",
+                        "Frustration mounts as the scheduled arrival time passes by.",
+                        "The endlessly stretching flight time is causing cabin-wide fatigue."
+                    };
+                    break;
+                case "HoldingPattern":
+                    variations = new[] { 
+                        "Passengers are anxious because the aircraft is flying in circles.", 
+                        "The continuous holding pattern is causing dizziness and frustration.", 
+                        "Circling around the destination without landing is making the cabin nervous.",
+                        "Looking out the window and seeing the same terrain over and over is causing unease.",
+                        "The endless right turns in the hold are inducing motion sickness."
+                    };
+                    break;
+                case "SevereTurbulenceNoComm":
+                    variations = new[] { 
+                        "Passengers are terrified by severe turbulence and lack of communication from the cockpit.", 
+                        "The violent shaking combined with radio silence has induced sheer panic!", 
+                        "People are screaming; the lack of a reassuring PA is making the severe turbulence unbearable.",
+                        "A massive jolt with no pilot update has convinced some passengers this is the end.",
+                        "The terrifying bumps in dead silence are causing mass panic."
+                    };
+                    break;
+                case "NoticeableTurbulence":
+                    variations = new[] { 
+                        "Anxiety elevated due to noticeable turbulence.", 
+                        "Noticeable turbulence is causing a stir in the cabin.", 
+                        "Passengers are uncomfortable with the continuous bumps.",
+                        "Coffee is spilling; the steady chop is eroding cabin comfort.",
+                        "The constant shaking is making it impossible to relax or sleep."
+                    };
+                    break;
+                case "SteepBank":
+                    variations = new[] { 
+                        "Passengers are anxious due to steep banking maneuvers.", 
+                        "The sharp turn made several passengers grip their armrests tightly.", 
+                        "An unusually steep bank angle has caused a wave of unease in the cabin.",
+                        "Looking straight down at the ground through the window caused a panic.",
+                        "The aggressive turn maneuver triggered gasps from the aisle seats."
+                    };
+                    break;
+                case "DepartureDelay":
+                    variations = new[] { 
+                        $"Anxiety rising due to departure delay ({Math.Round(_currentDelayMinutes)} mins).", 
+                        $"Passengers are growing increasingly frustrated by the {Math.Round(_currentDelayMinutes)} minute delay.", 
+                        $"The extended wait on the ground is causing significant discomfort and tension.",
+                        $"The stagnant cabin air and long delay is boiling over into anger.",
+                        $"Mutterings of complaint echo as the delay continues."
+                    };
+                    break;
+                case "NightFlight":
+                    variations = new[] { 
+                        "Slight unease due to flying late at night.", 
+                        "The pitch black darkness outside the windows makes some passengers nervous.", 
+                        "Flying at this late hour is contributing to a restless cabin atmosphere.",
+                        "The spooky darkness of the red-eye flight is causing unease.",
+                        "It is completely black outside, amplifying any bumps or noises."
+                    };
+                    break;
+                case "LowAltitudeApproach":
+                    variations = new[] { 
+                        "Anxiety rising during low altitude approach.", 
+                        "Flying so low to the ground for an extended period is making passengers nervous.", 
+                        "The ground seems too close! Passengers are eagerly awaiting touchdown.",
+                        "Skimming the treetops for minutes on end is terrifying the window seats.",
+                        "The loud roar of the flaps and low altitude is raising pulses."
+                    };
+                    break;
+                case "TaxiPause":
+                    variations = new[] { 
+                        "Passengers are getting impatient and anxious sitting motionless on the taxiway.", 
+                        "The unexplained stop on the taxiway is causing murmurs of discontent.", 
+                        "Being stuck on the ground without moving is draining passenger morale.",
+                        "The engines are idle but we aren't moving; confusion reigns.",
+                        "People are starting to unbuckle prematurely during this long taxi delay."
+                    };
+                    break;
+                case "CateringShortage":
+                    variations = new[] { 
+                        "Passengers are upset and anxious due to food and water shortages.", 
+                        "The lack of meals has caused anger and anxiety to ripple through the cabin.", 
+                        "Hunger and thirst are leading to open complaints and severe dissatisfaction.",
+                        "A fight almost broke out over the last bottle of water.",
+                        "The missing catering has ruined the flight experience for many."
+                    };
+                    break;
+                case "RepeatedDelayExcuses":
+                    variations = new[] { 
+                        "Passengers are losing patience with the repeated delay excuses.", 
+                        "The captain's repeated apologies are no longer working; anger is rising.", 
+                        "Empty promises about departure times are destroying passenger trust.",
+                        "Another excuse from the flight deck is met with collective groans.",
+                        "Passengers no longer believe the crew; frustration is at an all-time high."
+                    };
+                    break;
+                case "WeatherArr":
+                    variations = new[] { 
+                        "Passengers anxious due to poor weather at destination.", 
+                        "Hearing about the bad weather at the arrival airport has raised concerns.", 
+                        "The forecast for the destination is making passengers nervous about the landing.",
+                        "The PA about thunderstorms at our destination has caused widespread worry.",
+                        "Passengers are dreading a bumpy approach after hearing the weather update."
+                    };
+                    break;
+                case "WeatherDep":
+                    variations = new[] { 
+                        "Passengers anxious due to poor weather at departure.", 
+                        "The heavy rain and poor visibility outside are making passengers uneasy.", 
+                        "Departing in such bad weather conditions has elevated cabin anxiety.",
+                        "The violent wind rocking the plane at the gate is terrifying everyone.",
+                        "Looking at the dark storm clouds before takeoff has rattled their nerves."
+                    };
+                    break;
+                default:
+                    return "Passenger comfort or anxiety levels have changed.";
+            }
+            return variations[r.Next(variations.Length)];
+        }
+
         private void IncreaseAnxiety(double amount, FlightPhase phase, bool isCrisisActive, string reason = null, double? maxAverageCap = null)
         {
             double previousAnxiety = PassengerAnxiety;
@@ -2489,15 +2701,21 @@ namespace FlightSupervisor.UI.Services
             IsSilencePenaltyActive = false;
         }
 
-        public void Reset()
+        public void Reset(bool isTurnaround = false)
         {
             ClearAnxiety();
             
-            State = CabinState.Idle;
-            HasBoardingStarted = false;
+            if (!isTurnaround)
+            {
+                State = CabinState.Idle;
+                HasBoardingStarted = false;
+                _lastBoardingTick = DateTime.MaxValue;
+            }
+
             _hasAnnouncedBoardingComplete = false;
             _hasAnnouncedGalleySecured = false;
-            _lastBoardingTick = DateTime.MaxValue;
+            _issuedCommands.Clear();
+
             _thermalDissatisfactionGauge = 0.0;
             _hasWarnedPushbackNoSeatbelts = false;
             HasPenalizedRefuelingSeatbelts = false;
@@ -2545,6 +2763,7 @@ namespace FlightSupervisor.UI.Services
             _hasTriggeredThrustReductionAnxiety = false;
             HasPenalizedRefuelingSeatbelts = false;
             _actualTakeoffTime = null;
+            
             if (SessionFlightsCompleted == 0 && FirstFlightClean)
             {
                 CateringCompletion = 0.0;
@@ -2571,11 +2790,6 @@ namespace FlightSupervisor.UI.Services
             _lastPhase = FlightPhase.AtGate;
             _comfortSum = 0;
             _comfortSamples = 0;
-            _issuedCommands.Clear();
-            HasBoardingStarted = false;
-            _lastBoardingTick = DateTime.MaxValue;
-            _hasAnnouncedBoardingComplete = false;
-            _hasAnnouncedGalleySecured = false;
         }
         
         private void UpdatePassengerStates(FlightPhase phase, bool isSevere)
@@ -2680,11 +2894,11 @@ namespace FlightSupervisor.UI.Services
                 
                 if (boardedCount == 0 && PassengerManifest.Count > 0)
                 {
-                    _audio?.PlayVariantAsPurser("TO_FD/Checklist_Reports/CabinReady", repEn);
+                    PlayDynamicAsPurser("pnc_cabin_secure_takeoff", repEn, false, "to_fd", false);
                 }
                 else
                 {
-                    _audio?.PlayVariantAsPurser("TO_FD/Status_Reports/BoardingInProgress", repEn);
+                    PlayDynamicAsPurser("pnc_boarding_in_progress", repEn, false, "to_fd", false);
                 }
                 
                 OnCrewMessage?.Invoke("info", LocalizationService.Translate(repEn, repFr), null);
@@ -2697,7 +2911,7 @@ namespace FlightSupervisor.UI.Services
                 string reportEn = "Captain, we're still securing the cabin. We cannot provide a status update right now.";
                 string reportFr = "Commandant, nous sécurisons actuellement la cabine. Impossible de faire un point pour le moment.";
                 
-                _audio?.PlayVariantAsPurser("TO_FD/Status_Reports/SecuringInProgress", reportEn);
+                PlayDynamicAsPurser("pnc_securing_in_progress", reportEn, false, "to_fd", false);
                 OnCrewMessage?.Invoke("warning", LocalizationService.Translate(reportEn, reportFr), null);
                 return true;
             }
@@ -2708,14 +2922,14 @@ namespace FlightSupervisor.UI.Services
         public void PlayCabinReady()
         {
             string repEn = "Cabin checks are complete. We are ready when you are to begin boarding.";
-            TriggerIncomingCabinCall("CabinReady", "TO_FD/Checklist_Reports/CabinReady", repEn);
+            TriggerIncomingCabinCall("CabinReady", "pnc_cabin_secure_takeoff", repEn);
         }
 
         private bool ExecuteStandardFlightReport(FlightPhase phase, bool isCrisisActive)
         {
-            string reportEn = "Cabin is clear and quiet, Captain. Everyone is relaxed.";
-            string reportFr = "La cabine est calme et prête, Commandant. Tout le monde est détendu.";
-            string audioFolder = "TO_FD/Status_Reports/CabinCalm";
+            string reportEn = "Captain, everything is fine in the cabin.";
+            string reportFr = "Commandant, tout se passe bien en cabine.";
+            string macroName = "pnc_calm";
 
             if (State == CabinState.Idle)
             {
@@ -2723,7 +2937,7 @@ namespace FlightSupervisor.UI.Services
                 {
                     reportEn = "We're currently waiting for the seatbelt sign to be turned off so we can prepare for service.";
                     reportFr = "Nous attendons l'extinction de la consigne des ceintures pour pouvoir préparer le service.";
-                    audioFolder = "TO_FD/Status_Reports/CabinCalm"; // TTS fallback
+                    macroName = "pnc_calm";
                 }
                 else if (phase == FlightPhase.Cruise)
                 {
@@ -2731,26 +2945,26 @@ namespace FlightSupervisor.UI.Services
                     {
                         reportEn = "We are organizing the galleys for the upcoming service.";
                         reportFr = "Nous organisons les galleys en vue du service à bord.";
-                        audioFolder = "TO_FD/Status_Reports/CabinCalm"; // TTS fallback
+                        macroName = "pnc_calm";
                     }
                     else if (InFlightServiceProgress >= 100)
                     {
                         reportEn = "The meal service is completed and we've cleared the trays.";
                         reportFr = "Le service est terminé et les plateaux ont été débarrassés.";
-                        audioFolder = "TO_FD/Status_Reports/ServiceFinished";
+                        macroName = "pnc_calm";
                     }
                 }
                 else if (phase == FlightPhase.Descent)
                 {
                     reportEn = "We are doing a final pass to collect trash and prepare the cabin for arrival.";
                     reportFr = "Nous faisons un dernier passage pour débarrasser les détritus et préparer l'arrivée.";
-                    audioFolder = "TO_FD/Status_Reports/CabinCalm"; // TTS fallback
+                    macroName = "pnc_calm";
                 }
                 else if (phase == FlightPhase.TaxiIn)
                 {
                     reportEn = "Everyone is seated and waiting to arrive at the gate, Captain.";
                     reportFr = "Tout le monde est assis et attend l'arrivée au point de stationnement.";
-                    audioFolder = "TO_FD/Status_Reports/CabinCalm"; // TTS fallback
+                    macroName = "pnc_calm";
                 }
             }
 
@@ -2759,53 +2973,53 @@ namespace FlightSupervisor.UI.Services
             {
                 reportEn = "We're currently deboarding the passengers. Almost done back here.";
                 reportFr = "Le débarquement est en cours. Nous avons presque terminé.";
-                audioFolder = "TO_FD/Status_Reports/CabinCalm"; // TTS fallback
+                macroName = "pnc_calm";
             }
             else if (State == CabinState.Boarding)
             {
-                reportEn = "We are still getting passengers settled in their seats, Captain.";
-                reportFr = "Nous installons encore les passagers à leurs places, Commandant.";
-                audioFolder = "TO_FD/Status_Reports/BoardingInProgress";
+                reportEn = "We are waiting for the boarding to complete, Captain.";
+                reportFr = "Nous attendons la fin de l'embarquement, Commandant.";
+                macroName = "pnc_boarding_in_progress";
             }
             else if (State == CabinState.SecuringForTakeoff || (_isSecuring && phase == FlightPhase.TaxiOut))
             {
-                reportEn = "Captain, we haven't finished securing the galleys yet, we need a few more minutes!";
-                reportFr = "Commandant, nous n'avons pas fini de préparer la cabine, il nous faut quelques minutes de plus !";
-                audioFolder = "TO_FD/Status_Reports/SecuringInProgress";
+                reportEn = "Captain, we are currently securing the cabin...";
+                reportFr = "Commandant, nous sécurisons actuellement la cabine...";
+                macroName = "pnc_securing_in_progress";
             }
             else if (State == CabinState.TakeoffSecured)
             {
                 reportEn = "Cabin is fully secured and ready for takeoff. Everyone is seated.";
                 reportFr = "La cabine est entièrement préparée et prête pour le décollage.";
-                audioFolder = "TO_FD/Status_Reports/CabinSecured";
+                macroName = "pnc_cabin_secure_takeoff";
             }
             else if (State == CabinState.ServingMeals)
             {
                 if (InFlightServiceProgress < 20) {
                     reportEn = "We've just started preparing the service carts.";
                     reportFr = "Nous venons de commencer la préparation des chariots de service.";
-                    audioFolder = "TO_FD/Status_Reports/ServiceStarting";
+                    macroName = "pnc_calm";
                 } else if (InFlightServiceProgress < 80) {
                     reportEn = "The meal service is in full swing. Everyone seems satisfied.";
                     reportFr = "Le service des repas bat son plein. Tout le monde semble satisfait.";
-                    audioFolder = "TO_FD/Status_Reports/ServiceInProgress";
+                    macroName = "pnc_calm";
                 } else {
                     reportEn = "We are currently picking up the trays and clearing the aisles.";
                     reportFr = "Nous ramassons actuellement les plateaux et débarrassons les allées.";
-                    audioFolder = "TO_FD/Status_Reports/ServiceFinished";
+                    macroName = "pnc_calm";
                 }
             }
             else if (State == CabinState.SecuringForLanding || (_isSecuring && (phase == FlightPhase.Descent || phase == FlightPhase.Approach)))
             {
-                reportEn = "Galley is being secured, and we're starting the final cabin check.";
-                reportFr = "Le galley est en cours de sécurisation, nous débutons la vérification finale.";
-                audioFolder = "TO_FD/Status_Reports/SecuringInProgress";
+                reportEn = "Captain, we are currently securing the cabin...";
+                reportFr = "Commandant, nous sécurisons actuellement la cabine...";
+                macroName = "pnc_securing_in_progress";
             }
             else if (State == CabinState.LandingSecured)
             {
                 reportEn = "Cabin is secure for landing. The crew is seated.";
                 reportFr = "La cabine est sécurisée pour l'atterrissage. L'équipage est assis.";
-                audioFolder = "TO_FD/Status_Reports/CabinSecured";
+                macroName = "pnc_cabin_secure_landing";
             }
 
             // Situational & Crisis Overrides (Highest Priority)
@@ -2813,22 +3027,28 @@ namespace FlightSupervisor.UI.Services
             {
                 reportEn = "Captain, the passengers are panicking! What's going on?!";
                 reportFr = "Commandant, les passagers paniquent ! Que se passe-t-il ?!";
-                audioFolder = "TO_FD/Status_Reports/AnxiousPax";
+                macroName = "pnc_uncomfortable_pax";
             }
             else if (PassengerManifest.Exists(p => p != null && p.IsInjured))
             {
                 var injured = PassengerManifest.FindAll(p => p != null && p.IsInjured);
                 reportEn = $"We are still tending to {injured.Count} injured passenger(s). The mood is very somber.";
                 reportFr = $"Nous nous occupons toujours de {injured.Count} passager(s) blessé(s). L'ambiance est très lourde.";
-                audioFolder = "TO_FD/Status_Reports/SevereTurbulence";
+                macroName = "pnc_uncomfortable_pax";
             }
             else if (WasteLevel > 80.0)
             {
-                reportEn = "Captain, the passengers are getting uncomfortable. The lavatories are becoming an issue with the waste tanks almost full.";
-                reportFr = "Commandant, les passagers commencent à se plaindre des toilettes. Les réservoirs sont presque pleins.";
-                audioFolder = "TO_FD/Status_Reports/UncomfortablePax";
+                reportEn = "Captain, the waste tanks are full...";
+                reportFr = "Commandant, les cuves à déchets sont pleines...";
+                macroName = "pnc_uncomfortable_pax";
             }
-            else if (audioFolder == "TO_FD/Status_Reports/CabinCalm" || audioFolder == "TO_FD/Status_Reports/ServiceFinished") // Only apply gauge logic if calm or service finished
+            else if (CabinCleanliness < 40.0)
+            {
+                reportEn = "Captain, the passengers are complaining about the absolutely disgusting state...";
+                reportFr = "Commandant, les passagers se plaignent de l'état absolument dégoûtant...";
+                macroName = "pnc_cabin_dirty";
+            }
+            else if (macroName == "pnc_calm") 
             {
                 if (_currentDelayMinutes > 15 && (phase == FlightPhase.AtGate || phase == FlightPhase.Turnaround))
                 {
@@ -2842,7 +3062,7 @@ namespace FlightSupervisor.UI.Services
                         reportEn = "Captain, passengers are starting to ask questions about the delay. It would be good to update them.";
                         reportFr = "Commandant, les passagers commencent à poser des questions sur le retard. Il serait bon de les informer.";
                     }
-                    audioFolder = "TO_FD/Status_Reports/AnxiousPax";
+                    macroName = "pnc_uncomfortable_pax";
                 }
                 else if (PassengerAnxiety > 50.0)
                 {
@@ -2850,19 +3070,19 @@ namespace FlightSupervisor.UI.Services
                     {
                         reportEn = "It's been quite bumpy, and the cabin is feeling very tense and anxious right now.";
                         reportFr = "Ça a secoué pas mal, l'ambiance est très tendue et anxieuse en cabine.";
-                        audioFolder = "TO_FD/Status_Reports/TurbulenceReport";
+                        macroName = "pnc_uncomfortable_pax";
                     }
                     else if (_hasTriggeredCateringComplaint)
                     {
                         reportEn = "People are very unhappy about not getting their meals yet. It's tough back here.";
                         reportFr = "Les gens sont très mécontents de ne pas avoir eu de repas. C'est difficile à l'arrière.";
-                        audioFolder = "TO_FD/Status_Reports/AnxiousPax";
+                        macroName = "pnc_uncomfortable_pax";
                     }
                     else
                     {
                         reportEn = "Note that some passengers are quite anxious about the flight.";
                         reportFr = "À noter que certains passagers sont assez anxieux par rapport au vol.";
-                        audioFolder = "TO_FD/Status_Reports/AnxiousPax";
+                        macroName = "pnc_uncomfortable_pax";
                     }
                 }
                 else if (_thermalDissatisfactionGauge > 30.0)
@@ -2877,22 +3097,23 @@ namespace FlightSupervisor.UI.Services
                         reportEn = "A few complaints about the cold. Passengers are complaining about the general comfort level.";
                         reportFr = "Quelques plaintes concernant le froid. Les passagers se plaignent du confort.";
                     }
-                    audioFolder = "TO_FD/Status_Reports/UncomfortablePax";
+                    macroName = "pnc_uncomfortable_pax";
                 }
                 else if (ComfortLevel < 40.0)
                 {
                     reportEn = "Passengers are complaining about the general comfort level.";
                     reportFr = "Les passagers se plaignent du niveau de confort général.";
-                    audioFolder = "TO_FD/Status_Reports/UncomfortablePax";
+                    macroName = "pnc_uncomfortable_pax";
                 }
                 else
                 {
-                    reportEn = "Cabin is clear and quiet, Captain. Everyone is relaxed.";
-                    reportFr = "Cabine calme et tranquille, Commandant. Tout le monde est détendu.";
+                    reportEn = "Captain, everything is fine in the cabin.";
+                    reportFr = "Commandant, tout se passe bien en cabine.";
+                    macroName = "pnc_calm";
                 }
             }
 
-            _audio?.PlayVariantAsPurser(audioFolder, reportEn);
+            PlayDynamicAsPurser(macroName, reportEn, false, "to_fd", false);
             OnCrewMessage?.Invoke("info", LocalizationService.Translate(reportEn, reportFr), null);
             return true;
         }
@@ -2916,7 +3137,7 @@ namespace FlightSupervisor.UI.Services
 
                     if (addAnx > 0)
                     {
-                        IncreaseAnxiety(addAnx, phase, false, "Passengers anxious due to poor weather at departure.", 30.0);
+                        IncreaseAnxiety(addAnx, phase, false, GetDynamicFeedback("WeatherDep", phase), 30.0);
                         _hasAppliedDepartureWeatherAnxiety = true;
                     }
                 }
@@ -2949,6 +3170,100 @@ namespace FlightSupervisor.UI.Services
                 p.IsBoarded = false;
                 p.IsSeatbeltFastened = false; // They definitely unfasten to leave
             }
+        }
+
+        public void TriggerTurnaroundUnloadingCompleteAudio()
+        {
+            PlayDynamicAsPurser("pnc_turnaround_unloading_complete", 
+                LocalizationService.Translate("Captain, the cabin and cargo are now completely empty. We are ready for the next flight.", "Commandant, la cabine et les soutes sont vides. Nous sommes prêts pour le prochain vol."), 
+                false, "to_fd", false);
+        }
+
+        private void PlayDynamicAsCaptain(string filename, string fallbackText, bool playChime = true)
+        {
+            string subFolder = GetVoiceStudioSubfolder(filename);
+            
+            string routing = "to_pa";
+            if (filename == "pa_nearing_top_descent" || filename == "pa_arm_doors" || filename == "pa_disarm_doors" || filename == "pa_prepare_landing" || filename == "pa_prepare_takeoff" || filename == "pa_seats_takeoff" || filename == "pa_seats_landing")
+                routing = "to_pnc";
+                
+            string exactPath = $"airlines/captain/{ActiveCaptainLanguage}/{ActiveCaptainVoiceId}/{routing}/{subFolder}/{filename}.wav";
+            string basePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "assets", "sounds", "airlines", "captain", ActiveCaptainLanguage, ActiveCaptainVoiceId, routing, subFolder);
+            string folderRel = $"airlines/captain/{ActiveCaptainLanguage}/{ActiveCaptainVoiceId}/{routing}/{subFolder}";
+            
+            try
+            {
+                string fullPathWav = System.IO.Path.Combine(basePath, filename + ".wav");
+                string fullPathMp3 = System.IO.Path.Combine(basePath, filename + ".mp3");
+
+                if (!System.IO.File.Exists(fullPathWav) && !System.IO.File.Exists(fullPathMp3))
+                {
+                    string normAirline = ActiveAirlineId?.ToLower() ?? "generic";
+                    if (normAirline.Contains("eju") || normAirline.Contains("ezs") || normAirline.Contains("ezy") || normAirline.Contains("easyjet")) normAirline = "easyjet";
+                    else if (normAirline.Contains("afr") || normAirline.Contains("air_france") || normAirline.Contains("airfrance")) normAirline = "airfrance";
+
+                    string destIcao = CurrentFlight?.Destination?.IcaoCode?.ToLower() ?? "generic";
+
+                    string genericDest = filename.Replace($"_{destIcao}", "_generic");
+                    string genericAir = filename.Replace($"_{normAirline}", "_generic");
+                    string genericBoth = genericAir.Replace($"_{destIcao}", "_generic");
+
+                    if (System.IO.File.Exists(System.IO.Path.Combine(basePath, genericAir + ".wav"))) { exactPath = exactPath.Replace(filename, genericAir); filename = genericAir; }
+                    else if (System.IO.File.Exists(System.IO.Path.Combine(basePath, genericDest + ".wav"))) { exactPath = exactPath.Replace(filename, genericDest); filename = genericDest; }
+                    else if (System.IO.File.Exists(System.IO.Path.Combine(basePath, genericBoth + ".wav"))) { exactPath = exactPath.Replace(filename, genericBoth); filename = genericBoth; }
+                }
+                
+                // If it STILL doesn't exist, fallback to Rowan as a safety net
+                if (!System.IO.File.Exists(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "assets", "sounds", exactPath.Replace('/', '\\'))) && !System.IO.File.Exists(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "assets", "sounds", exactPath.Replace(".wav", ".mp3").Replace('/', '\\'))))
+                {
+                    exactPath = exactPath.Replace($"{ActiveCaptainLanguage}/{ActiveCaptainVoiceId}", "gb/rowan_(gb)");
+                }
+            }
+            catch { }
+
+            _audio?.PlayVariantWithPrefixAsCaptain(folderRel, filename, fallbackText, playChime);
+        }
+
+        private void PlayDynamicAsPurser(string filename, string fallbackText, bool playChime = true, string routing = "to_pa", bool isVariant = false)
+        {
+            string subFolder = GetVoiceStudioSubfolder(filename);
+            
+            if (isVariant)
+            {
+                string folderRel = $"airlines/pnc/{ActivePncLanguage}/{ActivePncVoiceId}/{routing}/{subFolder}";
+                _audio?.PlayVariantAsPurser(folderRel, fallbackText, filename, playChime);
+            }
+            else
+            {
+                string folderRel = $"airlines/pnc/{ActivePncLanguage}/{ActivePncVoiceId}/{routing}/{subFolder}";
+                _audio?.PlayVariantAsPurser(folderRel, fallbackText, filename, playChime);
+            }
+        }
+
+        private string GetVoiceStudioSubfolder(string fileName)
+        {
+            fileName = fileName.ToLower();
+            if (fileName.StartsWith("alt_") || fileName.StartsWith("pa_cruise_alt")) return "altitudes";
+            if (fileName.StartsWith("temp_") || fileName.StartsWith("pa_descent_temp") || fileName.StartsWith("pa_block_temp")) return "temperatures";
+            if (fileName.StartsWith("time_") || fileName.StartsWith("pa_welcome_flight_time") || fileName.StartsWith("pa_arrival_time") || fileName.StartsWith("pnc_time_") || fileName.StartsWith("hour_") || fileName.StartsWith("num_") || fileName.StartsWith("pnc_block_")) return "times";
+            if (fileName.StartsWith("dest_") || fileName.StartsWith("pa_bound_for") || fileName.StartsWith("pnc_arr_dest_")) return "destinations";
+            if (fileName.StartsWith("dep_")) return "departures";
+            if (fileName.StartsWith("airline_")) return "airlines";
+            if (fileName.Contains("delay"))
+            {
+                if (fileName.Contains("atc")) return "delay/ATC";
+                if (fileName.Contains("boarding")) return "delay/Boarding";
+                if (fileName.Contains("ground") || fileName.Contains("groundops")) return "delay/GroundOps";
+                if (fileName.Contains("tech")) return "delay/Technical";
+                if (fileName.Contains("weather")) return "delay/Weather";
+                return "delay/General";
+            }
+            if (fileName.Contains("weather") || fileName.Contains("turbulence")) return "weather";
+            if (fileName.Contains("welcome") || fileName.Contains("boarding")) return "boarding";
+            if (fileName.StartsWith("pnc_arrival_outro")) return "general";
+            if (fileName.StartsWith("pa_prepare_takeoff") || fileName.StartsWith("pa_prepare_landing") || fileName.StartsWith("pa_seats_takeoff") || fileName.StartsWith("pa_seats_landing")) return "general";
+            if (fileName.Contains("descent") || fileName.Contains("landing") || fileName.Contains("arrival")) return "approach";
+            return "general";
         }
     }
 }

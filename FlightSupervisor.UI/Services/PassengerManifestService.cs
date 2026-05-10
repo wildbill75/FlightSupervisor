@@ -30,7 +30,7 @@ namespace FlightSupervisor.UI.Services
     {
         private Random _rnd = new Random();
 
-        public ManifestData GenerateManifest(SimBriefResponse plan, PilotProfile profile = null)
+        public ManifestData GenerateManifest(SimBriefResponse plan, PilotProfile profile = null, string purserGender = null, List<CrewMember> activeCrew = null)
         {
             var manifest = new ManifestData();
 
@@ -47,7 +47,14 @@ namespace FlightSupervisor.UI.Services
             if (maxPax <= 0 || maxPax < paxCount) maxPax = paxCount;
 
             // --- FLIGHT CREW ---
-            GenerateCrew(manifest, maxPax, plan?.Aircraft?.BaseType ?? plan?.Aircraft?.IcaoCode ?? "", plan?.Origin?.IcaoCode ?? "", plan?.General?.Airline ?? "", profile);
+            if (activeCrew != null && activeCrew.Count > 0)
+            {
+                manifest.FlightCrew = new List<CrewMember>(activeCrew);
+            }
+            else
+            {
+                GenerateCrew(manifest, maxPax, plan?.Aircraft?.BaseType ?? plan?.Aircraft?.IcaoCode ?? "", plan?.Origin?.IcaoCode ?? "", plan?.General?.Airline ?? "", profile, purserGender);
+            }
 
             // --- PASSENGERS ---
             if (paxCount > 0)
@@ -58,36 +65,42 @@ namespace FlightSupervisor.UI.Services
             return manifest;
         }
 
-        private void GenerateCrew(ManifestData manifest, int maxPax, string aircraftType, string originIcao, string airline, PilotProfile profile)
+        private void GenerateCrew(ManifestData manifest, int maxPax, string aircraftType, string originIcao, string airline, PilotProfile profile, string purserGender = null)
         {
             int cabinCrewCount = Math.Max(1, (int)Math.Ceiling(maxPax / 50.0));
 
             // Hardcoded overrides for common aircraft types
-            if (aircraftType == "A319" || aircraftType == "B737") cabinCrewCount = Math.Max(cabinCrewCount, 3);
-            else if (aircraftType == "A320" || aircraftType == "B738") cabinCrewCount = Math.Max(cabinCrewCount, 4);
-            else if (aircraftType == "A321" || aircraftType == "B739") cabinCrewCount = Math.Max(cabinCrewCount, 5);
-            else if (aircraftType == "A333" || aircraftType == "A339" || aircraftType == "B788") cabinCrewCount = Math.Max(cabinCrewCount, 6);
-            else if (aircraftType == "B77W" || aircraftType == "A359" || aircraftType == "A35K") cabinCrewCount = Math.Max(cabinCrewCount, 8);
+            if (!string.IsNullOrEmpty(aircraftType))
+            {
+                if (aircraftType.StartsWith("A319") || aircraftType.StartsWith("B737")) cabinCrewCount = Math.Max(cabinCrewCount, 3);
+                else if (aircraftType.StartsWith("A321") || aircraftType.StartsWith("B739")) cabinCrewCount = Math.Max(cabinCrewCount, 5);
+                else if (aircraftType.StartsWith("A32") || aircraftType.StartsWith("A20N") || aircraftType.StartsWith("B738")) cabinCrewCount = Math.Max(cabinCrewCount, 4);
+                else if (aircraftType.StartsWith("A33") || aircraftType.StartsWith("B78") || aircraftType.StartsWith("A34")) cabinCrewCount = Math.Max(cabinCrewCount, 6);
+                else if (aircraftType.StartsWith("B77") || aircraftType.StartsWith("A35") || aircraftType.StartsWith("A38") || aircraftType.StartsWith("B74")) cabinCrewCount = Math.Max(cabinCrewCount, 8);
+            }
 
             int totalCrew = cabinCrewCount + 2;
             string crewNat = GetAirlineNationality(airline, originIcao);
-            var crewNames = GenerateNames(crewNat, totalCrew);
+            
+            // Generate names individually so we can force purser gender
+            string captainName = GenerateNames(crewNat, 1)[0];
+            string firstOfficerName = GenerateNames(crewNat, 1)[0];
+            string purserName = GenerateNames(crewNat, 1, purserGender)[0];
 
-            string captainName = crewNames[0];
             if (profile != null && !string.IsNullOrWhiteSpace(profile.FirstName))
             {
                 captainName = $"{profile.FirstName} {profile.LastName}".Trim();
             }
 
             manifest.FlightCrew.Add(new CrewMember { Role = "Captain", Name = captainName });
-            manifest.FlightCrew.Add(new CrewMember { Role = "First Officer", Name = crewNames[1] });
+            manifest.FlightCrew.Add(new CrewMember { Role = "First Officer", Name = firstOfficerName });
 
             if (cabinCrewCount > 0)
-                manifest.FlightCrew.Add(new CrewMember { Role = "Purser", Name = crewNames[2] });
+                manifest.FlightCrew.Add(new CrewMember { Role = "Purser", Name = purserName });
 
             for (int i = 3; i < totalCrew; i++)
             {
-                manifest.FlightCrew.Add(new CrewMember { Role = "Flight Attendant", Name = crewNames[i] });
+                manifest.FlightCrew.Add(new CrewMember { Role = "Flight Attendant", Name = GenerateNames(crewNat, 1)[0] });
             }
         }
 
@@ -193,7 +206,7 @@ namespace FlightSupervisor.UI.Services
             return list;
         }
 
-        private string GetAirlineNationality(string airlineIcao, string departureIcao)
+        public string GetAirlineNationality(string airlineIcao, string departureIcao)
         {
             if (string.IsNullOrEmpty(airlineIcao)) return GetRegionFromIcao(departureIcao);
 
@@ -245,12 +258,17 @@ namespace FlightSupervisor.UI.Services
             };
         }
 
-        private List<string> GenerateNames(string nationality, int count)
+        private List<string> GenerateNames(string nationality, int count, string gender = null)
         {
-            var (firstNames, lastNames) = GetNameDictionaries(nationality);
+            var (maleFirstNames, femaleFirstNames, lastNames) = GetNameDictionaries(nationality);
             var result = new List<string>();
             for (int i = 0; i < count; i++)
             {
+                string[] firstNames;
+                if (gender == "Male") firstNames = maleFirstNames;
+                else if (gender == "Female") firstNames = femaleFirstNames;
+                else firstNames = _rnd.Next(2) == 0 ? maleFirstNames : femaleFirstNames;
+
                 string first = firstNames[_rnd.Next(firstNames.Length)];
                 string last = lastNames[_rnd.Next(lastNames.Length)];
                 result.Add($"{first} {last}");
@@ -258,41 +276,48 @@ namespace FlightSupervisor.UI.Services
             return result;
         }
 
-        private (string[], string[]) GetNameDictionaries(string nat)
+        private (string[], string[], string[]) GetNameDictionaries(string nat)
         {
-            string[] fFR = { "Jean", "Pierre", "Marie", "Camille", "Antoine", "Julien", "Sophie", "Lucie", "Thomas", "Paul", "Hugo", "Chloé", "Léa", "Arthur", "Mathilde" };
+            string[] fFR_M = { "Jean", "Pierre", "Antoine", "Julien", "Thomas", "Paul", "Hugo", "Arthur" };
+            string[] fFR_F = { "Marie", "Camille", "Sophie", "Lucie", "Chloé", "Léa", "Mathilde" };
             string[] lFR = { "Martin", "Bernard", "Thomas", "Petit", "Richard", "Durand", "Dubois", "Moreau", "Laurent", "Simon", "Michel", "Lefebvre", "Leroy" };
 
-            string[] fUK = { "James", "Oliver", "Harry", "George", "Noah", "Jack", "Amelia", "Olivia", "Isla", "Emily", "Poppy", "Ava", "Isabella", "Jessica", "Lily" };
+            string[] fUK_M = { "James", "Oliver", "Harry", "George", "Noah", "Jack" };
+            string[] fUK_F = { "Amelia", "Olivia", "Isla", "Emily", "Poppy", "Ava", "Isabella", "Jessica", "Lily" };
             string[] lUK = { "Smith", "Jones", "Williams", "Taylor", "Brown", "Davies", "Evans", "Wilson", "Thomas", "Roberts", "Johnson", "Lewis", "Walker" };
 
-            string[] fUS = { "John", "Michael", "David", "William", "James", "Emma", "Olivia", "Ava", "Isabella", "Sophia", "Mia", "Charlotte", "Amelia", "Harper", "Evelyn" };
+            string[] fUS_M = { "John", "Michael", "David", "William", "James" };
+            string[] fUS_F = { "Emma", "Olivia", "Ava", "Isabella", "Sophia", "Mia", "Charlotte", "Amelia", "Harper", "Evelyn" };
             string[] lUS = { "Smith", "Johnson", "Williams", "Brown", "Jones", "Miller", "Davis", "Garcia", "Rodriguez", "Wilson", "Martinez", "Anderson", "Taylor" };
             
-            string[] fES = { "Jose", "Antonio", "Juan", "Manuel", "Francisco", " Мария", "Carmen", "Ana", "Isabel", "Laura", "Carlos", "David", "Javier", "Daniel" };
+            string[] fES_M = { "Jose", "Antonio", "Juan", "Manuel", "Francisco", "Carlos", "David", "Javier", "Daniel" };
+            string[] fES_F = { "Maria", "Carmen", "Ana", "Isabel", "Laura" }; // Fixed cyrillic M to Maria
             string[] lES = { "Garcia", "Gonzalez", "Rodriguez", "Fernandez", "Lopez", "Martinez", "Sanchez", "Perez", "Gomez", "Martin", "Jimenez", "Ruiz" };
 
-            string[] fDE = { "Maximilian", "Alexander", "Paul", "Leon", "Louis", "Mia", "Emma", "Hannah", "Sofia", "Anna", "Lukas", "Felix", "David" };
+            string[] fDE_M = { "Maximilian", "Alexander", "Paul", "Leon", "Louis", "Lukas", "Felix", "David" };
+            string[] fDE_F = { "Mia", "Emma", "Hannah", "Sofia", "Anna" };
             string[] lDE = { "Müller", "Schmidt", "Schneider", "Fischer", "Weber", "Meyer", "Wagner", "Becker", "Schulz", "Hoffmann", "Schäfer" };
 
-            string[] fIT = { "Francesco", "Alessandro", "Lorenzo", "Leonardo", "Andrea", "Sofia", "Aurora", "Giulia", "Ginevra", "Alice", "Matteo", "Gabriele" };
+            string[] fIT_M = { "Francesco", "Alessandro", "Lorenzo", "Leonardo", "Andrea", "Matteo", "Gabriele" };
+            string[] fIT_F = { "Sofia", "Aurora", "Giulia", "Ginevra", "Alice" };
             string[] lIT = { "Rossi", "Russo", "Ferrari", "Esposito", "Bianchi", "Romano", "Colombo", "Ricci", "Marino", "Greco", "Bruno", "Gallo" };
 
             // Default mix
-            string[] fINT = fFR.Concat(fUK).Concat(fUS).Concat(fES).Concat(fDE).Concat(fIT).ToArray();
+            string[] fINT_M = fFR_M.Concat(fUK_M).Concat(fUS_M).Concat(fES_M).Concat(fDE_M).Concat(fIT_M).ToArray();
+            string[] fINT_F = fFR_F.Concat(fUK_F).Concat(fUS_F).Concat(fES_F).Concat(fDE_F).Concat(fIT_F).ToArray();
             string[] lINT = lFR.Concat(lUK).Concat(lUS).Concat(lES).Concat(lDE).Concat(lIT).ToArray();
 
             return nat switch
             {
-                "FR" => (fFR, lFR),
-                "UK" => (fUK, lUK),
-                "US" => (fUS, lUS),
-                "CA" => (fUS, lUS), // roughly matching generic anglo/US for ease
-                "ES" => (fES, lES),
-                "DE" => (fDE, lDE),
-                "IT" => (fIT, lIT),
-                "EU" => (fINT, lINT), // General European mix
-                _ => (fINT, lINT)
+                "FR" => (fFR_M, fFR_F, lFR),
+                "UK" => (fUK_M, fUK_F, lUK),
+                "US" => (fUS_M, fUS_F, lUS),
+                "CA" => (fUS_M, fUS_F, lUS), // roughly matching generic anglo/US for ease
+                "ES" => (fES_M, fES_F, lES),
+                "DE" => (fDE_M, fDE_F, lDE),
+                "IT" => (fIT_M, fIT_F, lIT),
+                "EU" => (fINT_M, fINT_F, lINT), // General European mix
+                _ => (fINT_M, fINT_F, lINT)
             };
         }
     }
